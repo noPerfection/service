@@ -4,7 +4,7 @@ package categorizer
 import (
 	"github.com/blocklords/gosds/message"
 	"github.com/blocklords/gosds/remote"
-	"github.com/blocklords/gosds/spaghetti"
+	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
 )
 
 // The Smartcontract Event Log
@@ -30,7 +30,7 @@ func NewLog(log string, output map[string]interface{}) *Log {
 }
 
 // Add the metadata such as transaction id and log index from spaghetti data
-func (log *Log) AddMetadata(spaghetti_log *spaghetti.Log) *Log {
+func (log *Log) AddMetadata(spaghetti_log *spaghetti_log.Log) *Log {
 	log.Txid = spaghetti_log.Txid
 	log.BlockNumber = spaghetti_log.BlockNumber
 	log.BlockTimestamp = spaghetti_log.BlockTimestamp

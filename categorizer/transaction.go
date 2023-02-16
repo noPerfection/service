@@ -3,7 +3,7 @@ package categorizer
 import (
 	"github.com/blocklords/gosds/message"
 	"github.com/blocklords/gosds/remote"
-	"github.com/blocklords/gosds/spaghetti"
+	spaghetti_transaction "github.com/blocklords/gosds/spaghetti/transaction"
 )
 
 type Transaction struct {
@@ -112,7 +112,7 @@ func ParseTransaction(blob map[string]interface{}) (*Transaction, error) {
 }
 
 // Add the metadata such as transaction address from the Spaghetti transaction
-func (transaction *Transaction) AddMetadata(spaghetti_transaction *spaghetti.Transaction) *Transaction {
+func (transaction *Transaction) AddMetadata(spaghetti_transaction *spaghetti_transaction.Transaction) *Transaction {
 	transaction.Txid = spaghetti_transaction.Txid
 	transaction.TxIndex = spaghetti_transaction.TxIndex
 	transaction.TxFrom = spaghetti_transaction.TxFrom

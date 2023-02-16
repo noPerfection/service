@@ -1,29 +1,12 @@
-package spaghetti
+package block
 
 import (
-	"strings"
-
 	"github.com/blocklords/gosds/message"
 	"github.com/blocklords/gosds/remote"
+
+	"github.com/blocklords/gosds/spaghetti/log"
+	"github.com/blocklords/gosds/spaghetti/transaction"
 )
-
-type Block struct {
-	NetworkId      string
-	BlockNumber    uint64
-	BlockTimestamp uint64
-	Transactions   []*Transaction
-	Logs           []*Log
-}
-
-func NewBlock(network_id string, block_number uint64, block_timestamp uint64, transactions []*Transaction, logs []*Log) *Block {
-	return &Block{
-		NetworkId:      network_id,
-		BlockNumber:    block_number,
-		BlockTimestamp: block_timestamp,
-		Transactions:   transactions,
-		Logs:           logs,
-	}
-}
 
 // Returns the earliest number in the cache for a given network id
 func RemoteBlockNumberCached(socket *remote.Socket, network_id string) (uint64, uint64, error) {
@@ -71,7 +54,7 @@ func RemoteBlockMintedTime(socket *remote.Socket, networkId string, blockNumber 
 	return message.GetUint64(parameters, "block_timestamp")
 }
 
-func RemoteBlockRange(socket *remote.Socket, networkId string, address string, from uint64, to uint64) (uint64, []*Transaction, []*Log, error) {
+func RemoteBlockRange(socket *remote.Socket, networkId string, address string, from uint64, to uint64) (uint64, []*transaction.Transaction, []*log.Log, error) {
 	request := message.Request{
 		Command: "block_get_range",
 		Parameters: map[string]interface{}{
@@ -102,18 +85,18 @@ func RemoteBlockRange(socket *remote.Socket, networkId string, address string, f
 		return 0, nil, nil, err
 	}
 
-	transactions := make([]*Transaction, len(raw_transactions))
+	transactions := make([]*transaction.Transaction, len(raw_transactions))
 	for i, raw := range raw_transactions {
-		tx, err := ParseTransaction(raw)
+		tx, err := transaction.NewFromMap(raw)
 		if err != nil {
 			return 0, nil, nil, err
 		}
 		transactions[i] = tx
 	}
 
-	logs := make([]*Log, len(raw_logs))
+	logs := make([]*log.Log, len(raw_logs))
 	for i, raw := range raw_logs {
-		l, err := ParseLog(raw)
+		l, err := log.New(raw)
 		if err != nil {
 			return 0, nil, nil, err
 		}
@@ -161,18 +144,18 @@ func RemoteBlock(socket *remote.Socket, network_id string, block_number uint64, 
 		return false, nil, err
 	}
 
-	transactions := make([]*Transaction, len(raw_transactions))
+	transactions := make([]*transaction.Transaction, len(raw_transactions))
 	for i, raw := range raw_transactions {
-		tx, err := ParseTransaction(raw)
+		tx, err := transaction.NewFromMap(raw)
 		if err != nil {
 			return false, nil, err
 		}
 		transactions[i] = tx
 	}
 
-	logs := make([]*Log, len(raw_logs))
+	logs := make([]*log.Log, len(raw_logs))
 	for i, raw := range raw_logs {
-		l, err := ParseLog(raw)
+		l, err := log.New(raw)
 		if err != nil {
 			return false, nil, err
 		}
@@ -180,24 +163,4 @@ func RemoteBlock(socket *remote.Socket, network_id string, block_number uint64, 
 	}
 
 	return cached, NewBlock(network_id, block_number, timestamp, transactions, logs), err
-}
-
-// Returns the smartcontract information
-func (block *Block) GetForSmartcontract(address string) ([]*Transaction, []*Log) {
-	transactios := make([]*Transaction, 0)
-	logs := make([]*Log, 0)
-
-	for _, transaction := range block.Transactions {
-		if strings.EqualFold(transaction.TxTo, address) {
-			transactios = append(transactios, transaction)
-
-			for _, log := range block.Logs {
-				if strings.EqualFold(transaction.Txid, log.Txid) {
-					logs = append(logs, log)
-				}
-			}
-		}
-	}
-
-	return transactios, logs
 }

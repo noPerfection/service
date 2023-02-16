@@ -1,51 +1,32 @@
-/*Spaghetti transaction without method name and without clear input parameters*/
-package spaghetti
+package log
 
 import (
-	"encoding/json"
+	"encoding/hex"
 	"errors"
 
 	"github.com/blocklords/gosds/message"
+	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
 
-type Log struct {
-	NetworkId      string
-	Txid           string // txId column
-	BlockNumber    uint64
-	BlockTimestamp uint64
-	LogIndex       uint
-	Data           string // text data type
-	Topics         []string
-	Address        string
-}
-
-// JSON representation of the spaghetti.Log
-func (b *Log) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"network_id":      b.NetworkId,
-		"txid":            b.Txid,
-		"block_timestamp": b.BlockTimestamp,
-		"block_number":    b.BlockNumber,
-		"log_index":       b.LogIndex,
-		"data":            b.Data,
-		"topics":          b.Topics,
-		"address":         b.Address,
-	}
-}
-
-// JSON string representation of the spaghetti.Log
-func (b *Log) ToString() string {
-	interfaces := b.ToJSON()
-	byt, err := json.Marshal(interfaces)
-	if err != nil {
-		return ""
+// Converts the ethereum's log to SeascapeSDS Spaghetti Log type
+func NewFromRawLog(network_id string, log *eth_types.Log) (*Log, error) {
+	topics := make([]string, len(log.Topics))
+	for i, topic := range log.Topics {
+		topics[i] = topic.Hex()
 	}
 
-	return string(byt)
+	return &Log{
+		NetworkId: network_id,
+		Txid:      log.TxHash.Hex(),
+		LogIndex:  log.Index,
+		Data:      hex.EncodeToString(log.Data),
+		Address:   log.Address.Hex(),
+		Topics:    topics,
+	}, nil
 }
 
 // Convert the JSON into spaghetti.Log
-func ParseLog(parameters map[string]interface{}) (*Log, error) {
+func New(parameters map[string]interface{}) (*Log, error) {
 	topics, err := message.GetStringList(parameters, "topics")
 	if err != nil {
 		return nil, err
@@ -92,30 +73,8 @@ func ParseLog(parameters map[string]interface{}) (*Log, error) {
 	}, nil
 }
 
-// Serielizes the Log.Topics into the byte array
-func (b *Log) TopicRaw() []byte {
-	byt, err := json.Marshal(b.Topics)
-	if err != nil {
-		return []byte{}
-	}
-
-	return byt
-}
-
-// Converts the byte series into the topic list
-func (b *Log) ParseTopics(raw []byte) error {
-	var topics []string
-	err := json.Unmarshal(raw, &topics)
-	if err != nil {
-		return err
-	}
-	b.Topics = topics
-
-	return nil
-}
-
 // Parse list of Logs into array of spaghetti.Log
-func ParseLogs(raw_logs []interface{}) ([]*Log, error) {
+func NewLogs(raw_logs []interface{}) ([]*Log, error) {
 	logs := make([]*Log, len(raw_logs))
 	for i, raw := range raw_logs {
 		if raw == nil {
@@ -125,7 +84,7 @@ func ParseLogs(raw_logs []interface{}) ([]*Log, error) {
 		if !ok {
 			return nil, errors.New("the log is not a map")
 		}
-		l, err := ParseLog(log_map)
+		l, err := New(log_map)
 		if err != nil {
 			return nil, err
 		}
