@@ -5,20 +5,23 @@ import (
 	"github.com/blocklords/gosds/account"
 	"github.com/blocklords/gosds/categorizer"
 	"github.com/blocklords/gosds/spaghetti"
-	"github.com/blocklords/gosds/static"
+	static_abi "github.com/blocklords/gosds/static/abi"
+	static_configuration "github.com/blocklords/gosds/static/configuration"
+	static_smartcontract "github.com/blocklords/gosds/static/smartcontract"
+	static_smartcontract_key "github.com/blocklords/gosds/static/smartcontract/key"
 )
 
 type SDS_Data interface {
 	*categorizer.Log | *categorizer.Smartcontract | *categorizer.Transaction |
-		*spaghetti.Log | *spaghetti.Transaction | *static.Abi |
-		*static.Configuration | *static.Smartcontract |
+		*spaghetti.Log | *spaghetti.Transaction | *static_abi.Abi |
+		*static_configuration.Configuration | *static_smartcontract.Smartcontract |
 		*account.Account
 
 	ToJSON() map[string]interface{}
 }
 
 type SDS_String_Data interface {
-	*static.SmartcontractKey
+	*static_smartcontract_key.Key
 }
 
 // Converts the data structs to the JSON objects (represented as a golang map) list.

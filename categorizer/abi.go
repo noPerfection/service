@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blocklords/gosds/static"
+	static_abi "github.com/blocklords/gosds/static/abi"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 )
@@ -21,7 +21,7 @@ import (
 //
 // //////////////////////////////////////////////////////////////////////////
 type Abi struct {
-	static_abi *static.Abi
+	static_abi *static_abi.Abi
 	geth_abi   abi.ABI // interface
 }
 
@@ -75,7 +75,7 @@ func (a *Abi) Categorize(data string) (string, map[string]interface{}, error) {
 }
 
 // it adds an ethereum abi layer on top of the static abi
-func NewAbi(static_abi *static.Abi) (*Abi, error) {
+func NewAbi(static_abi *static_abi.Abi) (*Abi, error) {
 	abi_obj := Abi{static_abi: static_abi}
 
 	abiReader := strings.NewReader(string(abi_obj.static_abi.Bytes))

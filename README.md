@@ -170,3 +170,23 @@ The names of the arguments are identical how they are written in the source code
 On the roadmap, we have a plan want to generate a documentation by AI. AI will parse the smartcontract interface, and will set the basic use cases with `copy-paste` code. Write, the less developer writes, the better it is.
 
 > More examples are coming soon.
+
+---
+
+# SeascapeSDS Core
+This go module contains the core features
+and SDK along together.
+
+This repository isn't enough to run the SeascapeSDS in your machine. 
+
+The following set ups are necessary for running on your machine:
+
+* [Vault](https://vaultproject.io/) for keeping credentials
+* [Mysql Database](https://mysql.com/) 
+* [sds-ts](https://github.com/blocklords/sds-ts/) keeps the other core services that are written in Typescript.
+* .env with the SeascapeSDS Service ports, its configuration, vault access and database parameters.
+
+## Setup
+SeascapeSDS if its running for the first time, will setup the database for you.
+
+If the .env are not set, then it will use the default values.
