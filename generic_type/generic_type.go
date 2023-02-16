@@ -3,7 +3,9 @@ package generic_type
 
 import (
 	"github.com/blocklords/gosds/account"
-	"github.com/blocklords/gosds/categorizer"
+	categorizer_log "github.com/blocklords/gosds/categorizer/log"
+	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
+	categorizer_transaction "github.com/blocklords/gosds/categorizer/transaction"
 
 	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
 	spaghetti_transaction "github.com/blocklords/gosds/spaghetti/transaction"
@@ -15,7 +17,7 @@ import (
 )
 
 type SDS_Data interface {
-	*categorizer.Log | *categorizer.Smartcontract | *categorizer.Transaction |
+	*categorizer_log.Log | *categorizer_smartcontract.Smartcontract | *categorizer_transaction.Transaction |
 		*spaghetti_log.Log | *spaghetti_transaction.Transaction | *static_abi.Abi |
 		*static_configuration.Configuration | *static_smartcontract.Smartcontract |
 		*account.Account

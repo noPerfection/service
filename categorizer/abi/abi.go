@@ -1,6 +1,6 @@
 // the categorizer package keeps data types used by SDS Categorizer.
 // the data type functions as well as method to obtain data from SDS Categorizer.
-package categorizer
+package abi
 
 import (
 	"encoding/hex"
