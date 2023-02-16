@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/blocklords/gosds/categorizer"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/env"
+	"github.com/blocklords/gosds/spaghetti"
 	"github.com/blocklords/gosds/static"
 	"github.com/blocklords/gosds/vault"
 )
@@ -42,6 +44,8 @@ func main() {
 	}()
 
 	go static.Run(v, database)
+	go spaghetti.Run()
+	go categorizer.Run()
 
 	// start the lease-renewal goroutine & wait for it to finish on exit
 	var wg sync.WaitGroup
