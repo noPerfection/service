@@ -5,7 +5,7 @@ import (
 	"github.com/blocklords/gosds/static/abi"
 	"github.com/blocklords/gosds/static/smartcontract"
 
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
 )
 
 // This function returns the ABI for the given smartcontract

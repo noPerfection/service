@@ -1,8 +1,8 @@
 package transaction
 
 import (
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
 )
 
 // Sends the command to the remote SDS Spaghetti to get the smartcontract deploy metaData by

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/blocklords/gosds/app/env"
 	"github.com/blocklords/gosds/db"
-	"github.com/blocklords/gosds/env"
 	hashicorp "github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/api/auth/approle"
 )

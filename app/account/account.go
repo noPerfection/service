@@ -2,8 +2,8 @@
 package account
 
 import (
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/service"
+	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/app/service"
 )
 
 // Requeter to the SDS Service. It's either a developer or another SDS service.

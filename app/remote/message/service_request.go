@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blocklords/gosds/service"
+	"github.com/blocklords/gosds/app/service"
 )
 
 // The SDS Service will accepts a request from another request

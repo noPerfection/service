@@ -8,10 +8,10 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/blocklords/gosds/account"
-	"github.com/blocklords/gosds/argument"
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/service"
+	"github.com/blocklords/gosds/app/account"
+	"github.com/blocklords/gosds/app/argument"
+	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/app/service"
 
 	zmq "github.com/pebbe/zmq4"
 )

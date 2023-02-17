@@ -4,10 +4,10 @@ package broadcast
 import (
 	"log"
 
-	"github.com/blocklords/gosds/argument"
-	"github.com/blocklords/gosds/service"
+	"github.com/blocklords/gosds/app/argument"
+	"github.com/blocklords/gosds/app/service"
 
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
 
 	zmq "github.com/pebbe/zmq4"
 )

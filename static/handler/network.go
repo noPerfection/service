@@ -4,7 +4,7 @@ import (
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/static/network"
 
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
 )
 
 // Returns Network

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/blocklords/gosds/env"
+	"github.com/blocklords/gosds/app/env"
 	_ "github.com/go-sql-driver/mysql"
 )
 

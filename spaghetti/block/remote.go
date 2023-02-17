@@ -1,8 +1,8 @@
 package block
 
 import (
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
 
 	"github.com/blocklords/gosds/spaghetti/log"
 	"github.com/blocklords/gosds/spaghetti/transaction"

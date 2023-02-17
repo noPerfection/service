@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/blocklords/gosds/service"
+	"github.com/blocklords/gosds/app/service"
 
 	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/generic_type"
+	"github.com/blocklords/gosds/common/generic_type"
 
-	"github.com/blocklords/gosds/argument"
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/argument"
+	"github.com/blocklords/gosds/app/remote/message"
 	spaghetti_block "github.com/blocklords/gosds/spaghetti/block"
 	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
 	spaghetti_transaction "github.com/blocklords/gosds/spaghetti/transaction"
 	zmq "github.com/pebbe/zmq4"
 
-	"github.com/blocklords/gosds/remote"
+	"github.com/blocklords/gosds/app/remote"
 )
 
 const IDLE = "idle"

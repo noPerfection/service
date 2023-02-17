@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/db"
-	"github.com/blocklords/gosds/message"
 	static_abi "github.com/blocklords/gosds/static/abi"
 
+	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/categorizer/abi"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/remote"
 )
 
 type EvmWorkers []*Worker

@@ -1,3 +1,4 @@
+// Application's command line arguments
 package argument
 
 import (

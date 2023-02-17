@@ -3,8 +3,8 @@ package network
 import (
 	"errors"
 
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
 )
 
 // Returns list of support network IDs from SDS Static

@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
 

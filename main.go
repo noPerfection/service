@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/blocklords/gosds/app/env"
 	"github.com/blocklords/gosds/categorizer"
 	"github.com/blocklords/gosds/db"
-	"github.com/blocklords/gosds/env"
+	"github.com/blocklords/gosds/security/vault"
 	"github.com/blocklords/gosds/spaghetti"
 	"github.com/blocklords/gosds/static"
-	"github.com/blocklords/gosds/vault"
 )
 
 /** SeascapeSDS + its SDK to use it.*/

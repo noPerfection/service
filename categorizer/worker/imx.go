@@ -17,7 +17,7 @@ import (
 	"github.com/blocklords/gosds/categorizer/transaction"
 	"github.com/blocklords/gosds/db"
 
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
 
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
 )

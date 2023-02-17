@@ -1,14 +1,14 @@
 package static
 
 import (
+	"github.com/blocklords/gosds/security/vault"
 	"github.com/blocklords/gosds/static/handler"
-	"github.com/blocklords/gosds/vault"
 
-	"github.com/blocklords/gosds/service"
+	"github.com/blocklords/gosds/app/service"
 
-	"github.com/blocklords/gosds/account"
+	"github.com/blocklords/gosds/app/account"
 
-	"github.com/blocklords/gosds/controller"
+	"github.com/blocklords/gosds/app/controller"
 	"github.com/blocklords/gosds/db"
 )
 

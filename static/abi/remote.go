@@ -4,8 +4,8 @@ package abi
 import (
 	"errors"
 
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
 )
 
 // Sends the ABI information to the remote SDS Static.

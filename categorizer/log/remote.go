@@ -1,8 +1,8 @@
 package log
 
 import (
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
 )
 
 // Return list of logs for the transaction keys from the remote SDS Categorizer.

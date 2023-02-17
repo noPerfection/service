@@ -1,6 +1,6 @@
 package log
 
-import "github.com/blocklords/gosds/message"
+import "github.com/blocklords/gosds/app/remote/message"
 
 // Call categorizer.NewLog().AddMetadata().AddSmartcontractData()
 // DON'T call it as a single function

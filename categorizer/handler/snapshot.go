@@ -5,8 +5,8 @@ import (
 	"github.com/blocklords/gosds/categorizer/transaction"
 	"github.com/blocklords/gosds/db"
 
-	"github.com/blocklords/gosds/generic_type"
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/generic_type"
 )
 
 // Get's the list of transactions and logs for a particular smartcontract

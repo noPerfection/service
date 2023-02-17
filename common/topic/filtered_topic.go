@@ -1,6 +1,6 @@
 package topic
 
-import "github.com/blocklords/gosds/message"
+import "github.com/blocklords/gosds/app/remote/message"
 
 type TopicFilter struct {
 	Organizations  []string

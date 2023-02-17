@@ -21,7 +21,7 @@ example of reading smartcontract data
 
 	   import (
 		"github.com/blocklords/gosds/sdk"
-		"github.com/blocklords/gosds/topic"
+		"github.com/blocklords/gosds/common/topic"
 	   )
 
 	   func test() {
@@ -65,13 +65,13 @@ package sdk
 import (
 	"errors"
 
-	"github.com/blocklords/gosds/remote"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/gosds/common/topic"
 	"github.com/blocklords/gosds/sdk/db"
 	"github.com/blocklords/gosds/sdk/reader"
 	"github.com/blocklords/gosds/sdk/subscriber"
 	"github.com/blocklords/gosds/sdk/writer"
-	"github.com/blocklords/gosds/service"
-	"github.com/blocklords/gosds/topic"
 )
 
 var Version string = "Seascape GoSDS version: 0.0.8"

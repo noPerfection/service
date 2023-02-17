@@ -3,7 +3,7 @@ package network
 import (
 	"errors"
 
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
 )
 
 // parses JSON object into the Network Type

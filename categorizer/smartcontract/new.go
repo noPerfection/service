@@ -1,6 +1,6 @@
 package smartcontract
 
-import "github.com/blocklords/gosds/message"
+import "github.com/blocklords/gosds/app/remote/message"
 
 func New(blob map[string]interface{}) (*Smartcontract, error) {
 	network_id, err := message.GetString(blob, "network_id")

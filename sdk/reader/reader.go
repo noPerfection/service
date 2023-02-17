@@ -1,9 +1,9 @@
 package reader
 
 import (
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
-	"github.com/blocklords/gosds/topic"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/topic"
 )
 
 type Reader struct {

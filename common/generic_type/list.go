@@ -2,7 +2,7 @@
 package generic_type
 
 import (
-	"github.com/blocklords/gosds/account"
+	"github.com/blocklords/gosds/app/account"
 	categorizer_log "github.com/blocklords/gosds/categorizer/log"
 	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
 	categorizer_transaction "github.com/blocklords/gosds/categorizer/transaction"
@@ -16,7 +16,7 @@ import (
 	static_smartcontract_key "github.com/blocklords/gosds/static/smartcontract/key"
 )
 
-type SDS_Data interface {
+type List interface {
 	*categorizer_log.Log | *categorizer_smartcontract.Smartcontract | *categorizer_transaction.Transaction |
 		*spaghetti_log.Log | *spaghetti_transaction.Transaction | *static_abi.Abi |
 		*static_configuration.Configuration | *static_smartcontract.Smartcontract |
@@ -25,13 +25,13 @@ type SDS_Data interface {
 	ToJSON() map[string]interface{}
 }
 
-type SDS_String_Data interface {
+type StringList interface {
 	*static_smartcontract_key.Key
 }
 
 // Converts the data structs to the JSON objects (represented as a golang map) list.
 // []map[string]interface{}
-func ToMapList[V SDS_Data](list []V) []map[string]interface{} {
+func ToMapList[V List](list []V) []map[string]interface{} {
 	map_list := make([]map[string]interface{}, len(list))
 	for i, element := range list {
 		map_list[i] = element.ToJSON()
@@ -42,7 +42,7 @@ func ToMapList[V SDS_Data](list []V) []map[string]interface{} {
 
 // Converts the data structs to the list of strings.
 // []string
-func ToStringList[V SDS_String_Data](list []V) []string {
+func ToStringList[V StringList](list []V) []string {
 	string_list := make([]string, len(list))
 	for i, element := range list {
 		string_list[i] = string(*element)

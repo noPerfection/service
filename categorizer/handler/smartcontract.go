@@ -4,8 +4,8 @@ import (
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/db"
 
-	"github.com/blocklords/gosds/generic_type"
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/generic_type"
 )
 
 // return a categorizer block by network id and smartcontract address

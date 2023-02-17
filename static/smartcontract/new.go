@@ -1,6 +1,6 @@
 package smartcontract
 
-import "github.com/blocklords/gosds/message"
+import "github.com/blocklords/gosds/app/remote/message"
 
 // Creates a new smartcontract from the JSON
 func New(parameters map[string]interface{}) (*Smartcontract, error) {

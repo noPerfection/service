@@ -23,19 +23,19 @@ import (
 	"github.com/blocklords/gosds/spaghetti/worker"
 	"github.com/blocklords/gosds/static/network"
 
-	"github.com/blocklords/gosds/vault"
+	"github.com/blocklords/gosds/security/vault"
 
-	"github.com/blocklords/gosds/service"
+	"github.com/blocklords/gosds/app/service"
 
-	"github.com/blocklords/gosds/account"
-	"github.com/blocklords/gosds/argument"
-	"github.com/blocklords/gosds/broadcast"
-	"github.com/blocklords/gosds/controller"
+	"github.com/blocklords/gosds/app/account"
+	"github.com/blocklords/gosds/app/argument"
+	"github.com/blocklords/gosds/app/broadcast"
+	"github.com/blocklords/gosds/app/controller"
+	"github.com/blocklords/gosds/app/env"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/generic_type"
 	"github.com/blocklords/gosds/db"
-	"github.com/blocklords/gosds/env"
-	"github.com/blocklords/gosds/generic_type"
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
 	"github.com/blocklords/gosds/security"
 )
 

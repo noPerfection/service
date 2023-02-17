@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/blocklords/gosds/common/topic"
 	"github.com/blocklords/gosds/db"
-	"github.com/blocklords/gosds/topic"
 )
 
 // Inserts the configuration into the database

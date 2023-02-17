@@ -1,10 +1,10 @@
 package configuration
 
 import (
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/topic"
 	"github.com/blocklords/gosds/static/smartcontract"
-	"github.com/blocklords/gosds/topic"
 )
 
 // get configuration from SDS Static by the configuration topic

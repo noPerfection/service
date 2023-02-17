@@ -5,10 +5,10 @@ import (
 	"github.com/blocklords/gosds/static/configuration"
 	"github.com/blocklords/gosds/static/smartcontract"
 
-	"github.com/blocklords/gosds/generic_type"
-	"github.com/blocklords/gosds/topic"
+	"github.com/blocklords/gosds/common/generic_type"
+	"github.com/blocklords/gosds/common/topic"
 
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
 )
 
 /*

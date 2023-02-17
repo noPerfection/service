@@ -4,7 +4,7 @@
 package security
 
 import (
-	"github.com/blocklords/gosds/argument"
+	"github.com/blocklords/gosds/app/argument"
 
 	zmq "github.com/pebbe/zmq4"
 )

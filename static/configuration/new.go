@@ -1,6 +1,6 @@
 package configuration
 
-import "github.com/blocklords/gosds/message"
+import "github.com/blocklords/gosds/app/remote/message"
 
 // Creates a new static.Configuration class based on the given data
 func New(parameters map[string]interface{}) (*Configuration, error) {

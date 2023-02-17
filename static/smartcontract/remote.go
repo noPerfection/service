@@ -3,10 +3,10 @@ package smartcontract
 import (
 	"errors"
 
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/topic"
 	"github.com/blocklords/gosds/static/smartcontract/key"
-	"github.com/blocklords/gosds/topic"
 )
 
 // Returns list of smartcontracts by topic filter in remote Static service

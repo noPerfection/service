@@ -9,7 +9,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/blocklords/gosds/env"
+	"github.com/blocklords/gosds/app/env"
 )
 
 const (

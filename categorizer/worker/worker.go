@@ -10,10 +10,10 @@ import (
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/static/smartcontract/key"
 
-	"github.com/blocklords/gosds/service"
+	"github.com/blocklords/gosds/app/service"
 
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
 	spaghetti_block "github.com/blocklords/gosds/spaghetti/block"
 	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
 	spaghetti_transaction "github.com/blocklords/gosds/spaghetti/transaction"

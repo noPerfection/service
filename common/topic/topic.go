@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
 )
 
 type (

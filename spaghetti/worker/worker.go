@@ -13,11 +13,11 @@ import (
 	"github.com/blocklords/gosds/spaghetti/network_client"
 	"github.com/blocklords/gosds/spaghetti/transaction"
 
-	"github.com/blocklords/gosds/env"
+	"github.com/blocklords/gosds/app/env"
 
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
 
-	"github.com/blocklords/gosds/generic_type"
+	"github.com/blocklords/gosds/common/generic_type"
 )
 
 // the global variables that we pass between functions in this worker.

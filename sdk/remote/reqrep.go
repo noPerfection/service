@@ -2,7 +2,7 @@
 package remote
 
 import (
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
 
 	zmq "github.com/pebbe/zmq4"
 )

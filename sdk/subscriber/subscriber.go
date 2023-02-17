@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/categorizer"
-	"github.com/blocklords/gosds/generic_type"
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
-	"github.com/blocklords/gosds/service"
+	"github.com/blocklords/gosds/common/generic_type"
 	"github.com/blocklords/gosds/static"
 
 	"github.com/blocklords/gosds/sdk/db"

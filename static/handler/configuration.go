@@ -5,7 +5,7 @@ import (
 	"github.com/blocklords/gosds/static/configuration"
 	"github.com/blocklords/gosds/static/smartcontract"
 
-	"github.com/blocklords/gosds/message"
+	"github.com/blocklords/gosds/app/remote/message"
 )
 
 // Register a new smartcontract in the configuration.

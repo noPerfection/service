@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blocklords/gosds/env"
+	"github.com/blocklords/gosds/app/env"
 
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
 )

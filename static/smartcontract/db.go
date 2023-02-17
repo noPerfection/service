@@ -3,8 +3,8 @@ package smartcontract
 import (
 	"fmt"
 
+	"github.com/blocklords/gosds/common/topic"
 	"github.com/blocklords/gosds/db"
-	"github.com/blocklords/gosds/topic"
 )
 
 // Whether the smartcontract address on network_id exist in database or not

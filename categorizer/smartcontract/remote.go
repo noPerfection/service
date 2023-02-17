@@ -1,8 +1,8 @@
 package smartcontract
 
 import (
-	"github.com/blocklords/gosds/message"
-	"github.com/blocklords/gosds/remote"
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
 )
 
 // Sends a command to the remote SDS Categorizer about regitration of this smartcontract.

@@ -1,7 +1,7 @@
 package env
 
 import (
-	"github.com/blocklords/gosds/argument"
+	"github.com/blocklords/gosds/app/argument"
 	"github.com/joho/godotenv"
 )
 
