@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
+	"github.com/blocklords/gosds/app/env"
 	"github.com/blocklords/gosds/categorizer"
-	"github.com/blocklords/gosds/env"
+	"github.com/blocklords/gosds/common/topic"
 	"github.com/blocklords/gosds/sdk"
 	"github.com/blocklords/gosds/security"
-	"github.com/blocklords/gosds/topic"
 )
 
 func main() {
