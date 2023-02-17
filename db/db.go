@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/blocklords/gosds/app/env"
+	"github.com/blocklords/gosds/app/configuration"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -34,47 +34,48 @@ type Database struct {
 	parameters      DatabaseParameters
 }
 
+// The configuration parameters
+// The values are the default values if it wasn't provided by the user
+// Set the default value to nil, if the parameter is required from the user
+var DatabaseConfigurations = map[string]interface{}{
+	"SDS_DATABASE_HOST":     "localhost",
+	"SDS_DATABASE_PORT":     "3306",
+	"SDS_DATABASE_NAME":     "seascape_sds",
+	"SDS_DATABASE_TIMEOUT":  uint64(10),
+	"SDS_DATABASE_USERNAME": "root",
+	"SDS_DATABASE_PASSWORD": "tiger",
+}
+
 // Database parameters fetched from the environment variable.
 // It loads parameters such as:
 // - host
 // - port
 // - name
-func GetParameters() (*DatabaseParameters, error) {
-	if !env.Exists("SDS_DATABASE_HOST") {
-		return nil, errors.New("the 'SDS_DATABASE_HOST' environment variable not set")
-	}
-	if !env.Exists("SDS_DATABASE_PORT") {
-		return nil, errors.New("the 'SDS_DATABASE_PORT' environment variable not set")
-	}
-	if !env.Exists("SDS_DATABASE_NAME") {
-		return nil, errors.New("the 'SDS_DATABASE_NAME' environment variable not set")
-	}
-	if !env.Exists("SDS_DATABASE_TIMEOUT") {
-		return nil, errors.New("the 'SDS_DATABASE_TIMEOUT' environment variable not set")
-	}
-
-	timeout := env.GetNumeric("SDS_DATABASE_TIMEOUT")
-	if timeout == 0 {
-		return nil, errors.New("the 'SDS_DATABASE_TIMEOUT' can not be zero")
-	} else if timeout > 3600 {
+func GetParameters(app_config *configuration.Config) (*DatabaseParameters, error) {
+	timeout := app_config.GetUint64("SDS_DATABASE_TIMEOUT")
+	if timeout > 3600 {
 		return nil, errors.New("the 'SDS_DATABASE_TIMEOUT' value can not be greater than 3600 (seconds)")
+	} else if timeout == 0 {
+		return nil, errors.New("the 'SDS_DATABASE_TIMEOUT' can not be zero")
 	}
 
 	return &DatabaseParameters{
-		hostname: env.GetString("SDS_DATABASE_HOST"),
-		port:     env.GetString("SDS_DATABASE_PORT"),
-		name:     env.GetString("SDS_DATABASE_NAME"),
+		hostname: app_config.GetString("SDS_DATABASE_HOST"),
+		port:     app_config.GetString("SDS_DATABASE_PORT"),
+		name:     app_config.GetString("SDS_DATABASE_NAME"),
 		timeout:  time.Duration(timeout) * time.Second,
 	}, nil
 }
 
-// NewDatabase establishes a database connection with the given Vault credentials
-func Open(credentials DatabaseCredentials) (*Database, error) {
-	parameters, err := GetParameters()
-	if err != nil {
-		return nil, err
+func GetDefaultCredentials(app_config *configuration.Config) DatabaseCredentials {
+	return DatabaseCredentials{
+		Username: app_config.GetString("SDS_DATABASE_USERNAME"),
+		Password: app_config.GetString("SDS_DATABASE_PASSWORD"),
 	}
+}
 
+// NewDatabase establishes a database connection with the given Vault credentials
+func Open(parameters *DatabaseParameters, credentials DatabaseCredentials) (*Database, error) {
 	database := &Database{
 		Connection:      nil,
 		connectionMutex: sync.Mutex{},
@@ -101,20 +102,22 @@ func (db *Database) Reconnect(ctx context.Context, credentials DatabaseCredentia
 	defer cancelContextFunc()
 
 	log.Printf(
-		"connecting to %q database @ %s:%s with username %q",
+		"connecting to %q database tcp://%s:%s with username %q and timeout %s",
 		db.parameters.name,
 		db.parameters.hostname,
 		db.parameters.port,
 		credentials.Username,
+		db.parameters.timeout,
 	)
 
 	dsn := fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s",
+		"%s:%s@tcp(%s:%s)/%s?timeout=%s",
 		credentials.Username,
 		credentials.Password,
 		db.parameters.hostname,
 		db.parameters.port,
 		db.parameters.name,
+		db.parameters.timeout.String(),
 	)
 
 	connection, err := sql.Open("mysql", dsn)
@@ -132,7 +135,7 @@ func (db *Database) Reconnect(ctx context.Context, credentials DatabaseCredentia
 		case <-time.After(500 * time.Millisecond):
 			continue
 		case <-ctx.Done():
-			return fmt.Errorf("failed to successfully ping database before context timeout: %w", err)
+			return fmt.Errorf("database connection test failed: %w", err)
 		}
 	}
 

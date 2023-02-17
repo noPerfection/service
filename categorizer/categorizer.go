@@ -10,6 +10,7 @@ import (
 
 	"github.com/blocklords/gosds/app/account"
 	"github.com/blocklords/gosds/app/argument"
+	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/security"
 	"github.com/blocklords/gosds/security/vault"
 
@@ -18,7 +19,6 @@ import (
 
 	"github.com/blocklords/gosds/app/remote/message"
 
-	"github.com/blocklords/gosds/app/env"
 	"github.com/blocklords/gosds/app/service"
 
 	"github.com/blocklords/gosds/db"
@@ -158,7 +158,7 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 }
 
 // Smartcontract data are parsed and stored in the database
-func Run() {
+func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) {
 	greeting := `SDS Categorizer preparing...
 Supported command line arguments:
     --broadcast                 runs the broadcaster about categorized smartcontracts
@@ -170,25 +170,6 @@ Supported command line arguments:
 	println(greeting + "\n\n")
 
 	err := security.EnableSecurity()
-	if err != nil {
-		panic(err)
-	}
-
-	err = env.LoadAnyEnv()
-	if err != nil {
-		panic(err)
-	}
-
-	v, _, err := vault.New()
-	if err != nil {
-		panic(err)
-	}
-	credentials, _, err := v.GetDatabaseCredentials()
-	if err != nil {
-		panic(err)
-	}
-
-	db_con, err := db.Open(credentials)
 	if err != nil {
 		panic(err)
 	}

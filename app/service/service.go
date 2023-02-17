@@ -78,7 +78,7 @@ func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 	if err != nil {
 		return nil, err
 	} else if !exist {
-		v, _, err = vault.New()
+		v, _, err = vault.New(nil)
 		if err != nil {
 			return nil, err
 		}

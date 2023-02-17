@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/blocklords/gosds/app/env"
+	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/db"
 	hashicorp "github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/api/auth/approle"
@@ -27,59 +27,60 @@ type Vault struct {
 	database_path string
 }
 
+// The configuration parameters
+// The values are the default values if it wasn't provided by the user
+// Set the default value to nil, if the parameter is required from the user
+var VaultConfigurations = map[string]interface{}{
+	"SDS_VAULT_HOST":                   "localhost",
+	"SDS_VAULT_PORT":                   8200,
+	"SDS_VAULT_SECURE":                 false,
+	"SDS_VAULT_PATH":                   "secret",
+	"SDS_VAULT_DATABASE_PATH":          "database/creds/sds-role",
+	"SDS_VAULT_TOKEN":                  nil,
+	"SDS_VAULT_APPROLE_ROLE_ID":        nil,
+	"SDS_VAULT_APPROLE_SECRET_ID_FILE": nil,
+}
+
 // Sets up the connection to the Hashicorp Vault
 // If you run the Vault in the dev mode, then path should be "secret/"
-func New() (*Vault, *hashicorp.Secret, error) {
-	if !env.Exists("SDS_VAULT_HOST") {
-		return nil, nil, errors.New("missing 'SDS_VAULT_HOST' environment variable")
+func New(app_config *configuration.Config) (*Vault, *hashicorp.Secret, error) {
+	if app_config == nil {
+		new_config, err := configuration.New()
+		if err != nil {
+			return nil, nil, err
+		} else {
+			app_config = new_config
+		}
 	}
-	if !env.Exists("SDS_VAULT_PORT") {
-		return nil, nil, errors.New("missing 'SDS_VAULT_PORT' environment variable")
-	}
-	if !env.Exists("SDS_VAULT_SECURE") {
-		return nil, nil, errors.New("missing 'SDS_VAULT_SECURE' environment variable")
-	}
+	secure := app_config.GetBool("SDS_VAULT_SECURE")
+	host := app_config.GetString("SDS_VAULT_HOST")
+	port := app_config.GetString("SDS_VAULT_PORT")
+	path := app_config.GetString("SDS_VAULT_PATH")
+	database_path := app_config.GetString("SDS_VAULT_DATABASE_PATH")
 
-	if !env.Exists("SDS_VAULT_DATABASE_PATH") {
-		return nil, nil, errors.New("missing 'SDS_VAULT_DATABASE_PATH' environment variable")
-	}
-
-	if !env.Exists("SDS_VAULT_PATH") {
-		return nil, nil, errors.New("missing 'SDS_VAULT_PATH' environment variable")
-	}
-
-	secure := env.GetString("SDS_VAULT_SECURE")
-	if secure != "false" && secure != "true" {
-		return nil, nil, errors.New("the value of 'SDS_VAULT_SECURE' could be 'false' or 'true'")
-	}
-
-	host := env.GetString("SDS_VAULT_HOST")
-	port := env.GetString("SDS_VAULT_PORT")
-	path := env.GetString("SDS_VAULT_PATH")
-	database_path := env.GetString("SDS_VAULT_DATABASE_PATH")
 	approle_role_id := ""
 	approle_secret_id_file := ""
 
 	config := hashicorp.DefaultConfig()
-	if secure == "true" {
+	if secure {
 		config.Address = fmt.Sprintf("https://%s:%s", host, port)
 
 		// AppRole RoleID to log in to Vault
-		if !env.Exists("SDS_VAULT_APPROLE_ROLE_ID") {
+		if !app_config.Exist("SDS_VAULT_APPROLE_ROLE_ID") {
 			return nil, nil, errors.New("missing 'SDS_VAULT_APPROLE_ROLE_ID' environment variable")
 		}
-		approle_role_id = env.GetString("SDS_VAULT_APPROLE_ROLE_ID")
+		approle_role_id = app_config.GetString("SDS_VAULT_APPROLE_ROLE_ID")
 
 		// AppRole SecretID file path to log in to Vault
-		if !env.Exists("SDS_VAULT_APPROLE_SECRET_ID_FILE") {
+		if !app_config.Exist("SDS_VAULT_APPROLE_SECRET_ID_FILE") {
 			return nil, nil, errors.New("missing 'SDS_VAULT_APPROLE_SECRET_ID_FILE' environment variable")
 		}
 
-		approle_secret_id_file = env.GetString("SDS_VAULT_APPROLE_SECRET_ID_FILE")
+		approle_secret_id_file = app_config.GetString("SDS_VAULT_APPROLE_SECRET_ID_FILE")
 	} else {
 		config.Address = fmt.Sprintf("http://%s:%s", host, port)
 
-		if !env.Exists("SDS_VAULT_TOKEN") {
+		if !app_config.Exist("SDS_VAULT_TOKEN") {
 			return nil, nil, errors.New("missing 'SDS_VAULT_TOKEN' environment variable")
 		}
 	}
@@ -100,7 +101,7 @@ func New() (*Vault, *hashicorp.Secret, error) {
 		approle_secret_id_file: approle_secret_id_file,
 	}
 
-	if secure == "true" {
+	if secure {
 		token, err := vault.login(ctx)
 		if err != nil {
 			return nil, nil, fmt.Errorf("vault login error: %w", err)
@@ -110,7 +111,7 @@ func New() (*Vault, *hashicorp.Secret, error) {
 
 		return &vault, token, nil
 	} else {
-		client.SetToken(env.GetString("SDS_VAULT_TOKEN"))
+		client.SetToken(app_config.GetString("SDS_VAULT_TOKEN"))
 
 		return &vault, nil, nil
 	}

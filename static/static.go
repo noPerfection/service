@@ -4,6 +4,7 @@ import (
 	"github.com/blocklords/gosds/security/vault"
 	"github.com/blocklords/gosds/static/handler"
 
+	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/app/service"
 
 	"github.com/blocklords/gosds/app/account"
@@ -12,7 +13,7 @@ import (
 	"github.com/blocklords/gosds/db"
 )
 
-func Run(v *vault.Vault, db_connection *db.Database) {
+func Run(app_config *configuration.Config, db_connection *db.Database, v *vault.Vault) {
 	var commands = controller.CommandHandlers{
 		"abi_get":                      handler.AbiGet,
 		"abi_get_by_smartcontract_key": handler.AbiGetBySmartcontractKey,

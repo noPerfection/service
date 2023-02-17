@@ -25,6 +25,7 @@ import (
 
 	"github.com/blocklords/gosds/security/vault"
 
+	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/app/service"
 
 	"github.com/blocklords/gosds/app/account"
@@ -403,7 +404,7 @@ func transaction_deployed_get(_ *db.Database, request message.Request) message.R
 	return reply
 }
 
-func Run() {
+func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) {
 	if err := security.EnableSecurity(); err != nil {
 		panic(err)
 	}
@@ -452,21 +453,6 @@ It supports the following arguments:
 	if err != nil {
 		panic(err)
 	}
-
-	v, _, err := vault.New()
-	if err != nil {
-		panic(err)
-	}
-	credentials, _, err := v.GetDatabaseCredentials()
-	if err != nil {
-		panic(err)
-	}
-
-	db_con, err := db.Open(credentials)
-	if err != nil {
-		panic(err)
-	}
-	defer db_con.Close()
 
 	accounts := account.NewAccounts(account.NewService(categorizer_env), account.NewService(gateway_env))
 
