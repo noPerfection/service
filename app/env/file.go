@@ -14,7 +14,7 @@ func LoadAnyEnv() error {
 
 	godotenv.Load()
 
-	if opts != nil {
+	if len(opts) > 0 {
 		return godotenv.Load(opts...)
 	}
 	return nil
