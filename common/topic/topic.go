@@ -12,13 +12,13 @@ import (
 type (
 	TopicKey string
 	Topic    struct {
-		Organization  string
-		Project       string
-		NetworkId     string
-		Group         string
-		Smartcontract string
-		Method        string
-		Event         string
+		Organization  string `json:"o,omitempty"`
+		Project       string `json:"p,omitempty"`
+		NetworkId     string `json:"n,omitempty"`
+		Group         string `json:"g,omitempty"`
+		Smartcontract string `json:"s,omitempty"`
+		Method        string `json:"m,omitempty"`
+		Event         string `json:"e,omitempty"`
 	}
 )
 
@@ -31,18 +31,6 @@ func New(o string, p string, n string, g string, s string, m string, e string) T
 		Smartcontract: s,
 		Method:        m,
 		Event:         e,
-	}
-}
-
-func (t *Topic) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"o": t.Organization,
-		"p": t.Project,
-		"n": t.NetworkId,
-		"g": t.Group,
-		"s": t.Smartcontract,
-		"m": t.Method,
-		"e": t.Event,
 	}
 }
 
@@ -108,8 +96,7 @@ func (t *Topic) Level() uint8 {
 }
 
 // Parse JSON into the Topic
-func ParseJSON(json map[string]interface{}) (*Topic, error) {
-	parameters := key_value.New(json)
+func ParseJSON(parameters key_value.KeyValue) (*Topic, error) {
 	organization, err := parameters.GetString("o")
 	if err != nil {
 		return nil, err

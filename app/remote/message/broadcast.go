@@ -7,7 +7,6 @@
 package message
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 
@@ -16,49 +15,32 @@ import (
 
 // The broadcasters sends to all subscribers this message.
 type Broadcast struct {
-	Topic string
-	reply Reply
-}
-
-// Convert to the format understood by the protocol
-func (b *Broadcast) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"topic": b.Topic,
-		"reply": b.reply.ToJSON(),
-	}
-}
-
-// Broadcast as a string
-func (b *Broadcast) ToString() string {
-	return string(b.ToBytes())
-}
-
-// Broadcast as a sequence of bytes
-func (reply *Broadcast) ToBytes() []byte {
-	interfaces := reply.ToJSON()
-	byt, err := json.Marshal(interfaces)
-	if err != nil {
-		return []byte{}
-	}
-
-	return byt
+	Topic string `json:"topic"`
+	Reply Reply  `json:"reply"`
 }
 
 // Create a new broadcast
 func NewBroadcast(topic string, reply Reply) Broadcast {
 	return Broadcast{
 		Topic: topic,
-		reply: reply,
+		Reply: reply,
 	}
 }
 
-// Broadcast's actual data for the subscriber
-func (b *Broadcast) Reply() Reply {
-	return b.reply
-}
-
 // Is OK
-func (r *Broadcast) IsOK() bool { return r.reply.IsOK() }
+func (r *Broadcast) IsOK() bool { return r.Reply.IsOK() }
+
+// Reply as a sequence of bytes
+func (b *Broadcast) ToBytes() []byte {
+	kv, err := key_value.NewFromInterface(b)
+	if err != nil {
+		return []byte{}
+	}
+
+	bytes, _ := kv.ToBytes()
+
+	return bytes
+}
 
 // Parse the zeromq messages into a broadcast
 func ParseBroadcast(msgs []string) (Broadcast, error) {
@@ -75,12 +57,8 @@ func ParseBroadcast(msgs []string) (Broadcast, error) {
 	topic := msg[:i]
 	broadcastRaw := msg[i:]
 
-	var dat key_value.KeyValue
-
-	decoder := json.NewDecoder(strings.NewReader(broadcastRaw))
-	decoder.UseNumber()
-
-	if err := decoder.Decode(&dat); err != nil {
+	dat, err := key_value.NewFromString(broadcastRaw)
+	if err != nil {
 		return Broadcast{}, err
 	}
 
@@ -94,5 +72,5 @@ func ParseBroadcast(msgs []string) (Broadcast, error) {
 		return Broadcast{}, err
 	}
 
-	return Broadcast{Topic: topic, reply: reply}, nil
+	return Broadcast{Topic: topic, Reply: reply}, nil
 }

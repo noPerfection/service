@@ -35,7 +35,7 @@ func AbiGet(con *db.Database, request message.Request) message.Reply {
 	reply := message.Reply{
 		Status:     "OK",
 		Message:    "",
-		Parameters: key_value.New(abi.ToJSON()),
+		Parameters: key_value.Empty().Set("abi", abi.Body).Set("abi_hash", abi.AbiHash),
 	}
 
 	return reply
@@ -66,7 +66,7 @@ func AbiGetBySmartcontractKey(db *db.Database, request message.Request) message.
 	return message.Reply{
 		Status:     "OK",
 		Message:    "",
-		Parameters: key_value.New(abi.ToJSON()),
+		Parameters: key_value.Empty().Set("abi", abi.Body).Set("abi_hash", abi.AbiHash),
 	}
 }
 
@@ -84,7 +84,6 @@ func AbiRegister(dbCon *db.Database, request message.Request) message.Reply {
 		return message.Fail("missing 'abi' parameter")
 	}
 	new_abi, err := abi.New(abi_body)
-
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -92,7 +91,7 @@ func AbiRegister(dbCon *db.Database, request message.Request) message.Reply {
 	reply := message.Reply{
 		Status:     "OK",
 		Message:    "",
-		Parameters: new_abi.ToJSON(),
+		Parameters: key_value.Empty().Set("abi", new_abi.Body).Set("abi_hash", new_abi.AbiHash),
 	}
 
 	if abi.ExistInDatabase(dbCon, new_abi.AbiHash) {

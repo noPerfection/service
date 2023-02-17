@@ -8,15 +8,14 @@ import (
 
 // The Smartcontract Event Log
 type Log struct {
-	ID             uint64 // ID in the database
-	NetworkId      string // Network ID
-	Txid           string // Transaction ID where it occured
-	BlockNumber    uint64
-	BlockTimestamp uint64
-	LogIndex       uint                   // Log index in the block
-	Address        string                 // Smartcontract address
-	Log            string                 // Event log name
-	Output         map[string]interface{} // Event log parameters
+	NetworkId      string                 `json:"network_id"` // Network ID
+	Txid           string                 `json:"txid"`       // Transaction ID where it occured
+	BlockNumber    uint64                 `json:"block_number"`
+	BlockTimestamp uint64                 `json:"block_timestamp"`
+	LogIndex       uint                   `json:"log_index"` // Log index in the block
+	Address        string                 `json:"address"`   // Address                 // Smartcontract address
+	Log            string                 `json:"log"`       // Log                 // Event log name
+	Output         map[string]interface{} `json:"output"`    // Event log parameters
 }
 
 // Add the metadata such as transaction id and log index from spaghetti data
@@ -33,18 +32,4 @@ func (log *Log) AddSmartcontractData(smartcontract *smartcontract.Smartcontract)
 	log.NetworkId = smartcontract.NetworkId
 	log.Address = smartcontract.Address
 	return log
-}
-
-// Convert to the Map[string]interface
-func (log *Log) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"network_id":      log.NetworkId,
-		"txid":            log.Txid,
-		"block_timestamp": log.BlockTimestamp,
-		"block_number":    log.BlockNumber,
-		"log_index":       log.LogIndex,
-		"address":         log.Address,
-		"log":             log.Log,
-		"output":          log.Output,
-	}
 }

@@ -1,6 +1,8 @@
 package log
 
 import (
+	"fmt"
+
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
@@ -15,51 +17,14 @@ func New(log string, output map[string]interface{}) *Log {
 
 // Creates a new Log from the json object
 func NewFromMap(blob key_value.KeyValue) (*Log, error) {
-	network_id, err := blob.GetString("network_id")
+	i, err := blob.ToInterface()
 	if err != nil {
-		return nil, err
-	}
-	address, err := blob.GetString("address")
-	if err != nil {
-		return nil, err
-	}
-	txid, err := blob.GetString("txid")
-	if err != nil {
-		return nil, err
-	}
-	log_index, err := blob.GetUint64("log_index")
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to serialize key-value %v", err)
 	}
 
-	block_timestamp, err := blob.GetUint64("block_timestamp")
-	if err != nil {
-		return nil, err
-	}
-	block_number, err := blob.GetUint64("block_number")
-	if err != nil {
-		return nil, err
-	}
-
-	log_name, err := blob.GetString("log")
-	if err != nil {
-		return nil, err
-	}
-
-	output, err := blob.GetKeyValue("output")
-	if err != nil {
-		return nil, err
-	}
-
-	log := Log{
-		NetworkId:      network_id,
-		Txid:           txid,
-		BlockNumber:    block_number,
-		BlockTimestamp: block_timestamp,
-		LogIndex:       uint(log_index),
-		Address:        address,
-		Log:            log_name,
-		Output:         output,
+	log, ok := i.(Log)
+	if !ok {
+		return nil, fmt.Errorf("failed to convert intermediate interface to categorizer.Log %v", i)
 	}
 
 	return &log, nil

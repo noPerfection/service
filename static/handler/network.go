@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/static/network"
@@ -35,11 +36,9 @@ func NetworkGet(_ *db.Database, request message.Request) message.Reply {
 	}
 
 	reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"network": n.ToJSON(),
-		}),
+		Status:     "OK",
+		Message:    "",
+		Parameters: key_value.Empty().Set("network", n),
 	}
 
 	return reply
@@ -86,16 +85,11 @@ func NetworkGetAll(_ *db.Database, request message.Request) message.Reply {
 		return message.Fail(err.Error())
 	}
 
-	raw_networks := make([]map[string]interface{}, len(networks))
-	for i, n := range networks {
-		raw_networks[i] = n.ToJSON()
-	}
+	raw_networks := data_type.ToMapList(networks)
 
 	return message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"networks": raw_networks,
-		}),
+		Status:     "OK",
+		Message:    "",
+		Parameters: key_value.Empty().Set("networks", raw_networks),
 	}
 }

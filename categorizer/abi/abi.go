@@ -78,7 +78,7 @@ func (a *Abi) Categorize(data string) (string, map[string]interface{}, error) {
 func NewAbi(static_abi *static_abi.Abi) (*Abi, error) {
 	abi_obj := Abi{static_abi: static_abi}
 
-	abiReader := strings.NewReader(string(abi_obj.static_abi.Bytes))
+	abiReader := strings.NewReader(abi_obj.static_abi.ToString())
 	geth_abi, err := abi.JSON(abiReader)
 	if err != nil {
 		return &abi_obj, fmt.Errorf("failed to parse body. probably an invalid json body. the geth package error: %w", err)

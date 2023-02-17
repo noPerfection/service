@@ -127,7 +127,7 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 					continue
 				}
 
-				service_account := account.NewService(service_request.Service)
+				service_account := account.NewService(service_request.Service())
 
 				reply = service_handler(db, service_request, service_account)
 			} else {

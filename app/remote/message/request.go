@@ -1,30 +1,25 @@
 package message
 
 import (
+	"fmt"
+
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // The SDS Service will accepts the Request message.
 type Request struct {
-	Command    string
-	Parameters key_value.KeyValue
-}
-
-// Convert Request to JSON
-func (request *Request) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"command":    request.Command,
-		"parameters": request.Parameters,
-	}
-}
-
-func (request *Request) CommandName() string {
-	return request.Command
+	Command    string             `json:"command"`
+	Parameters key_value.KeyValue `json:"parameters"`
 }
 
 // Request message as a  sequence of bytes
 func (request *Request) ToBytes() ([]byte, error) {
-	return key_value.New(request.ToJSON()).ToBytes()
+	kv, err := key_value.NewFromInterface(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize Request to key-value %v: %v", request, err)
+	}
+
+	return kv.ToBytes()
 }
 
 // Convert Request message to the string
@@ -51,23 +46,18 @@ func ParseRequest(msgs []string) (Request, error) {
 	msg := ToString(msgs)
 
 	data, err := key_value.NewFromString(msg)
-
 	if err != nil {
-		return Request{}, err
+		return Request{}, fmt.Errorf("failed to convert message string %s to key-value: %v", msg, err)
 	}
 
-	command, err := data.GetString("command")
+	i, err := data.ToInterface()
 	if err != nil {
-		return Request{}, err
-	}
-	parameters, err := data.GetKeyValue("parameters")
-	if err != nil {
-		return Request{}, err
+		return Request{}, fmt.Errorf("failed to convert key-value %v to intermediate interface: %v", data, err)
 	}
 
-	request := Request{
-		Command:    command,
-		Parameters: parameters,
+	request, ok := i.(Request)
+	if !ok {
+		return Request{}, fmt.Errorf("failed to convert intermediate interface for message %s to Request", msg)
 	}
 
 	return request, nil

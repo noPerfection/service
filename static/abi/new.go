@@ -15,7 +15,7 @@ func New(body interface{}) (*Abi, error) {
 		return nil, err
 	}
 
-	abi.Bytes = byt
+	abi.bytes = byt
 	abi.CalculateAbiHash()
 
 	return &abi, nil
@@ -30,6 +30,6 @@ func FromBytes(bytes []byte) *Abi {
 		fmt.Println("Failed to convert abi bytes to body interface")
 	}
 
-	abi := Abi{Body: body, exists: false, Bytes: bytes}
+	abi := Abi{Body: body, exists: false, bytes: bytes}
 	return &abi
 }

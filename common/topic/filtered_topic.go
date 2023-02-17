@@ -3,13 +3,13 @@ package topic
 import "github.com/blocklords/gosds/common/data_type/key_value"
 
 type TopicFilter struct {
-	Organizations  []string
-	Projects       []string
-	NetworkIds     []string
-	Groups         []string
-	Smartcontracts []string
-	Methods        []string
-	Events         []string
+	Organizations  []string `json:"o,omitempty"`
+	Projects       []string `json:"p,omitempty"`
+	NetworkIds     []string `json:"n,omitempty"`
+	Groups         []string `json:"g,omitempty"`
+	Smartcontracts []string `json:"s,omitempty"`
+	Methods        []string `json:"m,omitempty"`
+	Events         []string `json:"e,omitempty"`
 }
 
 func NewFilterTopic(o []string, p []string, n []string, g []string, s []string, m []string, e []string) TopicFilter {
@@ -21,18 +21,6 @@ func NewFilterTopic(o []string, p []string, n []string, g []string, s []string, 
 		Smartcontracts: s,
 		Methods:        m,
 		Events:         e,
-	}
-}
-
-func (t *TopicFilter) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"o":  t.Organizations,
-		"p:": t.Projects,
-		"n":  t.NetworkIds,
-		"g":  t.Groups,
-		"s":  t.Smartcontracts,
-		"m":  t.Methods,
-		"e":  t.Events,
 	}
 }
 
@@ -99,8 +87,7 @@ func (t *TopicFilter) ToString() string {
 }
 
 // Converts the JSON object to the topic.TopicFilter
-func ParseJSONToTopicFilter(json map[string]interface{}) (*TopicFilter, error) {
-	parameters := key_value.New(json)
+func ParseJSONToTopicFilter(parameters key_value.KeyValue) (*TopicFilter, error) {
 	topic_filter := TopicFilter{
 		Organizations:  []string{},
 		Projects:       []string{},

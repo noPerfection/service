@@ -2,6 +2,7 @@ package smartcontract
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
@@ -13,12 +14,16 @@ import (
 // Returns list of smartcontracts by topic filter in remote Static service
 // also the topic path of the smartcontract
 func RemoteSmartcontracts(socket *remote.Socket, tf *topic.TopicFilter) ([]*Smartcontract, []string, error) {
-	request := message.Request{
-		Command: "smartcontract_filter",
-		Parameters: map[string]interface{}{
-			"topic_filter": tf.ToJSON(),
-		},
+	kv, err := key_value.NewFromInterface(tf)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to serialize topic filter: %v", err)
 	}
+
+	request := message.Request{
+		Command:    "smartcontract_filter",
+		Parameters: key_value.Empty().Set("topic_filter", kv),
+	}
+
 	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return nil, nil, err
@@ -50,12 +55,15 @@ func RemoteSmartcontracts(socket *remote.Socket, tf *topic.TopicFilter) ([]*Smar
 
 // returns list of smartcontract keys by topic filter
 func RemoteSmartcontractKeys(socket *remote.Socket, tf *topic.TopicFilter) (key.KeyToTopicString, error) {
+	kv, err := key_value.NewFromInterface(tf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize topic filter: %v", err)
+	}
+
 	// Send hello.
 	request := message.Request{
-		Command: "smartcontract_key_filter",
-		Parameters: map[string]interface{}{
-			"topic_filter": tf.ToJSON(),
-		},
+		Command:    "smartcontract_key_filter",
+		Parameters: key_value.Empty().Set("topic_filter", kv),
 	}
 	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
@@ -83,11 +91,8 @@ func RemoteSmartcontractKeys(socket *remote.Socket, tf *topic.TopicFilter) (key.
 func RemoteSmartcontract(socket *remote.Socket, network_id string, address string) (*Smartcontract, error) {
 	// Send hello.
 	request := message.Request{
-		Command: "smartcontract_get",
-		Parameters: map[string]interface{}{
-			"network_id": network_id,
-			"address":    address,
-		},
+		Command:    "smartcontract_get",
+		Parameters: key_value.Empty().Set("network_id", network_id).Set("address", address),
 	}
 	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
@@ -103,17 +108,21 @@ func RemoteSmartcontract(socket *remote.Socket, network_id string, address strin
 }
 
 func RemoteSmartcontractRegister(socket *remote.Socket, s *Smartcontract) (string, error) {
+	json, err := key_value.NewFromInterface(s)
+	if err != nil {
+		return "", fmt.Errorf("preparing request message failed. failed to serialize static.Smartcontract to json while: %v", err)
+	}
+
 	// Send hello.
 	request := message.Request{
 		Command:    "smartcontract_register",
-		Parameters: s.ToJSON(),
+		Parameters: json,
 	}
 
-	raw_params, err := socket.RequestRemoteService(&request)
+	params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return "", err
 	}
-	params := key_value.New(raw_params)
 
 	return params.GetString("address")
 }

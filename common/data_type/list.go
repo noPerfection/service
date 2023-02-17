@@ -6,12 +6,14 @@ import (
 	categorizer_log "github.com/blocklords/gosds/categorizer/log"
 	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
 	categorizer_transaction "github.com/blocklords/gosds/categorizer/transaction"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 
 	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
 	spaghetti_transaction "github.com/blocklords/gosds/spaghetti/transaction"
 
 	static_abi "github.com/blocklords/gosds/static/abi"
 	static_configuration "github.com/blocklords/gosds/static/configuration"
+	static_network "github.com/blocklords/gosds/static/network"
 	static_smartcontract "github.com/blocklords/gosds/static/smartcontract"
 	static_smartcontract_key "github.com/blocklords/gosds/static/smartcontract/key"
 )
@@ -20,9 +22,7 @@ type List interface {
 	*categorizer_log.Log | *categorizer_smartcontract.Smartcontract | *categorizer_transaction.Transaction |
 		*spaghetti_log.Log | *spaghetti_transaction.Transaction | *static_abi.Abi |
 		*static_configuration.Configuration | *static_smartcontract.Smartcontract |
-		*account.Account
-
-	ToJSON() map[string]interface{}
+		*static_network.Network | *account.Account
 }
 
 type StringList interface {
@@ -34,7 +34,10 @@ type StringList interface {
 func ToMapList[V List](list []V) []map[string]interface{} {
 	map_list := make([]map[string]interface{}, len(list))
 	for i, element := range list {
-		map_list[i] = element.ToJSON()
+		kv, err := key_value.NewFromInterface(element)
+		if err == nil {
+			map_list[i] = kv.ToMap()
+		}
 	}
 
 	return map_list

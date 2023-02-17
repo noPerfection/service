@@ -97,7 +97,12 @@ func run_imx_manager(db_con *db.Database, network *network.Network) {
 // if SDS Categorizer was running with broadcast enabled,
 // then start a worker.
 func smartcontract_set(db_con *db.Database, request message.Request) message.Reply {
-	sm, err := smartcontract.New(request.Parameters)
+	kv, err := request.Parameters.GetKeyValue("smartcontract")
+	if err != nil {
+		return message.Fail("missing 'smartcontract' parameter")
+	}
+
+	sm, err := smartcontract.New(kv)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -144,11 +149,9 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 	}
 
 	reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"smartcontract": sm.ToJSON(),
-		}),
+		Status:     "OK",
+		Message:    "",
+		Parameters: key_value.Empty().Set("smartcontract", sm),
 	}
 
 	return reply

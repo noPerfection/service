@@ -338,7 +338,7 @@ func (manager *Manager) subscribe() {
 				panic(err)
 			}
 
-			reply := broadcast.Reply()
+			reply := broadcast.Reply
 
 			block_number, err := reply.Parameters.GetUint64("block_number")
 			if err != nil {

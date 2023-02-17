@@ -3,6 +3,7 @@ package key_value
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -32,6 +33,24 @@ func NewFromString(s string) (KeyValue, error) {
 	return key_value, nil
 }
 
+// Converts the data structure "i" to KeyValue
+// In order to do that, it serializes data structure using json
+//
+// The data structures should define the json variable names
+func NewFromInterface(i interface{}) (KeyValue, error) {
+	var k KeyValue
+	bytes, err := json.Marshal(i)
+	if err != nil {
+		return Empty(), fmt.Errorf("failed to serialize data structure %v: %v", i, err)
+	}
+	err = json.Unmarshal(bytes, &k)
+	if err != nil {
+		return Empty(), fmt.Errorf("failed to unserialize data structure %v (serialized: %v): %v", i, bytes, err)
+	}
+
+	return k, nil
+}
+
 // Returns an empty key value
 func Empty() KeyValue {
 	return KeyValue(map[string]interface{}{})
@@ -42,13 +61,46 @@ func (k KeyValue) ToMap() map[string]interface{} {
 	return map[string]interface{}(k)
 }
 
+// Returns the serialized key-value as a series of bytes
 func (k KeyValue) ToBytes() ([]byte, error) {
-	byt, err := json.Marshal(k)
+	bytes, err := json.Marshal(k)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	return byt, nil
+	return bytes, nil
+}
+
+// Returns the serialized key-value as a string
+func (k KeyValue) ToString() (string, error) {
+	bytes, err := k.ToBytes()
+	if err != nil {
+		return "", fmt.Errorf("failed to seralize key-value to bytes %v: %v", k, err)
+	}
+
+	return string(bytes), nil
+}
+
+// Returns the key-value as an interface
+func (k KeyValue) ToInterface() (interface{}, error) {
+	var i interface{}
+	bytes, err := k.ToBytes()
+	if err != nil {
+		return Empty(), fmt.Errorf("failed to serialize data structure %v: %v", i, err)
+	}
+	err = json.Unmarshal(bytes, &i)
+	if err != nil {
+		return Empty(), fmt.Errorf("failed to unserialize data structure %v (serialized: %v): %v", i, bytes, err)
+	}
+
+	return i, nil
+}
+
+// Add a new parameter
+func (k KeyValue) Set(name string, value interface{}) KeyValue {
+	k[name] = value
+
+	return k
 }
 
 // Returns the all uint64 parameters

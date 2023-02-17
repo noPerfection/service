@@ -27,10 +27,8 @@ func GetSmartcontract(db *db.Database, request message.Request) message.Reply {
 	}
 
 	reply := message.Reply{
-		Status: "OK",
-		Parameters: key_value.New(map[string]interface{}{
-			"smartcontract": sm.ToJSON(),
-		}),
+		Status:     "OK",
+		Parameters: key_value.Empty().Set("smartcontract", sm),
 	}
 
 	return reply
@@ -45,11 +43,9 @@ func GetSmartcontracts(db *db.Database, _ message.Request) message.Reply {
 	}
 
 	reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"smartcontracts": data_type.ToMapList(smartcontracts),
-		}),
+		Status:     "OK",
+		Message:    "",
+		Parameters: key_value.Empty().Set("smartcontracts", data_type.ToMapList(smartcontracts)),
 	}
 
 	return reply

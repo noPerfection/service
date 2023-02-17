@@ -2,17 +2,9 @@
 package network
 
 type Network struct {
-	Id       string
-	Provider string
-	Flag     int8 // With VM or Without VM
-}
-
-func (n *Network) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"id":       n.Id,
-		"provider": n.Provider,
-		"flag":     n.Flag,
-	}
+	Id       string `json:"id"`
+	Provider string `json:"provider"`
+	Flag     int8   `json:"flag"` // With VM or Without VM
 }
 
 // Whether the network with network_id exists in the networks list

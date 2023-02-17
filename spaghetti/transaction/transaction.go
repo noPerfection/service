@@ -2,43 +2,34 @@
 package transaction
 
 import (
-	"encoding/json"
+	"fmt"
+
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 type Transaction struct {
-	NetworkId      string
-	BlockNumber    uint64
-	BlockTimestamp uint64
-	Txid           string // txId column
-	TxFrom         string
-	TxTo           string
-	TxIndex        uint
-	Data           string  // text Data type
-	Value          float64 // Value attached with transaction
-}
-
-// JSON representation of the spaghetti.Transaction
-func (b *Transaction) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"network_id":      b.NetworkId,
-		"block_number":    b.BlockNumber,
-		"block_timestamp": b.BlockTimestamp,
-		"Txid":            b.Txid,
-		"tx_from":         b.TxFrom,
-		"tx_to":           b.TxTo,
-		"tx_index":        b.TxIndex,
-		"tx_Data":         b.Data,
-		"tx_Value":        b.Value,
-	}
+	NetworkId      string  `json:"network_id"`
+	BlockNumber    uint64  `json:"block_number"`
+	BlockTimestamp uint64  `json:"block_timestamp"`
+	Txid           string  `json:"txid"`     // txId column
+	TxFrom         string  `json:"tx_from"`  // txFrom column
+	TxTo           string  `json:"tx_to"`    // txTo column
+	TxIndex        uint    `json:"tx_index"` // txIndex column
+	Data           string  `json:"tx_data"`  // data columntext Data type
+	Value          float64 `json:"tx_value"` // valueValue attached with transaction
 }
 
 // JSON string representation of the spaghetti.Transaction
-func (b *Transaction) ToString() string {
-	interfaces := b.ToJSON()
-	byt, err := json.Marshal(interfaces)
+func (t *Transaction) ToString() (string, error) {
+	kv, err := key_value.NewFromInterface(t)
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("failed to serialize spaghetti transaction to intermediate key-value %v: %v", t, err)
 	}
 
-	return string(byt)
+	bytes, err := kv.ToBytes()
+	if err != nil {
+		return "", fmt.Errorf("failed to serialize intermediate key-value to string %v: %v", t, err)
+	}
+
+	return string(bytes), nil
 }

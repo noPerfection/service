@@ -184,7 +184,12 @@ func (worker *Worker) categorize(block_number uint64, block_timestamp uint64, tr
 				return fmt.Errorf("emergency error. failed to create a transaction row in the database. this is an exception. consider fixing it asap. error message: " + err.Error())
 			}
 
-			broadcastTransactions = append(broadcastTransactions, tx.ToJSON())
+			tx_kv, err := key_value.NewFromInterface(tx)
+			if err != nil {
+				return fmt.Errorf("failed to serialize transaction to key-value %v: %v", tx, err)
+			}
+
+			broadcastTransactions = append(broadcastTransactions, tx_kv)
 		}
 
 		if !worker.no_event && len(logs) > 0 {
@@ -211,7 +216,12 @@ func (worker *Worker) categorize(block_number uint64, block_timestamp uint64, tr
 					return fmt.Errorf("emergency error. failed to create a log row in the database. this is an exception, that should not be. Consider fixing it. error message: " + err.Error())
 				}
 
-				broadcastLogs = append(broadcastLogs, l.ToJSON())
+				log_kv, err := key_value.NewFromInterface(l)
+				if err != nil {
+					return fmt.Errorf("failed to serialize Log to key-value while trying to broadcast it %v: %v", l, err)
+				}
+
+				broadcastLogs = append(broadcastLogs, log_kv)
 			}
 		}
 	}

@@ -1,14 +1,16 @@
 package smartcontract
 
 import (
-	"encoding/json"
+	"fmt"
+
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 type Smartcontract struct {
-	NetworkId                 string
-	Address                   string
-	CategorizedBlockNumber    uint64
-	CategorizedBlockTimestamp uint64
+	NetworkId                 string `json:"network_id"`
+	Address                   string `json:"address"`
+	CategorizedBlockNumber    uint64 `json:"categorized_block_number"`
+	CategorizedBlockTimestamp uint64 `json:"categorized_block_timestamp"`
 }
 
 // Updates the categorized block parameter of the smartcontract.
@@ -20,22 +22,17 @@ func (s *Smartcontract) SetBlockParameter(b uint64, t uint64) {
 	s.CategorizedBlockTimestamp = t
 }
 
-func (s *Smartcontract) ToJSON() map[string]interface{} {
-	i := map[string]interface{}{}
-	i["network_id"] = s.NetworkId
-	i["address"] = s.Address
-	i["categorized_block_number"] = s.CategorizedBlockNumber
-	i["categorized_block_timestamp"] = s.CategorizedBlockTimestamp
-	return i
-}
-
 // Returns a JSON representation of this smartcontract in a string format
-func (b *Smartcontract) ToString() (string, error) {
-	s := b.ToJSON()
-	byt, err := json.Marshal(s)
+func (sm *Smartcontract) ToString() (string, error) {
+	kv, err := key_value.NewFromInterface(sm)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to serialize Smartcontract to intermediate key-value %v: %v", sm, err)
 	}
 
-	return string(byt), nil
+	bytes, err := kv.ToBytes()
+	if err != nil {
+		return "", fmt.Errorf("failed to serialize intermediate key-value to string %v: %v", sm, err)
+	}
+
+	return string(bytes), nil
 }

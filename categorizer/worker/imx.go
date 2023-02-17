@@ -15,6 +15,7 @@ import (
 	"github.com/blocklords/gosds/categorizer/imx"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/categorizer/transaction"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 
 	"github.com/blocklords/gosds/app/remote/message"
@@ -156,7 +157,12 @@ func categorize_imx_transfers(worker *Worker, apiClient *imx_api.APIClient, slee
 				smartcontract.SetSyncing(worker.db, worker.smartcontract, uint64(blockTime.Unix()), uint64(blockTime.Unix()))
 			}
 
-			broadcastTransactions = append(broadcastTransactions, tx.ToJSON())
+			tx_kv, err := key_value.NewFromInterface(tx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to serialize transaction to key-value %v: %v", tx, err)
+			}
+
+			broadcastTransactions = append(broadcastTransactions, tx_kv)
 		}
 
 		time.Sleep(sleep * IMX_REQUEST_TYPE_AMOUNT)
@@ -264,7 +270,12 @@ func categorize_imx_mints(worker *Worker, apiClient *imx_api.APIClient, sleep ti
 				smartcontract.SetSyncing(worker.db, worker.smartcontract, uint64(blockTime.Unix()), uint64(blockTime.Unix()))
 			}
 
-			broadcastTransactions = append(broadcastTransactions, tx.ToJSON())
+			tx_kv, err := key_value.NewFromInterface(tx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to serialize transaction to key-value %v: %v", tx, err)
+			}
+
+			broadcastTransactions = append(broadcastTransactions, tx_kv)
 		}
 		time.Sleep(sleep * IMX_REQUEST_TYPE_AMOUNT)
 

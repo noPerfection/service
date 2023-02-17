@@ -31,7 +31,7 @@ func ConfigurationRegister(db *db.Database, request message.Request) message.Rep
 	return message.Reply{
 		Status:     "OK",
 		Message:    "",
-		Parameters: key_value.New(conf.ToJSON()),
+		Parameters: key_value.Empty().Set("configuration", conf),
 	}
 }
 
@@ -57,18 +57,15 @@ func ConfigurationGet(db *db.Database, request message.Request) message.Reply {
 		return message.Fail("Configuration loading in the database failed: " + err.Error())
 	}
 
-	s, getErr := smartcontract.GetFromDatabase(db, conf.NetworkId, conf.Address)
+	s, getErr := smartcontract.GetFromDatabase(db, conf.NetworkId, conf.Address())
 	if getErr != nil {
 		return message.Fail("Failed to get smartcontract from database: " + getErr.Error())
 	}
 
 	reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"configuration": conf.ToJSON(),
-			"smartcontract": s.ToJSON(),
-		}),
+		Status:     "OK",
+		Message:    "",
+		Parameters: key_value.Empty().Set("configuration", conf).Set("smartcontract", s),
 	}
 	return reply
 }

@@ -68,7 +68,7 @@ func (socket *Socket) Subscribe(channel chan message.Reply, exit_channel chan in
 				continue
 			}
 
-			channel <- broadcast.Reply()
+			channel <- broadcast.Reply
 		}
 	}
 }

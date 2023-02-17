@@ -23,7 +23,7 @@ func SetInDatabase(db *db.Database, conf *Configuration) error {
 		return err
 	}
 
-	conf.SetId(uint(id))
+	conf.SetId(uint64(id))
 	return nil
 
 }
@@ -31,7 +31,7 @@ func SetInDatabase(db *db.Database, conf *Configuration) error {
 // Fills the static configuration parameters from database
 func LoadDatabaseParts(db *db.Database, conf *Configuration) error {
 	var address string
-	var id int64
+	var id uint64
 
 	err := db.Connection.QueryRow(`SELECT smartcontract_address, id FROM static_configuration WHERE 
 	organization = ? AND project = ? AND network_id = ? AND group_name = ? AND 
@@ -42,7 +42,7 @@ func LoadDatabaseParts(db *db.Database, conf *Configuration) error {
 		return err
 	}
 
-	conf.SetId(uint(id))
+	conf.SetId(id)
 	conf.SetAddress(address)
 
 	return nil

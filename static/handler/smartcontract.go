@@ -148,10 +148,8 @@ func SmartcontractGet(db *db.Database, request message.Request) message.Reply {
 	}
 
 	return message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"smartcontract": s.ToJSON(),
-		}),
+		Status:     "OK",
+		Message:    "",
+		Parameters: key_value.Empty().Set("smartcontract", s),
 	}
 }

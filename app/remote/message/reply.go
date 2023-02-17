@@ -1,16 +1,16 @@
 package message
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // SDS Service returns the reply. Anyone who sends a request to the SDS Service gets this message.
 type Reply struct {
-	Status     string
-	Message    string
-	Parameters key_value.KeyValue
+	Status     string             `json:"status"`
+	Message    string             `json:"message"`
+	Parameters key_value.KeyValue `json:"parameters"`
 }
 
 // Create a new Reply as a failure
@@ -21,15 +21,6 @@ func Fail(message string) Reply {
 
 // Is SDS Service returned a successful reply
 func (r *Reply) IsOK() bool { return r.Status == "OK" }
-
-// Convert to JSON
-func (reply *Reply) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"status":     reply.Status,
-		"message":    reply.Message,
-		"parameters": reply.Parameters,
-	}
-}
 
 // Convert the reply to the string format
 func (reply *Reply) ToString() (string, error) {
@@ -43,7 +34,12 @@ func (reply *Reply) ToString() (string, error) {
 
 // Reply as a sequence of bytes
 func (reply *Reply) ToBytes() ([]byte, error) {
-	return key_value.New(reply.ToJSON()).ToBytes()
+	kv, err := key_value.NewFromInterface(reply)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize Reply to key-value %v: %v", reply, err)
+	}
+
+	return kv.ToBytes()
 }
 
 // Zeromq received raw strings converted to the Reply message.
@@ -59,30 +55,13 @@ func ParseReply(msgs []string) (Reply, error) {
 
 // Create 'Reply' message from a key value
 func ParseJsonReply(dat key_value.KeyValue) (Reply, error) {
-	reply := Reply{}
-	status, err := dat.GetString("status")
+	i, err := dat.ToInterface()
 	if err != nil {
-		return reply, err
+		return Reply{}, fmt.Errorf("failed to serialize key-value while parsing Reply: %v", err)
 	}
-	if status != "fail" && status != "OK" {
-		return reply, errors.New("the 'status' of the reply can be either 'fail' or 'OK'")
-	} else {
-		reply.Status = status
+	reply, ok := i.(Reply)
+	if !ok {
+		return Reply{}, fmt.Errorf("failed to convert intermediate interface to Reply: %v", i)
 	}
-
-	message, err := dat.GetString("message")
-	if err != nil {
-		return reply, err
-	} else {
-		reply.Message = message
-	}
-
-	parameters, err := dat.GetKeyValue("parameters")
-	if err != nil {
-		return reply, err
-	} else {
-		reply.Parameters = parameters
-	}
-
 	return reply, nil
 }

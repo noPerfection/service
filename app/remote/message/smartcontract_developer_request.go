@@ -1,33 +1,29 @@
 package message
 
 import (
+	"fmt"
+
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // The SDS Service will accepts the SmartcontractDeveloperRequest message.
 type SmartcontractDeveloperRequest struct {
-	Address        string             // The whitelisted address of the user
-	NonceTimestamp uint64             // Nonce as a unix timestamp in seconds
-	Signature      string             // Command, nonce, address and parameters signed together
-	Command        string             // Command type
-	Parameters     key_value.KeyValue // Parameters of the request
-}
-
-// Convert SmartcontractDeveloperRequest to JSON
-func (request *SmartcontractDeveloperRequest) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"address":         request.Address,
-		"nonce_timestamp": request.NonceTimestamp,
-		"signature":       request.Signature,
-		"command":         request.Command,
-		"parameters":      request.Parameters,
-	}
+	Address        string             `json:"address"`         // The whitelisted address of the user
+	NonceTimestamp uint64             `json:"nonce_timestamp"` // The timestamp           // Nonce as a unix timestamp in seconds
+	Signature      string             `json:"signature"`       // The signature           // Command, nonce, address and parameters signed together
+	Command        string             `json:"command"`         // The command           // Command type
+	Parameters     key_value.KeyValue `json:"parameters"`      // The parametersParameters of the request
 }
 
 // SmartcontractDeveloperRequest message as a  sequence of bytes
 func (request *SmartcontractDeveloperRequest) ToBytes() ([]byte, error) {
-	return key_value.New(request.ToJSON()).ToBytes()
+	kv, err := key_value.NewFromInterface(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize SmartcontractDeveloper Request to key-value %v: %v", request, err)
+	}
+
+	return kv.ToBytes()
 }
 
 // Convert SmartcontractDeveloperRequest message to the string
@@ -46,7 +42,10 @@ func (request *SmartcontractDeveloperRequest) ToString() (string, error) {
 //
 // The request parameters are oredered in an alphanumerical order.
 func (request *SmartcontractDeveloperRequest) message_hash() ([]byte, error) {
-	json_object := request.ToJSON()
+	json_object, err := key_value.NewFromInterface(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize %v", err)
+	}
 	delete(json_object, "signature")
 
 	bytes, err := key_value.New(json_object).ToBytes()

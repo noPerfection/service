@@ -1,6 +1,8 @@
 package configuration
 
 import (
+	"fmt"
+
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type/key_value"
@@ -10,10 +12,14 @@ import (
 
 // get configuration from SDS Static by the configuration topic
 func RemoteConfiguration(socket *remote.Socket, t *topic.Topic) (*Configuration, *smartcontract.Smartcontract, error) {
-	// Send hello.
+	kv, err := key_value.NewFromInterface(t)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to convert topic to key-value %v: %v", t, err)
+	}
+
 	request := message.Request{
 		Command:    "configuration_get",
-		Parameters: t.ToJSON(),
+		Parameters: kv,
 	}
 	raw_parameters, err := socket.RequestRemoteService(&request)
 	if err != nil {
@@ -43,12 +49,16 @@ func RemoteConfiguration(socket *remote.Socket, t *topic.Topic) (*Configuration,
 
 // Send a command to the SDS Static to register a new configuration
 func RemoteConfigurationRegister(socket *remote.Socket, conf *Configuration) error {
-	// Send hello.
-	request := message.Request{
-		Command:    "configuration_register",
-		Parameters: conf.ToJSON(),
+	kv, err := key_value.NewFromInterface(conf)
+	if err != nil {
+		return fmt.Errorf("failed to convert static.Configuration to KeyValue: %v", err)
 	}
 
-	_, err := socket.RequestRemoteService(&request)
+	request := message.Request{
+		Command:    "configuration_register",
+		Parameters: kv,
+	}
+
+	_, err = socket.RequestRemoteService(&request)
 	return err
 }

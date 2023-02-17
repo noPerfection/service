@@ -8,10 +8,10 @@ import (
 
 // Requeter to the SDS Service. It's either a developer or another SDS service.
 type Account struct {
-	id             uint64           // Auto incremented for every new developer
-	PublicKey      string           // Public Key for authentication.
-	Organization   string           // Organization
-	NonceTimestamp uint64           // Nonce since the last usage. Only acceptable for developers
+	Id             uint64           `json:"id,omitempty"`    // Auto incremented for every new developer
+	PublicKey      string           `json:"public_key"`      // Public Key for authentication.
+	Organization   string           `json:"organization"`    // Organization
+	NonceTimestamp uint64           `json:"nonce_timestamp"` // Nonce since the last usage. Only acceptable for developers
 	service        *service.Service // If the account is another service, then this parameter keeps the data. Otherwise this parameter is a nil.
 }
 
@@ -20,7 +20,7 @@ type Accounts []*Account
 // Creates a new Account for a developer.
 func NewDeveloper(id uint64, public_key string, nonce_timestamp uint64, organization string) *Account {
 	return &Account{
-		id:             id,
+		Id:             id,
 		PublicKey:      public_key,
 		NonceTimestamp: nonce_timestamp,
 		Organization:   organization,
@@ -31,7 +31,7 @@ func NewDeveloper(id uint64, public_key string, nonce_timestamp uint64, organiza
 // Creates a new Account for a service
 func NewService(service *service.Service) *Account {
 	return &Account{
-		id:             0,
+		Id:             0,
 		NonceTimestamp: 0,
 		PublicKey:      service.PublicKey,
 		Organization:   "",
@@ -45,15 +45,6 @@ func (account *Account) IsDeveloper() bool {
 
 func (account *Account) IsService() bool {
 	return account.service != nil
-}
-
-func (account *Account) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"id":              account.id,
-		"nonce_timestamp": account.NonceTimestamp,
-		"public_key":      account.PublicKey,
-		"organization":    account.Organization,
-	}
 }
 
 func ParseJson(raw key_value.KeyValue) (*Account, error) {

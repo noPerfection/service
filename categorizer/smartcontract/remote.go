@@ -11,7 +11,7 @@ func RemoteSet(b *Smartcontract, socket *remote.Socket) error {
 	// Send hello.
 	request := message.Request{
 		Command:    "smartcontract_set",
-		Parameters: b.ToJSON(),
+		Parameters: key_value.Empty().Set("smartcontract", b),
 	}
 
 	_, err := socket.RequestRemoteService(&request)
@@ -26,11 +26,8 @@ func RemoteSet(b *Smartcontract, socket *remote.Socket) error {
 func RemoteSmartcontract(socket *remote.Socket, network_id string, address string) (*Smartcontract, error) {
 	// Send hello.
 	request := message.Request{
-		Command: "smartcontract_get",
-		Parameters: map[string]interface{}{
-			"network_id": network_id,
-			"address":    address,
-		},
+		Command:    "smartcontract_get",
+		Parameters: key_value.Empty().Set("network_id", network_id).Set("address", address),
 	}
 	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
@@ -51,7 +48,7 @@ func RemoteSmartcontracts(socket *remote.Socket) ([]*Smartcontract, error) {
 	// Send hello.
 	request := message.Request{
 		Command:    "smartcontract_get_all",
-		Parameters: map[string]interface{}{},
+		Parameters: key_value.Empty(),
 	}
 
 	raw_params, err := socket.RequestRemoteService(&request)
