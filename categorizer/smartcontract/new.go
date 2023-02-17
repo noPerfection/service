@@ -1,21 +1,23 @@
 package smartcontract
 
-import "github.com/blocklords/gosds/app/remote/message"
+import (
+	"github.com/blocklords/gosds/common/data_type/key_value"
+)
 
-func New(blob map[string]interface{}) (*Smartcontract, error) {
-	network_id, err := message.GetString(blob, "network_id")
+func New(blob key_value.KeyValue) (*Smartcontract, error) {
+	network_id, err := blob.GetString("network_id")
 	if err != nil {
 		return nil, err
 	}
-	address, err := message.GetString(blob, "address")
+	address, err := blob.GetString("address")
 	if err != nil {
 		return nil, err
 	}
-	categorized_block_number, err := message.GetUint64(blob, "categorized_block_number")
+	categorized_block_number, err := blob.GetUint64("categorized_block_number")
 	if err != nil {
 		return nil, err
 	}
-	categorized_block_timestamp, err := message.GetUint64(blob, "categorized_block_timestamp")
+	categorized_block_timestamp, err := blob.GetUint64("categorized_block_timestamp")
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,8 @@
 package transaction
 
-import "github.com/blocklords/gosds/app/remote/message"
+import (
+	"github.com/blocklords/gosds/common/data_type/key_value"
+)
 
 // Creates a new transaction, an incomplete function.
 //
@@ -17,45 +19,45 @@ func NewTransaction(method string, inputs map[string]interface{}, block_number u
 }
 
 // Converts the JSON object into the corresponding transaction object.
-func ParseTransaction(blob map[string]interface{}) (*Transaction, error) {
-	network_id, err := message.GetString(blob, "network_id")
+func ParseTransaction(blob key_value.KeyValue) (*Transaction, error) {
+	network_id, err := blob.GetString("network_id")
 	if err != nil {
 		return nil, err
 	}
-	address, err := message.GetString(blob, "address")
+	address, err := blob.GetString("address")
 	if err != nil {
 		return nil, err
 	}
-	block_number, err := message.GetUint64(blob, "block_number")
+	block_number, err := blob.GetUint64("block_number")
 	if err != nil {
 		return nil, err
 	}
-	block_timestamp, err := message.GetUint64(blob, "block_timestamp")
+	block_timestamp, err := blob.GetUint64("block_timestamp")
 	if err != nil {
 		return nil, err
 	}
-	txid, err := message.GetString(blob, "txid")
+	txid, err := blob.GetString("txid")
 	if err != nil {
 		return nil, err
 	}
-	tx_index, err := message.GetUint64(blob, "tx_index")
+	tx_index, err := blob.GetUint64("tx_index")
 	if err != nil {
 		return nil, err
 	}
-	tx_from, err := message.GetString(blob, "tx_from")
+	tx_from, err := blob.GetString("tx_from")
 	if err != nil {
 		return nil, err
 	}
-	method, err := message.GetString(blob, "method")
+	method, err := blob.GetString("method")
 	if err != nil {
 		return nil, err
 	}
-	args, err := message.GetMap(blob, "arguments")
+	args, err := blob.GetMap("arguments")
 	if err != nil {
 		return nil, err
 	}
 
-	value, err := message.GetFloat64(blob, "value")
+	value, err := blob.GetFloat64("value")
 	if err != nil {
 		return nil, err
 	}

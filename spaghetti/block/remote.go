@@ -3,6 +3,7 @@ package block
 import (
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 
 	"github.com/blocklords/gosds/spaghetti/log"
 	"github.com/blocklords/gosds/spaghetti/transaction"
@@ -18,16 +19,17 @@ func RemoteBlockNumberCached(socket *remote.Socket, network_id string) (uint64, 
 		},
 	}
 
-	parameters, err := socket.RequestRemoteService(&request)
+	raw_parameters, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return 0, 0, err
 	}
+	parameters := key_value.NewKeyValue(raw_parameters)
 
-	block_number, err := message.GetUint64(parameters, "block_number")
+	block_number, err := parameters.GetUint64("block_number")
 	if err != nil {
 		return 0, 0, err
 	}
-	block_timestamp, err := message.GetUint64(parameters, "block_timestamp")
+	block_timestamp, err := parameters.GetUint64("block_timestamp")
 	if err != nil {
 		return 0, 0, err
 	}
@@ -46,12 +48,13 @@ func RemoteBlockMintedTime(socket *remote.Socket, networkId string, blockNumber 
 		},
 	}
 
-	parameters, err := socket.RequestRemoteService(&request)
+	raw_parameters, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return 0, err
 	}
+	parameters := key_value.NewKeyValue(raw_parameters)
 
-	return message.GetUint64(parameters, "block_timestamp")
+	return parameters.GetUint64("block_timestamp")
 }
 
 func RemoteBlockRange(socket *remote.Socket, networkId string, address string, from uint64, to uint64) (uint64, []*transaction.Transaction, []*log.Log, error) {
@@ -65,22 +68,23 @@ func RemoteBlockRange(socket *remote.Socket, networkId string, address string, f
 		},
 	}
 
-	parameters, err := socket.RequestRemoteService(&request)
+	raw_parameters, err := socket.RequestRemoteService(&request)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	parameters := key_value.NewKeyValue(raw_parameters)
+
+	timestamp, err := parameters.GetUint64("timestamp")
 	if err != nil {
 		return 0, nil, nil, err
 	}
 
-	timestamp, err := message.GetUint64(parameters, "timestamp")
+	raw_transactions, err := parameters.GetMapList("transactions")
 	if err != nil {
 		return 0, nil, nil, err
 	}
 
-	raw_transactions, err := message.GetMapList(parameters, "transactions")
-	if err != nil {
-		return 0, nil, nil, err
-	}
-
-	raw_logs, err := message.GetMapList(parameters, "logs")
+	raw_logs, err := parameters.GetMapList("logs")
 	if err != nil {
 		return 0, nil, nil, err
 	}
@@ -119,27 +123,28 @@ func RemoteBlock(socket *remote.Socket, network_id string, block_number uint64, 
 		},
 	}
 
-	parameters, err := socket.RequestRemoteService(&request)
+	raw_parameters, err := socket.RequestRemoteService(&request)
+	if err != nil {
+		return false, nil, err
+	}
+	parameters := key_value.NewKeyValue(raw_parameters)
+
+	cached, err := parameters.GetBoolean("cached")
 	if err != nil {
 		return false, nil, err
 	}
 
-	cached, err := message.GetBoolean(parameters, "cached")
+	timestamp, err := parameters.GetUint64("timestamp")
 	if err != nil {
 		return false, nil, err
 	}
 
-	timestamp, err := message.GetUint64(parameters, "timestamp")
+	raw_transactions, err := parameters.GetMapList("transactions")
 	if err != nil {
 		return false, nil, err
 	}
 
-	raw_transactions, err := message.GetMapList(parameters, "transactions")
-	if err != nil {
-		return false, nil, err
-	}
-
-	raw_logs, err := message.GetMapList(parameters, "logs")
+	raw_logs, err := parameters.GetMapList("logs")
 	if err != nil {
 		return false, nil, err
 	}

@@ -3,6 +3,7 @@ package transaction
 import (
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // Sends the command to the remote SDS Spaghetti to get the smartcontract deploy metaData by
@@ -17,24 +18,26 @@ func RemoteTransactionDeployed(socket *remote.Socket, network_id string, Txid st
 		},
 	}
 
-	params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return "", "", 0, 0, err
 	}
 
-	address, err := message.GetString(params, "address")
+	params := key_value.NewKeyValue(raw_params)
+
+	address, err := params.GetString("address")
 	if err != nil {
 		return "", "", 0, 0, err
 	}
-	deployer, err := message.GetString(params, "deployer")
+	deployer, err := params.GetString("deployer")
 	if err != nil {
 		return "", "", 0, 0, err
 	}
-	block_number, err := message.GetUint64(params, "block_number")
+	block_number, err := params.GetUint64("block_number")
 	if err != nil {
 		return "", "", 0, 0, err
 	}
-	block_timestamp, err := message.GetUint64(params, "block_timestamp")
+	block_timestamp, err := params.GetUint64("block_timestamp")
 	if err != nil {
 		return "", "", 0, 0, err
 	}

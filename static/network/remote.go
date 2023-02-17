@@ -5,6 +5,7 @@ import (
 
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // Returns list of support network IDs from SDS Static
@@ -23,7 +24,7 @@ func GetRemoteNetworkIds(socket *remote.Socket, flag int8) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return message.GetStringList(params, "network_ids")
+	return key_value.NewKeyValue(params).GetStringList("network_ids")
 }
 
 // Returns list of support network IDs from SDS Static
@@ -42,7 +43,7 @@ func GetRemoteNetworks(socket *remote.Socket, flag int8) (Networks, error) {
 	if err != nil {
 		return nil, err
 	}
-	raw_networks, err := message.GetMapList(params, "networks")
+	raw_networks, err := key_value.NewKeyValue(params).GetMapList("networks")
 	if err != nil {
 		return nil, err
 	}
@@ -63,11 +64,14 @@ func GetRemoteNetwork(socket *remote.Socket, network_id string, flag int8) (*Net
 		},
 	}
 
-	params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return nil, err
 	}
-	raw, err := message.GetMap(params, "network")
+
+	params := key_value.NewKeyValue(raw_params)
+
+	raw, err := params.GetMap("network")
 	if err != nil {
 		return nil, err
 	}

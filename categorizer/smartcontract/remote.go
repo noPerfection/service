@@ -3,6 +3,7 @@ package smartcontract
 import (
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // Sends a command to the remote SDS Categorizer about regitration of this smartcontract.
@@ -31,12 +32,13 @@ func RemoteSmartcontract(socket *remote.Socket, network_id string, address strin
 			"address":    address,
 		},
 	}
-	params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return nil, err
 	}
+	params := key_value.NewKeyValue(raw_params)
 
-	smartcontract, err := message.GetMap(params, "smartcontract")
+	smartcontract, err := params.GetMap("smartcontract")
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +54,13 @@ func RemoteSmartcontracts(socket *remote.Socket) ([]*Smartcontract, error) {
 		Parameters: map[string]interface{}{},
 	}
 
-	params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return nil, err
 	}
+	params := key_value.NewKeyValue(raw_params)
 
-	raw_smartcontracts, err := message.GetMapList(params, "smartcontracts")
+	raw_smartcontracts, err := params.GetMapList("smartcontracts")
 	if err != nil {
 		return nil, err
 	}

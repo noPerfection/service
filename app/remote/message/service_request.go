@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // The SDS Service will accepts a request from another request
@@ -49,7 +50,7 @@ func (request *ServiceRequest) ToString() string {
 func ParseServiceRequest(msgs []string) (ServiceRequest, error) {
 	msg := ToString(msgs)
 
-	var dat map[string]interface{}
+	var dat key_value.KeyValue
 
 	decoder := json.NewDecoder(strings.NewReader(msg))
 	decoder.UseNumber()
@@ -58,16 +59,16 @@ func ParseServiceRequest(msgs []string) (ServiceRequest, error) {
 		return ServiceRequest{}, err
 	}
 
-	command, err := GetString(dat, "command")
+	command, err := dat.GetString("command")
 	if err != nil {
 		return ServiceRequest{}, err
 	}
-	parameters, err := GetMap(dat, "parameters")
+	parameters, err := dat.GetMap("parameters")
 	if err != nil {
 		return ServiceRequest{}, err
 	}
 
-	public_key, err := GetString(dat, "public_key")
+	public_key, err := dat.GetString("public_key")
 	if err != nil {
 		return ServiceRequest{}, err
 	}

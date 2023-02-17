@@ -5,6 +5,7 @@ import (
 
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/common/topic"
 	"github.com/blocklords/gosds/static/smartcontract/key"
 )
@@ -18,16 +19,17 @@ func RemoteSmartcontracts(socket *remote.Socket, tf *topic.TopicFilter) ([]*Smar
 			"topic_filter": tf.ToJSON(),
 		},
 	}
-	params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return nil, nil, err
 	}
+	params := key_value.NewKeyValue(raw_params)
 
-	raw_smartcontracts, err := message.GetMapList(params, "smartcontracts")
+	raw_smartcontracts, err := params.GetMapList("smartcontracts")
 	if err != nil {
 		return nil, nil, err
 	}
-	topic_strings, err := message.GetStringList(params, "topics")
+	topic_strings, err := params.GetStringList("topics")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -55,12 +57,13 @@ func RemoteSmartcontractKeys(socket *remote.Socket, tf *topic.TopicFilter) (key.
 			"topic_filter": tf.ToJSON(),
 		},
 	}
-	params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return nil, err
 	}
+	params := key_value.NewKeyValue(raw_params)
 
-	raw_keys, err := message.GetMap(params, "smartcontract_keys")
+	raw_keys, err := params.GetMap("smartcontract_keys")
 	if err != nil {
 		return nil, err
 	}
@@ -86,12 +89,13 @@ func RemoteSmartcontract(socket *remote.Socket, network_id string, address strin
 			"address":    address,
 		},
 	}
-	params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return nil, err
 	}
+	params := key_value.NewKeyValue(raw_params)
 
-	raw_smartcontract, err := message.GetMap(params, "smartcontract")
+	raw_smartcontract, err := params.GetMap("smartcontract")
 	if err != nil {
 		return nil, err
 	}
@@ -105,10 +109,11 @@ func RemoteSmartcontractRegister(socket *remote.Socket, s *Smartcontract) (strin
 		Parameters: s.ToJSON(),
 	}
 
-	params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return "", err
 	}
+	params := key_value.NewKeyValue(raw_params)
 
-	return message.GetString(params, "address")
+	return params.GetString("address")
 }

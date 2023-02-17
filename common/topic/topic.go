@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 type (
@@ -108,15 +108,16 @@ func (t *Topic) Level() uint8 {
 }
 
 // Parse JSON into the Topic
-func ParseJSON(parameters map[string]interface{}) (*Topic, error) {
-	organization, err := message.GetString(parameters, "o")
+func ParseJSON(json map[string]interface{}) (*Topic, error) {
+	parameters := key_value.NewKeyValue(json)
+	organization, err := parameters.GetString("o")
 	if err != nil {
 		return nil, err
 	}
 	if len(organization) == 0 {
 		return nil, errors.New("organization is empty")
 	}
-	project, err := message.GetString(parameters, "p")
+	project, err := parameters.GetString("p")
 	if err != nil {
 		return nil, err
 	}
@@ -133,27 +134,27 @@ func ParseJSON(parameters map[string]interface{}) (*Topic, error) {
 		Event:         "",
 	}
 
-	network_id, err := message.GetString(parameters, "n")
+	network_id, err := parameters.GetString("n")
 	if err == nil {
 		topic.NetworkId = network_id
 	}
 
-	group, err := message.GetString(parameters, "g")
+	group, err := parameters.GetString("g")
 	if err == nil {
 		topic.Group = group
 	}
 
-	smartcontract, err := message.GetString(parameters, "s")
+	smartcontract, err := parameters.GetString("s")
 	if err == nil {
 		topic.Smartcontract = smartcontract
 	}
 
-	method, err := message.GetString(parameters, "m")
+	method, err := parameters.GetString("m")
 	if err == nil {
 		topic.Method = method
 	}
 
-	event, err := message.GetString(parameters, "e")
+	event, err := parameters.GetString("e")
 	if err == nil {
 		topic.Event = event
 	}

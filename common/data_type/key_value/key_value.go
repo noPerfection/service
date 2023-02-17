@@ -1,4 +1,4 @@
-package message
+package key_value
 
 import (
 	"encoding/json"
@@ -9,11 +9,24 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 )
 
+// identical to the golang map
+type KeyValue map[string]interface{}
+
+// Converts the map to the key-value data type
+func NewKeyValue(key_value map[string]interface{}) KeyValue {
+	return KeyValue(key_value)
+}
+
+// Converts the key-valueto the golang map
+func (k KeyValue) ToMap() map[string]interface{} {
+	return map[string]interface{}(k)
+}
+
 // Returns the all uint64 parameters
-func GetUint64s(parameters map[string]interface{}, names ...string) ([]uint64, error) {
+func (parameters KeyValue) GetUint64s(names ...string) ([]uint64, error) {
 	numbers := make([]uint64, len(names))
 	for i, name := range names {
-		number, err := GetUint64(parameters, name)
+		number, err := parameters.GetUint64(name)
 		if err != nil {
 			return nil, err
 		}
@@ -25,10 +38,10 @@ func GetUint64s(parameters map[string]interface{}, names ...string) ([]uint64, e
 }
 
 // Returns the all float64 parameters
-func GetFloat64s(parameters map[string]interface{}, names ...string) ([]float64, error) {
+func (parameters KeyValue) GetFloat64s(names ...string) ([]float64, error) {
 	numbers := make([]float64, len(names))
 	for i, name := range names {
-		number, err := GetFloat64(parameters, name)
+		number, err := parameters.GetFloat64(name)
 		if err != nil {
 			return nil, err
 		}
@@ -40,10 +53,10 @@ func GetFloat64s(parameters map[string]interface{}, names ...string) ([]float64,
 }
 
 // Returns the all string parameters
-func GetStrings(parameters map[string]interface{}, names ...string) ([]string, error) {
+func (parameters KeyValue) GetStrings(names ...string) ([]string, error) {
 	values := make([]string, len(names))
 	for i, name := range names {
-		value, err := GetString(parameters, name)
+		value, err := parameters.GetString(name)
 		if err != nil {
 			return nil, err
 		}
@@ -55,10 +68,10 @@ func GetStrings(parameters map[string]interface{}, names ...string) ([]string, e
 }
 
 // Returns the all big numbers
-func GetBigNumbers(parameters map[string]interface{}, names ...string) ([]*big.Int, error) {
+func (parameters KeyValue) GetBigNumbers(names ...string) ([]*big.Int, error) {
 	values := make([]*big.Int, len(names))
 	for i, name := range names {
-		value, err := GetBigNumber(parameters, name)
+		value, err := parameters.GetBigNumber(name)
 		if err != nil {
 			return nil, err
 		}
@@ -70,10 +83,10 @@ func GetBigNumbers(parameters map[string]interface{}, names ...string) ([]*big.I
 }
 
 // Returns the all string lists
-func GetStringLists(parameters map[string]interface{}, names ...string) ([][]string, error) {
+func (parameters KeyValue) GetStringLists(names ...string) ([][]string, error) {
 	values := make([][]string, len(names))
 	for i, name := range names {
-		value, err := GetStringList(parameters, name)
+		value, err := parameters.GetStringList(name)
 		if err != nil {
 			return nil, err
 		}
@@ -85,10 +98,10 @@ func GetStringLists(parameters map[string]interface{}, names ...string) ([][]str
 }
 
 // Returns the all map lists
-func GetMapLists(parameters map[string]interface{}, names ...string) ([][]map[string]interface{}, error) {
+func (parameters KeyValue) GetMapLists(names ...string) ([][]map[string]interface{}, error) {
 	values := make([][]map[string]interface{}, len(names))
 	for i, name := range names {
-		value, err := GetMapList(parameters, name)
+		value, err := parameters.GetMapList(name)
 		if err != nil {
 			return nil, err
 		}
@@ -100,10 +113,10 @@ func GetMapLists(parameters map[string]interface{}, names ...string) ([][]map[st
 }
 
 // Returns the all maps
-func GetMaps(parameters map[string]interface{}, names ...string) ([]map[string]interface{}, error) {
+func (parameters KeyValue) GetMaps(names ...string) ([]map[string]interface{}, error) {
 	values := make([]map[string]interface{}, len(names))
 	for i, name := range names {
-		value, err := GetMap(parameters, name)
+		value, err := parameters.GetMap(name)
 		if err != nil {
 			return nil, err
 		}
@@ -115,7 +128,7 @@ func GetMaps(parameters map[string]interface{}, names ...string) ([]map[string]i
 }
 
 // Returns the parameter as an uint64
-func GetUint64(parameters map[string]interface{}, name string) (uint64, error) {
+func (parameters KeyValue) GetUint64(name string) (uint64, error) {
 	raw, exists := parameters[name]
 	if !exists {
 		return 0, errors.New("missing '" + name + "' parameter in the Request")
@@ -135,7 +148,7 @@ func GetUint64(parameters map[string]interface{}, name string) (uint64, error) {
 	return number, err
 }
 
-func GetFloat64(parameters map[string]interface{}, name string) (float64, error) {
+func (parameters KeyValue) GetFloat64(name string) (float64, error) {
 	raw, exists := parameters[name]
 	if !exists {
 		return 0, errors.New("missing '" + name + "' parameter in the Request")
@@ -149,7 +162,7 @@ func GetFloat64(parameters map[string]interface{}, name string) (float64, error)
 	return value, err
 }
 
-func GetBoolean(parameters map[string]interface{}, name string) (bool, error) {
+func (parameters KeyValue) GetBoolean(name string) (bool, error) {
 	raw, exists := parameters[name]
 	if !exists {
 		return false, errors.New("missing '" + name + "' parameter in the Request")
@@ -164,7 +177,7 @@ func GetBoolean(parameters map[string]interface{}, name string) (bool, error) {
 }
 
 // Returns the parsed large number. If the number size is more than 64 bits.
-func GetBigNumber(parameters map[string]interface{}, name string) (*big.Int, error) {
+func (parameters KeyValue) GetBigNumber(name string) (*big.Int, error) {
 	raw, exists := parameters[name]
 	if !exists {
 		return nil, errors.New("missing '" + name + "' parameter in the Request")
@@ -184,7 +197,7 @@ func GetBigNumber(parameters map[string]interface{}, name string) (*big.Int, err
 }
 
 // Returns the paramater as a string
-func GetString(parameters map[string]interface{}, name string) (string, error) {
+func (parameters KeyValue) GetString(name string) (string, error) {
 	raw, exists := parameters[name]
 	if !exists {
 		return "", errors.New("missing '" + name + "' parameter in the Request")
@@ -198,7 +211,7 @@ func GetString(parameters map[string]interface{}, name string) (string, error) {
 }
 
 // Returns list of strings
-func GetStringList(parameters map[string]interface{}, name string) ([]string, error) {
+func (parameters KeyValue) GetStringList(name string) ([]string, error) {
 	raw, exists := parameters[name]
 	if !exists {
 		return nil, errors.New("missing '" + name + "' parameter in the Request")
@@ -230,7 +243,7 @@ func GetStringList(parameters map[string]interface{}, name string) ([]string, er
 // Returns the parameter as a slice of map:
 //
 // []map[string]interface{}
-func GetMapList(parameters map[string]interface{}, name string) ([]map[string]interface{}, error) {
+func (parameters KeyValue) GetMapList(name string) ([]map[string]interface{}, error) {
 	raw, exists := parameters[name]
 	if !exists {
 		return nil, errors.New("missing '" + name + "' parameter in the Request")
@@ -261,7 +274,7 @@ func GetMapList(parameters map[string]interface{}, name string) ([]map[string]in
 // Returns the parameter as a map:
 //
 // map[string]interface{}
-func GetMap(parameters map[string]interface{}, name string) (map[string]interface{}, error) {
+func (parameters KeyValue) GetMap(name string) (map[string]interface{}, error) {
 	raw, exists := parameters[name]
 	if !exists {
 		return nil, errors.New("missing '" + name + "' parameter in the Request")

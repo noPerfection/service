@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // SDS Service returns the reply. Anyone who sends a request to the SDS Service gets this message.
@@ -63,9 +65,9 @@ func ParseReply(msgs []string) (Reply, error) {
 }
 
 // Create 'Reply' message from a json.
-func ParseJsonReply(dat map[string]interface{}) (Reply, error) {
+func ParseJsonReply(dat key_value.KeyValue) (Reply, error) {
 	reply := Reply{}
-	status, err := GetString(dat, "status")
+	status, err := dat.GetString("status")
 	if err != nil {
 		return reply, err
 	}
@@ -75,14 +77,14 @@ func ParseJsonReply(dat map[string]interface{}) (Reply, error) {
 		reply.Status = status
 	}
 
-	message, err := GetString(dat, "message")
+	message, err := dat.GetString("message")
 	if err != nil {
 		return reply, err
 	} else {
 		reply.Message = message
 	}
 
-	parameters, err := GetMap(dat, "params")
+	parameters, err := dat.GetMap("params")
 	if err != nil {
 		return reply, err
 	} else {

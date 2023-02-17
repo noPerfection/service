@@ -3,17 +3,17 @@ package network
 import (
 	"errors"
 
-	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // parses JSON object into the Network Type
-func New(raw map[string]interface{}) (*Network, error) {
-	id, err := message.GetString(raw, "id")
+func New(raw key_value.KeyValue) (*Network, error) {
+	id, err := raw.GetString("id")
 	if err != nil {
 		return nil, err
 	}
 
-	flag_64, err := message.GetUint64(raw, "flag")
+	flag_64, err := raw.GetUint64("flag")
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func New(raw map[string]interface{}) (*Network, error) {
 		return nil, errors.New("invalid 'flag' from the parsed data")
 	}
 
-	provider, err := message.GetString(raw, "provider")
+	provider, err := raw.GetString("provider")
 	if err != nil {
 		return nil, err
 	}

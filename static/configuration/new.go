@@ -1,26 +1,28 @@
 package configuration
 
-import "github.com/blocklords/gosds/app/remote/message"
+import (
+	"github.com/blocklords/gosds/common/data_type/key_value"
+)
 
 // Creates a new static.Configuration class based on the given data
-func New(parameters map[string]interface{}) (*Configuration, error) {
-	organization, err := message.GetString(parameters, "o")
+func New(parameters key_value.KeyValue) (*Configuration, error) {
+	organization, err := parameters.GetString("o")
 	if err != nil {
 		return nil, err
 	}
-	project, err := message.GetString(parameters, "p")
+	project, err := parameters.GetString("p")
 	if err != nil {
 		return nil, err
 	}
-	network_id, err := message.GetString(parameters, "n")
+	network_id, err := parameters.GetString("n")
 	if err != nil {
 		return nil, err
 	}
-	group, err := message.GetString(parameters, "g")
+	group, err := parameters.GetString("g")
 	if err != nil {
 		return nil, err
 	}
-	smartcontract_name, err := message.GetString(parameters, "s")
+	smartcontract_name, err := parameters.GetString("s")
 	if err != nil {
 		return nil, err
 	}
@@ -33,11 +35,11 @@ func New(parameters map[string]interface{}) (*Configuration, error) {
 		Name:         smartcontract_name,
 		exists:       true,
 	}
-	address, err := message.GetString(parameters, "address")
+	address, err := parameters.GetString("address")
 	if err == nil {
 		conf.SetAddress(address)
 	}
-	id, err := message.GetUint64(parameters, "id")
+	id, err := parameters.GetUint64("id")
 	if err == nil {
 		conf.SetId(uint(id))
 	}

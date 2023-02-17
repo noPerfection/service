@@ -1,6 +1,6 @@
 package topic
 
-import "github.com/blocklords/gosds/app/remote/message"
+import "github.com/blocklords/gosds/common/data_type/key_value"
 
 type TopicFilter struct {
 	Organizations  []string
@@ -99,7 +99,8 @@ func (t *TopicFilter) ToString() string {
 }
 
 // Converts the JSON object to the topic.TopicFilter
-func ParseJSONToTopicFilter(parameters map[string]interface{}) (*TopicFilter, error) {
+func ParseJSONToTopicFilter(json map[string]interface{}) (*TopicFilter, error) {
+	parameters := key_value.NewKeyValue(json)
 	topic_filter := TopicFilter{
 		Organizations:  []string{},
 		Projects:       []string{},
@@ -110,31 +111,31 @@ func ParseJSONToTopicFilter(parameters map[string]interface{}) (*TopicFilter, er
 		Events:         []string{},
 	}
 
-	organizations, err := message.GetStringList(parameters, "o")
+	organizations, err := parameters.GetStringList("o")
 	if err == nil {
 		topic_filter.Organizations = organizations
 	}
-	projects, err := message.GetStringList(parameters, "p")
+	projects, err := parameters.GetStringList("p")
 	if err == nil {
 		topic_filter.Projects = projects
 	}
-	network_ids, err := message.GetStringList(parameters, "n")
+	network_ids, err := parameters.GetStringList("n")
 	if err == nil {
 		topic_filter.NetworkIds = network_ids
 	}
-	groups, err := message.GetStringList(parameters, "g")
+	groups, err := parameters.GetStringList("g")
 	if err == nil {
 		topic_filter.Groups = groups
 	}
-	smartcontracts, err := message.GetStringList(parameters, "s")
+	smartcontracts, err := parameters.GetStringList("s")
 	if err == nil {
 		topic_filter.Smartcontracts = smartcontracts
 	}
-	methods, err := message.GetStringList(parameters, "m")
+	methods, err := parameters.GetStringList("m")
 	if err == nil {
 		topic_filter.Methods = methods
 	}
-	logs, err := message.GetStringList(parameters, "e")
+	logs, err := parameters.GetStringList("e")
 	if err == nil {
 		topic_filter.Events = logs
 	}

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -38,40 +38,40 @@ func New(network_id string, block_number uint64, transaction_index uint, tx *eth
 }
 
 // Parse the JSON into spaghetti.Transation
-func NewFromMap(parameters map[string]interface{}) (*Transaction, error) {
-	network_id, err := message.GetString(parameters, "network_id")
+func NewFromMap(parameters key_value.KeyValue) (*Transaction, error) {
+	network_id, err := parameters.GetString("network_id")
 	if err != nil {
 		return nil, err
 	}
-	block_number, err := message.GetUint64(parameters, "block_number")
+	block_number, err := parameters.GetUint64("block_number")
 	if err != nil {
 		return nil, err
 	}
-	block_timestamp, err := message.GetUint64(parameters, "block_timestamp")
+	block_timestamp, err := parameters.GetUint64("block_timestamp")
 	if err != nil {
 		return nil, err
 	}
-	Txid, err := message.GetString(parameters, "Txid")
+	Txid, err := parameters.GetString("Txid")
 	if err != nil {
 		return nil, err
 	}
-	tx_index, err := message.GetUint64(parameters, "tx_index")
+	tx_index, err := parameters.GetUint64("tx_index")
 	if err != nil {
 		return nil, err
 	}
-	tx_from, err := message.GetString(parameters, "tx_from")
+	tx_from, err := parameters.GetString("tx_from")
 	if err != nil {
 		return nil, err
 	}
-	tx_to, err := message.GetString(parameters, "tx_to")
+	tx_to, err := parameters.GetString("tx_to")
 	if err != nil {
 		return nil, err
 	}
-	tx_Data, err := message.GetString(parameters, "tx_Data")
+	tx_Data, err := parameters.GetString("tx_Data")
 	if err != nil {
 		return nil, err
 	}
-	Value, err := message.GetFloat64(parameters, "tx_Value")
+	Value, err := parameters.GetFloat64("tx_Value")
 	if err != nil {
 		return nil, err
 	}

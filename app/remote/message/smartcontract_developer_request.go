@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -77,7 +78,7 @@ func (request *SmartcontractDeveloperRequest) DigestedMessage() []byte {
 func ParseSmartcontractDeveloperRequest(msgs []string) (SmartcontractDeveloperRequest, error) {
 	msg := ToString(msgs)
 
-	var dat map[string]interface{}
+	var dat key_value.KeyValue
 
 	decoder := json.NewDecoder(strings.NewReader(msg))
 	decoder.UseNumber()
@@ -86,26 +87,26 @@ func ParseSmartcontractDeveloperRequest(msgs []string) (SmartcontractDeveloperRe
 		return SmartcontractDeveloperRequest{}, err
 	}
 
-	command, err := GetString(dat, "command")
+	command, err := dat.GetString("command")
 	if err != nil {
 		return SmartcontractDeveloperRequest{}, err
 	}
-	parameters, err := GetMap(dat, "parameters")
-	if err != nil {
-		return SmartcontractDeveloperRequest{}, err
-	}
-
-	address, err := GetString(dat, "address")
+	parameters, err := dat.GetMap("parameters")
 	if err != nil {
 		return SmartcontractDeveloperRequest{}, err
 	}
 
-	nonce_timestamp, err := GetUint64(dat, "nonce_timestamp")
+	address, err := dat.GetString("address")
 	if err != nil {
 		return SmartcontractDeveloperRequest{}, err
 	}
 
-	signature, err := GetString(dat, "signature")
+	nonce_timestamp, err := dat.GetUint64("nonce_timestamp")
+	if err != nil {
+		return SmartcontractDeveloperRequest{}, err
+	}
+
+	signature, err := dat.GetString("signature")
 	if err != nil {
 		return SmartcontractDeveloperRequest{}, err
 	}

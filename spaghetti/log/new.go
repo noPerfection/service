@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -26,37 +26,37 @@ func NewFromRawLog(network_id string, log *eth_types.Log) (*Log, error) {
 }
 
 // Convert the JSON into spaghetti.Log
-func New(parameters map[string]interface{}) (*Log, error) {
-	topics, err := message.GetStringList(parameters, "topics")
+func New(parameters key_value.KeyValue) (*Log, error) {
+	topics, err := parameters.GetStringList("topics")
 	if err != nil {
 		return nil, err
 	}
-	network_id, err := message.GetString(parameters, "network_id")
+	network_id, err := parameters.GetString("network_id")
 	if err != nil {
 		return nil, err
 	}
-	txid, err := message.GetString(parameters, "txid")
+	txid, err := parameters.GetString("txid")
 	if err != nil {
 		return nil, err
 	}
-	log_index, err := message.GetUint64(parameters, "log_index")
+	log_index, err := parameters.GetUint64("log_index")
 	if err != nil {
 		return nil, err
 	}
-	data, err := message.GetString(parameters, "data")
+	data, err := parameters.GetString("data")
 	if err != nil {
 		return nil, err
 	}
-	address, err := message.GetString(parameters, "address")
+	address, err := parameters.GetString("address")
 	if err != nil {
 		return nil, err
 	}
 
-	block_timestamp, err := message.GetUint64(parameters, "block_timestamp")
+	block_timestamp, err := parameters.GetUint64("block_timestamp")
 	if err != nil {
 		return nil, err
 	}
-	block_number, err := message.GetUint64(parameters, "block_number")
+	block_number, err := parameters.GetUint64("block_number")
 	if err != nil {
 		return nil, err
 	}

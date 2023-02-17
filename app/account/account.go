@@ -2,8 +2,8 @@
 package account
 
 import (
-	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // Requeter to the SDS Service. It's either a developer or another SDS service.
@@ -56,23 +56,23 @@ func (account *Account) ToJSON() map[string]interface{} {
 	}
 }
 
-func ParseJson(raw map[string]interface{}) (*Account, error) {
-	public_key, err := message.GetString(raw, "public_key")
+func ParseJson(raw key_value.KeyValue) (*Account, error) {
+	public_key, err := raw.GetString("public_key")
 	if err != nil {
 		return nil, err
 	}
 	service, err := service.GetByPublicKey(public_key)
 	if err != nil {
-		id, err := message.GetUint64(raw, "id")
+		id, err := raw.GetUint64("id")
 		if err != nil {
 			return nil, err
 		}
-		nonce_timestamp, err := message.GetUint64(raw, "nonce_timestamp")
+		nonce_timestamp, err := raw.GetUint64("nonce_timestamp")
 		if err != nil {
 			return nil, err
 		}
 
-		organization, err := message.GetString(raw, "organization")
+		organization, err := raw.GetString("organization")
 		if err != nil {
 			return nil, err
 		}

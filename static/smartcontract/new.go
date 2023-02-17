@@ -1,35 +1,37 @@
 package smartcontract
 
-import "github.com/blocklords/gosds/app/remote/message"
+import (
+	"github.com/blocklords/gosds/common/data_type/key_value"
+)
 
 // Creates a new smartcontract from the JSON
-func New(parameters map[string]interface{}) (*Smartcontract, error) {
-	network_id, err := message.GetString(parameters, "network_id")
+func New(parameters key_value.KeyValue) (*Smartcontract, error) {
+	network_id, err := parameters.GetString("network_id")
 	if err != nil {
 		return nil, err
 	}
-	address, err := message.GetString(parameters, "address")
+	address, err := parameters.GetString("address")
 	if err != nil {
 		return nil, err
 	}
-	abi_hash, err := message.GetString(parameters, "abi_hash")
+	abi_hash, err := parameters.GetString("abi_hash")
 	if err != nil {
 		return nil, err
 	}
-	txid, err := message.GetString(parameters, "txid")
+	txid, err := parameters.GetString("txid")
 	if err != nil {
 		return nil, err
 	}
 	// optional parameters
-	deployer, err := message.GetString(parameters, "deployer")
+	deployer, err := parameters.GetString("deployer")
 	if err != nil {
 		deployer = ""
 	}
-	pre_deploy_block_number, err := message.GetUint64(parameters, "pre_deploy_block_number")
+	pre_deploy_block_number, err := parameters.GetUint64("pre_deploy_block_number")
 	if err != nil {
 		pre_deploy_block_number = 0
 	}
-	pre_deploy_block_timestamp, err := message.GetUint64(parameters, "pre_deploy_block_timestamp")
+	pre_deploy_block_timestamp, err := parameters.GetUint64("pre_deploy_block_timestamp")
 	if err != nil {
 		return nil, err
 	}

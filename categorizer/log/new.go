@@ -1,6 +1,8 @@
 package log
 
-import "github.com/blocklords/gosds/app/remote/message"
+import (
+	"github.com/blocklords/gosds/common/data_type/key_value"
+)
 
 // Call categorizer.NewLog().AddMetadata().AddSmartcontractData()
 // DON'T call it as a single function
@@ -12,39 +14,39 @@ func New(log string, output map[string]interface{}) *Log {
 }
 
 // Creates a new Log from the json object
-func NewFromMap(blob map[string]interface{}) (*Log, error) {
-	network_id, err := message.GetString(blob, "network_id")
+func NewFromMap(blob key_value.KeyValue) (*Log, error) {
+	network_id, err := blob.GetString("network_id")
 	if err != nil {
 		return nil, err
 	}
-	address, err := message.GetString(blob, "address")
+	address, err := blob.GetString("address")
 	if err != nil {
 		return nil, err
 	}
-	txid, err := message.GetString(blob, "txid")
+	txid, err := blob.GetString("txid")
 	if err != nil {
 		return nil, err
 	}
-	log_index, err := message.GetUint64(blob, "log_index")
-	if err != nil {
-		return nil, err
-	}
-
-	block_timestamp, err := message.GetUint64(blob, "block_timestamp")
-	if err != nil {
-		return nil, err
-	}
-	block_number, err := message.GetUint64(blob, "block_number")
+	log_index, err := blob.GetUint64("log_index")
 	if err != nil {
 		return nil, err
 	}
 
-	log_name, err := message.GetString(blob, "log")
+	block_timestamp, err := blob.GetUint64("block_timestamp")
+	if err != nil {
+		return nil, err
+	}
+	block_number, err := blob.GetUint64("block_number")
 	if err != nil {
 		return nil, err
 	}
 
-	output, err := message.GetMap(blob, "output")
+	log_name, err := blob.GetString("log")
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := blob.GetMap("output")
 	if err != nil {
 		return nil, err
 	}

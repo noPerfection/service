@@ -3,6 +3,7 @@ package log
 import (
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // Return list of logs for the transaction keys from the remote SDS Categorizer.
@@ -15,12 +16,13 @@ func RemoteLogs(socket *remote.Socket, keys []string) ([]*Log, error) {
 			"keys": keys,
 		},
 	}
-	params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return nil, err
 	}
+	params := key_value.NewKeyValue(raw_params)
 
-	raw_logs, err := message.GetMapList(params, "logs")
+	raw_logs, err := params.GetMapList("logs")
 	if err != nil {
 		return nil, err
 	}
@@ -51,16 +53,18 @@ func RemoteLogParse(socket *remote.Socket, network_id string, address string, da
 		},
 	}
 
-	params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return "", nil, err
 	}
 
-	name, err := message.GetString(params, "name")
+	params := key_value.NewKeyValue(raw_params)
+
+	name, err := params.GetString("name")
 	if err != nil {
 		return "", nil, err
 	}
-	args, err := message.GetMap(params, "args")
+	args, err := params.GetMap("args")
 	if err != nil {
 		return "", nil, err
 	}

@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // The broadcasters sends to all subscribers this message.
@@ -73,7 +75,7 @@ func ParseBroadcast(msgs []string) (Broadcast, error) {
 	topic := msg[:i]
 	broadcastRaw := msg[i:]
 
-	var dat map[string]interface{}
+	var dat key_value.KeyValue
 
 	decoder := json.NewDecoder(strings.NewReader(broadcastRaw))
 	decoder.UseNumber()
@@ -82,7 +84,7 @@ func ParseBroadcast(msgs []string) (Broadcast, error) {
 		return Broadcast{}, err
 	}
 
-	raw_reply, err := GetMap(dat, "reply")
+	raw_reply, err := dat.GetMap("reply")
 	if err != nil {
 		return Broadcast{}, err
 	}
