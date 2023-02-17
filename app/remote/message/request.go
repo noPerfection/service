@@ -1,17 +1,13 @@
 package message
 
 import (
-	"encoding/json"
-	"fmt"
-	"strings"
-
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // The SDS Service will accepts the Request message.
 type Request struct {
 	Command    string
-	Parameters map[string]interface{}
+	Parameters key_value.KeyValue
 }
 
 // Convert Request to JSON
@@ -27,20 +23,18 @@ func (request *Request) CommandName() string {
 }
 
 // Request message as a  sequence of bytes
-func (reply *Request) ToBytes() []byte {
-	interfaces := reply.ToJSON()
-	byt, err := json.Marshal(interfaces)
-	if err != nil {
-		fmt.Println("error while converting json into bytes", err)
-		return []byte{}
-	}
-
-	return byt
+func (request *Request) ToBytes() ([]byte, error) {
+	return key_value.New(request.ToJSON()).ToBytes()
 }
 
 // Convert Request message to the string
-func (reply *Request) ToString() string {
-	return string(reply.ToBytes())
+func (request *Request) ToString() (string, error) {
+	bytes, err := request.ToBytes()
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
 }
 
 // Messages from zmq concatenated
@@ -56,20 +50,17 @@ func ToString(msgs []string) string {
 func ParseRequest(msgs []string) (Request, error) {
 	msg := ToString(msgs)
 
-	var dat key_value.KeyValue
+	data, err := key_value.NewFromString(msg)
 
-	decoder := json.NewDecoder(strings.NewReader(msg))
-	decoder.UseNumber()
-
-	if err := decoder.Decode(&dat); err != nil {
-		return Request{}, err
-	}
-
-	command, err := dat.GetString("command")
 	if err != nil {
 		return Request{}, err
 	}
-	parameters, err := dat.GetMap("parameters")
+
+	command, err := data.GetString("command")
+	if err != nil {
+		return Request{}, err
+	}
+	parameters, err := data.GetKeyValue("parameters")
 	if err != nil {
 		return Request{}, err
 	}

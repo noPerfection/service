@@ -1,21 +1,17 @@
 package message
 
 import (
-	"encoding/json"
-	"fmt"
-	"strings"
-
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // The SDS Service will accepts the SmartcontractDeveloperRequest message.
 type SmartcontractDeveloperRequest struct {
-	Address        string                 // The whitelisted address of the user
-	NonceTimestamp uint64                 // Nonce as a unix timestamp in seconds
-	Signature      string                 // Command, nonce, address and parameters signed together
-	Command        string                 // Command type
-	Parameters     map[string]interface{} // Parameters of the request
+	Address        string             // The whitelisted address of the user
+	NonceTimestamp uint64             // Nonce as a unix timestamp in seconds
+	Signature      string             // Command, nonce, address and parameters signed together
+	Command        string             // Command type
+	Parameters     key_value.KeyValue // Parameters of the request
 }
 
 // Convert SmartcontractDeveloperRequest to JSON
@@ -30,20 +26,18 @@ func (request *SmartcontractDeveloperRequest) ToJSON() map[string]interface{} {
 }
 
 // SmartcontractDeveloperRequest message as a  sequence of bytes
-func (request *SmartcontractDeveloperRequest) ToBytes() []byte {
-	interfaces := request.ToJSON()
-	byt, err := json.Marshal(interfaces)
-	if err != nil {
-		fmt.Println("error while converting json into bytes", err)
-		return []byte{}
-	}
-
-	return byt
+func (request *SmartcontractDeveloperRequest) ToBytes() ([]byte, error) {
+	return key_value.New(request.ToJSON()).ToBytes()
 }
 
 // Convert SmartcontractDeveloperRequest message to the string
-func (request *SmartcontractDeveloperRequest) ToString() string {
-	return string(request.ToBytes())
+func (request *SmartcontractDeveloperRequest) ToString() (string, error) {
+	bytes, err := request.ToBytes()
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
 }
 
 // Gets the message without a prefix.
@@ -51,62 +45,61 @@ func (request *SmartcontractDeveloperRequest) ToString() string {
 // Converted into the hash using Keccak32.
 //
 // The request parameters are oredered in an alphanumerical order.
-func (request *SmartcontractDeveloperRequest) message_hash() []byte {
+func (request *SmartcontractDeveloperRequest) message_hash() ([]byte, error) {
 	json_object := request.ToJSON()
 	delete(json_object, "signature")
-	bytes, err := json.Marshal(json_object)
+
+	bytes, err := key_value.New(json_object).ToBytes()
 	if err != nil {
-		fmt.Println("error while converting json into bytes", err)
-		return []byte{}
+		return []byte{}, err
 	}
 
 	hash := crypto.Keccak256Hash(bytes)
 
-	return hash.Bytes()
+	return hash.Bytes(), nil
 }
 
 // Gets the digested message with a prefix
 // For ethereum the prefix is "\x19Ethereum Signed Message:\n"
-func (request *SmartcontractDeveloperRequest) DigestedMessage() []byte {
-	message_hash := request.message_hash()
+func (request *SmartcontractDeveloperRequest) DigestedMessage() ([]byte, error) {
+	message_hash, err := request.message_hash()
+	if err != nil {
+		return []byte{}, err
+	}
 	prefix := []byte("\x19Ethereum Signed Message:\n32")
 	digested_hash := crypto.Keccak256Hash(append(prefix, message_hash...))
-	return digested_hash.Bytes()
+	return digested_hash.Bytes(), nil
 }
 
 // Parse the messages from zeromq into the SmartcontractDeveloperRequest
 func ParseSmartcontractDeveloperRequest(msgs []string) (SmartcontractDeveloperRequest, error) {
 	msg := ToString(msgs)
 
-	var dat key_value.KeyValue
-
-	decoder := json.NewDecoder(strings.NewReader(msg))
-	decoder.UseNumber()
-
-	if err := decoder.Decode(&dat); err != nil {
-		return SmartcontractDeveloperRequest{}, err
-	}
-
-	command, err := dat.GetString("command")
-	if err != nil {
-		return SmartcontractDeveloperRequest{}, err
-	}
-	parameters, err := dat.GetMap("parameters")
+	data, err := key_value.NewFromString(msg)
 	if err != nil {
 		return SmartcontractDeveloperRequest{}, err
 	}
 
-	address, err := dat.GetString("address")
+	command, err := data.GetString("command")
+	if err != nil {
+		return SmartcontractDeveloperRequest{}, err
+	}
+	parameters, err := data.GetKeyValue("parameters")
 	if err != nil {
 		return SmartcontractDeveloperRequest{}, err
 	}
 
-	nonce_timestamp, err := dat.GetUint64("nonce_timestamp")
+	address, err := data.GetString("address")
 	if err != nil {
 		return SmartcontractDeveloperRequest{}, err
 	}
 
-	signature, err := dat.GetString("signature")
+	nonce_timestamp, err := data.GetUint64("nonce_timestamp")
+	if err != nil {
+		return SmartcontractDeveloperRequest{}, err
+	}
+
+	signature, err := data.GetString("signature")
 	if err != nil {
 		return SmartcontractDeveloperRequest{}, err
 	}

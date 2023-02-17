@@ -84,7 +84,7 @@ func ParseBroadcast(msgs []string) (Broadcast, error) {
 		return Broadcast{}, err
 	}
 
-	raw_reply, err := dat.GetMap("reply")
+	raw_reply, err := dat.GetKeyValue("reply")
 	if err != nil {
 		return Broadcast{}, err
 	}

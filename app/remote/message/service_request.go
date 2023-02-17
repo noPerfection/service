@@ -1,19 +1,15 @@
 package message
 
 import (
-	"encoding/json"
-	"fmt"
-	"strings"
-
 	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // The SDS Service will accepts a request from another request
 type ServiceRequest struct {
-	Service    *service.Service       // The service parameters
-	Command    string                 // Command type
-	Parameters map[string]interface{} // Parameters of the request
+	Service    *service.Service   // The service parameters
+	Command    string             // Command type
+	Parameters key_value.KeyValue // Parameters of the request
 }
 
 func (request *ServiceRequest) CommandName() string {
@@ -30,45 +26,39 @@ func (request *ServiceRequest) ToJSON() map[string]interface{} {
 }
 
 // ServiceRequest message as a  sequence of bytes
-func (request *ServiceRequest) ToBytes() []byte {
-	interfaces := request.ToJSON()
-	byt, err := json.Marshal(interfaces)
-	if err != nil {
-		fmt.Println("error while converting json into bytes", err)
-		return []byte{}
-	}
-
-	return byt
+func (request *ServiceRequest) ToBytes() ([]byte, error) {
+	return key_value.New(request.ToJSON()).ToBytes()
 }
 
 // Convert ServiceRequest message to the string
-func (request *ServiceRequest) ToString() string {
-	return string(request.ToBytes())
+func (request *ServiceRequest) ToString() (string, error) {
+	bytes, err := request.ToBytes()
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
 }
 
 // Parse the messages from zeromq into the ServiceRequest
 func ParseServiceRequest(msgs []string) (ServiceRequest, error) {
 	msg := ToString(msgs)
 
-	var dat key_value.KeyValue
-
-	decoder := json.NewDecoder(strings.NewReader(msg))
-	decoder.UseNumber()
-
-	if err := decoder.Decode(&dat); err != nil {
-		return ServiceRequest{}, err
-	}
-
-	command, err := dat.GetString("command")
-	if err != nil {
-		return ServiceRequest{}, err
-	}
-	parameters, err := dat.GetMap("parameters")
+	data, err := key_value.NewFromString(msg)
 	if err != nil {
 		return ServiceRequest{}, err
 	}
 
-	public_key, err := dat.GetString("public_key")
+	command, err := data.GetString("command")
+	if err != nil {
+		return ServiceRequest{}, err
+	}
+	parameters, err := data.GetKeyValue("parameters")
+	if err != nil {
+		return ServiceRequest{}, err
+	}
+
+	public_key, err := data.GetString("public_key")
 	if err != nil {
 		return ServiceRequest{}, err
 	}
