@@ -10,7 +10,7 @@ import (
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/categorizer"
-	"github.com/blocklords/gosds/common/generic_type"
+	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/static"
 
 	"github.com/blocklords/gosds/sdk/db"
@@ -115,7 +115,7 @@ func (s *Subscriber) get_snapshot() error {
 		request := message.Request{
 			Command: "snapshot_get",
 			Parameters: map[string]interface{}{
-				"smartcontract_keys":   generic_type.ToStringList(s.smartcontractKeys),
+				"smartcontract_keys":   data_type.ToStringList(s.smartcontractKeys),
 				"block_timestamp_from": block_timestamp_from,
 				"block_timestamp_to":   block_timestamp_to,
 				"page":                 page,

@@ -5,7 +5,7 @@ import (
 	"github.com/blocklords/gosds/db"
 
 	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/generic_type"
+	"github.com/blocklords/gosds/common/data_type"
 )
 
 // return a categorizer block by network id and smartcontract address
@@ -47,7 +47,7 @@ func GetSmartcontracts(db *db.Database, _ message.Request) message.Reply {
 		Status:  "OK",
 		Message: "",
 		Params: map[string]interface{}{
-			"blocks": generic_type.ToMapList(smartcontracts),
+			"blocks": data_type.ToMapList(smartcontracts),
 		},
 	}
 

@@ -7,7 +7,7 @@ import (
 	"github.com/blocklords/gosds/app/service"
 
 	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/common/generic_type"
+	"github.com/blocklords/gosds/common/data_type"
 
 	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/remote/message"
@@ -40,7 +40,7 @@ type Manager struct {
 
 	subscriber_status                string
 	subscribed_earliest_block_number uint64
-	subscribed_blocks                generic_type.Queue
+	subscribed_blocks                data_type.Queue
 }
 
 // Creates a new manager of smartcontract workers on a given network id
@@ -63,7 +63,7 @@ func NewManager(
 		recent_workers: make(EvmWorkers, 0),
 
 		subscriber_status:                IDLE,
-		subscribed_blocks:                *generic_type.NewQueue(),
+		subscribed_blocks:                *data_type.NewQueue(),
 		subscribed_earliest_block_number: 0,
 
 		current_status:  IDLE,

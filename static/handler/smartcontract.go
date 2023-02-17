@@ -5,7 +5,7 @@ import (
 	"github.com/blocklords/gosds/static/configuration"
 	"github.com/blocklords/gosds/static/smartcontract"
 
-	"github.com/blocklords/gosds/common/generic_type"
+	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/common/topic"
 
 	"github.com/blocklords/gosds/app/remote/message"
@@ -52,7 +52,7 @@ func SmartcontractFilter(dbCon *db.Database, request message.Request) message.Re
 		Status:  "OK",
 		Message: "",
 		Params: map[string]interface{}{
-			"smartcontracts": generic_type.ToMapList(smartcontracts),
+			"smartcontracts": data_type.ToMapList(smartcontracts),
 			"topics":         topic_strings,
 		},
 	}

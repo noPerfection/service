@@ -34,7 +34,7 @@ import (
 	"github.com/blocklords/gosds/app/env"
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/generic_type"
+	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/security"
 )
@@ -199,8 +199,8 @@ func block_get(db *db.Database, request message.Request) message.Reply {
 			"block_number": block_number,
 			"to":           address,
 			"timestamp":    timestamp,
-			"transactions": generic_type.ToMapList(transactions),
-			"logs":         generic_type.ToMapList(logs),
+			"transactions": data_type.ToMapList(transactions),
+			"logs":         data_type.ToMapList(logs),
 		},
 	}
 }
@@ -359,8 +359,8 @@ func block_get_range(db *db.Database, request message.Request) message.Reply {
 			"network_id":   network_id,
 			"to":           to,
 			"timestamp":    timestamp,
-			"transactions": generic_type.ToMapList(transactions),
-			"logs":         generic_type.ToMapList(logs),
+			"transactions": data_type.ToMapList(transactions),
+			"logs":         data_type.ToMapList(logs),
 		},
 	}
 }

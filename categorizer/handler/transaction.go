@@ -4,7 +4,7 @@ import (
 	"github.com/blocklords/gosds/categorizer/transaction"
 
 	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/generic_type"
+	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/db"
 )
 
@@ -77,7 +77,7 @@ func GetTransactions(db *db.Database, request message.Request) message.Reply {
 	reply := message.Reply{
 		Status: "OK",
 		Params: map[string]interface{}{
-			"transactions": generic_type.ToMapList(transactions),
+			"transactions": data_type.ToMapList(transactions),
 		},
 	}
 

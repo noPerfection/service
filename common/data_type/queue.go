@@ -1,4 +1,4 @@
-package generic_type
+package data_type
 
 import (
 	"container/list"

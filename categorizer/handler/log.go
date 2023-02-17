@@ -5,7 +5,7 @@ import (
 	"github.com/blocklords/gosds/db"
 
 	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/generic_type"
+	"github.com/blocklords/gosds/common/data_type"
 )
 
 // returns all event logs for a given list of transaction keys.
@@ -24,7 +24,7 @@ func GetLogs(db *db.Database, request message.Request) message.Reply {
 	reply := message.Reply{
 		Status: "OK",
 		Params: map[string]interface{}{
-			"logs": generic_type.ToMapList(logs),
+			"logs": data_type.ToMapList(logs),
 		},
 	}
 

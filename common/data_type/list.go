@@ -1,5 +1,5 @@
 // Generic Type package handles the common functions of multiple SDS Data structures.
-package generic_type
+package data_type
 
 import (
 	"github.com/blocklords/gosds/app/account"

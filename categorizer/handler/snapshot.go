@@ -6,7 +6,7 @@ import (
 	"github.com/blocklords/gosds/db"
 
 	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/generic_type"
+	"github.com/blocklords/gosds/common/data_type"
 )
 
 // Get's the list of transactions and logs for a particular smartcontract
@@ -91,8 +91,8 @@ func GetSnapshot(db *db.Database, request message.Request) message.Reply {
 	reply := message.Reply{
 		Status: "OK",
 		Params: map[string]interface{}{
-			"transactions":    generic_type.ToMapList(transactions),
-			"logs":            generic_type.ToMapList(logs),
+			"transactions":    data_type.ToMapList(transactions),
+			"logs":            data_type.ToMapList(logs),
 			"block_timestamp": block_timestamp_to,
 		},
 	}
