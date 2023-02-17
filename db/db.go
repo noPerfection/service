@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/blocklords/gosds/app/configuration"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -37,13 +38,16 @@ type Database struct {
 // The configuration parameters
 // The values are the default values if it wasn't provided by the user
 // Set the default value to nil, if the parameter is required from the user
-var DatabaseConfigurations = map[string]interface{}{
-	"SDS_DATABASE_HOST":     "localhost",
-	"SDS_DATABASE_PORT":     "3306",
-	"SDS_DATABASE_NAME":     "seascape_sds",
-	"SDS_DATABASE_TIMEOUT":  uint64(10),
-	"SDS_DATABASE_USERNAME": "root",
-	"SDS_DATABASE_PASSWORD": "tiger",
+var DatabaseConfigurations = configuration.DefaultConfig{
+	Title: "Database",
+	Parameters: key_value.New(map[string]interface{}{
+		"SDS_DATABASE_HOST":     "localhost",
+		"SDS_DATABASE_PORT":     "3306",
+		"SDS_DATABASE_NAME":     "seascape_sds",
+		"SDS_DATABASE_TIMEOUT":  uint64(10),
+		"SDS_DATABASE_USERNAME": "root",
+		"SDS_DATABASE_PASSWORD": "tiger",
+	}),
 }
 
 // Database parameters fetched from the environment variable.

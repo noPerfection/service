@@ -2,10 +2,10 @@ package configuration
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/env"
-	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/spf13/viper"
 )
 
@@ -32,6 +32,11 @@ func New() (*Config, error) {
 		Reply:     argument.Has(arguments, argument.REPLY),
 	}
 
+	log.Println("Supported application arguments:")
+	log.Printf("--%s to switch off security. enabled: %v\n", argument.PLAIN, conf.Plain)
+	log.Printf("--%s to enable broadcast. enabled: %v\n", argument.BROADCAST, conf.Broadcast)
+	log.Printf("--%s to enable controller. enabled: %v\n\n", argument.REPLY, conf.Reply)
+
 	// First we load the environment variables
 	err = env.LoadAnyEnv()
 	if err != nil {
@@ -46,14 +51,19 @@ func New() (*Config, error) {
 }
 
 // Populates the app configuration with the default vault configuration parameters.
-func (config *Config) SetDefaults(kv key_value.KeyValue) {
-	for name, value := range kv {
+func (config *Config) SetDefaults(default_config DefaultConfig) {
+	log.Printf("'%s' default values. Override on environment variables\n", default_config.Title)
+
+	for name, value := range default_config.Parameters {
 		if value == nil {
 			continue
 		}
 
+		log.Printf("\t%s=%v", name, value)
 		config.SetDefault(name, value)
 	}
+
+	log.Printf("\n\n")
 }
 
 // Sets the default value

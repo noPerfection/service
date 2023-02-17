@@ -9,6 +9,7 @@ import (
 	"log"
 
 	"github.com/blocklords/gosds/app/configuration"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 	hashicorp "github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/api/auth/approle"
@@ -30,15 +31,18 @@ type Vault struct {
 // The configuration parameters
 // The values are the default values if it wasn't provided by the user
 // Set the default value to nil, if the parameter is required from the user
-var VaultConfigurations = map[string]interface{}{
-	"SDS_VAULT_HOST":                   "localhost",
-	"SDS_VAULT_PORT":                   8200,
-	"SDS_VAULT_SECURE":                 false,
-	"SDS_VAULT_PATH":                   "secret",
-	"SDS_VAULT_DATABASE_PATH":          "database/creds/sds-role",
-	"SDS_VAULT_TOKEN":                  nil,
-	"SDS_VAULT_APPROLE_ROLE_ID":        nil,
-	"SDS_VAULT_APPROLE_SECRET_ID_FILE": nil,
+var VaultConfigurations = configuration.DefaultConfig{
+	Title: "Vault",
+	Parameters: key_value.New(map[string]interface{}{
+		"SDS_VAULT_HOST":                   "localhost",
+		"SDS_VAULT_PORT":                   8200,
+		"SDS_VAULT_SECURE":                 false,
+		"SDS_VAULT_PATH":                   "secret",
+		"SDS_VAULT_DATABASE_PATH":          "database/creds/sds-role",
+		"SDS_VAULT_TOKEN":                  nil,
+		"SDS_VAULT_APPROLE_ROLE_ID":        nil,
+		"SDS_VAULT_APPROLE_SECRET_ID_FILE": nil,
+	}),
 }
 
 // Sets up the connection to the Hashicorp Vault
