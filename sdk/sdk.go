@@ -38,7 +38,7 @@ example of reading smartcontract data
 			panic(fmt.Errorf("failed to read smartcontract data: %w", reply.Message))
 		}
 
-		fmt.Println("The user's address is: ", reply.Params["result"].(string))
+		fmt.Println("The user's address is: ", reply.Parameters["result"].(string))
 	   }
 
 -------------------------------------------

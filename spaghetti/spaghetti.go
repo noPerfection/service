@@ -35,6 +35,7 @@ import (
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/security"
 )
@@ -102,15 +103,15 @@ func run_each_evm_network_sync_worker(dbCon *db.Database, broadcast_channel chan
 // additional parameter that it takes is "address"
 // you can fetch transactions and logs happened with a certain smartcontract.
 func block_get(db *db.Database, request message.Request) message.Reply {
-	network_id, err := message.GetString(request.Parameters, "network_id")
+	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	block_number, err := message.GetUint64(request.Parameters, "block_number")
+	block_number, err := request.Parameters.GetUint64("block_number")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	address, _ := message.GetString(request.Parameters, "to")
+	address, _ := request.Parameters.GetString("to")
 
 	recent_block_number, err := block.GetRecentBlockNumber(db, network_id)
 	if err != nil {
@@ -193,7 +194,7 @@ func block_get(db *db.Database, request message.Request) message.Reply {
 	return message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"cached":       cached,
 			"network_id":   network_id,
 			"block_number": block_number,
@@ -201,13 +202,13 @@ func block_get(db *db.Database, request message.Request) message.Reply {
 			"timestamp":    timestamp,
 			"transactions": data_type.ToMapList(transactions),
 			"logs":         data_type.ToMapList(logs),
-		},
+		}),
 	}
 }
 
 // returns the earliest cached block number
 func block_get_cached_number(db *db.Database, request message.Request) message.Reply {
-	network_id, err := message.GetString(request.Parameters, "network_id")
+	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -239,21 +240,21 @@ func block_get_cached_number(db *db.Database, request message.Request) message.R
 	return message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"network_id":      network_id,
 			"block_number":    cached_block_number,
 			"block_timestamp": cached_block_timestamp,
-		},
+		}),
 	}
 }
 
 // Returns the block timestamp
 func block_get_timestamp(db *db.Database, request message.Request) message.Reply {
-	network_id, err := message.GetString(request.Parameters, "network_id")
+	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	block_number, err := message.GetUint64(request.Parameters, "block_number")
+	block_number, err := request.Parameters.GetUint64("block_number")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -282,11 +283,11 @@ func block_get_timestamp(db *db.Database, request message.Request) message.Reply
 	return message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"network_id":      network_id,
 			"block_number":    block_number,
 			"block_timestamp": block_timestamp,
-		},
+		}),
 	}
 }
 
@@ -294,16 +295,16 @@ func block_get_timestamp(db *db.Database, request message.Request) message.Reply
 // Optionally it accepts to parameter that filters the transactions and logs
 // for the smartcontract.
 func block_get_range(db *db.Database, request message.Request) message.Reply {
-	network_id, err := message.GetString(request.Parameters, "network_id")
+	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	block_numbers, err := message.GetUint64s(request.Parameters, "block_number_from", "block_number_to")
+	block_numbers, err := request.Parameters.GetUint64s("block_number_from", "block_number_to")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	to, _ := message.GetString(request.Parameters, "to")
+	to, _ := request.Parameters.GetString("to")
 
 	earliest_block_number, err := block.GetEarliestBlockNumber(db, network_id)
 	if err != nil {
@@ -355,24 +356,24 @@ func block_get_range(db *db.Database, request message.Request) message.Reply {
 	return message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"network_id":   network_id,
 			"to":           to,
 			"timestamp":    timestamp,
 			"transactions": data_type.ToMapList(transactions),
 			"logs":         data_type.ToMapList(logs),
-		},
+		}),
 	}
 }
 
 // this function returns the smartcontract deployer, deployed block number
 // and block timestamp by a transaction hash of the smartcontract deployment.
 func transaction_deployed_get(_ *db.Database, request message.Request) message.Reply {
-	network_id, err := message.GetString(request.Parameters, "network_id")
+	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	txid, err := message.GetString(request.Parameters, "txid")
+	txid, err := request.Parameters.GetString("txid")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -389,14 +390,14 @@ func transaction_deployed_get(_ *db.Database, request message.Request) message.R
 	reply := message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"network_id":      network_id,
 			"block_number":    tx.BlockNumber,
 			"block_timestamp": tx.BlockTimestamp,
 			"address":         tx.TxTo,
 			"deployer":        tx.TxFrom,
 			"txid":            txid,
-		},
+		}),
 	}
 
 	return reply

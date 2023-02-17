@@ -5,6 +5,7 @@ import (
 	"github.com/blocklords/gosds/categorizer/imx"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/categorizer/worker"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/static/network"
 
 	"github.com/blocklords/gosds/app/account"
@@ -145,9 +146,9 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 	reply := message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"smartcontract": sm.ToJSON(),
-		},
+		}),
 	}
 
 	return reply

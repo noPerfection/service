@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/static/network"
 
@@ -9,12 +10,12 @@ import (
 
 // Returns Network
 func NetworkGet(_ *db.Database, request message.Request) message.Reply {
-	network_id, err := message.GetString(request.Parameters, "network_id")
+	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	flag_64, err := message.GetUint64(request.Parameters, "flag")
+	flag_64, err := request.Parameters.GetUint64("flag")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -36,9 +37,9 @@ func NetworkGet(_ *db.Database, request message.Request) message.Reply {
 	reply := message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"network": n.ToJSON(),
-		},
+		}),
 	}
 
 	return reply
@@ -46,7 +47,7 @@ func NetworkGet(_ *db.Database, request message.Request) message.Reply {
 
 // Returns an abi by the smartcontract key.
 func NetworkGetIds(_ *db.Database, request message.Request) message.Reply {
-	flag_64, err := message.GetUint64(request.Parameters, "flag")
+	flag_64, err := request.Parameters.GetUint64("flag")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -63,15 +64,15 @@ func NetworkGetIds(_ *db.Database, request message.Request) message.Reply {
 	return message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"network_ids": network_ids,
-		},
+		}),
 	}
 }
 
 // Returns an abi by the smartcontract key.
 func NetworkGetAll(_ *db.Database, request message.Request) message.Reply {
-	flag_64, err := message.GetUint64(request.Parameters, "flag")
+	flag_64, err := request.Parameters.GetUint64("flag")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -93,8 +94,8 @@ func NetworkGetAll(_ *db.Database, request message.Request) message.Reply {
 	return message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"networks": raw_networks,
-		},
+		}),
 	}
 }

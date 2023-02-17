@@ -1,11 +1,15 @@
 package network
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/blocklords/gosds/common/data_type/key_value"
+)
 
 type Networks []*Network
 
 // parses list of JSON objects into the list of Networks
-func NewNetworks(raw_networks []map[string]interface{}) (Networks, error) {
+func NewNetworks(raw_networks []key_value.KeyValue) (Networks, error) {
 	networks := make(Networks, len(raw_networks))
 
 	for i, raw := range raw_networks {

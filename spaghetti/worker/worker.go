@@ -18,6 +18,7 @@ import (
 	"github.com/blocklords/gosds/app/remote/message"
 
 	"github.com/blocklords/gosds/common/data_type"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // the global variables that we pass between functions in this worker.
@@ -50,13 +51,13 @@ func broadcast_new_block(worker *SpaghettiWorker, b *block.Block) error {
 	new_reply := message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"network_id":      worker.client.Network.Id,
 			"block_number":    b.BlockNumber,
 			"block_timestamp": b.BlockTimestamp,
 			"transactions":    data_type.ToMapList(b.Transactions),
 			"logs":            data_type.ToMapList(b.Logs),
-		},
+		}),
 	}
 
 	worker.log_debug(fmt.Sprintf("broadcasting network id %s, block number %d", worker.client.Network.Id, b.BlockNumber))

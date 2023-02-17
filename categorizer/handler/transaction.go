@@ -5,6 +5,7 @@ import (
 
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 )
 
@@ -12,15 +13,15 @@ import (
 // this is done by SDS Publisher to count how many time it will fetch the transactions.
 // the parameters are the same as for transaction_get_all command
 func GetTransactionAmount(db *db.Database, request message.Request) message.Reply {
-	block_timestamp_from, err := message.GetUint64(request.Parameters, "block_timestamp_from")
+	block_timestamp_from, err := request.Parameters.GetUint64("block_timestamp_from")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	block_timestamp_to, err := message.GetUint64(request.Parameters, "block_timestamp_to")
+	block_timestamp_to, err := request.Parameters.GetUint64("block_timestamp_to")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	smartcontract_keys, err := message.GetStringList(request.Parameters, "smartcontract_keys")
+	smartcontract_keys, err := request.Parameters.GetStringList("smartcontract_keys")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -32,9 +33,9 @@ func GetTransactionAmount(db *db.Database, request message.Request) message.Repl
 
 	reply := message.Reply{
 		Status: "OK",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"transaction_amount": transaction_amount,
-		},
+		}),
 	}
 
 	return reply
@@ -42,25 +43,25 @@ func GetTransactionAmount(db *db.Database, request message.Request) message.Repl
 
 // return all transactions between block timestamps as well as for a list of smartcontract keys.
 func GetTransactions(db *db.Database, request message.Request) message.Reply {
-	block_timestamp_from, err := message.GetUint64(request.Parameters, "block_timestamp_from")
+	block_timestamp_from, err := request.Parameters.GetUint64("block_timestamp_from")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	block_timestamp_to, err := message.GetUint64(request.Parameters, "block_timestamp_to")
+	block_timestamp_to, err := request.Parameters.GetUint64("block_timestamp_to")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	smartcontract_keys, err := message.GetStringList(request.Parameters, "smartcontract_keys")
+	smartcontract_keys, err := request.Parameters.GetStringList("smartcontract_keys")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	page, err := message.GetUint64(request.Parameters, "page")
+	page, err := request.Parameters.GetUint64("page")
 	if err != nil {
 		return message.Fail(err.Error())
 	} else if page == 0 {
 		page = 1
 	}
-	limit, err := message.GetUint64(request.Parameters, "limit")
+	limit, err := request.Parameters.GetUint64("limit")
 	if err != nil {
 		return message.Fail(err.Error())
 	} else if limit > 500 {
@@ -76,9 +77,9 @@ func GetTransactions(db *db.Database, request message.Request) message.Reply {
 
 	reply := message.Reply{
 		Status: "OK",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"transactions": data_type.ToMapList(transactions),
-		},
+		}),
 	}
 
 	return reply

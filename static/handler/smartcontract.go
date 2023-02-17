@@ -6,6 +6,7 @@ import (
 	"github.com/blocklords/gosds/static/smartcontract"
 
 	"github.com/blocklords/gosds/common/data_type"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/common/topic"
 
 	"github.com/blocklords/gosds/app/remote/message"
@@ -25,7 +26,7 @@ Algorithm
  4. return list of smartcontracts back
 */
 func SmartcontractFilter(dbCon *db.Database, request message.Request) message.Reply {
-	topic_filter_map, err := message.GetKeyValue(request.Parameters, "topic_filter")
+	topic_filter_map, err := request.Parameters.GetKeyValue("topic_filter")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -51,10 +52,10 @@ func SmartcontractFilter(dbCon *db.Database, request message.Request) message.Re
 	reply := message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"smartcontracts": data_type.ToMapList(smartcontracts),
 			"topics":         topic_strings,
-		},
+		}),
 	}
 	return reply
 }
@@ -66,7 +67,7 @@ func SmartcontractFilter(dbCon *db.Database, request message.Request) message.Re
 //			"smartcontract_keys" (where key is smartcontract key, value is a topic string)
 //	}
 func SmartcontractKeyFilter(dbCon *db.Database, request message.Request) message.Reply {
-	topic_filter_map, err := message.GetKeyValue(request.Parameters, "topic_filter")
+	topic_filter_map, err := request.Parameters.GetKeyValue("topic_filter")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -90,9 +91,9 @@ func SmartcontractKeyFilter(dbCon *db.Database, request message.Request) message
 	reply := message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"smartcontract_keys": blob,
-		},
+		}),
 	}
 	return reply
 }
@@ -109,10 +110,10 @@ func SmartcontractRegister(dbCon *db.Database, request message.Request) message.
 	reply := message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"network_id": sm.NetworkId,
 			"address":    sm.Address,
-		},
+		}),
 	}
 
 	if smartcontract.ExistInDatabase(dbCon, sm.NetworkId, sm.Address) {
@@ -128,11 +129,11 @@ func SmartcontractRegister(dbCon *db.Database, request message.Request) message.
 
 // Returns configuration and smartcontract information related to the configuration
 func SmartcontractGet(db *db.Database, request message.Request) message.Reply {
-	network_id, err := message.GetString(request.Parameters, "network_id")
+	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	address, err := message.GetString(request.Parameters, "address")
+	address, err := request.Parameters.GetString("address")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -149,8 +150,8 @@ func SmartcontractGet(db *db.Database, request message.Request) message.Reply {
 	return message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"smartcontract": s.ToJSON(),
-		},
+		}),
 	}
 }

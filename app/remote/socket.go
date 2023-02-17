@@ -19,6 +19,7 @@ import (
 	"github.com/blocklords/gosds/app/env"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -164,7 +165,7 @@ func (socket *Socket) RemoteEnv() *service.Service {
 // Send a command to the remote SDS service.
 // Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
 // In case of successful request, the function returns reply parameters.
-func (socket *Socket) RequestRemoteService(request *message.Request) (map[string]interface{}, error) {
+func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
 	request_timeout := REQUEST_TIMEOUT
 	if env.Exists("SDS_REQUEST_TIMEOUT") {
 		env_timeout := env.GetNumeric("SDS_REQUEST_TIMEOUT")
@@ -207,7 +208,7 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (map[string
 				return nil, fmt.Errorf("the command '%s' replied with a failure by '%s'. the reply error message: %s", request.Command, socket.remoteService.ServiceName(), reply.Message)
 			}
 
-			return reply.Params, nil
+			return reply.Parameters, nil
 		} else {
 			fmt.Println("command '", request.Command, "' wasn't replied by '", socket.remoteService.ServiceName(), "' in ", request_timeout, ", retrying...")
 			err := socket.reconnect()
@@ -221,7 +222,7 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (map[string
 // Requests a message to the remote service.
 // The socket parameter is the Request socket from this service.
 // The request is the message.
-func RequestReply[V SDS_Message](socket *Socket, request V) (map[string]interface{}, error) {
+func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue, error) {
 	socket_type, err := socket.socket.GetType()
 	if err != nil {
 		return nil, err
@@ -275,7 +276,7 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (map[string]interfac
 				return nil, fmt.Errorf("the command '%s' replied with a failure by '%s'. the reply error message: %s", command_name, socket.remoteService.ServiceName(), reply.Message)
 			}
 
-			return reply.Params, nil
+			return reply.Parameters, nil
 		} else {
 			fmt.Println("command '", command_name, "' wasn't replied by '", socket.remoteService.ServiceName(), "' in ", request_timeout, ", retrying...")
 			err := socket.reconnect()

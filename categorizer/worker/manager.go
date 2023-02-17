@@ -340,12 +340,12 @@ func (manager *Manager) subscribe() {
 
 			reply := broadcast.Reply()
 
-			block_number, err := message.GetUint64(reply.Params, "block_number")
+			block_number, err := reply.Parameters.GetUint64("block_number")
 			if err != nil {
 				fmt.Println(manager.NetworkId, "error to get the block number", err)
 				panic(err)
 			}
-			network_id, err := message.GetString(reply.Params, "network_id")
+			network_id, err := reply.Parameters.GetString("network_id")
 			if err != nil {
 				fmt.Println(manager.NetworkId, "failed to get the network_id from the reply params")
 				panic(err)
@@ -362,13 +362,13 @@ func (manager *Manager) subscribe() {
 				manager.subscribed_earliest_block_number = block_number
 			}
 
-			timestamp, err := message.GetUint64(reply.Params, "block_timestamp")
+			timestamp, err := reply.Parameters.GetUint64("block_timestamp")
 			if err != nil {
 				fmt.Printf(manager.NetworkId, "error getting block timestamp", err)
 				panic(err)
 			}
 
-			raw_transactions, ok := reply.Params["transactions"].([]interface{})
+			raw_transactions, ok := reply.Parameters.ToMap()["transactions"].([]interface{})
 			if !ok {
 				fmt.Println(manager.NetworkId, "failed to get the transactions from SDS Spaghetti Broadcast", err)
 				panic("no transactions received from SDS Spaghetti Broadcast")
@@ -379,7 +379,7 @@ func (manager *Manager) subscribe() {
 				panic(err)
 			}
 
-			raw_logs, ok := reply.Params["logs"].([]interface{})
+			raw_logs, ok := reply.Parameters.ToMap()["logs"].([]interface{})
 			if !ok {
 				fmt.Println(manager.NetworkId, "failed to get logs from SDS Spaghetti Broadcast")
 				panic("no transactions received from SDS Spaghetti Broadcast")

@@ -7,6 +7,7 @@ import (
 
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // Get's the list of transactions and logs for a particular smartcontract
@@ -31,26 +32,26 @@ func GetSnapshot(db *db.Database, request message.Request) message.Reply {
 	// Extract the parameters
 	//
 	/////////////////////////////////////////////////////////////////////////////
-	block_timestamp_from, err := message.GetUint64(request.Parameters, "block_timestamp_from")
+	block_timestamp_from, err := request.Parameters.GetUint64("block_timestamp_from")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	block_timestamp_to, err := message.GetUint64(request.Parameters, "block_timestamp_to")
+	block_timestamp_to, err := request.Parameters.GetUint64("block_timestamp_to")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	smartcontract_keys, err := message.GetStringList(request.Parameters, "smartcontract_keys")
+	smartcontract_keys, err := request.Parameters.GetStringList("smartcontract_keys")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	page, err := message.GetUint64(request.Parameters, "page")
+	page, err := request.Parameters.GetUint64("page")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 	if page == 0 {
 		page = 1
 	}
-	limit, err := message.GetUint64(request.Parameters, "limit")
+	limit, err := request.Parameters.GetUint64("limit")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -90,11 +91,11 @@ func GetSnapshot(db *db.Database, request message.Request) message.Reply {
 
 	reply := message.Reply{
 		Status: "OK",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"transactions":    data_type.ToMapList(transactions),
 			"logs":            data_type.ToMapList(logs),
 			"block_timestamp": block_timestamp_to,
-		},
+		}),
 	}
 
 	return reply

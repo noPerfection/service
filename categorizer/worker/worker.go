@@ -7,6 +7,7 @@ import (
 	"github.com/blocklords/gosds/categorizer/log"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/categorizer/transaction"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/static/smartcontract/key"
 
@@ -146,14 +147,14 @@ func broadcast_block_categorization(worker *Worker, transactions []map[string]in
 	new_reply := message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"network_id":      worker.smartcontract.NetworkId,
 			"block_number":    worker.smartcontract.CategorizedBlockNumber,
 			"block_timestamp": worker.smartcontract.CategorizedBlockTimestamp,
 			"address":         worker.smartcontract.Address,
 			"transactions":    transactions,
 			"logs":            logs,
-		},
+		}),
 	}
 	new_broadcast := message.NewBroadcast(broadcast_topic, new_reply)
 

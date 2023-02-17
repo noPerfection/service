@@ -339,21 +339,21 @@ func (s *Subscriber) read_from_publisher() error {
 		}
 
 		// validate the parameters
-		networkId, err := message.GetString(reply.Params, "network_id")
+		networkId, err := message.GetString(reply.Parameters, "network_id")
 		if err != nil {
 			if close_err := s.close(exit_channel); close_err != nil {
 				return errors.New("the sds publisher invalid 'network_id'. failed to close the subscriber loop. error " + close_err.Error())
 			}
 			return errors.New("the sds publisher invalid 'network_id'. reconnect and try again until publisher won't fix it. error " + err.Error())
 		}
-		address, err := message.GetString(reply.Params, "address")
+		address, err := message.GetString(reply.Parameters, "address")
 		if err != nil {
 			if close_err := s.close(exit_channel); close_err != nil {
 				return errors.New("the sds publisher invalid 'address'. failed to close the subscriber loop. error " + close_err.Error())
 			}
 			return errors.New("the sds publisher invalid 'address'. reconnect and try again until publisher won't fix it. error " + err.Error())
 		}
-		block_timestamp, err := message.GetUint64(reply.Params, "block_timestamp")
+		block_timestamp, err := message.GetUint64(reply.Parameters, "block_timestamp")
 		if err != nil {
 			if close_err := s.close(exit_channel); close_err != nil {
 				return errors.New("the sds publisher invalid 'block_timestamp'. failed to close the subscriber loop. error " + close_err.Error())
@@ -365,14 +365,14 @@ func (s *Subscriber) read_from_publisher() error {
 		// The SDK returns already formatted data instead of the generic interfaces.
 
 		// receive the transactions and logs of the smartcontract
-		raw_transactions, err := message.GetKeyValueList(reply.Params, "transactions")
+		raw_transactions, err := message.GetKeyValueList(reply.Parameters, "transactions")
 		if err != nil {
 			if close_err := s.close(exit_channel); close_err != nil {
 				return errors.New("the sds publisher invalid 'transactions'. failed to close the subscriber loop. error " + close_err.Error())
 			}
 			return errors.New("the sds publisher invalid 'transactions'. reconnect and try again until publisher won't fix it. error " + err.Error())
 		}
-		raw_logs, err := message.GetKeyValueList(reply.Params, "logs")
+		raw_logs, err := message.GetKeyValueList(reply.Parameters, "logs")
 		if err != nil {
 			if close_err := s.close(exit_channel); close_err != nil {
 				return errors.New("the sds publisher invalid 'logs'. failed to close the subscriber loop. error " + close_err.Error())

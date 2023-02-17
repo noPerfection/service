@@ -54,7 +54,10 @@ func NewSmartcontractDeveloper(request *message.SmartcontractDeveloperRequest) (
 	if err != nil {
 		return nil, err
 	}
-	digested_hash := request.DigestedMessage()
+	digested_hash, err := request.DigestedMessage()
+	if err != nil {
+		return nil, err
+	}
 
 	if len(signature) != 65 {
 		return nil, errors.New("the ECDSA signature length is invalid. It should be 64 bytes long. Signature length: ")

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/static/abi"
 	"github.com/blocklords/gosds/static/smartcontract"
@@ -16,12 +17,12 @@ import (
 //	     }
 //	}
 func AbiGet(con *db.Database, request message.Request) message.Reply {
-	network_id, err := message.GetString(request.Parameters, "network_id")
+	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	address, err := message.GetString(request.Parameters, "address")
+	address, err := request.Parameters.GetString("address")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -32,9 +33,9 @@ func AbiGet(con *db.Database, request message.Request) message.Reply {
 	}
 
 	reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Params:  abi.ToJSON(),
+		Status:     "OK",
+		Message:    "",
+		Parameters: key_value.New(abi.ToJSON()),
 	}
 
 	return reply
@@ -42,11 +43,11 @@ func AbiGet(con *db.Database, request message.Request) message.Reply {
 
 // Returns an abi by the smartcontract key.
 func AbiGetBySmartcontractKey(db *db.Database, request message.Request) message.Reply {
-	network_id, err := message.GetString(request.Parameters, "network_id")
+	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	address, err := message.GetString(request.Parameters, "address")
+	address, err := request.Parameters.GetString("address")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -63,9 +64,9 @@ func AbiGetBySmartcontractKey(db *db.Database, request message.Request) message.
 	abi := abi.GetFromDatabaseByAbiHash(db, smartcontract.AbiHash)
 
 	return message.Reply{
-		Status:  "OK",
-		Message: "",
-		Params:  abi.ToJSON(),
+		Status:     "OK",
+		Message:    "",
+		Parameters: key_value.New(abi.ToJSON()),
 	}
 }
 
@@ -89,9 +90,9 @@ func AbiRegister(dbCon *db.Database, request message.Request) message.Reply {
 	}
 
 	reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Params:  new_abi.ToJSON(),
+		Status:     "OK",
+		Message:    "",
+		Parameters: new_abi.ToJSON(),
 	}
 
 	if abi.ExistInDatabase(dbCon, new_abi.AbiHash) {

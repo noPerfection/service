@@ -57,7 +57,7 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 		msg_raw, err := socket.RecvMessage(0)
 		if err != nil {
 			fail := message.Fail("socket error to receive message " + err.Error())
-			reply := fail.ToString()
+			reply, _ := fail.ToString()
 			if _, err := socket.SendMessage(reply); err != nil {
 				return errors.New("failed to reply: %w" + err.Error())
 			}
@@ -69,7 +69,7 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 		request, err := message.ParseRequest(msg_raw)
 		if err != nil {
 			fail := message.Fail("invalid json request: " + err.Error())
-			reply := fail.ToString()
+			reply, _ := fail.ToString()
 			if _, err := socket.SendMessage(reply); err != nil {
 				return errors.New("failed to reply: %w" + err.Error())
 			}
@@ -79,7 +79,7 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 		// Any request types is compatible with the Request.
 		if commands[request.Command] == nil {
 			fail := message.Fail("unsupported command " + request.Command)
-			reply := fail.ToString()
+			reply, _ := fail.ToString()
 			if _, err := socket.SendMessage(reply); err != nil {
 				return errors.New("failed to reply: %w" + err.Error())
 			}
@@ -94,7 +94,7 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 			smartcontract_developer_request, err := message.ParseSmartcontractDeveloperRequest(msg_raw)
 			if err != nil {
 				fail := message.Fail("invalid smartcontract developer request " + err.Error())
-				reply := fail.ToString()
+				reply, _ := fail.ToString()
 				if _, err := socket.SendMessage(reply); err != nil {
 					return errors.New("failed to reply: %w" + err.Error())
 				}
@@ -105,7 +105,7 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 			if err != nil {
 				println(smartcontract_developer_request.NonceTimestamp)
 				fail := message.Fail("reply controller error as invalid smartcontract developer request: " + err.Error())
-				reply := fail.ToString()
+				reply, _ := fail.ToString()
 				if _, err := socket.SendMessage(reply); err != nil {
 					return errors.New("failed to reply: %w" + err.Error())
 				}
@@ -120,7 +120,7 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 				service_request, err := message.ParseServiceRequest(msg_raw)
 				if err != nil {
 					fail := message.Fail("invalid service request " + err.Error())
-					reply := fail.ToString()
+					reply, _ := fail.ToString()
 					if _, err := socket.SendMessage(reply); err != nil {
 						return errors.New("failed to reply: %w" + err.Error())
 					}

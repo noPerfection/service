@@ -6,15 +6,16 @@ import (
 
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // return a categorizer block by network id and smartcontract address
 func GetSmartcontract(db *db.Database, request message.Request) message.Reply {
-	network_id, err := message.GetString(request.Parameters, "network_id")
+	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	address, err := message.GetString(request.Parameters, "address")
+	address, err := request.Parameters.GetString("address")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -27,9 +28,9 @@ func GetSmartcontract(db *db.Database, request message.Request) message.Reply {
 
 	reply := message.Reply{
 		Status: "OK",
-		Params: map[string]interface{}{
+		Parameters: key_value.New(map[string]interface{}{
 			"smartcontract": sm.ToJSON(),
-		},
+		}),
 	}
 
 	return reply
@@ -46,9 +47,9 @@ func GetSmartcontracts(db *db.Database, _ message.Request) message.Reply {
 	reply := message.Reply{
 		Status:  "OK",
 		Message: "",
-		Params: map[string]interface{}{
-			"blocks": data_type.ToMapList(smartcontracts),
-		},
+		Parameters: key_value.New(map[string]interface{}{
+			"smartcontracts": data_type.ToMapList(smartcontracts),
+		}),
 	}
 
 	return reply

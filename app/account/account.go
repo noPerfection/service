@@ -95,7 +95,7 @@ func NewAccounts(new_accounts ...*Account) Accounts {
 	return accounts
 }
 
-func NewAccountsFromJson(raw_accounts []map[string]interface{}) (Accounts, error) {
+func NewAccountsFromJson(raw_accounts []key_value.KeyValue) (Accounts, error) {
 	accounts := make(Accounts, len(raw_accounts))
 
 	for i, raw := range raw_accounts {
