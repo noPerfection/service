@@ -25,7 +25,7 @@ Algorithm
  4. return list of smartcontracts back
 */
 func SmartcontractFilter(dbCon *db.Database, request message.Request) message.Reply {
-	topic_filter_map, err := message.GetMap(request.Parameters, "topic_filter")
+	topic_filter_map, err := message.GetKeyValue(request.Parameters, "topic_filter")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -66,7 +66,7 @@ func SmartcontractFilter(dbCon *db.Database, request message.Request) message.Re
 //			"smartcontract_keys" (where key is smartcontract key, value is a topic string)
 //	}
 func SmartcontractKeyFilter(dbCon *db.Database, request message.Request) message.Reply {
-	topic_filter_map, err := message.GetMap(request.Parameters, "topic_filter")
+	topic_filter_map, err := message.GetKeyValue(request.Parameters, "topic_filter")
 	if err != nil {
 		return message.Fail(err.Error())
 	}

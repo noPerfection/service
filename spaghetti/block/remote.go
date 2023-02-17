@@ -23,7 +23,7 @@ func RemoteBlockNumberCached(socket *remote.Socket, network_id string) (uint64, 
 	if err != nil {
 		return 0, 0, err
 	}
-	parameters := key_value.NewKeyValue(raw_parameters)
+	parameters := key_value.New(raw_parameters)
 
 	block_number, err := parameters.GetUint64("block_number")
 	if err != nil {
@@ -52,7 +52,7 @@ func RemoteBlockMintedTime(socket *remote.Socket, networkId string, blockNumber 
 	if err != nil {
 		return 0, err
 	}
-	parameters := key_value.NewKeyValue(raw_parameters)
+	parameters := key_value.New(raw_parameters)
 
 	return parameters.GetUint64("block_timestamp")
 }
@@ -72,19 +72,19 @@ func RemoteBlockRange(socket *remote.Socket, networkId string, address string, f
 	if err != nil {
 		return 0, nil, nil, err
 	}
-	parameters := key_value.NewKeyValue(raw_parameters)
+	parameters := key_value.New(raw_parameters)
 
 	timestamp, err := parameters.GetUint64("timestamp")
 	if err != nil {
 		return 0, nil, nil, err
 	}
 
-	raw_transactions, err := parameters.GetMapList("transactions")
+	raw_transactions, err := parameters.GetKeyValueList("transactions")
 	if err != nil {
 		return 0, nil, nil, err
 	}
 
-	raw_logs, err := parameters.GetMapList("logs")
+	raw_logs, err := parameters.GetKeyValueList("logs")
 	if err != nil {
 		return 0, nil, nil, err
 	}
@@ -127,7 +127,7 @@ func RemoteBlock(socket *remote.Socket, network_id string, block_number uint64, 
 	if err != nil {
 		return false, nil, err
 	}
-	parameters := key_value.NewKeyValue(raw_parameters)
+	parameters := key_value.New(raw_parameters)
 
 	cached, err := parameters.GetBoolean("cached")
 	if err != nil {
@@ -139,12 +139,12 @@ func RemoteBlock(socket *remote.Socket, network_id string, block_number uint64, 
 		return false, nil, err
 	}
 
-	raw_transactions, err := parameters.GetMapList("transactions")
+	raw_transactions, err := parameters.GetKeyValueList("transactions")
 	if err != nil {
 		return false, nil, err
 	}
 
-	raw_logs, err := parameters.GetMapList("logs")
+	raw_logs, err := parameters.GetKeyValueList("logs")
 	if err != nil {
 		return false, nil, err
 	}

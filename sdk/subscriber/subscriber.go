@@ -128,11 +128,11 @@ func (s *Subscriber) get_snapshot() error {
 			return err
 		}
 
-		raw_transactions, err := message.GetMapList(snapshot_parameters, "transactions")
+		raw_transactions, err := message.GetKeyValueList(snapshot_parameters, "transactions")
 		if err != nil {
 			return err
 		}
-		raw_logs, err := message.GetMapList(snapshot_parameters, "logs")
+		raw_logs, err := message.GetKeyValueList(snapshot_parameters, "logs")
 		if err != nil {
 			return err
 		}
@@ -365,14 +365,14 @@ func (s *Subscriber) read_from_publisher() error {
 		// The SDK returns already formatted data instead of the generic interfaces.
 
 		// receive the transactions and logs of the smartcontract
-		raw_transactions, err := message.GetMapList(reply.Params, "transactions")
+		raw_transactions, err := message.GetKeyValueList(reply.Params, "transactions")
 		if err != nil {
 			if close_err := s.close(exit_channel); close_err != nil {
 				return errors.New("the sds publisher invalid 'transactions'. failed to close the subscriber loop. error " + close_err.Error())
 			}
 			return errors.New("the sds publisher invalid 'transactions'. reconnect and try again until publisher won't fix it. error " + err.Error())
 		}
-		raw_logs, err := message.GetMapList(reply.Params, "logs")
+		raw_logs, err := message.GetKeyValueList(reply.Params, "logs")
 		if err != nil {
 			if close_err := s.close(exit_channel); close_err != nil {
 				return errors.New("the sds publisher invalid 'logs'. failed to close the subscriber loop. error " + close_err.Error())

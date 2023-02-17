@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math/big"
 	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common/math"
 )
@@ -13,13 +14,41 @@ import (
 type KeyValue map[string]interface{}
 
 // Converts the map to the key-value data type
-func NewKeyValue(key_value map[string]interface{}) KeyValue {
+func New(key_value map[string]interface{}) KeyValue {
 	return KeyValue(key_value)
+}
+
+// Converts the s string with a json decoder into the key value
+func NewFromString(s string) (KeyValue, error) {
+	var key_value KeyValue
+
+	decoder := json.NewDecoder(strings.NewReader(s))
+	decoder.UseNumber()
+
+	if err := decoder.Decode(&key_value); err != nil {
+		return Empty(), err
+	}
+
+	return key_value, nil
+}
+
+// Returns an empty key value
+func Empty() KeyValue {
+	return KeyValue(map[string]interface{}{})
 }
 
 // Converts the key-valueto the golang map
 func (k KeyValue) ToMap() map[string]interface{} {
 	return map[string]interface{}(k)
+}
+
+func (k KeyValue) ToBytes() ([]byte, error) {
+	byt, err := json.Marshal(k)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return byt, nil
 }
 
 // Returns the all uint64 parameters
@@ -98,10 +127,10 @@ func (parameters KeyValue) GetStringLists(names ...string) ([][]string, error) {
 }
 
 // Returns the all map lists
-func (parameters KeyValue) GetMapLists(names ...string) ([][]map[string]interface{}, error) {
-	values := make([][]map[string]interface{}, len(names))
+func (parameters KeyValue) GetKeyValueLists(names ...string) ([][]KeyValue, error) {
+	values := make([][]KeyValue, len(names))
 	for i, name := range names {
-		value, err := parameters.GetMapList(name)
+		value, err := parameters.GetKeyValueList(name)
 		if err != nil {
 			return nil, err
 		}
@@ -113,10 +142,10 @@ func (parameters KeyValue) GetMapLists(names ...string) ([][]map[string]interfac
 }
 
 // Returns the all maps
-func (parameters KeyValue) GetMaps(names ...string) ([]map[string]interface{}, error) {
-	values := make([]map[string]interface{}, len(names))
+func (parameters KeyValue) GetKeyValues(names ...string) ([]KeyValue, error) {
+	values := make([]KeyValue, len(names))
 	for i, name := range names {
-		value, err := parameters.GetMap(name)
+		value, err := parameters.GetKeyValue(name)
 		if err != nil {
 			return nil, err
 		}
@@ -242,15 +271,15 @@ func (parameters KeyValue) GetStringList(name string) ([]string, error) {
 
 // Returns the parameter as a slice of map:
 //
-// []map[string]interface{}
-func (parameters KeyValue) GetMapList(name string) ([]map[string]interface{}, error) {
+// []key_value.KeyValue
+func (parameters KeyValue) GetKeyValueList(name string) ([]KeyValue, error) {
 	raw, exists := parameters[name]
 	if !exists {
 		return nil, errors.New("missing '" + name + "' parameter in the Request")
 	}
 	values, ok := raw.([]interface{})
 	if !ok {
-		ready_list, ok := raw.([]map[string]interface{})
+		ready_list, ok := raw.([]KeyValue)
 		if !ok {
 			return nil, errors.New("expected list type for '" + name + "' parameter")
 		} else {
@@ -258,9 +287,9 @@ func (parameters KeyValue) GetMapList(name string) ([]map[string]interface{}, er
 		}
 	}
 
-	list := make([]map[string]interface{}, len(values))
+	list := make([]KeyValue, len(values))
 	for i, raw_value := range values {
-		v, ok := raw_value.(map[string]interface{})
+		v, ok := raw_value.(KeyValue)
 		if !ok {
 			return nil, errors.New("one of the elements in the parameter is not a map")
 		}
@@ -273,13 +302,13 @@ func (parameters KeyValue) GetMapList(name string) ([]map[string]interface{}, er
 
 // Returns the parameter as a map:
 //
-// map[string]interface{}
-func (parameters KeyValue) GetMap(name string) (map[string]interface{}, error) {
+// key_value.KeyValue
+func (parameters KeyValue) GetKeyValue(name string) (KeyValue, error) {
 	raw, exists := parameters[name]
 	if !exists {
 		return nil, errors.New("missing '" + name + "' parameter in the Request")
 	}
-	value, ok := raw.(map[string]interface{})
+	value, ok := raw.(KeyValue)
 	if !ok {
 		return nil, errors.New("expected map type for '" + name + "' parameter")
 	}

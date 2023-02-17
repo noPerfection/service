@@ -46,7 +46,7 @@ func NewFromMap(blob key_value.KeyValue) (*Log, error) {
 		return nil, err
 	}
 
-	output, err := blob.GetMap("output")
+	output, err := blob.GetKeyValue("output")
 	if err != nil {
 		return nil, err
 	}

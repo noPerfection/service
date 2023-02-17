@@ -52,7 +52,7 @@ func ParseTransaction(blob key_value.KeyValue) (*Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
-	args, err := blob.GetMap("arguments")
+	args, err := blob.GetKeyValue("arguments")
 	if err != nil {
 		return nil, err
 	}

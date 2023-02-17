@@ -109,7 +109,7 @@ func (t *Topic) Level() uint8 {
 
 // Parse JSON into the Topic
 func ParseJSON(json map[string]interface{}) (*Topic, error) {
-	parameters := key_value.NewKeyValue(json)
+	parameters := key_value.New(json)
 	organization, err := parameters.GetString("o")
 	if err != nil {
 		return nil, err

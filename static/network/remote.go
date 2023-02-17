@@ -24,7 +24,7 @@ func GetRemoteNetworkIds(socket *remote.Socket, flag int8) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return key_value.NewKeyValue(params).GetStringList("network_ids")
+	return key_value.New(params).GetStringList("network_ids")
 }
 
 // Returns list of support network IDs from SDS Static
@@ -43,7 +43,7 @@ func GetRemoteNetworks(socket *remote.Socket, flag int8) (Networks, error) {
 	if err != nil {
 		return nil, err
 	}
-	raw_networks, err := key_value.NewKeyValue(params).GetMapList("networks")
+	raw_networks, err := key_value.New(params).GetKeyValueList("networks")
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +69,9 @@ func GetRemoteNetwork(socket *remote.Socket, network_id string, flag int8) (*Net
 		return nil, err
 	}
 
-	params := key_value.NewKeyValue(raw_params)
+	params := key_value.New(raw_params)
 
-	raw, err := params.GetMap("network")
+	raw, err := params.GetKeyValue("network")
 	if err != nil {
 		return nil, err
 	}

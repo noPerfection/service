@@ -19,13 +19,13 @@ func RemoteConfiguration(socket *remote.Socket, t *topic.Topic) (*Configuration,
 	if err != nil {
 		return nil, nil, err
 	}
-	parameters := key_value.NewKeyValue(raw_parameters)
+	parameters := key_value.New(raw_parameters)
 
-	raw_configuration, err := parameters.GetMap("configuration")
+	raw_configuration, err := parameters.GetKeyValue("configuration")
 	if err != nil {
 		return nil, nil, err
 	}
-	raw_smartcontract, err := parameters.GetMap("smartcontract")
+	raw_smartcontract, err := parameters.GetKeyValue("smartcontract")
 	if err != nil {
 		return nil, nil, err
 	}

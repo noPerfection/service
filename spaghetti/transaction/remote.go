@@ -23,7 +23,7 @@ func RemoteTransactionDeployed(socket *remote.Socket, network_id string, Txid st
 		return "", "", 0, 0, err
 	}
 
-	params := key_value.NewKeyValue(raw_params)
+	params := key_value.New(raw_params)
 
 	address, err := params.GetString("address")
 	if err != nil {

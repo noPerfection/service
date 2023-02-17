@@ -36,9 +36,9 @@ func RemoteSmartcontract(socket *remote.Socket, network_id string, address strin
 	if err != nil {
 		return nil, err
 	}
-	params := key_value.NewKeyValue(raw_params)
+	params := key_value.New(raw_params)
 
-	smartcontract, err := params.GetMap("smartcontract")
+	smartcontract, err := params.GetKeyValue("smartcontract")
 	if err != nil {
 		return nil, err
 	}
@@ -58,9 +58,9 @@ func RemoteSmartcontracts(socket *remote.Socket) ([]*Smartcontract, error) {
 	if err != nil {
 		return nil, err
 	}
-	params := key_value.NewKeyValue(raw_params)
+	params := key_value.New(raw_params)
 
-	raw_smartcontracts, err := params.GetMapList("smartcontracts")
+	raw_smartcontracts, err := params.GetKeyValueList("smartcontracts")
 	if err != nil {
 		return nil, err
 	}

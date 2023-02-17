@@ -20,9 +20,9 @@ func RemoteLogs(socket *remote.Socket, keys []string) ([]*Log, error) {
 	if err != nil {
 		return nil, err
 	}
-	params := key_value.NewKeyValue(raw_params)
+	params := key_value.New(raw_params)
 
-	raw_logs, err := params.GetMapList("logs")
+	raw_logs, err := params.GetKeyValueList("logs")
 	if err != nil {
 		return nil, err
 	}
@@ -58,13 +58,13 @@ func RemoteLogParse(socket *remote.Socket, network_id string, address string, da
 		return "", nil, err
 	}
 
-	params := key_value.NewKeyValue(raw_params)
+	params := key_value.New(raw_params)
 
 	name, err := params.GetString("name")
 	if err != nil {
 		return "", nil, err
 	}
-	args, err := params.GetMap("args")
+	args, err := params.GetKeyValue("args")
 	if err != nil {
 		return "", nil, err
 	}

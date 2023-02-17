@@ -37,7 +37,7 @@ func Get(socket *remote.Socket, network_id string, address string) (*Abi, error)
 	if err != nil {
 		return nil, err
 	}
-	params := key_value.NewKeyValue(raw_params)
+	params := key_value.New(raw_params)
 
 	abi_bytes, ok := raw_params["abi"]
 	if !ok {
