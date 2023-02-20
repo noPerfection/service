@@ -35,7 +35,7 @@ func Run(app_config *configuration.Config, db_connection *db.Database, v *vault.
 	// Getting the services which has access to the SDS Static
 	static_env, err := service.New(service.STATIC, service.THIS)
 	if err != nil {
-		panic(static_env)
+		panic(err)
 	}
 
 	// The list of whitelisted SDS Services that can access to SDS Static:
