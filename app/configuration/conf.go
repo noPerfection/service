@@ -50,6 +50,31 @@ func New() (*Config, error) {
 	return &conf, nil
 }
 
+// Returns the configuration for the service
+// That means application arguments are not used.
+// Only the underlying configuration engine is loaded.
+func NewService(default_config DefaultConfig) (*Config, error) {
+	// First we check the parameters of the application arguments
+	arguments, err := argument.GetArguments()
+	if err != nil {
+		return nil, fmt.Errorf("reading application arguments: %v", err)
+	}
+
+	conf := Config{
+		Plain:     argument.Has(arguments, argument.PLAIN),
+		Broadcast: false,
+		Reply:     false,
+	}
+
+	// replace the values with the ones we fetched from environment variables
+	conf.viper = viper.New()
+	conf.viper.AutomaticEnv()
+
+	conf.SetDefaults(default_config)
+
+	return &conf, nil
+}
+
 // Populates the app configuration with the default vault configuration parameters.
 func (config *Config) SetDefaults(default_config DefaultConfig) {
 	log.Printf("'%s' default values. Override on environment variables\n", default_config.Title)
