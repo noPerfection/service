@@ -136,8 +136,15 @@ func ReplyController(db_connection *db.Database, commands CommandHandlers, e *se
 			}
 		}
 
-		if _, err := socket.SendMessage(reply.ToString()); err != nil {
-			return errors.New("failed to reply: %w" + err.Error())
+		reply_string, err := reply.ToString()
+		if err != nil {
+			if _, err := socket.SendMessage(err.Error()); err != nil {
+				return errors.New("failed to reply: %w" + err.Error())
+			}
+		} else {
+			if _, err := socket.SendMessage(reply_string); err != nil {
+				return errors.New("failed to reply: %w" + err.Error())
+			}
 		}
 	}
 }
