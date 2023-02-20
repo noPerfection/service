@@ -1,6 +1,8 @@
 package categorizer
 
 import (
+	debug_log "log"
+
 	"github.com/blocklords/gosds/categorizer/handler"
 	"github.com/blocklords/gosds/categorizer/imx"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
@@ -11,7 +13,6 @@ import (
 	"github.com/blocklords/gosds/app/account"
 	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/configuration"
-	"github.com/blocklords/gosds/security"
 	"github.com/blocklords/gosds/security/vault"
 
 	"github.com/blocklords/gosds/app/broadcast"
@@ -169,16 +170,10 @@ Supported command line arguments:
     --security-debug            prints the security logs`
 	println(greeting + "\n\n")
 
-	err := security.EnableSecurity()
-	if err != nil {
-		panic(err)
-	}
-
 	arguments, err := argument.GetArguments()
 	if err != nil {
 		panic(err)
 	}
-
 	// check for missing environment variable otherwise panic exit.
 	if _, err := service.New(service.SPAGHETTI, service.SUBSCRIBE, service.REMOTE); err != nil {
 		panic(err)
@@ -198,10 +193,12 @@ Supported command line arguments:
 	if err != nil {
 		panic(err)
 	}
+
 	log_env, err := service.New(service.LOG, service.REMOTE)
 	if err != nil {
 		panic(err)
 	}
+
 	developer_gateway_env, err := service.New(service.DEVELOPER_GATEWAY, service.REMOTE, service.SUBSCRIBE)
 	if err != nil {
 		panic(err)
@@ -226,16 +223,15 @@ Supported command line arguments:
 	if err != nil {
 		panic(err)
 	}
+
 	writer_env, err := service.New(service.WRITER, service.REMOTE)
 	if err != nil {
 		panic(err)
 	}
 
-	broadcast_enabled := argument.Has(arguments, argument.BROADCAST)
-	reply_enabled := argument.Has(arguments, argument.REPLY)
-	if !broadcast_enabled && !reply_enabled {
-		println("Please enable --broadcast and/or --reply to launch this service")
-		return
+	if !app_config.Broadcast && !app_config.Reply {
+		debug_log.Fatalf("'%s' missing --reply and/or --broadcast. Please pass it as an argument", categorizer_env.ServiceName())
+
 	}
 
 	spaghetti_socket = remote.TcpRequestSocketOrPanic(spaghetti_env, categorizer_env)
@@ -271,7 +267,7 @@ Supported command line arguments:
 		}
 	}
 
-	if broadcast_enabled {
+	if app_config.Broadcast {
 		subscribers_env := []*service.Service{developer_gateway_env, publisher_env}
 
 		broadcast_channel = make(chan message.Broadcast)
@@ -294,14 +290,14 @@ Supported command line arguments:
 			}
 		}
 
-		if reply_enabled {
+		if app_config.Reply {
 			go broadcast.Run(broadcast_channel, categorizer_env, subscribers_env)
 		} else {
 			broadcast.Run(broadcast_channel, categorizer_env, subscribers_env)
 		}
 	}
 
-	if reply_enabled {
+	if app_config.Reply {
 		var commands = controller.CommandHandlers{
 			"smartcontract_get_all": handler.GetSmartcontracts,
 			"smartcontract_get":     handler.GetSmartcontract,

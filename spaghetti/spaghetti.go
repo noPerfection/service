@@ -451,11 +451,9 @@ It supports the following arguments:
 
 	accounts := account.NewAccounts(account.NewService(categorizer_env), account.NewService(gateway_env))
 
-	enable_broadcast := argument.Has(arguments, argument.BROADCAST)
-	enable_reply := argument.Has(arguments, argument.REPLY)
-
-	if !enable_broadcast && !enable_reply {
-		return
+	// error since no reply or broadcast were given
+	if !app_config.Broadcast && !app_config.Reply {
+		debug_log.Fatalf("'%s' missing --reply and/or --broadcast. Please pass it as an argument", spaghetti_env.ServiceName())
 	}
 
 	static_socket = remote.TcpRequestSocketOrPanic(static_env, spaghetti_env)
@@ -469,12 +467,12 @@ It supports the following arguments:
 		panic(err)
 	}
 
-	if enable_broadcast {
+	if app_config.Broadcast {
 		broadcast_debug := argument.Has(arguments, argument.BROADCAST_DEBUG)
 		broadcast_channel := make(chan message.Broadcast)
 		run_each_evm_network_sync_worker(db_con, broadcast_channel, broadcast_debug)
 
-		if enable_reply {
+		if app_config.Reply {
 			go broadcast.Run(broadcast_channel, spaghetti_env, []*service.Service{categorizer_env})
 		} else {
 			fmt.Println("Running SDS Spaghetti broadcaster only")
@@ -482,7 +480,7 @@ It supports the following arguments:
 		}
 	}
 
-	if enable_reply {
+	if app_config.Reply {
 		var commands = controller.CommandHandlers{
 			"block_get_cached_number":  block_get_cached_number,
 			"block_get":                block_get,
