@@ -47,7 +47,7 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 	}
 
 	if err := socket.Bind("tcp://*:" + e.Port()); err != nil {
-		return errors.New("error to bind socket for '" + e.ServiceName() + " - " + e.Url() + "' : " + err.Error())
+		return errors.New("error to bind socket for '" + e.ServiceName() + " - " + e.Port() + "' : " + err.Error())
 	}
 
 	println("'" + e.ServiceName() + "' request-reply server runs on port " + e.Port())
