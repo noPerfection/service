@@ -20,7 +20,7 @@ import (
 func main() {
 	fmt.Println("SeascapeSDS!!!")
 
-	app_config, err := configuration.New()
+	app_config, err := configuration.NewAppConfig()
 	if err != nil {
 		log.Fatalf("configuration: %v", err)
 	}

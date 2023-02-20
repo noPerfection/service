@@ -9,11 +9,11 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/blocklords/gosds/app/env"
+	"github.com/blocklords/gosds/app/configuration"
 )
 
 const (
-	SUPPORTED_NETWORKS = "SUPPORTED_NETWORKS"
+	SDS_STATIC_NETWORKS = "SDS_STATIC_NETWORKS"
 )
 
 // Returns list of the blockchain networks
@@ -21,13 +21,15 @@ func GetNetworks(flag int8) (Networks, error) {
 	if !IsValidFlag(flag) {
 		return nil, errors.New("invalid 'flag' parameter value")
 	}
-	if !env.Exists(SUPPORTED_NETWORKS) {
-		return nil, errors.New("the environment variable 'SUPPORTED_NETWORKS' is not provided")
+	network_config, err := configuration.New()
+	if err != nil {
+		return nil, err
 	}
+	network_config.SetDefault(SDS_STATIC_NETWORKS, DefaultConfiguration())
 
-	env := env.GetString(SUPPORTED_NETWORKS)
+	env := network_config.GetString(SDS_STATIC_NETWORKS)
 	if len(env) == 0 {
-		return nil, errors.New("the environment variable 'SUPPORTED_NETWORKS' is empty")
+		return nil, errors.New("the environment variable 'SDS_STATIC_NETWORKS' is empty")
 	}
 
 	var raw_networks []map[string]interface{}

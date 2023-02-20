@@ -19,7 +19,8 @@ type Config struct {
 }
 
 // Returns the new configuration file after loading environment variables
-func New() (*Config, error) {
+// At the application level
+func NewAppConfig() (*Config, error) {
 	// First we check the parameters of the application arguments
 	arguments, err := argument.GetArguments()
 	if err != nil {
@@ -41,6 +42,27 @@ func New() (*Config, error) {
 	err = env.LoadAnyEnv()
 	if err != nil {
 		return nil, fmt.Errorf("loading environment variables: %v", err)
+	}
+
+	// replace the values with the ones we fetched from environment variables
+	conf.viper = viper.New()
+	conf.viper.AutomaticEnv()
+
+	return &conf, nil
+}
+
+// Return the configuration engine to use with default parameters
+func New() (*Config, error) {
+	// First we check the parameters of the application arguments
+	arguments, err := argument.GetArguments()
+	if err != nil {
+		return nil, fmt.Errorf("reading application arguments: %v", err)
+	}
+
+	conf := Config{
+		Plain:     argument.Has(arguments, argument.PLAIN),
+		Broadcast: false,
+		Reply:     false,
 	}
 
 	// replace the values with the ones we fetched from environment variables
