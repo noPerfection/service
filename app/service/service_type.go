@@ -15,6 +15,11 @@ const (
 	LOG               ServiceType = "LOG"
 )
 
+// Returns the string represantion of the service type
+func (s ServiceType) ToString() string {
+	return string(s)
+}
+
 func service_types() []ServiceType {
 	return []ServiceType{
 		SPAGHETTI,
