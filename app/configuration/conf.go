@@ -113,7 +113,7 @@ func (config *Config) SetDefaults(default_config DefaultConfig) {
 
 // Sets the default value
 func (c *Config) SetDefault(name string, value interface{}) {
-	log.Printf("\t%s=%v", name, value)
+	log.Printf("\tdefault config %s=%v", name, value)
 	c.viper.SetDefault(name, value)
 }
 
