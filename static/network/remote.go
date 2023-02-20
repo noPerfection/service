@@ -2,6 +2,7 @@ package network
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
@@ -41,11 +42,12 @@ func GetRemoteNetworks(socket *remote.Socket, flag int8) (Networks, error) {
 
 	params, err := socket.RequestRemoteService(&request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to return network list from static socket: %v", err)
 	}
+
 	raw_networks, err := key_value.New(params).GetKeyValueList("networks")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed convert parameters to the key value list: %v", err)
 	}
 
 	return NewNetworks(raw_networks)
