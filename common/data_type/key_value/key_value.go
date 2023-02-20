@@ -359,12 +359,12 @@ func (parameters KeyValue) GetKeyValueList(name string) ([]KeyValue, error) {
 
 	list := make([]KeyValue, len(values))
 	for i, raw_value := range values {
-		v, ok := raw_value.(KeyValue)
+		v, ok := raw_value.(map[string]interface{})
 		if !ok {
 			return nil, errors.New("one of the elements in the parameter is not a map")
 		}
 
-		list[i] = v
+		list[i] = New(v)
 	}
 
 	return list, nil
