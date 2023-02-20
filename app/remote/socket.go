@@ -38,7 +38,7 @@ type SDS_Message interface {
 	*message.Request | *message.ServiceRequest
 
 	CommandName() string
-	ToString() string
+	ToString() (string, error)
 }
 
 // Request-Reply checks the internet connection after this amount of time.
@@ -174,10 +174,15 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 		}
 	}
 
+	request_string, err := request.ToString()
+	if err != nil {
+		return nil, err
+	}
+
 	// we attempt requests for an infinite amount of time.
 	for {
 		//  We send a request, then we work to get a reply
-		if _, err := socket.socket.SendMessage(request.ToString()); err != nil {
+		if _, err := socket.socket.SendMessage(request_string); err != nil {
 			return nil, fmt.Errorf("failed to send the command '%s' to '%s'. socket error: %w", request.Command, socket.remoteService.ServiceName(), err)
 		}
 
@@ -242,10 +247,15 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 		}
 	}
 
+	request_string, err := request.ToString()
+	if err != nil {
+		return nil, err
+	}
+
 	// we attempt requests for an infinite amount of time.
 	for {
 		//  We send a request, then we work to get a reply
-		if _, err := socket.socket.SendMessage(request.ToString()); err != nil {
+		if _, err := socket.socket.SendMessage(request_string); err != nil {
 			return nil, fmt.Errorf("failed to send the command '%s' to '%s'. socket error: %w", command_name, socket.remoteService.ServiceName(), err)
 		}
 
