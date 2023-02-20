@@ -31,7 +31,7 @@ const PAGE_SIZE = int32(50)
 // If the imx network is supported.
 func ValidateEnv() error {
 	if !env.Exists(request_per_second) {
-		return errors.New("if 'imx' network is supported, but missing 'request_per_second' environment variable")
+		return errors.New("'imx' network is supported, but missing 'request_per_second' environment variable")
 	}
 
 	if env.GetNumeric(request_per_second) == 0 {
