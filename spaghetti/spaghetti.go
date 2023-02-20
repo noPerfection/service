@@ -488,7 +488,7 @@ It supports the following arguments:
 			"block_get_range":          block_get_range,
 			"transaction_deployed_get": transaction_deployed_get,
 		}
-		err := controller.ReplyController(db_con.Connection, commands, spaghetti_env, accounts)
+		err := controller.ReplyController(db_con, commands, spaghetti_env, accounts)
 		if err != nil {
 			panic(err)
 		}

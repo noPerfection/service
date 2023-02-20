@@ -5,13 +5,13 @@ It acts as the input receiver for other services or for external users.
 package controller
 
 import (
-	"database/sql"
 	"errors"
 
 	"github.com/blocklords/gosds/app/account"
 	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/gosds/db"
 
 	zmq "github.com/pebbe/zmq4"
 )
@@ -20,7 +20,7 @@ type CommandHandlers map[string]interface{}
 
 // Creates a new Reply controller using ZeroMQ
 // The requesters is the list of curve public keys that are allowed to connect to the socket.
-func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, accounts account.Accounts) error {
+func ReplyController(db_connection *db.Database, commands CommandHandlers, e *service.Service, accounts account.Accounts) error {
 	exist, err := argument.Exist(argument.PLAIN)
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 		var reply message.Reply
 
 		// The command might be from a smartcontract developer.
-		command_handler, ok := commands[request.Command].(func(*sql.DB, message.SmartcontractDeveloperRequest, *account.SmartcontractDeveloper) message.Reply)
+		command_handler, ok := commands[request.Command].(func(*db.Database, message.SmartcontractDeveloperRequest, *account.SmartcontractDeveloper) message.Reply)
 		if ok {
 			smartcontract_developer_request, err := message.ParseSmartcontractDeveloperRequest(msg_raw)
 			if err != nil {
@@ -112,10 +112,10 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 				continue
 			}
 
-			reply = command_handler(db, smartcontract_developer_request, smartcontract_developer)
+			reply = command_handler(db_connection, smartcontract_developer_request, smartcontract_developer)
 		} else {
 			// The command might be from another SDS Service
-			service_handler, ok := commands[request.Command].(func(*sql.DB, message.ServiceRequest, *account.Account) message.Reply)
+			service_handler, ok := commands[request.Command].(func(*db.Database, message.ServiceRequest, *account.Account) message.Reply)
 			if ok {
 				service_request, err := message.ParseServiceRequest(msg_raw)
 				if err != nil {
@@ -129,10 +129,10 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 
 				service_account := account.NewService(service_request.Service())
 
-				reply = service_handler(db, service_request, service_account)
+				reply = service_handler(db_connection, service_request, service_account)
 			} else {
 				// The command is from a developer.
-				reply = commands[request.Command].(func(*sql.DB, message.Request) message.Reply)(db, request)
+				reply = commands[request.Command].(func(*db.Database, message.Request) message.Reply)(db_connection, request)
 			}
 		}
 

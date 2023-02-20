@@ -95,7 +95,7 @@ func Run(app_config *configuration.Config, db_connection *db.Database, v *vault.
 	accounts := account.NewAccounts(developer_gateway, gateway, categorizer)
 	accounts = accounts.Add(bundle, log, reader, writer, spaghetti)
 
-	err = controller.ReplyController(db_connection.Connection, commands, static_env, accounts)
+	err = controller.ReplyController(db_connection, commands, static_env, accounts)
 	if err != nil {
 		panic(err)
 	}

@@ -318,7 +318,7 @@ Supported command line arguments:
 		accounts = accounts.Add(account.NewService(reader_env), account.NewService(writer_env))
 		accounts = accounts.Add(account.NewService(publisher_env), account.NewService(gateway_env))
 
-		err := controller.ReplyController(db_con.Connection, commands, categorizer_env, accounts)
+		err := controller.ReplyController(db_con, commands, categorizer_env, accounts)
 		if err != nil {
 			panic(err)
 		}
