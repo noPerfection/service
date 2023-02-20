@@ -14,6 +14,7 @@ package spaghetti
 import (
 	"database/sql"
 	"fmt"
+	debug_log "log"
 	"strings"
 
 	"github.com/blocklords/gosds/spaghetti/block"
@@ -32,7 +33,6 @@ import (
 	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/broadcast"
 	"github.com/blocklords/gosds/app/controller"
-	"github.com/blocklords/gosds/app/env"
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type"
@@ -409,20 +409,15 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 		panic(err)
 	}
 
-	if err := env.LoadAnyEnv(); err != nil {
-		panic(err)
-	}
 	arguments, err := argument.GetArguments()
 	if err != nil {
 		panic(err)
 	}
 
-	if !env.Exists("SDS_SPAGHETTI_CACHE_DURATION") {
-		panic("missing 'SDS_SPAGHETTI_CACHE_DURATION' environment variable")
-	}
-	cache_duration := env.GetNumeric("SDS_SPAGHETTI_CACHE_DURATION")
+	app_config.SetDefault("SDS_SPAGHETTI_CACHE_DURATION", 86400)
+	cache_duration := app_config.GetUint64("SDS_SPAGHETTI_CACHE_DURATION")
 	if cache_duration == 0 || cache_duration > 86400 {
-		panic("environment variable 'SDS_SPAGHETTI_CACHE_DURATION' is invalid. should be number less than 86400")
+		debug_log.Fatalf("environment variable 'SDS_SPAGHETTI_CACHE_DURATION' is invalid. should be number less than 86400 but its %d", cache_duration)
 	}
 
 	greeting := `SDS Spaghetti preparation...
