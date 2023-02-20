@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blocklords/gosds/app/argument"
-	"github.com/blocklords/gosds/app/env"
+	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/security/vault"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -55,11 +54,18 @@ func (p *Service) set_broadcast_curve_key(secret_key string) error {
 
 // for example service.New(service.SPAGHETTI, service.REMOTE, service.SUBSCRIBE)
 func New(service_type ServiceType, limits ...Limit) (*Service, error) {
+	app_config, err := configuration.New()
+	if err != nil {
+		return nil, err
+	}
+
 	name := string(service_type)
 	host_env := name + "_HOST"
 	port_env := name + "_PORT"
 	broadcast_host_env := name + "_BROADCAST_HOST"
 	broadcast_port_env := name + "_BROADCAST_PORT"
+	public_key := name + "_PUBLIC_KEY"
+	broadcast_public_key := name + "_BROADCAST_PUBLIC_KEY"
 
 	s := Service{
 		Name:               name,
@@ -74,35 +80,32 @@ func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 	}
 
 	var v *vault.Vault
-	exist, err := argument.Exist(argument.PLAIN)
-	if err != nil {
-		return nil, err
-	} else if !exist {
-		v, _, err = vault.New(nil)
+
+	if !app_config.Plain {
+		new_vault, _, err := vault.New(app_config)
 		if err != nil {
 			return nil, err
+		} else {
+			v = new_vault
 		}
 	}
 
 	for _, limit := range limits {
 		switch limit {
 		case REMOTE:
-			if !env.Exists(port_env) && !env.Exists(host_env) {
-				return nil, fmt.Errorf("missing PORT AND HOST environment variables of SDS %s", s.Name)
-			}
-			s.host = env.GetString(host_env)
-			s.port = env.GetString(port_env)
+			s.host = app_config.GetString(host_env)
+			s.port = app_config.GetString(port_env)
 
-			if !exist {
-				s.PublicKey = s.GetPublicKey()
+			if !app_config.Plain {
+				if !app_config.Exist(public_key) {
+					return nil, fmt.Errorf("security enabled, but missing %s", s.Name)
+				}
+				s.PublicKey = app_config.GetString(public_key)
 			}
 		case THIS:
-			if !env.Exists(port_env) {
-				return nil, fmt.Errorf("missing PORT environment variable of SDS %s", s.Name)
-			}
-			s.port = env.GetString(port_env)
+			s.port = app_config.GetString(port_env)
 
-			if !exist {
+			if !app_config.Plain {
 				bucket, key_name := s.SecretKeyVariable()
 				SecretKey, err := v.GetString(bucket, key_name)
 				if err != nil {
@@ -114,17 +117,19 @@ func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 				}
 			}
 		case SUBSCRIBE:
-			if !env.Exists(broadcast_host_env) && !env.Exists(broadcast_port_env) {
-				return nil, fmt.Errorf("missing BROADCAST PORT and BROADCAST HOST environment variables of SDS %s", s.Name)
-			}
-			if !exist {
-				s.BroadcastPublicKey = s.GetBroadcastPublicKey()
+			s.broadcast_host = app_config.GetString(broadcast_host_env)
+			s.broadcast_port = app_config.GetString(broadcast_port_env)
+
+			if !app_config.Plain {
+				if !app_config.Exist(broadcast_public_key) {
+					return nil, fmt.Errorf("security enabled, but missing %s", s.Name)
+				}
+				s.BroadcastPublicKey = app_config.GetString(broadcast_public_key)
 			}
 		case BROADCAST:
-			if !env.Exists(broadcast_port_env) {
-				return nil, fmt.Errorf("missing BROADCAST PORT environment vairable of SDS %s", s.Name)
-			}
-			if !exist {
+			s.port = app_config.GetString(broadcast_port_env)
+
+			if !app_config.Plain {
 				bucket, key_name := s.BroadcastSecretKeyVariable()
 				SecretKey, err := v.GetString(bucket, key_name)
 				if err != nil {
@@ -139,16 +144,6 @@ func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 	}
 
 	return &s, nil
-}
-
-// Returns the public key from the environment
-func (s *Service) GetPublicKey() string {
-	return env.GetString(s.Name + "_PUBLIC_KEY")
-}
-
-// Returns the broadcasting public key from the environment
-func (s *Service) GetBroadcastPublicKey() string {
-	return env.GetString(s.Name + "_BROADCAST_PUBLIC_KEY")
 }
 
 // Returns the Vault secret storage and the key for curve private part.
@@ -216,19 +211,15 @@ func NewDeveloper(public_key string, secret_key string) *Service {
 	}
 }
 
-func Developer() (*Service, error) {
-	exist, err := argument.Exist(argument.PLAIN)
-	if err != nil {
-		return nil, err
-	}
-	if exist {
+func Developer(app_config *configuration.Config) (*Service, error) {
+	if app_config.Plain {
 		return NewDeveloper("", ""), nil
 	}
-	if !env.Exists("DEVELOPER_PUBLIC_KEY") || !env.Exists("DEVELOPER_SECRET_KEY") {
+	if !app_config.Exist("DEVELOPER_PUBLIC_KEY") || !app_config.Exist("DEVELOPER_SECRET_KEY") {
 		return nil, errors.New("missing 'DEVELOPER_PUBLIC_KEY' or 'DEVELOPER_SECRET_KEY'")
 	}
-	public_key := env.GetString("DEVELOPER_PUBLIC_KEY")
-	secret_key := env.GetString("DEVELOPER_SECRET_KEY")
+	public_key := app_config.GetString("DEVELOPER_PUBLIC_KEY")
+	secret_key := app_config.GetString("DEVELOPER_SECRET_KEY")
 
 	return NewDeveloper(public_key, secret_key), nil
 }
