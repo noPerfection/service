@@ -219,12 +219,22 @@ func (parameters KeyValue) GetUint64(name string) (uint64, error) {
 	if ok {
 		return pure_value, nil
 	}
-	value, ok := raw.(json.Number)
-	if !ok {
-		return 0, errors.New("parameter '" + name + "' expected to be as a number")
+	value, ok := raw.(float64)
+	if ok {
+		return uint64(value), nil
 	}
 
-	number, err := strconv.ParseUint(string(value), 10, 64)
+	json_value, ok := raw.(json.Number)
+	if ok {
+		number, err := strconv.ParseUint(string(json_value), 10, 64)
+		return number, err
+	}
+
+	string_value, ok := raw.(string)
+	if !ok {
+		return 0, fmt.Errorf("parameter '%s' expected to be as a number but its type is %T", name, raw)
+	}
+	number, err := strconv.ParseUint(string_value, 10, 64)
 
 	return number, err
 }
@@ -238,9 +248,17 @@ func (parameters KeyValue) GetFloat64(name string) (float64, error) {
 	if ok {
 		return pure_value, nil
 	}
-	value, err := raw.(json.Number).Float64()
+	value, ok := raw.(json.Number)
+	if ok {
+		return value.Float64()
+	}
+	string_value, ok := raw.(string)
+	if !ok {
+		return 0, fmt.Errorf("parameter '%s' expected to be as a number but its type is %T", name, raw)
+	}
+	number, err := strconv.ParseFloat(string(string_value), 64)
 
-	return value, err
+	return number, err
 }
 
 func (parameters KeyValue) GetBoolean(name string) (bool, error) {
