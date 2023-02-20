@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/blocklords/gosds/app/configuration"
+	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/categorizer"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/security/vault"
@@ -27,6 +28,12 @@ func main() {
 		fmt.Println("Security is switched off")
 	} else {
 		fmt.Println("Security is enabled. add '--plain' to switch off security")
+	}
+
+	// Initiate the default service configurations
+	service_default_configs := service.DefaultConfigurations()
+	for _, service_default_config := range service_default_configs {
+		app_config.SetDefaults(service_default_config)
 	}
 
 	app_config.SetDefaults(db.DatabaseConfigurations)
