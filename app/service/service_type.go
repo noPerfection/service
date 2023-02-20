@@ -24,6 +24,7 @@ func service_types() []ServiceType {
 	return []ServiceType{
 		SPAGHETTI,
 		CATEGORIZER,
+		STATIC,
 		GATEWAY,
 		DEVELOPER_GATEWAY,
 		PUBLISHER,
