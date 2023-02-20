@@ -68,7 +68,7 @@ func ReplyController(db *sql.DB, commands CommandHandlers, e *service.Service, a
 		// We first attempt to parse basic request from the raw message
 		request, err := message.ParseRequest(msg_raw)
 		if err != nil {
-			fail := message.Fail("invalid json request: " + err.Error())
+			fail := message.Fail(err.Error())
 			reply, _ := fail.ToString()
 			if _, err := socket.SendMessage(reply); err != nil {
 				return errors.New("failed to reply: %w" + err.Error())
