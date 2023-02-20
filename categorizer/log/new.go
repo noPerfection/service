@@ -17,14 +17,10 @@ func New(log string, output map[string]interface{}) *Log {
 
 // Creates a new Log from the json object
 func NewFromMap(blob key_value.KeyValue) (*Log, error) {
-	i, err := blob.ToInterface()
+	var log Log
+	err := blob.ToInterface(&log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize key-value %v", err)
-	}
-
-	log, ok := i.(Log)
-	if !ok {
-		return nil, fmt.Errorf("failed to convert intermediate interface to categorizer.Log %v", i)
 	}
 
 	return &log, nil

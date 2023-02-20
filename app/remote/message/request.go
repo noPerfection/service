@@ -50,14 +50,10 @@ func ParseRequest(msgs []string) (Request, error) {
 		return Request{}, fmt.Errorf("failed to convert message string %s to key-value: %v", msg, err)
 	}
 
-	i, err := data.ToInterface()
+	var request Request
+	err = data.ToInterface(&request)
 	if err != nil {
 		return Request{}, fmt.Errorf("failed to convert key-value %v to intermediate interface: %v", data, err)
-	}
-
-	request, ok := i.(Request)
-	if !ok {
-		return Request{}, fmt.Errorf("failed to convert intermediate interface for message %s to Request", msg)
 	}
 
 	return request, nil

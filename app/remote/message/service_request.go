@@ -48,14 +48,10 @@ func ParseServiceRequest(msgs []string) (ServiceRequest, error) {
 		return ServiceRequest{}, fmt.Errorf("failed to convert message %s to key-value %v", msg, err)
 	}
 
-	i, err := data.ToInterface()
+	var request ServiceRequest
+	err = data.ToInterface(&request)
 	if err != nil {
 		return ServiceRequest{}, fmt.Errorf("failed to convert key-value %v for message %s to intermediate interface: %v", data, msg, err)
-	}
-
-	request, ok := i.(ServiceRequest)
-	if !ok {
-		return ServiceRequest{}, fmt.Errorf("failed to convert intermediate interface %v for message %s to service request", i, msg)
 	}
 
 	// The developers or smartcontract developer public keys are not in the environment variable

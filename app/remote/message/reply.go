@@ -55,13 +55,10 @@ func ParseReply(msgs []string) (Reply, error) {
 
 // Create 'Reply' message from a key value
 func ParseJsonReply(dat key_value.KeyValue) (Reply, error) {
-	i, err := dat.ToInterface()
+	var reply Reply
+	err := dat.ToInterface(&reply)
 	if err != nil {
-		return Reply{}, fmt.Errorf("failed to serialize key-value while parsing Reply: %v", err)
-	}
-	reply, ok := i.(Reply)
-	if !ok {
-		return Reply{}, fmt.Errorf("failed to convert intermediate interface to Reply: %v", i)
+		return Reply{}, fmt.Errorf("failed to serialize key-value to msg.Reply: %v", err)
 	}
 	return reply, nil
 }

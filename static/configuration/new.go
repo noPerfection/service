@@ -8,13 +8,10 @@ import (
 
 // Creates a new static.Configuration class based on the given data
 func New(parameters key_value.KeyValue) (*Configuration, error) {
-	i, err := parameters.ToInterface()
+	var conf Configuration
+	err := parameters.ToInterface(&conf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert key-value of Configuration to interface %v", err)
-	}
-	conf, ok := i.(Configuration)
-	if !ok {
-		return nil, fmt.Errorf("failed to convert interface to static.Configuration: %v", i)
 	}
 
 	address, err := parameters.GetString("address")

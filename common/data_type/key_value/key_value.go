@@ -82,18 +82,17 @@ func (k KeyValue) ToString() (string, error) {
 }
 
 // Returns the key-value as an interface
-func (k KeyValue) ToInterface() (interface{}, error) {
-	var i interface{}
+func (k KeyValue) ToInterface(i interface{}) error {
 	bytes, err := k.ToBytes()
 	if err != nil {
-		return Empty(), fmt.Errorf("failed to serialize data structure %v: %v", i, err)
+		return fmt.Errorf("failed to serialize data structure %v: %v", i, err)
 	}
 	err = json.Unmarshal(bytes, &i)
 	if err != nil {
-		return Empty(), fmt.Errorf("failed to unserialize data structure %v (serialized: %v): %v", i, bytes, err)
+		return fmt.Errorf("failed to unserialize data structure %v (serialized: %v): %v", i, bytes, err)
 	}
 
-	return i, nil
+	return nil
 }
 
 // Add a new parameter
