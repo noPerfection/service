@@ -207,12 +207,21 @@ func (parameters KeyValue) GetKeyValues(names ...string) ([]KeyValue, error) {
 	return values, nil
 }
 
+func (parameters KeyValue) exist(name string) error {
+	_, exists := parameters[name]
+	if !exists {
+		return fmt.Errorf("missing '%s' parameter in the KeyValue %v", name, parameters)
+	}
+
+	return nil
+}
+
 // Returns the parameter as an uint64
 func (parameters KeyValue) GetUint64(name string) (uint64, error) {
-	raw, exists := parameters[name]
-	if !exists {
-		return 0, errors.New("missing '" + name + "' parameter in the Request")
+	if err := parameters.exist(name); err != nil {
+		return 0, err
 	}
+	raw := parameters[name]
 
 	pure_value, ok := raw.(uint64)
 	if ok {
@@ -239,10 +248,11 @@ func (parameters KeyValue) GetUint64(name string) (uint64, error) {
 }
 
 func (parameters KeyValue) GetFloat64(name string) (float64, error) {
-	raw, exists := parameters[name]
-	if !exists {
-		return 0, errors.New("missing '" + name + "' parameter in the Request")
+	if err := parameters.exist(name); err != nil {
+		return 0, err
 	}
+	raw := parameters[name]
+
 	pure_value, ok := raw.(float64)
 	if ok {
 		return pure_value, nil
@@ -261,10 +271,10 @@ func (parameters KeyValue) GetFloat64(name string) (float64, error) {
 }
 
 func (parameters KeyValue) GetBoolean(name string) (bool, error) {
-	raw, exists := parameters[name]
-	if !exists {
-		return false, errors.New("missing '" + name + "' parameter in the Request")
+	if err := parameters.exist(name); err != nil {
+		return false, err
 	}
+	raw := parameters[name]
 
 	pure_value, ok := raw.(bool)
 	if ok {
@@ -276,10 +286,10 @@ func (parameters KeyValue) GetBoolean(name string) (bool, error) {
 
 // Returns the parsed large number. If the number size is more than 64 bits.
 func (parameters KeyValue) GetBigNumber(name string) (*big.Int, error) {
-	raw, exists := parameters[name]
-	if !exists {
-		return nil, errors.New("missing '" + name + "' parameter in the Request")
+	if err := parameters.exist(name); err != nil {
+		return nil, err
 	}
+	raw := parameters[name]
 
 	value, ok := raw.(json.Number)
 	if !ok {
@@ -296,10 +306,11 @@ func (parameters KeyValue) GetBigNumber(name string) (*big.Int, error) {
 
 // Returns the paramater as a string
 func (parameters KeyValue) GetString(name string) (string, error) {
-	raw, exists := parameters[name]
-	if !exists {
-		return "", errors.New("missing '" + name + "' parameter in the Request")
+	if err := parameters.exist(name); err != nil {
+		return "", err
 	}
+	raw := parameters[name]
+
 	value, ok := raw.(string)
 	if !ok {
 		return "", errors.New("expected string type for '" + name + "' parameter")
@@ -310,10 +321,10 @@ func (parameters KeyValue) GetString(name string) (string, error) {
 
 // Returns list of strings
 func (parameters KeyValue) GetStringList(name string) ([]string, error) {
-	raw, exists := parameters[name]
-	if !exists {
-		return nil, errors.New("missing '" + name + "' parameter in the Request")
+	if err := parameters.exist(name); err != nil {
+		return nil, err
 	}
+	raw := parameters[name]
 
 	values, ok := raw.([]interface{})
 	if !ok {
@@ -342,10 +353,11 @@ func (parameters KeyValue) GetStringList(name string) ([]string, error) {
 //
 // []key_value.KeyValue
 func (parameters KeyValue) GetKeyValueList(name string) ([]KeyValue, error) {
-	raw, exists := parameters[name]
-	if !exists {
-		return nil, errors.New("missing '" + name + "' parameter in the Request")
+	if err := parameters.exist(name); err != nil {
+		return nil, err
 	}
+	raw := parameters[name]
+
 	values, ok := raw.([]interface{})
 	if !ok {
 		ready_list, ok := raw.([]KeyValue)
@@ -373,10 +385,11 @@ func (parameters KeyValue) GetKeyValueList(name string) ([]KeyValue, error) {
 //
 // key_value.KeyValue
 func (parameters KeyValue) GetKeyValue(name string) (KeyValue, error) {
-	raw, exists := parameters[name]
-	if !exists {
-		return nil, errors.New("missing '" + name + "' parameter in the Request")
+	if err := parameters.exist(name); err != nil {
+		return nil, err
 	}
+	raw := parameters[name]
+
 	value, ok := raw.(KeyValue)
 	if !ok {
 		return nil, errors.New("expected map type for '" + name + "' parameter")
