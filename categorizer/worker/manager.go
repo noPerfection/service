@@ -2,6 +2,7 @@ package worker
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/blocklords/gosds/app/service"
@@ -46,16 +47,14 @@ type Manager struct {
 // Creates a new manager of smartcontract workers on a given network id
 func NewManager(
 	network_id string,
-	spagghetti_socket *remote.Socket,
 	in chan RequestSpaghettiBlockRange,
 	out chan ReplySpaghettiBlockRange,
 ) *Manager {
 	manager := Manager{
-		In:               make(chan EvmWorkers),
-		spaghetti_socket: spagghetti_socket,
-		NetworkId:        network_id,
-		spaghetti_in:     in,
-		spaghetti_out:    out,
+		In:            make(chan EvmWorkers),
+		NetworkId:     network_id,
+		spaghetti_in:  in,
+		spaghetti_out: out,
 
 		old_categorizers: make(CategorizerGroups, 0),
 
@@ -111,13 +110,28 @@ func (manager *Manager) GetSmartcontracts() []*smartcontract.Smartcontract {
 // - get list of smartcontract addresses
 // - check whether address exists in the list
 func (manager *Manager) start() {
+	categorizer_env, err := service.New(service.CATEGORIZER, service.BROADCAST, service.THIS)
+	if err != nil {
+		panic(err)
+	}
+
+	spaghetti_env, err := service.New(service.SPAGHETTI, service.REMOTE)
+	if err != nil {
+		panic(err)
+	}
+	manager.spaghetti_socket = remote.TcpRequestSocketOrPanic(spaghetti_env, categorizer_env)
+
 	for {
 		all_workers := <-manager.In
 
 		var cached_block_number uint64
 		var err error
 
+		var mu sync.Mutex
+		mu.Lock()
+
 		for {
+
 			cached_block_number, _, err = spaghetti_block.RemoteBlockNumberCached(manager.spaghetti_socket, manager.NetworkId)
 			if err != nil {
 				panic("failed to get the earliest block number: " + err.Error())
@@ -125,6 +139,7 @@ func (manager *Manager) start() {
 
 			break
 		}
+		mu.Unlock()
 
 		old_workers := all_workers.OldWorkers(cached_block_number).Sort()
 		old_current_block_number := old_workers.EarliestBlockNumber()
@@ -166,7 +181,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *CategorizerGroup) {
 	for block_number := current + uint64(1); ; block_number++ {
 		cached, block, err := spaghetti_block.RemoteBlock(manager.spaghetti_socket, manager.NetworkId, block_number, "")
 		if err != nil {
-			panic("failed to get the remote block number for network" + manager.NetworkId + " error: " + err.Error())
+			panic("failed to get the remote block number for network: " + manager.NetworkId + " error: " + err.Error())
 		}
 
 		// update the worker data by transactions and logs.
