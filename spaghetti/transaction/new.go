@@ -51,7 +51,7 @@ func NewFromMap(parameters key_value.KeyValue) (*Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
-	Txid, err := parameters.GetString("Txid")
+	Txid, err := parameters.GetString("txid")
 	if err != nil {
 		return nil, err
 	}
@@ -67,11 +67,11 @@ func NewFromMap(parameters key_value.KeyValue) (*Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
-	tx_Data, err := parameters.GetString("tx_Data")
+	tx_Data, err := parameters.GetString("tx_data")
 	if err != nil {
 		return nil, err
 	}
-	Value, err := parameters.GetFloat64("tx_Value")
+	Value, err := parameters.GetFloat64("tx_value")
 	if err != nil {
 		return nil, err
 	}
