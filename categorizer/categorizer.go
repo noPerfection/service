@@ -40,7 +40,7 @@ var static_socket *remote.Socket
 var no_event bool = false
 
 var imx_manager *imx.Manager = nil
-var evm_managers map[string]*worker.Manager
+var evm_managers key_value.KeyValue
 
 // Manages the EVM based smartcontracts on a certain blockchain
 func run_evm_manager(db_con *db.Database, network *network.Network) {
@@ -69,7 +69,7 @@ func run_evm_manager(db_con *db.Database, network *network.Network) {
 	manager := worker.NewManager(network.Id, spaghetti_socket, spaghetti_in, spaghetti_out)
 	manager.In <- workers
 
-	evm_managers[network.Id] = manager
+	evm_managers = evm_managers.Set(network.Id, manager)
 }
 
 // Manages the ImmutableX blockchain smartcontracts
@@ -125,10 +125,11 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 			imx_manager.AddSmartcontract()
 			go worker.ImxRun(db_con, sm, imx_manager, broadcast_channel)
 		} else {
-			manager, ok := evm_managers[sm.NetworkId]
+			manager_raw, ok := evm_managers[sm.NetworkId]
 			if !ok {
 				return message.Fail("unsupported network_id")
 			}
+			manager := manager_raw.(*worker.Manager)
 
 			workers, err := worker.WorkersFromSmartcontracts(
 				db_con,
@@ -268,6 +269,8 @@ Supported command line arguments:
 	}
 
 	if app_config.Broadcast {
+		evm_managers = key_value.Empty()
+
 		subscribers_env := []*service.Service{developer_gateway_env, publisher_env}
 
 		broadcast_channel = make(chan message.Broadcast)
