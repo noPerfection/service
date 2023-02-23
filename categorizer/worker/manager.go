@@ -181,7 +181,9 @@ func (manager *Manager) categorize_old_smartcontracts(group *CategorizerGroup) {
 	for block_number := current + uint64(1); ; block_number++ {
 		cached, block, err := spaghetti_block.RemoteBlock(manager.spaghetti_socket, manager.NetworkId, block_number, "")
 		if err != nil {
-			panic("failed to get the remote block number for network: " + manager.NetworkId + " error: " + err.Error())
+			fmt.Println("failed to get the remote block number for network: " + manager.NetworkId + " error: " + err.Error())
+			block_number--
+			continue
 		}
 
 		// update the worker data by transactions and logs.
