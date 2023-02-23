@@ -128,7 +128,7 @@ func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 				s.BroadcastPublicKey = app_config.GetString(broadcast_public_key)
 			}
 		case BROADCAST:
-			s.port = app_config.GetString(broadcast_port_env)
+			s.broadcast_port = app_config.GetString(broadcast_port_env)
 
 			if !app_config.Plain {
 				bucket, key_name := s.BroadcastSecretKeyVariable()
