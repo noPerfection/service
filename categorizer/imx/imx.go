@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blocklords/gosds/app/env"
+	"github.com/blocklords/gosds/app/configuration"
 
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
 )
@@ -16,7 +16,7 @@ import (
 type Manager struct {
 	SmartcontractAmount uint
 	DelayPerSecond      time.Duration
-	request_per_second  uint
+	request_per_second  uint64
 }
 
 const request_per_second = "SDS_IMX_REQUEST_PER_SECOND"
@@ -29,31 +29,22 @@ const PAGE_SIZE = int32(50)
 //	the request_per_second environment variable is given or not
 //
 // If the imx network is supported.
-func ValidateEnv() error {
-	if !env.Exists(request_per_second) {
-		return errors.New("'imx' network is supported, but missing 'request_per_second' environment variable")
-	}
+func ValidateEnv(app_config *configuration.Config) error {
+	app_config.SetDefaults(ImxConfiguration)
 
-	if env.GetNumeric(request_per_second) == 0 {
-		return errors.New("invalid 'request_per_second' environment variable it should be a numeric number greater than 0")
+	if app_config.GetUint64(request_per_second) == 0 {
+		return errors.New("invalid 'SDS_IMX_REQUEST_PER_SECOND' environment variable it should be a numeric number greater than 0")
 	}
 
 	return nil
 }
 
-// Please call imx.ValidateEnv()
-func RequestPerSecond() uint {
-	value := env.GetNumeric("request_per_second")
-
-	return value
-}
-
 // /////////////////////////////////////////////////////////////////////////////////
 
-func NewManager() *Manager {
+func NewManager(app_config *configuration.Config) *Manager {
 	manager := &Manager{
 		SmartcontractAmount: 0,
-		request_per_second:  RequestPerSecond(),
+		request_per_second:  app_config.GetUint64(request_per_second),
 	}
 
 	manager.calculate_request_delay()
@@ -70,7 +61,7 @@ func (manager *Manager) AddSmartcontract() {
 
 // Based on total amount of smartcontracts, how long we delay to request to ImmutableX nodes
 func (manager *Manager) calculate_request_delay() {
-	per_second := float64(RequestPerSecond())
+	per_second := float64(manager.request_per_second)
 	amount := float64(manager.SmartcontractAmount)
 
 	manager.DelayPerSecond = time.Duration(float64(time.Millisecond) * amount * 1000 / per_second)

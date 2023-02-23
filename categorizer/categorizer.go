@@ -260,10 +260,10 @@ Supported command line arguments:
 	}
 
 	if networks.Exist(imx.NETWORK_ID) {
-		if err := imx.ValidateEnv(); err != nil {
+		if err := imx.ValidateEnv(app_config); err != nil {
 			panic(err)
 		} else {
-			imx_manager = imx.NewManager()
+			imx_manager = imx.NewManager(app_config)
 		}
 	}
 
