@@ -391,9 +391,14 @@ func (parameters KeyValue) GetKeyValue(name string) (KeyValue, error) {
 	raw := parameters[name]
 
 	value, ok := raw.(KeyValue)
+	if ok {
+		return value, nil
+	}
+
+	raw_map, ok := raw.(map[string]interface{})
 	if !ok {
 		return nil, errors.New("expected map type for '" + name + "' parameter")
 	}
 
-	return value, nil
+	return New(raw_map), nil
 }
