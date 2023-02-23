@@ -227,11 +227,11 @@ func block_get_cached_number(db *db.Database, request message.Request) message.R
 	if earliest_block_number == 0 || recent_block_number == 0 {
 		return message.Fail("the cached block number is 0")
 	}
-	if earliest_block_number == recent_block_number {
-		return message.Fail(`the cached block number keeps one block which is not enough. consider increasing value of 'SDS_SPAGHETTI_CACHE_DURATION' environment variable and restart SDS Spaghetti`)
-	}
 
-	cached_block_number := earliest_block_number + (recent_block_number / earliest_block_number)
+	cached_block_number := earliest_block_number
+	if earliest_block_number != recent_block_number {
+		cached_block_number = earliest_block_number + (recent_block_number / earliest_block_number)
+	}
 
 	cached_block_timestamp, err := block.GetBlockTimestamp(db, network_id, cached_block_number)
 	if err != nil {
