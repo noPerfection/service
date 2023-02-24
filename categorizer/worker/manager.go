@@ -94,6 +94,19 @@ func (manager *Manager) GetSmartcontracts() []*smartcontract.Smartcontract {
 	return smartcontracts
 }
 
+func (manager *Manager) GetSmartcontractAddresses() []string {
+	addresses := make([]string, 0)
+
+	for _, group := range manager.old_categorizers {
+		addresses = append(addresses, group.workers.GetSmartcontractAddresses()...)
+	}
+
+	addresses = append(addresses, manager.recent_workers.GetSmartcontractAddresses()...)
+	addresses = append(addresses, manager.current_workers.GetSmartcontractAddresses()...)
+
+	return addresses
+}
+
 // Starts the manager in a background as a goroutine.
 // IMPORTANT! it doesn't validate the service configurations
 // They should be validated in the main page.
@@ -166,37 +179,39 @@ func (manager *Manager) start() {
 	}
 }
 
+// Categorization of the smartcontracts that are super old.
+//
+// Get List of smartcontract addresses
+// Get Log for the smartcontracts.
 func (manager *Manager) categorize_old_smartcontracts(group *CategorizerGroup) {
-	current := group.block_number
+	for {
+		block_number_from := group.block_number + uint64(1)
+		addresses := manager.GetSmartcontractAddresses()
 
-	for block_number := current + uint64(1); ; block_number++ {
-		cached, block, err := spaghetti_block.RemoteBlock(manager.spaghetti_socket, manager.Network.Id, block_number, "")
+		all_logs, err := spaghetti_log.RemoteLogFilter(manager.spaghetti_socket, manager.Network.Id, block_number_from, addresses)
 		if err != nil {
 			fmt.Println("failed to get the remote block number for network: " + manager.Network.Id + " error: " + err.Error())
-			block_number--
 			continue
 		}
 
 		// update the worker data by logs.
+		block_number_to := block_number_from
 		for _, worker := range group.workers {
-			logs := block.GetForSmartcontract(worker.smartcontract.Address)
-			err := worker.categorize(block.BlockNumber, block.BlockTimestamp, logs)
+			logs := spaghetti_log.FilterByAddress(all_logs, worker.smartcontract.Address)
+			if len(logs) == 0 {
+				continue
+			}
+			block_number_to, err = worker.categorize(logs)
 			if err != nil {
 				panic("failed to categorize the blockchain")
 			}
 		}
 
-		group.block_number = block_number
+		group.block_number = block_number_to
 
-		if cached {
-			cached_block_number, _, err := spaghetti_block.RemoteBlockNumberCached(manager.spaghetti_socket, manager.Network.Id)
-			if err != nil {
-				panic("failed to get the cached block number: " + err.Error())
-			}
-			if cached_block_number >= block.BlockNumber {
-				manager.add_recent_workers(group.workers)
-				break
-			}
+		if block_number_to >= manager.subscribed_earliest_block_number {
+			manager.add_current_workers(group.workers)
+			break
 		}
 	}
 
@@ -234,7 +249,7 @@ func (manager *Manager) categorize_recent_smartcontracts() {
 
 		for _, worker := range workers {
 			logs := block.GetForSmartcontract(worker.smartcontract.Address)
-			err := worker.categorize(block.BlockNumber, block.BlockTimestamp, logs)
+			_, err := worker.categorize(logs)
 			if err != nil {
 				panic("failed to categorize the blockchain")
 			}
@@ -249,6 +264,11 @@ func (manager *Manager) categorize_recent_smartcontracts() {
 // Add recent workers
 func (manager *Manager) add_recent_workers(workers EvmWorkers) {
 	manager.recent_workers = append(manager.recent_workers, workers...)
+}
+
+// Move recent to consuming
+func (manager *Manager) add_current_workers(workers EvmWorkers) {
+	manager.current_workers = append(manager.current_workers, manager.recent_workers...)
 }
 
 // Consume each received block from SDS Spaghetti broadcast
@@ -269,7 +289,7 @@ func (manager *Manager) categorize_current_smartcontracts() {
 					continue
 				}
 				logs := block.GetForSmartcontract(worker.smartcontract.Address)
-				err := worker.categorize(block.BlockNumber, block.BlockTimestamp, logs)
+				_, err := worker.categorize(logs)
 				if err != nil {
 					panic("failed to categorize the blockchain")
 				}

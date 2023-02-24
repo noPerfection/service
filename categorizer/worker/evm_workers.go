@@ -119,3 +119,14 @@ func (workers EvmWorkers) GetSmartcontracts() []*smartcontract.Smartcontract {
 
 	return smartcontracts
 }
+
+// Returns the smartcontract address
+func (workers EvmWorkers) GetSmartcontractAddresses() []string {
+	addresses := make([]string, 0)
+
+	for _, worker := range workers {
+		addresses = append(addresses, worker.smartcontract.Address)
+	}
+
+	return addresses
+}

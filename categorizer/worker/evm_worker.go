@@ -155,11 +155,14 @@ func broadcast_block_categorization(worker *Worker, logs []map[string]interface{
 }
 
 // Categorize the blocks for this smartcontract
-func (worker *Worker) categorize(block_number uint64, block_timestamp uint64, logs []*spaghetti_log.Log) error {
+func (worker *Worker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
 	network_id := worker.smartcontract.NetworkId
 	address := worker.smartcontract.Address
 
 	broadcastLogs := make([]map[string]interface{}, 0)
+
+	var block_number uint64 = worker.smartcontract.CategorizedBlockNumber
+	var block_timestamp uint64 = worker.smartcontract.CategorizedBlockTimestamp
 
 	if len(logs) > 0 {
 		for log_index := 0; log_index < len(logs); log_index++ {
@@ -182,12 +185,17 @@ func (worker *Worker) categorize(block_number uint64, block_timestamp uint64, lo
 			l := log.New(log_reply.log_name, log_reply.outputs).AddMetadata(raw_log).AddSmartcontractData(worker.smartcontract)
 			err := log.Save(worker.db, l)
 			if err != nil {
-				return fmt.Errorf("emergency error. failed to create a log row in the database. this is an exception, that should not be. Consider fixing it. error message: " + err.Error())
+				return 0, fmt.Errorf("emergency error. failed to create a log row in the database. this is an exception, that should not be. Consider fixing it. error message: " + err.Error())
+			}
+
+			if l.BlockNumber > block_number {
+				block_number = l.BlockNumber
+				block_timestamp = l.BlockTimestamp
 			}
 
 			log_kv, err := key_value.NewFromInterface(l)
 			if err != nil {
-				return fmt.Errorf("failed to serialize Log to key-value while trying to broadcast it %v: %v", l, err)
+				return 0, fmt.Errorf("failed to serialize Log to key-value while trying to broadcast it %v: %v", l, err)
 			}
 
 			broadcastLogs = append(broadcastLogs, log_kv)
@@ -199,5 +207,5 @@ func (worker *Worker) categorize(block_number uint64, block_timestamp uint64, lo
 	broadcast_block_categorization(worker, broadcastLogs)
 	err := smartcontract.SetSyncing(worker.db, worker.smartcontract, block_number, block_timestamp)
 
-	return err
+	return block_number, err
 }

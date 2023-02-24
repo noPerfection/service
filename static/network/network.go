@@ -20,3 +20,11 @@ func (n *Network) GetFirstProviderUrl() (string, error) {
 	}
 	return n.Providers[0].Url, nil
 }
+
+// Returns the block range length that is available for the first provider
+func (n *Network) GetFirstProviderLength() (uint64, error) {
+	if len(n.Providers) == 0 {
+		return 0, fmt.Errorf("there is no providers")
+	}
+	return n.Providers[0].Length, nil
+}

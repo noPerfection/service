@@ -363,6 +363,59 @@ func transaction_deployed_get(_ *db.Database, request message.Request) message.R
 	return reply
 }
 
+// Returns the event logs
+// and block timestamp by a transaction hash of the smartcontract deployment.
+func log_filter(_ *db.Database, request message.Request) message.Reply {
+	network_id, err := request.Parameters.GetString("network_id")
+	if err != nil {
+		return message.Fail(err.Error())
+	}
+	block_number_from, err := request.Parameters.GetUint64("block_number_from")
+	if err != nil {
+		return message.Fail(err.Error())
+	}
+
+	addresses, err := request.Parameters.GetStringList("addresses")
+	if err != nil {
+		return message.Fail(err.Error())
+	}
+
+	if network_clients[network_id] == nil {
+		return message.Fail("unsupported network_id " + network_id)
+	}
+
+	length, err := network_clients[network_id].Network.GetFirstProviderLength()
+	if err != nil {
+		return message.Fail("failed to get the block range length for first provider of " + network_id)
+	}
+	block_number_to := block_number_from + length
+
+	raw_logs, err := network_clients[network_id].GetBlockRangeLogs(block_number_from, block_number_to, addresses)
+	if err != nil {
+		return message.Fail(err.Error())
+	}
+
+	block_timestamp, err := network_clients[network_id].GetBlockTimestamp(block_number_from)
+	if err != nil {
+		return message.Fail(err.Error())
+	}
+
+	logs, err := log.NewLogsFromRaw(network_id, block_timestamp, raw_logs)
+	if err != nil {
+		return message.Fail(err.Error())
+	}
+
+	reply := message.Reply{
+		Status:  "OK",
+		Message: "",
+		Parameters: key_value.New(map[string]interface{}{
+			"logs": logs,
+		}),
+	}
+
+	return reply
+}
+
 func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) {
 	if err := security.EnableSecurity(); err != nil {
 		panic(err)
@@ -442,6 +495,7 @@ It supports the following arguments:
 			"block_get":                block_get,
 			"block_get_timestamp":      block_get_timestamp,
 			"block_get_range":          block_get_range,
+			"log_filter":               log_filter,
 			"transaction_deployed_get": transaction_deployed_get,
 		}
 		err := controller.ReplyController(db_con, commands, spaghetti_env, accounts)

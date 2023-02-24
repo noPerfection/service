@@ -4,6 +4,7 @@ package log
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
@@ -54,4 +55,17 @@ func (b *Log) ParseTopics(raw []byte) error {
 	b.Topics = topics
 
 	return nil
+}
+
+// Get the slice of logs filtered by the smartcontract address
+func FilterByAddress(all_logs []*Log, address string) []*Log {
+	logs := make([]*Log, 0)
+
+	for _, log := range all_logs {
+		if strings.EqualFold(address, log.Address) {
+			logs = append(logs, log)
+		}
+	}
+
+	return logs
 }

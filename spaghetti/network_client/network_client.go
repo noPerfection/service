@@ -181,3 +181,24 @@ func (c *NetworkClient) GetBlockLogs(block_number uint64) ([]eth_types.Log, erro
 	raw_logs, log_err := c.client.FilterLogs(c.ctx, query)
 	return raw_logs, log_err
 }
+
+// Returns the logs for a block range
+func (c *NetworkClient) GetBlockRangeLogs(block_number_from uint64, block_number_to uint64, addresses []string) ([]eth_types.Log, error) {
+	big_from := big.NewInt(int64(block_number_from))
+	big_to := big.NewInt(int64(block_number_to))
+
+	eth_addresses := make([]eth_common.Address, 0, len(addresses))
+	for i, address := range addresses {
+		eth_address := eth_common.HexToAddress(address)
+		eth_addresses[i] = eth_address
+	}
+
+	query := ethereum.FilterQuery{
+		FromBlock: big_from,
+		ToBlock:   big_to,
+		Addresses: eth_addresses,
+	}
+
+	raw_logs, log_err := c.client.FilterLogs(c.ctx, query)
+	return raw_logs, log_err
+}

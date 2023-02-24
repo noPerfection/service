@@ -27,6 +27,21 @@ func NewFromRawLog(network_id string, block_timestamp uint64, log *eth_types.Log
 	}, nil
 }
 
+// Converts the ethereum's log to SeascapeSDS Spaghetti Log type
+func NewLogsFromRaw(network_id string, block_timestamp uint64, raw_logs []eth_types.Log) ([]*Log, error) {
+	logs := make([]*Log, 0, len(raw_logs))
+	for i, raw := range raw_logs {
+		log, err := NewFromRawLog(network_id, block_timestamp, &raw)
+		if err != nil {
+			return nil, err
+		}
+
+		logs[i] = log
+	}
+
+	return logs, nil
+}
+
 // Convert the JSON into spaghetti.Log
 func New(parameters key_value.KeyValue) (*Log, error) {
 	topics, err := parameters.GetStringList("topics")
