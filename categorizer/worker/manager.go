@@ -1,3 +1,8 @@
+// EVM blockchain worker's manager
+// For every blockchain we have one manager.
+// Manager keeps the list of the smartcontract workers:
+// - list of workers for up to date smartcontracts
+// - list of workers for categorization outdated smartcontracts
 package worker
 
 import (
@@ -403,6 +408,7 @@ func (manager *Manager) subscribe() {
 			}
 			logs, err := spaghetti_log.NewLogs(raw_logs)
 			if err != nil {
+				fmt.Println(raw_logs...)
 				fmt.Println(manager.NetworkId, "failed to parse log", err)
 				panic(err)
 			}

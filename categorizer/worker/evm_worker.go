@@ -1,3 +1,4 @@
+// EVM blockchain worker
 package worker
 
 import (
@@ -161,7 +162,7 @@ func broadcast_block_categorization(worker *Worker, transactions []map[string]in
 	worker.broadcast_chan <- new_broadcast
 }
 
-// Categorize the transactions for this smartcontract
+// Categorize the blocks for this smartcontract
 func (worker *Worker) categorize(block_number uint64, block_timestamp uint64, transactions []*spaghetti_transaction.Transaction, logs []*spaghetti_log.Log) error {
 	network_id := worker.smartcontract.NetworkId
 	address := worker.smartcontract.Address
