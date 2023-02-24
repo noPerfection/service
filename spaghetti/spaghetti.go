@@ -63,13 +63,9 @@ func run_each_evm_network_sync_worker(dbCon *db.Database, broadcast_channel chan
 
 				fmt.Printf("SDS Spaghetti starts to count the network id %s from the block number: %v\n", client.Network.Id, recent_block_number)
 
-				err = block.SetBlock(dbCon, client.Network.Id, recent_block_number, uint(len(recent_block.Transactions)), uint(len(recent_block.Logs)), recent_block.BlockTimestamp)
+				err = block.SetBlock(dbCon, client.Network.Id, recent_block_number, uint(len(recent_block.Logs)), recent_block.BlockTimestamp)
 				if err != nil {
 					panic("SDS Spaghetti error to init a new network: " + err.Error())
-				}
-				transaction_err := worker.SaveTransactions(dbCon, recent_block.Transactions)
-				if transaction_err != nil {
-					panic(transaction_err)
 				}
 
 				log_err := worker.SaveLogs(dbCon, recent_block.Logs)
@@ -171,23 +167,14 @@ func block_get(db *db.Database, request message.Request) message.Reply {
 		timestamp = block.BlockTimestamp
 
 		if len(address) > 0 {
-			transactions = make([]*transaction.Transaction, 0)
 			logs = make([]*log.Log, 0)
 
-			for _, transaction := range block.Transactions {
-				if !strings.EqualFold(transaction.TxTo, address) {
-					continue
-				}
-				transactions = append(transactions, transaction)
-
-				for _, log := range block.Logs {
-					if strings.EqualFold(log.Txid, transaction.Txid) {
-						logs = append(logs, log)
-					}
+			for _, log := range block.Logs {
+				if strings.EqualFold(log.Address, address) {
+					logs = append(logs, log)
 				}
 			}
 		} else {
-			transactions = block.Transactions
 			logs = block.Logs
 		}
 	}

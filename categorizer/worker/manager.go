@@ -19,7 +19,6 @@ import (
 	"github.com/blocklords/gosds/app/remote/message"
 	spaghetti_block "github.com/blocklords/gosds/spaghetti/block"
 	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
-	spaghetti_transaction "github.com/blocklords/gosds/spaghetti/transaction"
 	zmq "github.com/pebbe/zmq4"
 
 	"github.com/blocklords/gosds/app/remote"
@@ -244,7 +243,7 @@ func (manager *Manager) categorize_recent_smartcontracts() {
 			panic(spaghetti_reply.err)
 		}
 
-		block := spaghetti_block.NewBlock(manager.NetworkId, recent, spaghetti_reply.timestamp, spaghetti_reply.transactions, spaghetti_reply.logs)
+		block := spaghetti_block.NewBlock(manager.NetworkId, recent, spaghetti_reply.timestamp, spaghetti_reply.logs)
 
 		for _, worker := range workers {
 			logs := block.GetForSmartcontract(worker.smartcontract.Address)
@@ -390,17 +389,6 @@ func (manager *Manager) subscribe() {
 				panic(err)
 			}
 
-			raw_transactions, ok := reply.Parameters.ToMap()["transactions"].([]interface{})
-			if !ok {
-				fmt.Println(manager.NetworkId, "failed to get the transactions from SDS Spaghetti Broadcast", err)
-				panic("no transactions received from SDS Spaghetti Broadcast")
-			}
-			transactions, err := spaghetti_transaction.NewTransactions(raw_transactions)
-			if err != nil {
-				fmt.Println(manager.NetworkId, "failed to parse transaction", err)
-				panic(err)
-			}
-
 			raw_logs, ok := reply.Parameters.ToMap()["logs"].([]interface{})
 			if !ok {
 				fmt.Println(manager.NetworkId, "failed to get logs from SDS Spaghetti Broadcast")
@@ -413,7 +401,7 @@ func (manager *Manager) subscribe() {
 				panic(err)
 			}
 
-			new_block := spaghetti_block.NewBlock(manager.NetworkId, block_number, timestamp, transactions, logs)
+			new_block := spaghetti_block.NewBlock(manager.NetworkId, block_number, timestamp, logs)
 
 			manager.subscribed_blocks.Push(new_block)
 		}

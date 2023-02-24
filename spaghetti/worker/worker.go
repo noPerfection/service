@@ -55,7 +55,6 @@ func broadcast_new_block(worker *SpaghettiWorker, b *block.Block) error {
 			"network_id":      worker.client.Network.Id,
 			"block_number":    b.BlockNumber,
 			"block_timestamp": b.BlockTimestamp,
-			"transactions":    data_type.ToMapList(b.Transactions),
 			"logs":            data_type.ToMapList(b.Logs),
 		}),
 	}
@@ -144,22 +143,16 @@ func sync_block(worker *SpaghettiWorker, b *block.Block) error {
 		return fmt.Errorf("before syncing the block, cleaning: %v", err)
 	}
 
-	var transaction_amount uint = uint(len(b.Transactions))
 	var log_amount uint = uint(len(b.Logs))
 
 	// save the block number in the database
-	err := block.SetBlock(worker.database_connection, worker.client.Network.Id, b.BlockNumber, transaction_amount, log_amount, b.BlockTimestamp)
+	err := block.SetBlock(worker.database_connection, worker.client.Network.Id, b.BlockNumber, log_amount, b.BlockTimestamp)
 	if err != nil {
 		return err
 	}
-	worker.log_debug(fmt.Sprintf("set the block %d, tx amount: %d, has error %b", b.BlockNumber, transaction_amount, err))
+	worker.log_debug(fmt.Sprintf("set the block %d, has error %b", b.BlockNumber, err))
 
 	worker.block_number = b.BlockNumber
-
-	transaction_err := SaveTransactions(worker.database_connection, b.Transactions)
-	if transaction_err != nil {
-		return transaction_err
-	}
 
 	log_err := SaveLogs(worker.database_connection, b.Logs)
 	if log_err != nil {

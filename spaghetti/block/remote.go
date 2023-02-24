@@ -6,7 +6,6 @@ import (
 	"github.com/blocklords/gosds/common/data_type/key_value"
 
 	"github.com/blocklords/gosds/spaghetti/log"
-	"github.com/blocklords/gosds/spaghetti/transaction"
 )
 
 // Returns the earliest number in the cache for a given network id
@@ -57,7 +56,7 @@ func RemoteBlockMintedTime(socket *remote.Socket, networkId string, blockNumber 
 	return parameters.GetUint64("block_timestamp")
 }
 
-func RemoteBlockRange(socket *remote.Socket, networkId string, address string, from uint64, to uint64) (uint64, []*transaction.Transaction, []*log.Log, error) {
+func RemoteBlockRange(socket *remote.Socket, networkId string, address string, from uint64, to uint64) (uint64, []*log.Log, error) {
 	request := message.Request{
 		Command: "block_get_range",
 		Parameters: map[string]interface{}{
@@ -70,44 +69,30 @@ func RemoteBlockRange(socket *remote.Socket, networkId string, address string, f
 
 	raw_parameters, err := socket.RequestRemoteService(&request)
 	if err != nil {
-		return 0, nil, nil, err
+		return 0, nil, err
 	}
 	parameters := key_value.New(raw_parameters)
 
 	timestamp, err := parameters.GetUint64("timestamp")
 	if err != nil {
-		return 0, nil, nil, err
-	}
-
-	raw_transactions, err := parameters.GetKeyValueList("transactions")
-	if err != nil {
-		return 0, nil, nil, err
+		return 0, nil, err
 	}
 
 	raw_logs, err := parameters.GetKeyValueList("logs")
 	if err != nil {
-		return 0, nil, nil, err
-	}
-
-	transactions := make([]*transaction.Transaction, len(raw_transactions))
-	for i, raw := range raw_transactions {
-		tx, err := transaction.NewFromMap(raw)
-		if err != nil {
-			return 0, nil, nil, err
-		}
-		transactions[i] = tx
+		return 0, nil, err
 	}
 
 	logs := make([]*log.Log, len(raw_logs))
 	for i, raw := range raw_logs {
 		l, err := log.New(raw)
 		if err != nil {
-			return 0, nil, nil, err
+			return 0, nil, err
 		}
 		logs[i] = l
 	}
 
-	return timestamp, transactions, logs, nil
+	return timestamp, logs, nil
 }
 
 // Returns the remote block information
@@ -139,23 +124,9 @@ func RemoteBlock(socket *remote.Socket, network_id string, block_number uint64, 
 		return false, nil, err
 	}
 
-	raw_transactions, err := parameters.GetKeyValueList("transactions")
-	if err != nil {
-		return false, nil, err
-	}
-
 	raw_logs, err := parameters.GetKeyValueList("logs")
 	if err != nil {
 		return false, nil, err
-	}
-
-	transactions := make([]*transaction.Transaction, len(raw_transactions))
-	for i, raw := range raw_transactions {
-		tx, err := transaction.NewFromMap(raw)
-		if err != nil {
-			return false, nil, err
-		}
-		transactions[i] = tx
 	}
 
 	logs := make([]*log.Log, len(raw_logs))
@@ -167,5 +138,5 @@ func RemoteBlock(socket *remote.Socket, network_id string, block_number uint64, 
 		logs[i] = l
 	}
 
-	return cached, NewBlock(network_id, block_number, timestamp, transactions, logs), err
+	return cached, NewBlock(network_id, block_number, timestamp, logs), err
 }

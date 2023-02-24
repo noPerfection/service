@@ -1,11 +1,9 @@
 package block
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/blocklords/gosds/spaghetti/log"
-	"github.com/blocklords/gosds/spaghetti/transaction"
 
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
@@ -14,24 +12,7 @@ type Block struct {
 	NetworkId      string
 	BlockNumber    uint64
 	BlockTimestamp uint64
-	Transactions   []*transaction.Transaction
 	Logs           []*log.Log
-}
-
-func SetTransactions(block *Block, raw_transactions []*eth_types.Transaction) error {
-	transactions := make([]*transaction.Transaction, len(raw_transactions))
-
-	for txIndex, rawTx := range raw_transactions {
-		tx, txErr := transaction.New(block.NetworkId, block.BlockNumber, uint(txIndex), rawTx)
-		if txErr != nil {
-			return fmt.Errorf("failed to set the block transactions. transaction parse error: %v", txErr)
-		}
-
-		transactions[txIndex] = tx
-	}
-
-	block.Transactions = transactions
-	return nil
 }
 
 func SetLogs(block *Block, raw_logs []eth_types.Log) error {
@@ -60,13 +41,9 @@ func SetLogs(block *Block, raw_logs []eth_types.Log) error {
 func (block *Block) GetForSmartcontract(address string) []*log.Log {
 	logs := make([]*log.Log, 0)
 
-	for _, transaction := range block.Transactions {
-		if strings.EqualFold(transaction.TxTo, address) {
-			for _, log := range block.Logs {
-				if strings.EqualFold(transaction.Txid, log.Txid) {
-					logs = append(logs, log)
-				}
-			}
+	for _, log := range block.Logs {
+		if strings.EqualFold(address, log.Address) {
+			logs = append(logs, log)
 		}
 	}
 

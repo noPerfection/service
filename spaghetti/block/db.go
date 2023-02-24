@@ -50,9 +50,9 @@ func GetBlockTimestamp(db *db.Database, network_id string, block_number uint64) 
 }
 
 // Sets the block information, on success returns the SpaghettiBlock
-func SetBlock(db *db.Database, network_id string, block_number uint64, transaction_amount uint, log_amount uint, block_timestamp uint64) error {
-	_, err := db.Connection.Exec(`INSERT IGNORE INTO spaghetti_blocks (network_id, block_number, transaction_amount, log_amount, block_timestamp)
-	VALUES (?, ?, ?, ?, ?)`, network_id, block_number, transaction_amount, log_amount, block_timestamp)
+func SetBlock(db *db.Database, network_id string, block_number uint64, log_amount uint, block_timestamp uint64) error {
+	_, err := db.Connection.Exec(`INSERT IGNORE INTO spaghetti_blocks (network_id, block_number, log_amount, block_timestamp)
+	VALUES (?, ?, ?, ?, ?)`, network_id, block_number, log_amount, block_timestamp)
 	return err
 }
 

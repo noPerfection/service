@@ -17,7 +17,6 @@ import (
 	"github.com/blocklords/gosds/app/remote/message"
 	spaghetti_block "github.com/blocklords/gosds/spaghetti/block"
 	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
-	spaghetti_transaction "github.com/blocklords/gosds/spaghetti/transaction"
 )
 
 type Worker struct {
@@ -42,10 +41,9 @@ type RequestSpaghettiBlockRange struct {
 }
 
 type ReplySpaghettiBlockRange struct {
-	timestamp    uint64
-	transactions []*spaghetti_transaction.Transaction
-	logs         []*spaghetti_log.Log
-	err          error
+	timestamp uint64
+	logs      []*spaghetti_log.Log
+	err       error
 }
 
 type RequestLogParse struct {
@@ -74,15 +72,14 @@ func SpaghettiBlockRange(in chan RequestSpaghettiBlockRange, out chan ReplySpagh
 		fmt.Println(req.network_id, ".", req.address, ": socket address", spaghetti_socket)
 		fmt.Println(req.network_id, ".", req.address, ": request a block range from SDS Spaghetti for block range ", req.block_number_from, req.block_number_to)
 
-		timestamp, transactions, logs,
+		timestamp, logs,
 			err := spaghetti_block.RemoteBlockRange(spaghetti_socket, req.network_id, req.address, req.block_number_from, req.block_number_to)
 		fmt.Println(req.network_id, ".", req.address, ": timestamp of SDS Spaghetti reply", timestamp)
 
 		out <- ReplySpaghettiBlockRange{
-			timestamp:    timestamp,
-			transactions: transactions,
-			logs:         logs,
-			err:          err,
+			timestamp: timestamp,
+			logs:      logs,
+			err:       err,
 		}
 	}
 }

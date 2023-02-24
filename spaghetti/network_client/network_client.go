@@ -143,31 +143,23 @@ func (c *NetworkClient) GetBlock(block_number uint64) (*block.Block, error) {
 		BlockNumber:    raw_block.NumberU64(),
 		BlockTimestamp: raw_block.Time(),
 		Logs:           nil,
-		Transactions:   nil,
 	}
 
-	err = block.SetTransactions(b, raw_block.Transactions())
-	if err != nil {
-		return nil, err
-	}
-
-	if len(b.Transactions) > 0 {
-		var raw_logs []eth_types.Log
-		var log_err error
-		attempt := 5
-		for {
-			raw_logs, log_err = c.GetBlockLogs(block_number)
-			if log_err == nil {
-				break
-			}
-			time.Sleep(10 * time.Second)
-			attempt--
-			if attempt == 0 {
-				return nil, fmt.Errorf("failed to get the logs in 5 attempts. network id: %s block number %d", c.Network.Id, block_number)
-			}
+	var raw_logs []eth_types.Log
+	var log_err error
+	attempt := 5
+	for {
+		raw_logs, log_err = c.GetBlockLogs(block_number)
+		if log_err == nil {
+			break
 		}
-		err = block.SetLogs(b, raw_logs)
+		time.Sleep(10 * time.Second)
+		attempt--
+		if attempt == 0 {
+			return nil, fmt.Errorf("failed to get the logs in 5 attempts. network id: %s block number %d", c.Network.Id, block_number)
+		}
 	}
+	err = block.SetLogs(b, raw_logs)
 
 	return b, err
 }
