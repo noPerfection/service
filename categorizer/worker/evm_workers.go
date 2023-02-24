@@ -22,7 +22,6 @@ func WorkersFromSmartcontracts(
 	db *db.Database,
 	static_socket *remote.Socket,
 	smartcontracts []*smartcontract.Smartcontract,
-	no_event bool,
 	broadcast_channel chan message.Broadcast,
 	in chan RequestSpaghettiBlockRange,
 	out chan ReplySpaghettiBlockRange,
@@ -47,7 +46,7 @@ func WorkersFromSmartcontracts(
 
 		worker_smartcontract := smartcontract
 
-		worker := NewWorker(db, abi, worker_smartcontract, no_event, broadcast_channel, in, out, log_in, log_out)
+		worker := NewWorker(db, abi, worker_smartcontract, broadcast_channel, in, out, log_in, log_out)
 
 		workers = append(workers, worker)
 	}

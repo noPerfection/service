@@ -33,8 +33,6 @@ type Worker struct {
 	smartcontract  *smartcontract.Smartcontract
 	abi            *abi.Abi
 	broadcast_chan chan message.Broadcast
-
-	no_event bool
 }
 
 type RequestSpaghettiBlockRange struct {
@@ -121,7 +119,7 @@ func (worker *Worker) log_prefix() string {
 }
 
 // Create a new worker
-func NewWorker(db *db.Database, abi *abi.Abi, worker_smartcontract *smartcontract.Smartcontract, no_event bool, broadcast chan message.Broadcast, in chan RequestSpaghettiBlockRange, out chan ReplySpaghettiBlockRange, log_parse_in chan RequestLogParse, log_parse_out chan ReplyLogParse) *Worker {
+func NewWorker(db *db.Database, abi *abi.Abi, worker_smartcontract *smartcontract.Smartcontract, broadcast chan message.Broadcast, in chan RequestSpaghettiBlockRange, out chan ReplySpaghettiBlockRange, log_parse_in chan RequestLogParse, log_parse_out chan ReplyLogParse) *Worker {
 	worker := Worker{
 		smartcontract:             worker_smartcontract,
 		broadcast_chan:            broadcast,
@@ -132,7 +130,6 @@ func NewWorker(db *db.Database, abi *abi.Abi, worker_smartcontract *smartcontrac
 		log_parse_out:             log_parse_out,
 		spaghetti_sub_socket:      nil,
 		abi:                       abi,
-		no_event:                  no_event,
 	}
 
 	return &worker
@@ -193,7 +190,7 @@ func (worker *Worker) categorize(block_number uint64, block_timestamp uint64, tr
 			broadcastTransactions = append(broadcastTransactions, tx_kv)
 		}
 
-		if !worker.no_event && len(logs) > 0 {
+		if len(logs) > 0 {
 			for log_index := 0; log_index < len(logs); log_index++ {
 				raw_log := logs[log_index]
 

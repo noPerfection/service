@@ -37,8 +37,6 @@ var log_parse_out chan worker.ReplyLogParse = nil
 
 var static_socket *remote.Socket
 
-var no_event bool = false
-
 var imx_manager *imx.Manager = nil
 var evm_managers key_value.KeyValue
 
@@ -55,7 +53,6 @@ func run_evm_manager(db_con *db.Database, network *network.Network) {
 		db_con,
 		static_socket,
 		smartcontracts,
-		no_event,
 		broadcast_channel,
 		spaghetti_in,
 		spaghetti_out,
@@ -135,7 +132,6 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 				db_con,
 				static_socket,
 				[]*smartcontract.Smartcontract{sm},
-				no_event,
 				broadcast_channel,
 				spaghetti_in,
 				spaghetti_out,
@@ -167,7 +163,6 @@ Supported command line arguments:
     --reply                     runs the request-reply server
     --plain                     runs the servers without security
     --network-id=<network id>   runs the smartcontract workers for this network id only
-    --no-event                  categorization will not parse the event logs
     --security-debug            prints the security logs`
 	println(greeting + "\n\n")
 
@@ -238,8 +233,6 @@ Supported command line arguments:
 	spaghetti_socket = remote.TcpRequestSocketOrPanic(spaghetti_env, categorizer_env)
 	static_socket = remote.TcpRequestSocketOrPanic(static_env, categorizer_env)
 
-	no_event = argument.Has(arguments, argument.NO_EVENT)
-
 	var networks network.Networks = make(network.Networks, 0)
 	if argument.Has(arguments, argument.NETWORK_ID) {
 		network_id, err := argument.ExtractValue(arguments, argument.NETWORK_ID)
@@ -277,11 +270,9 @@ Supported command line arguments:
 		spaghetti_in = make(chan worker.RequestSpaghettiBlockRange)
 		spaghetti_out = make(chan worker.ReplySpaghettiBlockRange)
 
-		if !no_event {
-			log_parse_in = make(chan worker.RequestLogParse)
-			log_parse_out = make(chan worker.ReplyLogParse)
-			go worker.LogParse(log_parse_in, log_parse_out)
-		}
+		log_parse_in = make(chan worker.RequestLogParse)
+		log_parse_out = make(chan worker.ReplyLogParse)
+		go worker.LogParse(log_parse_in, log_parse_out)
 
 		go worker.SpaghettiBlockRange(spaghetti_in, spaghetti_out)
 

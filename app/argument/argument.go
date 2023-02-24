@@ -18,7 +18,6 @@ const (
 	//
 	//    support only network id 5
 	NETWORK_ID = "network-id"
-	NO_EVENT   = "no-event" // smartcontract events are not supported by the SDS Service
 
 	// Set this arguments to print the logs
 	BROADCAST_DEBUG = "broadcast-debug"
