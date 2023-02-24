@@ -48,7 +48,8 @@ type Manager struct {
 	subscribed_blocks                data_type.Queue
 }
 
-// Creates a new manager of smartcontract workers on a given network id
+// Creates a new manager for the given EVM Network
+// New manager runs in the background.
 func NewManager(
 	network_id string,
 	in chan RequestSpaghettiBlockRange,
@@ -76,17 +77,6 @@ func NewManager(
 	go manager.start()
 
 	return &manager
-}
-
-// Returns all smartcontracts from all managers
-func GetSmartcontracts(managers map[string]*Manager) []*smartcontract.Smartcontract {
-	smartcontracts := make([]*smartcontract.Smartcontract, 0)
-
-	for _, manager := range managers {
-		smartcontracts = append(smartcontracts, manager.GetSmartcontracts()...)
-	}
-
-	return smartcontracts
 }
 
 // Returns all smartcontracts from all types of workers
@@ -190,7 +180,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *CategorizerGroup) {
 			continue
 		}
 
-		// update the worker data by transactions and logs.
+		// update the worker data by logs.
 		for _, worker := range group.workers {
 			logs := block.GetForSmartcontract(worker.smartcontract.Address)
 			err := worker.categorize(block.BlockNumber, block.BlockTimestamp, logs)
@@ -392,7 +382,7 @@ func (manager *Manager) subscribe() {
 			raw_logs, ok := reply.Parameters.ToMap()["logs"].([]interface{})
 			if !ok {
 				fmt.Println(manager.NetworkId, "failed to get logs from SDS Spaghetti Broadcast")
-				panic("no transactions received from SDS Spaghetti Broadcast")
+				panic("no logs received from SDS Spaghetti Broadcast")
 			}
 			logs, err := spaghetti_log.NewLogs(raw_logs)
 			if err != nil {
