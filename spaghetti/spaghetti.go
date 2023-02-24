@@ -20,7 +20,6 @@ import (
 	"github.com/blocklords/gosds/spaghetti/block"
 	"github.com/blocklords/gosds/spaghetti/log"
 	"github.com/blocklords/gosds/spaghetti/network_client"
-	"github.com/blocklords/gosds/spaghetti/transaction"
 	"github.com/blocklords/gosds/spaghetti/worker"
 	"github.com/blocklords/gosds/static/network"
 
@@ -123,7 +122,6 @@ func block_get(db *db.Database, request message.Request) message.Reply {
 	}
 
 	var timestamp uint64
-	var transactions []*transaction.Transaction
 	var logs []*log.Log
 
 	cached := false
@@ -136,19 +134,11 @@ func block_get(db *db.Database, request message.Request) message.Reply {
 		}
 
 		if len(address) > 0 {
-			transactions, err = transaction.GetForBlockAndTxTo(db, network_id, block_number, address)
-			if err != nil {
-				return message.Fail(err.Error())
-			}
 			logs, err = log.GetForBlockAndTxTo(db, network_id, block_number, block_number, address)
 			if err != nil {
 				return message.Fail(err.Error())
 			}
 		} else {
-			transactions, err = transaction.GetForBlock(db, network_id, block_number)
-			if err != nil {
-				return message.Fail(err.Error())
-			}
 			logs, err = log.GetForBlock(db, network_id, block_number)
 			if err != nil {
 				return message.Fail(err.Error())
@@ -188,7 +178,6 @@ func block_get(db *db.Database, request message.Request) message.Reply {
 			"block_number": block_number,
 			"to":           address,
 			"timestamp":    timestamp,
-			"transactions": data_type.ToMapList(transactions),
 			"logs":         data_type.ToMapList(logs),
 		}),
 	}
@@ -316,25 +305,14 @@ func block_get_range(db *db.Database, request message.Request) message.Reply {
 		return message.Fail(err.Error())
 	}
 
-	var transactions []*transaction.Transaction
 	var logs []*log.Log
 
 	if to != "" {
-		transactions, err = transaction.GetForBlockRangeAndTxTo(db, network_id, block_numbers[0], block_numbers[1], to)
-		if err != nil {
-			return message.Fail(err.Error())
-		}
-
 		logs, err = log.GetForBlockAndTxTo(db, network_id, block_numbers[0], block_numbers[1], to)
 		if err != nil {
 			return message.Fail(err.Error())
 		}
 	} else {
-		transactions, err = transaction.GetForBlockRangeAndTx(db, network_id, block_numbers[0], block_numbers[1])
-		if err != nil {
-			return message.Fail(err.Error())
-		}
-
 		logs, err = log.GetForBlockAndTx(db, network_id, block_numbers[0], block_numbers[1])
 		if err != nil {
 			return message.Fail(err.Error())
@@ -345,11 +323,10 @@ func block_get_range(db *db.Database, request message.Request) message.Reply {
 		Status:  "OK",
 		Message: "",
 		Parameters: key_value.New(map[string]interface{}{
-			"network_id":   network_id,
-			"to":           to,
-			"timestamp":    timestamp,
-			"transactions": data_type.ToMapList(transactions),
-			"logs":         data_type.ToMapList(logs),
+			"network_id": network_id,
+			"to":         to,
+			"timestamp":  timestamp,
+			"logs":       data_type.ToMapList(logs),
 		}),
 	}
 }

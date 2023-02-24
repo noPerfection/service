@@ -11,7 +11,6 @@ import (
 	"github.com/blocklords/gosds/spaghetti/block"
 	"github.com/blocklords/gosds/spaghetti/log"
 	"github.com/blocklords/gosds/spaghetti/network_client"
-	"github.com/blocklords/gosds/spaghetti/transaction"
 
 	"github.com/blocklords/gosds/app/env"
 
@@ -164,17 +163,6 @@ func sync_block(worker *SpaghettiWorker, b *block.Block) error {
 	return broadcast_new_block(worker, b)
 }
 
-// saves the transactions in the database for a given block
-func SaveTransactions(db *db.Database, transactions []*transaction.Transaction) error {
-	for _, tx := range transactions {
-		err := transaction.DbSave(db, tx)
-		if err != nil {
-			return errors.New(`failed to save in the database the transaction for network id ` + tx.NetworkId + `, tx id ` + tx.Txid + `, received error: ` + err.Error())
-		}
-	}
-	return nil
-}
-
 // saves the logs in the database for a given block
 func SaveLogs(db *db.Database, logs []*log.Log) error {
 	for _, l := range logs {
@@ -213,11 +201,6 @@ func clear(worker *SpaghettiWorker, b *block.Block) error {
 
 	// clear the old logs
 	if err := log.DbClear(worker.database_connection, worker.client.Network.Id, latest_block_number); err != nil {
-		return err
-	}
-
-	// clear the old transactions
-	if err := transaction.DbClear(worker.database_connection, worker.client.Network.Id, latest_block_number); err != nil {
 		return err
 	}
 
