@@ -94,7 +94,9 @@ func (manager *Manager) GetSmartcontracts() []*smartcontract.Smartcontract {
 	return smartcontracts
 }
 
-// Starts the goroutine
+// Starts the manager in a background as a goroutine.
+// IMPORTANT! it doesn't validate the service configurations
+// They should be validated in the main page.
 //
 // Change the block_get_range to accept multiple addresses
 // create a []*Worker data type that manipulates the list of contracts
@@ -105,15 +107,9 @@ func (manager *Manager) GetSmartcontracts() []*smartcontract.Smartcontract {
 // - get list of smartcontract addresses
 // - check whether address exists in the list
 func (manager *Manager) start() {
-	categorizer_env, err := service.New(service.CATEGORIZER, service.BROADCAST, service.THIS)
-	if err != nil {
-		panic(err)
-	}
+	categorizer_env, _ := service.New(service.CATEGORIZER, service.BROADCAST, service.THIS)
+	spaghetti_env, _ := service.New(service.SPAGHETTI, service.REMOTE)
 
-	spaghetti_env, err := service.New(service.SPAGHETTI, service.REMOTE)
-	if err != nil {
-		panic(err)
-	}
 	manager.spaghetti_socket = remote.TcpRequestSocketOrPanic(spaghetti_env, categorizer_env)
 
 	for {
