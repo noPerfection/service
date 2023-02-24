@@ -298,9 +298,6 @@ Supported command line arguments:
 
 			"log_get_all": handler.GetLogs,
 
-			"transaction_get_all": handler.GetTransactions,
-			"transaction_amount":  handler.GetTransactionAmount,
-
 			"snapshot_get": handler.GetSnapshot,
 
 			"smartcontract_set": smartcontract_set,

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/blocklords/gosds/categorizer/transaction"
 	"github.com/blocklords/gosds/db"
 )
 
@@ -14,7 +13,7 @@ func Save(db *db.Database, t *Log) error {
 		return err
 	}
 
-	transaction_key := transaction.TransactionKey(t.NetworkId, t.Txid)
+	transaction_key := t.NetworkId + "." + t.Txid
 
 	_, err = db.Connection.Exec(`INSERT IGNORE INTO categorizer_logs 
 	(address, transaction_key, log_index, log, output)

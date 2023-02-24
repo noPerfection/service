@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/blocklords/gosds/categorizer/imx"
+	"github.com/blocklords/gosds/categorizer/log"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/categorizer/transaction"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 
@@ -120,21 +120,22 @@ func categorize_imx_transfers(worker *Worker, apiClient *imx_api.APIClient, slee
 				arguments["value"] = value
 			}
 
-			tx := &transaction.Transaction{
+			// todo change the imx to store in the log
+			tx := &log.Log{
 				NetworkId:      "imx",
 				Address:        worker.smartcontract.Address,
 				BlockNumber:    uint64(blockTime.Unix()),
 				BlockTimestamp: uint64(blockTime.Unix()),
 				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
-				TxIndex:        uint(0),
-				TxFrom:         imxTx.User,
-				Method:         "Transfer",
-				Args:           arguments,
-				Value:          0.0,
+				LogIndex:       uint(0),
+				// TxFrom:         imxTx.User,
+				// Method:         "Transfer",
+				// Args:           arguments,
+				// Value:          0.0,
 			}
 
 			for {
-				createdErr := transaction.Save(worker.db, tx)
+				createdErr := log.Save(worker.db, tx)
 				if createdErr == nil {
 					break
 				}
@@ -228,7 +229,7 @@ func categorize_imx_mints(worker *Worker, apiClient *imx_api.APIClient, sleep ti
 				arguments["value"] = value
 			}
 
-			tx, err := transaction.ParseTransaction(map[string]interface{}{
+			tx, err := log.NewFromMap(map[string]interface{}{
 				"network_id":      "imx",
 				"address":         worker.smartcontract.Address,
 				"block_number":    uint64(blockTime.Unix()),
@@ -247,7 +248,7 @@ func categorize_imx_mints(worker *Worker, apiClient *imx_api.APIClient, sleep ti
 			}
 
 			for {
-				createdErr := transaction.Save(worker.db, tx)
+				createdErr := log.Save(worker.db, tx)
 				if createdErr == nil {
 					break
 				}

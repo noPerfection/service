@@ -5,7 +5,6 @@ import (
 	"github.com/blocklords/gosds/app/account"
 	categorizer_log "github.com/blocklords/gosds/categorizer/log"
 	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
-	categorizer_transaction "github.com/blocklords/gosds/categorizer/transaction"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 
 	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
@@ -19,7 +18,7 @@ import (
 )
 
 type List interface {
-	*categorizer_log.Log | *categorizer_smartcontract.Smartcontract | *categorizer_transaction.Transaction |
+	*categorizer_log.Log | *categorizer_smartcontract.Smartcontract |
 		*spaghetti_log.Log | *spaghetti_transaction.Transaction | *static_abi.Abi |
 		*static_configuration.Configuration | *static_smartcontract.Smartcontract |
 		*static_network.Network | *account.Account
