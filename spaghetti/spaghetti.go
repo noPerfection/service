@@ -42,10 +42,8 @@ import (
 
 var static_socket *remote.Socket
 var network_clients map[string]*network_client.NetworkClient
-var workers []*worker.SpaghettiWorker
 
 func run_each_evm_network_sync_worker(dbCon *db.Database, broadcast_channel chan message.Broadcast, debug bool) {
-	workers = make([]*worker.SpaghettiWorker, 0)
 	for _, client := range network_clients {
 		recent_block_number, err := block.GetRecentBlockNumber(dbCon, client.Network.Id)
 		if err != nil {
@@ -78,7 +76,6 @@ func run_each_evm_network_sync_worker(dbCon *db.Database, broadcast_channel chan
 
 		sync_bot := worker.New(client, recent_block_number, dbCon, broadcast_channel, debug)
 		go sync_bot.Sync()
-		workers = append(workers, sync_bot)
 	}
 }
 
@@ -92,12 +89,10 @@ func run_each_evm_network_sync_worker(dbCon *db.Database, broadcast_channel chan
 //
 // - mined timestamp
 //
-// - transactions
-//
 // - logs
 //
 // additional parameter that it takes is "address"
-// you can fetch transactions and logs happened with a certain smartcontract.
+// you can fetch logs happened with a certain smartcontract.
 func block_get(db *db.Database, request message.Request) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
@@ -386,11 +381,8 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 
 	greeting := `SDS Spaghetti preparation...
 It supports the following arguments:
-    --broadcast         enable SDS SDS broadcaster
-    --reply             runs SDS Spaghetti request-reply server
     --broadcast-debug   set it to print the spaghetti worker log
-    --security-debug    set it to print the security log
-    --plain             to disable the security layer`
+    --security-debug    set it to print the security log`
 	println(greeting)
 
 	spaghetti_env, err := service.New(service.SPAGHETTI, service.BROADCAST, service.THIS)
