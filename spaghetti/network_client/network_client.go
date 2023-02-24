@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+// todo any call should be with a context and repititon
 type NetworkClient struct {
 	network_id string
 	client     *ethclient.Client

@@ -47,12 +47,7 @@ func setup_evm_workers(networks network.Networks, broadcast_channel chan message
 			return nil, err
 		}
 
-		recent_block_number, err := client.GetRecentBlockNumber()
-		if err != nil {
-			panic(err)
-		}
-
-		new_worker := worker.New(client, recent_block_number, broadcast_channel, debug)
+		new_worker := worker.New(client, broadcast_channel, debug)
 		go new_worker.Sync()
 
 		workers[client.Network.Id] = new_worker
