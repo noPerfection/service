@@ -7,7 +7,6 @@ import (
 	"github.com/blocklords/gosds/categorizer/abi"
 	"github.com/blocklords/gosds/categorizer/log"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/categorizer/transaction"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/static/smartcontract/key"
@@ -136,7 +135,7 @@ func NewWorker(db *db.Database, abi *abi.Abi, worker_smartcontract *smartcontrac
 }
 
 // broadcast the transactions and logs of the smartcontract.
-func broadcast_block_categorization(worker *Worker, transactions []map[string]interface{}, logs []map[string]interface{}) {
+func broadcast_block_categorization(worker *Worker, logs []map[string]interface{}) {
 	// we assume that data is verified since the data comes from internal code.
 	// not from outside.
 	k := key.New(worker.smartcontract.NetworkId, worker.smartcontract.Address)
@@ -150,7 +149,6 @@ func broadcast_block_categorization(worker *Worker, transactions []map[string]in
 			"block_number":    worker.smartcontract.CategorizedBlockNumber,
 			"block_timestamp": worker.smartcontract.CategorizedBlockTimestamp,
 			"address":         worker.smartcontract.Address,
-			"transactions":    transactions,
 			"logs":            logs,
 		}),
 	}
@@ -160,73 +158,48 @@ func broadcast_block_categorization(worker *Worker, transactions []map[string]in
 }
 
 // Categorize the blocks for this smartcontract
-func (worker *Worker) categorize(block_number uint64, block_timestamp uint64, transactions []*spaghetti_transaction.Transaction, logs []*spaghetti_log.Log) error {
+func (worker *Worker) categorize(block_number uint64, block_timestamp uint64, logs []*spaghetti_log.Log) error {
 	network_id := worker.smartcontract.NetworkId
 	address := worker.smartcontract.Address
 
-	broadcastTransactions := make([]map[string]interface{}, 0)
 	broadcastLogs := make([]map[string]interface{}, 0)
 
-	if len(transactions) > 0 {
-		for _, raw_transaction := range transactions {
-			fmt.Println(worker.log_prefix(), "found some transactions to categorize", raw_transaction)
-			methodName, inputs, err := worker.abi.Categorize(raw_transaction.Data)
+	if len(logs) > 0 {
+		for log_index := 0; log_index < len(logs); log_index++ {
+			raw_log := logs[log_index]
+
+			fmt.Println(worker.log_prefix(), "requesting parse of smartcontract log to SDS Log...")
+			worker.log_parse_in <- RequestLogParse{
+				network_id: network_id,
+				address:    address,
+				data:       raw_log.Data,
+				topics:     raw_log.Topics,
+			}
+			log_reply := <-worker.log_parse_out
+			fmt.Println(worker.log_prefix(), "reply received from SDS Log")
+			if log_reply.err != nil {
+				fmt.Println("abi.remote parse %w, we skip this log records", log_reply.err)
+				continue
+			}
+
+			l := log.New(log_reply.log_name, log_reply.outputs).AddMetadata(raw_log).AddSmartcontractData(worker.smartcontract)
+			err := log.Save(worker.db, l)
 			if err != nil {
-				return fmt.Errorf("abi.ParseTxInput: %w", err)
+				return fmt.Errorf("emergency error. failed to create a log row in the database. this is an exception, that should not be. Consider fixing it. error message: " + err.Error())
 			}
 
-			tx := transaction.NewTransaction(methodName, inputs, raw_transaction.BlockNumber, raw_transaction.BlockTimestamp).AddMetadata(raw_transaction).AddSmartcontractData(worker.smartcontract)
-
-			err = transaction.Save(worker.db, tx)
+			log_kv, err := key_value.NewFromInterface(l)
 			if err != nil {
-				return fmt.Errorf("emergency error. failed to create a transaction row in the database. this is an exception. consider fixing it asap. error message: " + err.Error())
+				return fmt.Errorf("failed to serialize Log to key-value while trying to broadcast it %v: %v", l, err)
 			}
 
-			tx_kv, err := key_value.NewFromInterface(tx)
-			if err != nil {
-				return fmt.Errorf("failed to serialize transaction to key-value %v: %v", tx, err)
-			}
-
-			broadcastTransactions = append(broadcastTransactions, tx_kv)
-		}
-
-		if len(logs) > 0 {
-			for log_index := 0; log_index < len(logs); log_index++ {
-				raw_log := logs[log_index]
-
-				fmt.Println(worker.log_prefix(), "requesting parse of smartcontract log to SDS Log...")
-				worker.log_parse_in <- RequestLogParse{
-					network_id: network_id,
-					address:    address,
-					data:       raw_log.Data,
-					topics:     raw_log.Topics,
-				}
-				log_reply := <-worker.log_parse_out
-				fmt.Println(worker.log_prefix(), "reply received from SDS Log")
-				if log_reply.err != nil {
-					fmt.Println("abi.remote parse %w, we skip this log records", log_reply.err)
-					continue
-				}
-
-				l := log.New(log_reply.log_name, log_reply.outputs).AddMetadata(raw_log).AddSmartcontractData(worker.smartcontract)
-				err := log.Save(worker.db, l)
-				if err != nil {
-					return fmt.Errorf("emergency error. failed to create a log row in the database. this is an exception, that should not be. Consider fixing it. error message: " + err.Error())
-				}
-
-				log_kv, err := key_value.NewFromInterface(l)
-				if err != nil {
-					return fmt.Errorf("failed to serialize Log to key-value while trying to broadcast it %v: %v", l, err)
-				}
-
-				broadcastLogs = append(broadcastLogs, log_kv)
-			}
+			broadcastLogs = append(broadcastLogs, log_kv)
 		}
 	}
 
 	fmt.Println(worker.log_prefix(), "categorization finished, update the block number to ", block_number)
 	worker.smartcontract.SetBlockParameter(block_number, block_timestamp)
-	broadcast_block_categorization(worker, broadcastTransactions, broadcastLogs)
+	broadcast_block_categorization(worker, broadcastLogs)
 	err := smartcontract.SetSyncing(worker.db, worker.smartcontract, block_number, block_timestamp)
 
 	return err

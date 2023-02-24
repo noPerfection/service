@@ -40,13 +40,10 @@ func ImxRun(db *db.Database, block *smartcontract.Smartcontract, manager *imx.Ma
 	configuration := imx_api.NewConfiguration()
 	apiClient := imx_api.NewAPIClient(configuration)
 
-	// imx network doesn't have logs, therefore we don't allocate a memory in the heap
-	broadcastLogs := []map[string]interface{}{}
-
 	for {
 		timestamp := time.Unix(int64(block.CategorizedBlockTimestamp), 0).Format(time.RFC3339)
 
-		broadcastTransactions, err := categorize_imx_transfers(&thisWorker, apiClient, manager.DelayPerSecond, timestamp)
+		broadcast_logs, err := categorize_imx_transfers(&thisWorker, apiClient, manager.DelayPerSecond, timestamp)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error when calling `Imx.TransfersApi.ListTransfers``: %v\n", err)
 			fmt.Println("trying to request again in 10 seconds...")
@@ -63,9 +60,9 @@ func ImxRun(db *db.Database, block *smartcontract.Smartcontract, manager *imx.Ma
 			continue
 		}
 
-		broadcastTransactions = append(broadcastTransactions, mints...)
+		broadcast_logs = append(broadcast_logs, mints...)
 
-		broadcast_block_categorization(&thisWorker, broadcastTransactions, broadcastLogs)
+		broadcast_block_categorization(&thisWorker, broadcast_logs)
 	}
 }
 

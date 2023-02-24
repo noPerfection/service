@@ -193,8 +193,8 @@ func (manager *Manager) categorize_old_smartcontracts(group *CategorizerGroup) {
 
 		// update the worker data by transactions and logs.
 		for _, worker := range group.workers {
-			transactions, logs := block.GetForSmartcontract(worker.smartcontract.Address)
-			err := worker.categorize(block.BlockNumber, block.BlockTimestamp, transactions, logs)
+			logs := block.GetForSmartcontract(worker.smartcontract.Address)
+			err := worker.categorize(block.BlockNumber, block.BlockTimestamp, logs)
 			if err != nil {
 				panic("failed to categorize the blockchain")
 			}
@@ -247,8 +247,8 @@ func (manager *Manager) categorize_recent_smartcontracts() {
 		block := spaghetti_block.NewBlock(manager.NetworkId, recent, spaghetti_reply.timestamp, spaghetti_reply.transactions, spaghetti_reply.logs)
 
 		for _, worker := range workers {
-			transactions, logs := block.GetForSmartcontract(worker.smartcontract.Address)
-			err := worker.categorize(block.BlockNumber, block.BlockTimestamp, transactions, logs)
+			logs := block.GetForSmartcontract(worker.smartcontract.Address)
+			err := worker.categorize(block.BlockNumber, block.BlockTimestamp, logs)
 			if err != nil {
 				panic("failed to categorize the blockchain")
 			}
@@ -282,8 +282,8 @@ func (manager *Manager) categorize_current_smartcontracts() {
 				if block.BlockNumber <= worker.smartcontract.CategorizedBlockNumber {
 					continue
 				}
-				transactions, logs := block.GetForSmartcontract(worker.smartcontract.Address)
-				err := worker.categorize(block.BlockNumber, block.BlockTimestamp, transactions, logs)
+				logs := block.GetForSmartcontract(worker.smartcontract.Address)
+				err := worker.categorize(block.BlockNumber, block.BlockTimestamp, logs)
 				if err != nil {
 					panic("failed to categorize the blockchain")
 				}

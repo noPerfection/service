@@ -55,14 +55,13 @@ func SetLogs(block *Block, raw_logs []eth_types.Log) error {
 }
 
 // Returns the smartcontract information
-func (block *Block) GetForSmartcontract(address string) ([]*transaction.Transaction, []*log.Log) {
-	transactios := make([]*transaction.Transaction, 0)
+// Todo Get the logs for the blockchain
+// Rather than getting transactions
+func (block *Block) GetForSmartcontract(address string) []*log.Log {
 	logs := make([]*log.Log, 0)
 
 	for _, transaction := range block.Transactions {
 		if strings.EqualFold(transaction.TxTo, address) {
-			transactios = append(transactios, transaction)
-
 			for _, log := range block.Logs {
 				if strings.EqualFold(transaction.Txid, log.Txid) {
 					logs = append(logs, log)
@@ -71,5 +70,5 @@ func (block *Block) GetForSmartcontract(address string) ([]*transaction.Transact
 		}
 	}
 
-	return transactios, logs
+	return logs
 }
