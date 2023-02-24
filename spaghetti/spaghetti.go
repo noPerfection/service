@@ -5,18 +5,14 @@
 // Atleast one worker for each network.
 // This workers are called recent workers.
 //
-// The recent workers are caching the block information by env.SDS_SPAGHETTI_CACHE_DURATION seconds
-//
 // Categorizer checks whether the cached block returned or not.
 // If its a cached block, then switches to the block_range
 package spaghetti
 
 import (
-	"database/sql"
 	"fmt"
 	debug_log "log"
 
-	"github.com/blocklords/gosds/spaghetti/block"
 	"github.com/blocklords/gosds/spaghetti/log"
 	"github.com/blocklords/gosds/spaghetti/network_client"
 	"github.com/blocklords/gosds/spaghetti/worker"
@@ -41,40 +37,21 @@ import (
 
 var static_socket *remote.Socket
 var network_clients map[string]*network_client.NetworkClient
+var workers map[string]*worker.SpaghettiWorker
 
-func run_each_evm_network_sync_worker(dbCon *db.Database, broadcast_channel chan message.Broadcast, debug bool) {
+// Run EVM blockchain clients
+func start_evm_worker(broadcast_channel chan message.Broadcast, debug bool) {
+	workers = make(map[string]*worker.SpaghettiWorker, 0)
 	for _, client := range network_clients {
-		recent_block_number, err := block.GetRecentBlockNumber(dbCon, client.Network.Id)
+		recent_block_number, err := client.GetRecentBlockNumber()
 		if err != nil {
-			if err == sql.ErrNoRows {
-				println("detected a new network: ", client.Network.Id)
-				recent_block_number, err = client.GetRecentBlockNumber()
-				if err != nil {
-					panic(err)
-				}
-				recent_block, err := client.GetBlock(recent_block_number)
-				if err != nil {
-					panic(err)
-				}
-
-				fmt.Printf("SDS Spaghetti starts to count the network id %s from the block number: %v\n", client.Network.Id, recent_block_number)
-
-				err = block.SetBlock(dbCon, client.Network.Id, recent_block_number, uint(len(recent_block.Logs)), recent_block.BlockTimestamp)
-				if err != nil {
-					panic("SDS Spaghetti error to init a new network: " + err.Error())
-				}
-
-				log_err := worker.SaveLogs(dbCon, recent_block.Logs)
-				if log_err != nil {
-					panic(log_err)
-				}
-			} else {
-				panic(err)
-			}
+			panic(err)
 		}
 
-		sync_bot := worker.New(client, recent_block_number, dbCon, broadcast_channel, debug)
-		go sync_bot.Sync()
+		new_worker := worker.New(client, recent_block_number, broadcast_channel, debug)
+		go new_worker.Sync()
+
+		workers[client.Network.Id] = new_worker
 	}
 }
 
@@ -85,32 +62,23 @@ func run_each_evm_network_sync_worker(dbCon *db.Database, broadcast_channel chan
 ////////////////////////////////////////////////////////////////////
 
 // returns the earliest cached block number
-func block_get_cached_number(db *db.Database, request message.Request) message.Reply {
+func block_get_cached_number(_ *db.Database, request message.Request) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	earliest_block_number, err := block.GetEarliestBlockNumber(db, network_id)
+	if network_clients[network_id] == nil {
+		return message.Fail("unsupported network_id " + network_id)
+	}
+
+	client := network_clients[network_id]
+	block_number, err := client.GetRecentBlockNumber()
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	recent_block_number, err := block.GetRecentBlockNumber(db, network_id)
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-
-	if earliest_block_number == 0 || recent_block_number == 0 {
-		return message.Fail("the cached block number is 0")
-	}
-
-	cached_block_number := earliest_block_number
-	if earliest_block_number != recent_block_number {
-		cached_block_number = earliest_block_number + (recent_block_number / earliest_block_number)
-	}
-
-	cached_block_timestamp, err := block.GetBlockTimestamp(db, network_id, cached_block_number)
+	block_timestamp, err := client.GetBlockTimestamp(block_number)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -120,14 +88,14 @@ func block_get_cached_number(db *db.Database, request message.Request) message.R
 		Message: "",
 		Parameters: key_value.New(map[string]interface{}{
 			"network_id":      network_id,
-			"block_number":    cached_block_number,
-			"block_timestamp": cached_block_timestamp,
+			"block_number":    block_number,
+			"block_timestamp": block_timestamp,
 		}),
 	}
 }
 
 // Returns the block timestamp
-func block_get_timestamp(db *db.Database, request message.Request) message.Reply {
+func block_get_timestamp(_ *db.Database, request message.Request) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -137,25 +105,14 @@ func block_get_timestamp(db *db.Database, request message.Request) message.Reply
 		return message.Fail(err.Error())
 	}
 
-	block_timestamp, err := block.GetBlockTimestamp(db, network_id, block_number)
+	if network_clients[network_id] == nil {
+		return message.Fail("unsupported network_id " + network_id)
+	}
+
+	client := network_clients[network_id]
+	block_timestamp, err := client.GetBlockTimestamp(block_number)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			if network_clients[network_id] == nil {
-				return message.Fail("unsupported network_id " + network_id)
-			}
-
-			println("the block timestamp for", block_number, "in network id "+network_id+" not found")
-			println("SDS Spaghetti didn't cache it yet. Meanwhile getting the block timestamp from the blockchain")
-
-			timestamp, err := network_clients[network_id].GetBlockTimestamp(block_number)
-			if err != nil {
-				return message.Fail(err.Error())
-			}
-
-			block_timestamp = timestamp
-		} else {
-			return message.Fail(err.Error())
-		}
+		return message.Fail(err.Error())
 	}
 
 	return message.Reply{
@@ -172,7 +129,7 @@ func block_get_timestamp(db *db.Database, request message.Request) message.Reply
 // Returns the transactions and logs in a range of the block.
 // Optionally it accepts to parameter that filters the transactions and logs
 // for the smartcontract.
-func block_get_range(db *db.Database, request message.Request) message.Reply {
+func block_get_range(_ *db.Database, request message.Request) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -184,7 +141,12 @@ func block_get_range(db *db.Database, request message.Request) message.Reply {
 
 	to, _ := request.Parameters.GetString("to")
 
-	earliest_block_number, err := block.GetEarliestBlockNumber(db, network_id)
+	if network_clients[network_id] == nil {
+		return message.Fail("unsupported network_id " + network_id)
+	}
+
+	client := network_clients[network_id]
+	earliest_block_number, err := client.GetRecentBlockNumber()
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -192,32 +154,34 @@ func block_get_range(db *db.Database, request message.Request) message.Reply {
 		return message.Fail(fmt.Sprintf("please run a worker, the database keeps the blockchain data up until %d", earliest_block_number))
 	}
 
-	recent_block_number, err := block.GetRecentBlockNumber(db, network_id)
+	block_length, err := client.Network.GetFirstProviderLength()
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	if block_numbers[0] > recent_block_number || block_numbers[1] > recent_block_number {
-		return message.Fail(fmt.Sprintf("please run a worker, the database keeps the blockchain data up until %d", recent_block_number))
+	recent_block_number := earliest_block_number + block_length
+	if block_numbers[0] < recent_block_number || block_numbers[1] < recent_block_number {
+		return message.Fail(fmt.Sprintf("please run a worker, the database keeps the blockchain data up until %d", earliest_block_number))
 	}
 
-	timestamp, err := block.GetBlockTimestamp(db, network_id, block_numbers[1])
+	timestamp, err := client.GetBlockTimestamp(block_numbers[1])
 
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	var logs []*log.Log
-
+	var logs []*log.Log = make([]*log.Log, 0)
+	var addresses []string = make([]string, 0)
 	if to != "" {
-		logs, err = log.GetForBlockAndTxTo(db, network_id, block_numbers[0], block_numbers[1], to)
-		if err != nil {
-			return message.Fail(err.Error())
-		}
-	} else {
-		logs, err = log.GetForBlockAndTx(db, network_id, block_numbers[0], block_numbers[1])
-		if err != nil {
-			return message.Fail(err.Error())
-		}
+		addresses = append(addresses, to)
+	}
+
+	raw_logs, err := client.GetBlockRangeLogs(block_numbers[0], block_numbers[1], []string{to})
+	if err != nil {
+		return message.Fail(err.Error())
+	}
+	logs, err = log.NewLogsFromRaw(network_id, timestamp, raw_logs)
+	if err != nil {
+		return message.Fail(err.Error())
 	}
 
 	return message.Reply{
@@ -332,12 +296,6 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 		panic(err)
 	}
 
-	app_config.SetDefault("SDS_SPAGHETTI_CACHE_DURATION", 86400)
-	cache_duration := app_config.GetUint64("SDS_SPAGHETTI_CACHE_DURATION")
-	if cache_duration == 0 || cache_duration > 86400 {
-		debug_log.Fatalf("environment variable 'SDS_SPAGHETTI_CACHE_DURATION' is invalid. should be number less than 86400 but its %d", cache_duration)
-	}
-
 	greeting := `SDS Spaghetti preparation...
 It supports the following arguments:
     --broadcast-debug   set it to print the spaghetti worker log
@@ -385,7 +343,7 @@ It supports the following arguments:
 	if app_config.Broadcast {
 		broadcast_debug := argument.Has(arguments, argument.BROADCAST_DEBUG)
 		broadcast_channel := make(chan message.Broadcast)
-		run_each_evm_network_sync_worker(db_con, broadcast_channel, broadcast_debug)
+		start_evm_worker(broadcast_channel, broadcast_debug)
 
 		if app_config.Reply {
 			go broadcast.Run(broadcast_channel, spaghetti_env, []*service.Service{categorizer_env})

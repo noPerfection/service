@@ -3,16 +3,11 @@
 package worker
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/spaghetti/block"
-	"github.com/blocklords/gosds/spaghetti/log"
 	"github.com/blocklords/gosds/spaghetti/network_client"
-
-	"github.com/blocklords/gosds/app/env"
 
 	"github.com/blocklords/gosds/app/remote/message"
 
@@ -23,11 +18,10 @@ import (
 // the global variables that we pass between functions in this worker.
 // the functions are recursive.
 type SpaghettiWorker struct {
-	block_number        uint64
-	database_connection *db.Database
-	client              *network_client.NetworkClient
-	broadcast_channel   chan message.Broadcast
-	debug               bool
+	block_number      uint64
+	client            *network_client.NetworkClient
+	broadcast_channel chan message.Broadcast
+	debug             bool
 }
 
 // Differentiate the workers from each other
@@ -43,36 +37,13 @@ func (worker *SpaghettiWorker) log_debug(message string) {
 	}
 }
 
-// This function updates the block number for a network id.
-//
-// Then it sends the updated block number to the broadcaster.
-func broadcast_new_block(worker *SpaghettiWorker, b *block.Block) error {
-	new_reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"network_id":      worker.client.Network.Id,
-			"block_number":    b.BlockNumber,
-			"block_timestamp": b.BlockTimestamp,
-			"logs":            data_type.ToMapList(b.Logs),
-		}),
-	}
-
-	worker.log_debug(fmt.Sprintf("broadcasting network id %s, block number %d", worker.client.Network.Id, b.BlockNumber))
-
-	worker.broadcast_channel <- message.NewBroadcast(worker.client.Network.Id+" ", new_reply)
-
-	return nil
-}
-
 // A new SpaghettiWorker
-func New(client *network_client.NetworkClient, block_number uint64, db *db.Database, broadcast_channel chan message.Broadcast, debug bool) *SpaghettiWorker {
+func New(client *network_client.NetworkClient, block_number uint64, broadcast_channel chan message.Broadcast, debug bool) *SpaghettiWorker {
 	return &SpaghettiWorker{
-		client:              client,
-		block_number:        block_number,
-		database_connection: db,
-		broadcast_channel:   broadcast_channel,
-		debug:               debug,
+		client:            client,
+		block_number:      block_number,
+		broadcast_channel: broadcast_channel,
+		debug:             debug,
 	}
 }
 
@@ -82,7 +53,6 @@ func New(client *network_client.NetworkClient, block_number uint64, db *db.Datab
 // the channel should pass three arguments:
 // - block number
 // - network id
-// - db connection
 func (worker *SpaghettiWorker) Sync() {
 	worker.log_debug("worker for network id " + worker.client.Network.Id + " started!\n\n")
 	recentBlockNumber, err := worker.client.GetRecentBlockNumber()
@@ -121,7 +91,7 @@ func sync_till(worker *SpaghettiWorker, blockFrom uint64, block_number_to uint64
 			return
 		}
 
-		set_err := sync_block(worker, block)
+		set_err := broadcast_block(worker, block)
 		if set_err != nil {
 			println(worker.log_prefix(), `failed to save the block information for block `, block_number, " in provider for network id ", worker.client.Network.Id, ". received error: ", set_err.Error())
 			println(worker.log_prefix(), `waiting for 10 seconds before trying again...`)
@@ -135,79 +105,25 @@ func sync_till(worker *SpaghettiWorker, blockFrom uint64, block_number_to uint64
 }
 
 // this function saves the b
-func sync_block(worker *SpaghettiWorker, b *block.Block) error {
-	worker.log_debug("sync the database with a spaghetti data")
-
-	if err := clear(worker, b); err != nil {
-		return fmt.Errorf("before syncing the block, cleaning: %v", err)
-	}
-
-	var log_amount uint = uint(len(b.Logs))
-
-	// save the block number in the database
-	err := block.SetBlock(worker.database_connection, worker.client.Network.Id, b.BlockNumber, log_amount, b.BlockTimestamp)
-	if err != nil {
-		return err
-	}
-	worker.log_debug(fmt.Sprintf("set the block %d, has error %b", b.BlockNumber, err))
-
+func broadcast_block(worker *SpaghettiWorker, b *block.Block) error {
 	worker.block_number = b.BlockNumber
-
-	log_err := SaveLogs(worker.database_connection, b.Logs)
-	if log_err != nil {
-		return log_err
-	}
 
 	worker.log_debug(fmt.Sprintf("broadcast the new block %d", b.BlockNumber))
 
-	return broadcast_new_block(worker, b)
-}
-
-// saves the logs in the database for a given block
-func SaveLogs(db *db.Database, logs []*log.Log) error {
-	for _, l := range logs {
-		err := log.DbSave(db, l)
-		if err != nil {
-			return err
-		}
+	new_reply := message.Reply{
+		Status:  "OK",
+		Message: "",
+		Parameters: key_value.New(map[string]interface{}{
+			"network_id":      worker.client.Network.Id,
+			"block_number":    b.BlockNumber,
+			"block_timestamp": b.BlockTimestamp,
+			"logs":            data_type.ToMapList(b.Logs),
+		}),
 	}
 
-	return nil
-}
+	worker.log_debug(fmt.Sprintf("broadcasting network id %s, block number %d", worker.client.Network.Id, b.BlockNumber))
 
-// We clear the old data from the Database
-// due to the structure of our database, we clear the data
-// in the following order:
-// - log
-// - transaction
-// - block
-func clear(worker *SpaghettiWorker, b *block.Block) error {
-	cache_duration := uint64(env.GetNumeric("SDS_SPAGHETTI_CACHE_DURATION"))
-	if b.BlockTimestamp < cache_duration {
-		return errors.New(worker.log_prefix() + ": the timestamp for a block is invalid")
-	}
-
-	save_time := b.BlockTimestamp - cache_duration
-
-	latest_block_number, err := block.GetLatestBlockNumber(worker.database_connection, worker.client.Network.Id, save_time)
-	if err != nil {
-		return fmt.Errorf("clearing failed; failed to fetch the latest block number before the block timestamp: %v", err)
-	}
-	// unlikely, but we are paranoid, so still let's check it
-	if latest_block_number == 0 {
-		worker.log_debug("clearing is not needed, there is no older blocks than a timestamp")
-		return nil
-	}
-
-	// clear the old logs
-	if err := log.DbClear(worker.database_connection, worker.client.Network.Id, latest_block_number); err != nil {
-		return err
-	}
-
-	// clear the old blocks
-	if err := block.Clear(worker.database_connection, worker.client.Network.Id, latest_block_number); err != nil {
-		return err
-	}
+	worker.broadcast_channel <- message.NewBroadcast(worker.client.Network.Id+" ", new_reply)
 
 	return nil
 }
