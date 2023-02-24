@@ -15,7 +15,6 @@ import (
 	"database/sql"
 	"fmt"
 	debug_log "log"
-	"strings"
 
 	"github.com/blocklords/gosds/spaghetti/block"
 	"github.com/blocklords/gosds/spaghetti/log"
@@ -84,99 +83,6 @@ func run_each_evm_network_sync_worker(dbCon *db.Database, broadcast_channel chan
 // Command handlers
 //
 ////////////////////////////////////////////////////////////////////
-
-// this function returns a spaghetti block, including
-//
-// - mined timestamp
-//
-// - logs
-//
-// additional parameter that it takes is "address"
-// you can fetch logs happened with a certain smartcontract.
-func block_get(db *db.Database, request message.Request) message.Reply {
-	network_id, err := request.Parameters.GetString("network_id")
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-	block_number, err := request.Parameters.GetUint64("block_number")
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-	address, _ := request.Parameters.GetString("to")
-
-	recent_block_number, err := block.GetRecentBlockNumber(db, network_id)
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-	if block_number > recent_block_number {
-		return message.Fail(fmt.Sprintf("invalid block number. block number should be less or equal to %d", recent_block_number))
-	}
-	earliest_block_number, err := block.GetEarliestBlockNumber(db, network_id)
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-
-	var timestamp uint64
-	var logs []*log.Log
-
-	cached := false
-
-	if block_number >= earliest_block_number {
-		cached = true
-		timestamp, err = block.GetBlockTimestamp(db, network_id, block_number)
-		if err != nil {
-			return message.Fail(err.Error())
-		}
-
-		if len(address) > 0 {
-			logs, err = log.GetForBlockAndTxTo(db, network_id, block_number, block_number, address)
-			if err != nil {
-				return message.Fail(err.Error())
-			}
-		} else {
-			logs, err = log.GetForBlock(db, network_id, block_number)
-			if err != nil {
-				return message.Fail(err.Error())
-			}
-		}
-	} else {
-		client, ok := network_clients[network_id]
-		if !ok {
-			return message.Fail("the worker for a network id is not set. possibly invalid network_id parameter")
-		}
-		block, err := client.GetBlock(block_number)
-		if err != nil {
-			return message.Fail(err.Error())
-		}
-
-		timestamp = block.BlockTimestamp
-
-		if len(address) > 0 {
-			logs = make([]*log.Log, 0)
-
-			for _, log := range block.Logs {
-				if strings.EqualFold(log.Address, address) {
-					logs = append(logs, log)
-				}
-			}
-		} else {
-			logs = block.Logs
-		}
-	}
-
-	return message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"cached":       cached,
-			"network_id":   network_id,
-			"block_number": block_number,
-			"to":           address,
-			"timestamp":    timestamp,
-			"logs":         data_type.ToMapList(logs),
-		}),
-	}
-}
 
 // returns the earliest cached block number
 func block_get_cached_number(db *db.Database, request message.Request) message.Reply {
@@ -492,7 +398,6 @@ It supports the following arguments:
 	if app_config.Reply {
 		var commands = controller.CommandHandlers{
 			"block_get_cached_number":  block_get_cached_number,
-			"block_get":                block_get,
 			"block_get_timestamp":      block_get_timestamp,
 			"block_get_range":          block_get_range,
 			"log_filter":               log_filter,
