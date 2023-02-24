@@ -8,6 +8,17 @@ import (
 
 type Networks []*Network
 
+// Whether the network with network_id exists in the networks list
+func (networks Networks) Exist(network_id string) bool {
+	for _, network := range networks {
+		if network.Id == network_id {
+			return true
+		}
+	}
+
+	return false
+}
+
 // parses list of JSON objects into the list of Networks
 func NewNetworks(raw_networks []key_value.KeyValue) (Networks, error) {
 	networks := make(Networks, len(raw_networks))

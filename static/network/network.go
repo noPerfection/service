@@ -1,19 +1,22 @@
 // The network package is used to get the blockchain network information.
 package network
 
+import (
+	"fmt"
+
+	"github.com/blocklords/gosds/static/network/provider"
+)
+
 type Network struct {
-	Id       string `json:"id"`
-	Provider string `json:"provider"`
-	Flag     int8   `json:"flag"` // With VM or Without VM
+	Id        string              `json:"id"`
+	Providers []provider.Provider `json:"providers"`
+	Flag      int8                `json:"flag"` // With VM or Without VM
 }
 
-// Whether the network with network_id exists in the networks list
-func (networks Networks) Exist(network_id string) bool {
-	for _, network := range networks {
-		if network.Id == network_id {
-			return true
-		}
+// Returns the provider url
+func (n *Network) GetFirstProviderUrl() (string, error) {
+	if len(n.Providers) == 0 {
+		return "", fmt.Errorf("there is no providers")
 	}
-
-	return false
+	return n.Providers[0].Url, nil
 }

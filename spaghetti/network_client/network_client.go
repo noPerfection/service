@@ -29,8 +29,12 @@ type NetworkClient struct {
 // Create a network client connected to the blockchain based on a Static parameters
 // Static parameters include the node url
 func New(network *network.Network) (*NetworkClient, error) {
+	provider_url, err := network.GetFirstProviderUrl()
+	if err != nil {
+		return nil, err
+	}
 	ctx := context.TODO()
-	client, err := ethclient.DialContext(ctx, network.Provider)
+	client, err := ethclient.DialContext(ctx, provider_url)
 	if err != nil {
 		return nil, errors.New(`failed address connect address the provider. please try again later. error from provider package: ` + err.Error())
 	}
