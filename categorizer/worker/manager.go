@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/gosds/static/network"
 
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/common/data_type"
@@ -33,7 +34,7 @@ type Manager struct {
 	spaghetti_socket *remote.Socket
 	spaghetti_in     chan RequestSpaghettiBlockRange
 	spaghetti_out    chan ReplySpaghettiBlockRange
-	NetworkId        string
+	Network          *network.Network
 
 	old_categorizers CategorizerGroups
 
@@ -51,13 +52,13 @@ type Manager struct {
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
 func NewManager(
-	network_id string,
+	network *network.Network,
 	in chan RequestSpaghettiBlockRange,
 	out chan ReplySpaghettiBlockRange,
 ) *Manager {
 	manager := Manager{
 		In:            make(chan EvmWorkers),
-		NetworkId:     network_id,
+		Network:       network,
 		spaghetti_in:  in,
 		spaghetti_out: out,
 
@@ -126,7 +127,7 @@ func (manager *Manager) start() {
 
 		for {
 
-			cached_block_number, _, err = spaghetti_block.RemoteBlockNumberCached(manager.spaghetti_socket, manager.NetworkId)
+			cached_block_number, _, err = spaghetti_block.RemoteBlockNumberCached(manager.spaghetti_socket, manager.Network.Id)
 			if err != nil {
 				panic("failed to get the earliest block number: " + err.Error())
 			}
@@ -173,9 +174,9 @@ func (manager *Manager) categorize_old_smartcontracts(group *CategorizerGroup) {
 	current := group.block_number
 
 	for block_number := current + uint64(1); ; block_number++ {
-		cached, block, err := spaghetti_block.RemoteBlock(manager.spaghetti_socket, manager.NetworkId, block_number, "")
+		cached, block, err := spaghetti_block.RemoteBlock(manager.spaghetti_socket, manager.Network.Id, block_number, "")
 		if err != nil {
-			fmt.Println("failed to get the remote block number for network: " + manager.NetworkId + " error: " + err.Error())
+			fmt.Println("failed to get the remote block number for network: " + manager.Network.Id + " error: " + err.Error())
 			block_number--
 			continue
 		}
@@ -192,7 +193,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *CategorizerGroup) {
 		group.block_number = block_number
 
 		if cached {
-			cached_block_number, _, err := spaghetti_block.RemoteBlockNumberCached(manager.spaghetti_socket, manager.NetworkId)
+			cached_block_number, _, err := spaghetti_block.RemoteBlockNumberCached(manager.spaghetti_socket, manager.Network.Id)
 			if err != nil {
 				panic("failed to get the cached block number: " + err.Error())
 			}
@@ -219,21 +220,21 @@ func (manager *Manager) categorize_recent_smartcontracts() {
 		recent := workers.RecentBlockNumber()
 
 		manager.spaghetti_in <- RequestSpaghettiBlockRange{
-			network_id:        manager.NetworkId,
+			network_id:        manager.Network.Id,
 			address:           "",
 			block_number_from: earliest,
 			block_number_to:   recent,
 		}
 
 		spaghetti_reply := <-manager.spaghetti_out
-		fmt.Println(manager.NetworkId, "block range data returned from SDS Spaghetti")
+		fmt.Println(manager.Network.Id, "block range data returned from SDS Spaghetti")
 		if spaghetti_reply.err != nil {
-			fmt.Println(manager.NetworkId, "error returned from SDS Spaghetti for block_get_range, which should not be... Waiting for the next spaghetti block to start again")
+			fmt.Println(manager.Network.Id, "error returned from SDS Spaghetti for block_get_range, which should not be... Waiting for the next spaghetti block to start again")
 			fmt.Println(spaghetti_reply.err)
 			panic(spaghetti_reply.err)
 		}
 
-		block := spaghetti_block.NewBlock(manager.NetworkId, recent, spaghetti_reply.timestamp, spaghetti_reply.logs)
+		block := spaghetti_block.NewBlock(manager.Network.Id, recent, spaghetti_reply.timestamp, spaghetti_reply.logs)
 
 		for _, worker := range workers {
 			logs := block.GetForSmartcontract(worker.smartcontract.Address)
@@ -316,7 +317,7 @@ func (manager *Manager) subscribe() {
 	if conErr != nil {
 		panic(conErr)
 	}
-	err = subscriber.SetSubscribe(manager.NetworkId + " ")
+	err = subscriber.SetSubscribe(manager.Network.Id + " ")
 	if err != nil {
 		panic(err)
 	}
@@ -332,14 +333,14 @@ func (manager *Manager) subscribe() {
 		}
 		polled, err := poller.Poll(tickless)
 		if err != nil {
-			fmt.Println(manager.NetworkId, "failed to poll SDS Spaghetti Broadcast message", err)
+			fmt.Println(manager.Network.Id, "failed to poll SDS Spaghetti Broadcast message", err)
 			panic(err)
 		}
 
 		if len(polled) == 1 {
 			msgRaw, err := subscriber.RecvMessage(0)
 			if err != nil {
-				fmt.Println(manager.NetworkId, "subscribed message error", err)
+				fmt.Println(manager.Network.Id, "subscribed message error", err)
 				panic(err)
 			}
 
@@ -353,16 +354,16 @@ func (manager *Manager) subscribe() {
 
 			block_number, err := reply.Parameters.GetUint64("block_number")
 			if err != nil {
-				fmt.Println(manager.NetworkId, "error to get the block number", err)
+				fmt.Println(manager.Network.Id, "error to get the block number", err)
 				panic(err)
 			}
 			network_id, err := reply.Parameters.GetString("network_id")
 			if err != nil {
-				fmt.Println(manager.NetworkId, "failed to get the network_id from the reply params")
+				fmt.Println(manager.Network.Id, "failed to get the network_id from the reply params")
 				panic(err)
 			}
-			if network_id != manager.NetworkId {
-				fmt.Println(manager.NetworkId, `skipping unsupported network. it should not be as is`)
+			if network_id != manager.Network.Id {
+				fmt.Println(manager.Network.Id, `skipping unsupported network. it should not be as is`)
 				continue
 			}
 
@@ -375,23 +376,23 @@ func (manager *Manager) subscribe() {
 
 			timestamp, err := reply.Parameters.GetUint64("block_timestamp")
 			if err != nil {
-				fmt.Printf(manager.NetworkId, "error getting block timestamp", err)
+				fmt.Printf(manager.Network.Id, "error getting block timestamp", err)
 				panic(err)
 			}
 
 			raw_logs, ok := reply.Parameters.ToMap()["logs"].([]interface{})
 			if !ok {
-				fmt.Println(manager.NetworkId, "failed to get logs from SDS Spaghetti Broadcast")
+				fmt.Println(manager.Network.Id, "failed to get logs from SDS Spaghetti Broadcast")
 				panic("no logs received from SDS Spaghetti Broadcast")
 			}
 			logs, err := spaghetti_log.NewLogs(raw_logs)
 			if err != nil {
 				fmt.Println(raw_logs...)
-				fmt.Println(manager.NetworkId, "failed to parse log", err)
+				fmt.Println(manager.Network.Id, "failed to parse log", err)
 				panic(err)
 			}
 
-			new_block := spaghetti_block.NewBlock(manager.NetworkId, block_number, timestamp, logs)
+			new_block := spaghetti_block.NewBlock(manager.Network.Id, block_number, timestamp, logs)
 
 			manager.subscribed_blocks.Push(new_block)
 		}

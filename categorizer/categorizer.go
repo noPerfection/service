@@ -63,7 +63,7 @@ func run_evm_manager(db_con *db.Database, network *network.Network) {
 		panic("failed to create list of workers for network id " + network.Id)
 	}
 
-	manager := worker.NewManager(network.Id, spaghetti_in, spaghetti_out)
+	manager := worker.NewManager(network, spaghetti_in, spaghetti_out)
 	manager.In <- workers
 
 	evm_managers = evm_managers.Set(network.Id, manager)
