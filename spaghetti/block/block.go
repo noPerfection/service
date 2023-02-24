@@ -22,7 +22,7 @@ func SetLogs(block *Block, raw_logs []eth_types.Log) error {
 			continue
 		}
 
-		log, txErr := log.NewFromRawLog(block.NetworkId, &rawLog)
+		log, txErr := log.NewFromRawLog(block.NetworkId, block.BlockTimestamp, &rawLog)
 		if txErr != nil {
 			return txErr
 		}

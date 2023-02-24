@@ -9,19 +9,21 @@ import (
 )
 
 // Converts the ethereum's log to SeascapeSDS Spaghetti Log type
-func NewFromRawLog(network_id string, log *eth_types.Log) (*Log, error) {
+func NewFromRawLog(network_id string, block_timestamp uint64, log *eth_types.Log) (*Log, error) {
 	topics := make([]string, len(log.Topics))
 	for i, topic := range log.Topics {
 		topics[i] = topic.Hex()
 	}
 
 	return &Log{
-		NetworkId: network_id,
-		Txid:      log.TxHash.Hex(),
-		LogIndex:  log.Index,
-		Data:      hex.EncodeToString(log.Data),
-		Address:   log.Address.Hex(),
-		Topics:    topics,
+		NetworkId:      network_id,
+		BlockNumber:    log.BlockHash.Big().Uint64(),
+		BlockTimestamp: block_timestamp,
+		Txid:           log.TxHash.Hex(),
+		LogIndex:       log.Index,
+		Data:           hex.EncodeToString(log.Data),
+		Address:        log.Address.Hex(),
+		Topics:         topics,
 	}, nil
 }
 

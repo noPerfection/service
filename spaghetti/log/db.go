@@ -9,7 +9,7 @@ import (
 func GetForBlock(db *db.Database, network_id string, block_number uint64) ([]*Log, error) {
 	rows, err := db.Connection.Query(`
 		SELECT 
-			t.block_number,
+			l.block_number,
 			b.block_timestamp,
 			l.network_id, 
 			l.transaction_id, 
@@ -18,13 +18,12 @@ func GetForBlock(db *db.Database, network_id string, block_number uint64) ([]*Lo
 	        l.data, 
 			l.topics 
 		FROM 
-			spaghetti_logs AS l, spaghetti_transactions AS t, spaghetti_blocks AS b
+			spaghetti_logs AS l, spaghetti_blocks AS b
 		WHERE 
-			l.network_id = t.network_id AND 
-			l.transaction_id = t.transaction_id AND 
-			t.network_id = ? AND t.block_number = ? AND 
-			b.network_id = t.network_id AND
-			b.block_number = t.block_number `,
+			l.network_id = ? AND 
+			l.block_number = ? AND 
+			b.network_id = l.network_id AND
+			b.block_number = l.block_number `,
 		network_id,
 		block_number,
 	)
@@ -64,7 +63,7 @@ func GetForBlock(db *db.Database, network_id string, block_number uint64) ([]*Lo
 func GetForBlockAndTxTo(db *db.Database, network_id string, blockNumberFrom uint64, blockNumberTo uint64, to string) ([]*Log, error) {
 	rows, err := db.Connection.Query(`
 		SELECT 
-			t.block_number,
+			l.block_number,
 			b.block_timestamp,
 			l.network_id, 
 			l.transaction_id, 
@@ -74,17 +73,14 @@ func GetForBlockAndTxTo(db *db.Database, network_id string, blockNumberFrom uint
 			l.topics 
 		FROM 
 			spaghetti_logs AS l, 
-			spaghetti_transactions AS t,
 			spaghetti_blocks AS b
 		WHERE 
-			l.network_id = t.network_id AND 
-			l.transaction_id = t.transaction_id AND 
-			t.network_id = ? AND 
-			t.block_number > ? AND 
-			t.block_number <= ? AND 
-			t.transaction_to = ? AND 
-			b.network_id = t.network_id AND
-			b.block_number = t.block_number `,
+			l.network_id = ? AND 
+			l.block_number > ? AND 
+			l.block_number <= ? AND 
+			l.address = ? AND 
+			b.network_id = l.network_id AND
+			b.block_number = l.block_number `,
 		network_id, blockNumberFrom, blockNumberTo, to)
 	if err != nil {
 		return nil, err
@@ -122,7 +118,7 @@ func GetForBlockAndTxTo(db *db.Database, network_id string, blockNumberFrom uint
 func GetForBlockAndTx(db *db.Database, network_id string, blockNumberFrom uint64, blockNumberTo uint64) ([]*Log, error) {
 	rows, err := db.Connection.Query(`
 		SELECT 
-			t.block_number,
+			l.block_number,
 			b.block_timestamp,
 			l.network_id, 
 			l.transaction_id, 
@@ -132,16 +128,13 @@ func GetForBlockAndTx(db *db.Database, network_id string, blockNumberFrom uint64
 			l.topics 
 		FROM 
 			spaghetti_logs AS l, 
-			spaghetti_transactions AS t,
 			spaghetti_blocks AS b
 		WHERE 
-			l.network_id = t.network_id AND 
-			l.transaction_id = t.transaction_id AND 
-			t.network_id = ? AND 
-			t.block_number > ? AND 
-			t.block_number <= ? AND 
-			b.network_id = t.network_id AND
-			b.block_number = t.block_number `,
+			l.network_id = ? AND 
+			l.block_number > ? AND 
+			l.block_number <= ? AND 
+			b.network_id = l.network_id AND
+			b.block_number = l.block_number `,
 		network_id, blockNumberFrom, blockNumberTo)
 	if err != nil {
 		return nil, err
@@ -190,68 +183,8 @@ func DbClear(db *db.Database, network_id string, latest_block_number uint64) err
 			spaghetti_logs 
 		WHERE 
 			network_id = ? AND 
-			transaction_id IN (
-				SELECT 
-					transaction_id 
-				FROM 
-					spaghetti_transactions 
-				WHERE 
-					network_id = ? AND 
-					block_number <= ? 
-			)`,
-		network_id, network_id, latest_block_number)
+			block_number <= ? `,
+		network_id, latest_block_number)
 
 	return err
-}
-
-func GetForTx(db *db.Database, network_id string, transaction_id string) ([]*Log, error) {
-	rows, err := db.Connection.Query(
-		`SELECT 
-			txs.block_number,
-			blocks.block_timestamp as blockTimestamp,
-			logs.network_id, 
-			logs.transaction_id, 
-			logs.log_index, 
-			logs.data, 
-			logs.topics
-		FROM 
-			spaghetti_logs AS logs, spaghetti_transactions AS txs, spaghetti_blocks AS blocks
-		WHERE
-			logs.network_id = ? AND 
-			logs.transaction_id = ? AND 
-			txs.transaction_id = logs.transaction_id AND
-			txs.network_id = logs.network_id AND 
-			blocks.network_id = txs.network_id AND
-			blocks.block_number = txs.block_number
-			`,
-		network_id,
-		transaction_id,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	// An txum slice to hold data from returned rows.
-	var logs []*Log
-
-	// Loop through rows, using Scan to assign column data to struct fields.
-	for rows.Next() {
-		var tx Log
-		var raw_topics []byte
-
-		if err := rows.Scan(&tx.BlockNumber, &tx.BlockTimestamp, &tx.NetworkId, &tx.Txid, &tx.LogIndex, &tx.Data, &raw_topics); err != nil {
-			return logs, err
-		}
-		if err := tx.ParseTopics(raw_topics); err != nil {
-			fmt.Println("Error returned to parse topics ", err)
-			return logs, err
-		}
-		logs = append(logs, &tx)
-	}
-	if err = rows.Err(); err != nil {
-		return logs, err
-	}
-	return logs, nil
 }
