@@ -71,6 +71,7 @@ func NewManager(
 		subscribed_blocks:                *data_type.NewQueue(),
 		subscribed_earliest_block_number: 0,
 
+		// consumes the data from the subscribed blocks
 		current_status:  IDLE,
 		current_workers: make(EvmWorkers, 0),
 	}
