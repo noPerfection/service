@@ -11,7 +11,6 @@ package spaghetti
 
 import (
 	"fmt"
-	debug_log "log"
 
 	"github.com/blocklords/gosds/spaghetti/log"
 	"github.com/blocklords/gosds/spaghetti/network_client"
@@ -36,13 +35,18 @@ import (
 )
 
 var static_socket *remote.Socket
-var network_clients map[string]*network_client.NetworkClient
-var workers map[string]*worker.SpaghettiWorker
+var workers worker.Workers
 
 // Run EVM blockchain clients
-func start_evm_worker(broadcast_channel chan message.Broadcast, debug bool) {
-	workers = make(map[string]*worker.SpaghettiWorker, 0)
-	for _, client := range network_clients {
+func setup_evm_workers(networks network.Networks, broadcast_channel chan message.Broadcast, debug bool) (map[string]*worker.SpaghettiWorker, error) {
+	workers := make(worker.Workers, 0)
+
+	for _, evm_network := range networks {
+		client, err := network_client.New(evm_network)
+		if err != nil {
+			return nil, err
+		}
+
 		recent_block_number, err := client.GetRecentBlockNumber()
 		if err != nil {
 			panic(err)
@@ -53,6 +57,8 @@ func start_evm_worker(broadcast_channel chan message.Broadcast, debug bool) {
 
 		workers[client.Network.Id] = new_worker
 	}
+
+	return workers, nil
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -68,11 +74,11 @@ func block_get_cached_number(_ *db.Database, request message.Request) message.Re
 		return message.Fail(err.Error())
 	}
 
-	if network_clients[network_id] == nil {
+	if !workers.Exist(network_id) {
 		return message.Fail("unsupported network_id " + network_id)
 	}
 
-	client := network_clients[network_id]
+	client := workers.Client(network_id)
 	block_number, err := client.GetRecentBlockNumber()
 	if err != nil {
 		return message.Fail(err.Error())
@@ -105,11 +111,11 @@ func block_get_timestamp(_ *db.Database, request message.Request) message.Reply 
 		return message.Fail(err.Error())
 	}
 
-	if network_clients[network_id] == nil {
+	if !workers.Exist(network_id) {
 		return message.Fail("unsupported network_id " + network_id)
 	}
 
-	client := network_clients[network_id]
+	client := workers.Client(network_id)
 	block_timestamp, err := client.GetBlockTimestamp(block_number)
 	if err != nil {
 		return message.Fail(err.Error())
@@ -141,11 +147,11 @@ func block_get_range(_ *db.Database, request message.Request) message.Reply {
 
 	to, _ := request.Parameters.GetString("to")
 
-	if network_clients[network_id] == nil {
+	if !workers.Exist(network_id) {
 		return message.Fail("unsupported network_id " + network_id)
 	}
 
-	client := network_clients[network_id]
+	client := workers.Client(network_id)
 	earliest_block_number, err := client.GetRecentBlockNumber()
 	if err != nil {
 		return message.Fail(err.Error())
@@ -175,7 +181,7 @@ func block_get_range(_ *db.Database, request message.Request) message.Reply {
 		addresses = append(addresses, to)
 	}
 
-	raw_logs, err := client.GetBlockRangeLogs(block_numbers[0], block_numbers[1], []string{to})
+	raw_logs, err := client.GetBlockRangeLogs(block_numbers[0], block_numbers[1], addresses)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -208,11 +214,11 @@ func transaction_deployed_get(_ *db.Database, request message.Request) message.R
 		return message.Fail(err.Error())
 	}
 
-	if network_clients[network_id] == nil {
+	if !workers.Exist(network_id) {
 		return message.Fail("unsupported network_id " + network_id)
 	}
 
-	tx, err := network_clients[network_id].GetTransaction(txid)
+	tx, err := workers.Client(network_id).GetTransaction(txid)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -250,22 +256,22 @@ func log_filter(_ *db.Database, request message.Request) message.Reply {
 		return message.Fail(err.Error())
 	}
 
-	if network_clients[network_id] == nil {
+	if !workers.Exist(network_id) {
 		return message.Fail("unsupported network_id " + network_id)
 	}
 
-	length, err := network_clients[network_id].Network.GetFirstProviderLength()
+	length, err := workers.Client(network_id).Network.GetFirstProviderLength()
 	if err != nil {
 		return message.Fail("failed to get the block range length for first provider of " + network_id)
 	}
 	block_number_to := block_number_from + length
 
-	raw_logs, err := network_clients[network_id].GetBlockRangeLogs(block_number_from, block_number_to, addresses)
+	raw_logs, err := workers.Client(network_id).GetBlockRangeLogs(block_number_from, block_number_to, addresses)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	block_timestamp, err := network_clients[network_id].GetBlockTimestamp(block_number_from)
+	block_timestamp, err := workers.Client(network_id).GetBlockTimestamp(block_number_from)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -286,7 +292,7 @@ func log_filter(_ *db.Database, request message.Request) message.Reply {
 	return reply
 }
 
-func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) {
+func Run(_ *configuration.Config, db_con *db.Database, v *vault.Vault) {
 	if err := security.EnableSecurity(); err != nil {
 		panic(err)
 	}
@@ -324,46 +330,30 @@ It supports the following arguments:
 
 	accounts := account.NewAccounts(account.NewService(categorizer_env), account.NewService(gateway_env))
 
-	// error since no reply or broadcast were given
-	if !app_config.Broadcast && !app_config.Reply {
-		debug_log.Fatalf("'%s' missing --reply and/or --broadcast. Please pass it as an argument", spaghetti_env.ServiceName())
-	}
-
 	static_socket = remote.TcpRequestSocketOrPanic(static_env, spaghetti_env)
 	networks, err := network.GetRemoteNetworks(static_socket, network.WITH_VM)
 	if err != nil {
 		panic(err)
 	}
 
-	network_clients, err = network_client.SetupClients(networks)
+	broadcast_debug := argument.Has(arguments, argument.BROADCAST_DEBUG)
+	broadcast_channel := make(chan message.Broadcast)
+	workers, err = setup_evm_workers(networks, broadcast_channel, broadcast_debug)
 	if err != nil {
 		panic(err)
 	}
 
-	if app_config.Broadcast {
-		broadcast_debug := argument.Has(arguments, argument.BROADCAST_DEBUG)
-		broadcast_channel := make(chan message.Broadcast)
-		start_evm_worker(broadcast_channel, broadcast_debug)
+	go broadcast.Run(broadcast_channel, spaghetti_env, []*service.Service{categorizer_env})
 
-		if app_config.Reply {
-			go broadcast.Run(broadcast_channel, spaghetti_env, []*service.Service{categorizer_env})
-		} else {
-			fmt.Println("Running SDS Spaghetti broadcaster only")
-			broadcast.Run(broadcast_channel, spaghetti_env, []*service.Service{categorizer_env})
-		}
+	var commands = controller.CommandHandlers{
+		"block_get_cached_number":  block_get_cached_number,
+		"block_get_timestamp":      block_get_timestamp,
+		"block_get_range":          block_get_range,
+		"log_filter":               log_filter,
+		"transaction_deployed_get": transaction_deployed_get,
 	}
-
-	if app_config.Reply {
-		var commands = controller.CommandHandlers{
-			"block_get_cached_number":  block_get_cached_number,
-			"block_get_timestamp":      block_get_timestamp,
-			"block_get_range":          block_get_range,
-			"log_filter":               log_filter,
-			"transaction_deployed_get": transaction_deployed_get,
-		}
-		err := controller.ReplyController(db_con, commands, spaghetti_env, accounts)
-		if err != nil {
-			panic(err)
-		}
+	err = controller.ReplyController(db_con, commands, spaghetti_env, accounts)
+	if err != nil {
+		panic(err)
 	}
 }
