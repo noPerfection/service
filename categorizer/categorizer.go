@@ -30,7 +30,6 @@ import (
 var broadcast_channel chan message.Broadcast
 var spaghetti_in chan worker.RequestSpaghettiBlockRange
 var spaghetti_out chan worker.ReplySpaghettiBlockRange
-var spaghetti_socket *remote.Socket
 
 var log_parse_in chan worker.RequestLogParse = nil
 var log_parse_out chan worker.ReplyLogParse = nil
@@ -180,8 +179,7 @@ Supported command line arguments:
 		panic(err)
 	}
 
-	spaghetti_env, err := service.New(service.SPAGHETTI, service.REMOTE)
-	if err != nil {
+	if _, err := service.New(service.SPAGHETTI, service.REMOTE); err != nil {
 		panic(err)
 	}
 
@@ -230,7 +228,6 @@ Supported command line arguments:
 
 	}
 
-	spaghetti_socket = remote.TcpRequestSocketOrPanic(spaghetti_env, categorizer_env)
 	static_socket = remote.TcpRequestSocketOrPanic(static_env, categorizer_env)
 
 	var networks network.Networks = make(network.Networks, 0)
