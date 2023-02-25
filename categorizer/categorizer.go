@@ -1,8 +1,6 @@
 package categorizer
 
 import (
-	debug_log "log"
-
 	"github.com/blocklords/gosds/categorizer/handler"
 	"github.com/blocklords/gosds/categorizer/imx"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
@@ -219,11 +217,6 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 		panic(err)
 	}
 
-	if !app_config.Broadcast && !app_config.Reply {
-		debug_log.Fatalf("'%s' missing --reply and/or --broadcast. Please pass it as an argument", categorizer_env.ServiceName())
-
-	}
-
 	static_socket = remote.TcpRequestSocketOrPanic(static_env, categorizer_env)
 
 	var networks network.Networks = make(network.Networks, 0)
@@ -254,57 +247,49 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 		}
 	}
 
-	if app_config.Broadcast {
-		evm_managers = key_value.Empty()
+	evm_managers = key_value.Empty()
 
-		subscribers_env := []*service.Service{developer_gateway_env, publisher_env}
+	subscribers_env := []*service.Service{developer_gateway_env, publisher_env}
 
-		broadcast_channel = make(chan message.Broadcast)
-		spaghetti_in = make(chan worker.RequestSpaghettiBlockRange)
-		spaghetti_out = make(chan worker.ReplySpaghettiBlockRange)
+	broadcast_channel = make(chan message.Broadcast)
+	spaghetti_in = make(chan worker.RequestSpaghettiBlockRange)
+	spaghetti_out = make(chan worker.ReplySpaghettiBlockRange)
 
-		log_parse_in = make(chan worker.RequestLogParse)
-		log_parse_out = make(chan worker.ReplyLogParse)
-		go worker.LogParse(log_parse_in, log_parse_out)
+	log_parse_in = make(chan worker.RequestLogParse)
+	log_parse_out = make(chan worker.ReplyLogParse)
+	go worker.LogParse(log_parse_in, log_parse_out)
 
-		go worker.SpaghettiBlockRange(spaghetti_in, spaghetti_out)
+	go worker.SpaghettiBlockRange(spaghetti_in, spaghetti_out)
 
-		for _, network := range networks {
-			if network.Id == imx.NETWORK_ID {
-				run_imx_manager(db_con, network)
-			} else {
-				run_evm_manager(db_con, network)
-			}
-		}
-
-		if app_config.Reply {
-			go broadcast.Run(broadcast_channel, categorizer_env, subscribers_env)
+	for _, network := range networks {
+		if network.Id == imx.NETWORK_ID {
+			run_imx_manager(db_con, network)
 		} else {
-			broadcast.Run(broadcast_channel, categorizer_env, subscribers_env)
+			run_evm_manager(db_con, network)
 		}
 	}
 
-	if app_config.Reply {
-		var commands = controller.CommandHandlers{
-			"smartcontract_get_all": handler.GetSmartcontracts,
-			"smartcontract_get":     handler.GetSmartcontract,
+	go broadcast.Run(broadcast_channel, categorizer_env, subscribers_env)
 
-			"log_get_all": handler.GetLogs,
+	var commands = controller.CommandHandlers{
+		"smartcontract_get_all": handler.GetSmartcontracts,
+		"smartcontract_get":     handler.GetSmartcontract,
 
-			"snapshot_get": handler.GetSnapshot,
+		"log_get_all": handler.GetLogs,
 
-			"smartcontract_set": smartcontract_set,
-		}
+		"snapshot_get": handler.GetSnapshot,
 
-		// Allowed services to connect to SDS Categorizer
-		accounts := account.NewAccounts(account.NewService(developer_gateway_env))
-		accounts = accounts.Add(account.NewService(bundle_env), account.NewService(log_env))
-		accounts = accounts.Add(account.NewService(reader_env), account.NewService(writer_env))
-		accounts = accounts.Add(account.NewService(publisher_env), account.NewService(gateway_env))
+		"smartcontract_set": smartcontract_set,
+	}
 
-		err := controller.ReplyController(db_con, commands, categorizer_env, accounts)
-		if err != nil {
-			panic(err)
-		}
+	// Allowed services to connect to SDS Categorizer
+	accounts := account.NewAccounts(account.NewService(developer_gateway_env))
+	accounts = accounts.Add(account.NewService(bundle_env), account.NewService(log_env))
+	accounts = accounts.Add(account.NewService(reader_env), account.NewService(writer_env))
+	accounts = accounts.Add(account.NewService(publisher_env), account.NewService(gateway_env))
+
+	err = controller.ReplyController(db_con, commands, categorizer_env, accounts)
+	if err != nil {
+		panic(err)
 	}
 }
