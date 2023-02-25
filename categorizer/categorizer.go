@@ -156,11 +156,7 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 
 // Smartcontract data are parsed and stored in the database
 func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) {
-	greeting := `SDS Categorizer preparing...
-Supported command line arguments:
-    --broadcast                 runs the broadcaster about categorized smartcontracts
-    --reply                     runs the request-reply server
-    --plain                     runs the servers without security
+	greeting := `SDS Categorizer preparing... Supported command line arguments:
     --network-id=<network id>   runs the smartcontract workers for this network id only
     --security-debug            prints the security logs`
 	println(greeting + "\n\n")
