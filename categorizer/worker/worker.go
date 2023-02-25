@@ -27,13 +27,3 @@ func New(db *db.Database, sm *smartcontract.Smartcontract) *Worker {
 
 	return &worker
 }
-
-// Create a new worker
-func NewImxWorker(db *db.Database, sm *smartcontract.Smartcontract) *Worker {
-	worker := Worker{
-		Smartcontract: sm,
-		Db:            db,
-	}
-
-	return &worker
-}

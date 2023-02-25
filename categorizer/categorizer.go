@@ -84,8 +84,9 @@ func run_imx_manager(db_con *db.Database, network *network.Network) {
 
 	for _, sm := range smartcontracts {
 		imx_manager.AddSmartcontract()
+		new_worker := worker.New(db_con, sm)
 
-		go imx_worker.ImxRun(db_con, sm, imx_manager)
+		go imx_worker.ImxRun(new_worker, imx_manager)
 	}
 }
 
@@ -122,7 +123,8 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 			return message.Fail("unsupported network_id")
 		}
 		imx_manager.AddSmartcontract()
-		go imx_worker.ImxRun(db_con, sm, imx_manager)
+		new_worker := worker.New(db_con, sm)
+		go imx_worker.ImxRun(new_worker, imx_manager)
 	} else {
 		manager_raw, ok := evm_managers[sm.NetworkId]
 		if !ok {

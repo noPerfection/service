@@ -16,7 +16,6 @@ import (
 	"github.com/blocklords/gosds/categorizer/log"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/common/data_type/key_value"
-	"github.com/blocklords/gosds/db"
 
 	"github.com/blocklords/gosds/categorizer/worker"
 
@@ -28,14 +27,12 @@ import (
 const IMX_REQUEST_TYPE_AMOUNT = 2
 
 // Run the goroutine for each Imx smartcontract.
-func ImxRun(db *db.Database, sm *smartcontract.Smartcontract, manager *imx.Manager) {
-	thisWorker := worker.NewImxWorker(db, sm)
-
+func ImxRun(thisWorker *worker.Worker, manager *imx.Manager) {
 	configuration := imx_api.NewConfiguration()
 	apiClient := imx_api.NewAPIClient(configuration)
 
 	for {
-		timestamp := time.Unix(int64(sm.CategorizedBlockTimestamp), 0).Format(time.RFC3339)
+		timestamp := time.Unix(int64(thisWorker.Smartcontract.CategorizedBlockTimestamp), 0).Format(time.RFC3339)
 
 		_, err := categorize_imx_transfers(thisWorker, apiClient, manager.DelayPerSecond, timestamp)
 		if err != nil {
