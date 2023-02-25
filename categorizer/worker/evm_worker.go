@@ -4,11 +4,9 @@ package worker
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/categorizer/abi"
 	"github.com/blocklords/gosds/categorizer/log"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/common/data_type/key_value"
-	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/static/smartcontract/key"
 
 	"github.com/blocklords/gosds/app/service"
@@ -18,20 +16,6 @@ import (
 	spaghetti_block "github.com/blocklords/gosds/spaghetti/block"
 	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
 )
-
-type Worker struct {
-	db *db.Database
-
-	spaghetti_sub_socket      *remote.Socket
-	spaghetti_block_range_in  chan RequestSpaghettiBlockRange
-	spaghetti_block_range_out chan ReplySpaghettiBlockRange
-	log_parse_in              chan RequestLogParse
-	log_parse_out             chan ReplyLogParse
-
-	smartcontract  *smartcontract.Smartcontract
-	abi            *abi.Abi
-	broadcast_chan chan message.Broadcast
-}
 
 type RequestSpaghettiBlockRange struct {
 	network_id        string
@@ -108,44 +92,21 @@ func LogParse(in chan RequestLogParse, out chan ReplyLogParse) {
 	}
 }
 
-// Print the log
-func (worker *Worker) log_prefix() string {
-	k := key.New(worker.smartcontract.NetworkId, worker.smartcontract.Address)
-	return "categorizer " + k.ToString() + ": "
-}
-
-// Create a new worker
-func NewWorker(db *db.Database, abi *abi.Abi, worker_smartcontract *smartcontract.Smartcontract, broadcast chan message.Broadcast, in chan RequestSpaghettiBlockRange, out chan ReplySpaghettiBlockRange, log_parse_in chan RequestLogParse, log_parse_out chan ReplyLogParse) *Worker {
-	worker := Worker{
-		smartcontract:             worker_smartcontract,
-		broadcast_chan:            broadcast,
-		db:                        db,
-		spaghetti_block_range_in:  in,
-		spaghetti_block_range_out: out,
-		log_parse_in:              log_parse_in,
-		log_parse_out:             log_parse_out,
-		spaghetti_sub_socket:      nil,
-		abi:                       abi,
-	}
-
-	return &worker
-}
-
 // broadcast the transactions and logs of the smartcontract.
 func broadcast_block_categorization(worker *Worker, logs []map[string]interface{}) {
 	// we assume that data is verified since the data comes from internal code.
 	// not from outside.
-	k := key.New(worker.smartcontract.NetworkId, worker.smartcontract.Address)
+	k := key.New(worker.Smartcontract.NetworkId, worker.Smartcontract.Address)
 	broadcast_topic := k.ToString()
 
 	new_reply := message.Reply{
 		Status:  "OK",
 		Message: "",
 		Parameters: key_value.New(map[string]interface{}{
-			"network_id":      worker.smartcontract.NetworkId,
-			"block_number":    worker.smartcontract.CategorizedBlockNumber,
-			"block_timestamp": worker.smartcontract.CategorizedBlockTimestamp,
-			"address":         worker.smartcontract.Address,
+			"network_id":      worker.Smartcontract.NetworkId,
+			"block_number":    worker.Smartcontract.CategorizedBlockNumber,
+			"block_timestamp": worker.Smartcontract.CategorizedBlockTimestamp,
+			"address":         worker.Smartcontract.Address,
 			"logs":            logs,
 		}),
 	}
@@ -156,13 +117,13 @@ func broadcast_block_categorization(worker *Worker, logs []map[string]interface{
 
 // Categorize the blocks for this smartcontract
 func (worker *Worker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
-	network_id := worker.smartcontract.NetworkId
-	address := worker.smartcontract.Address
+	network_id := worker.Smartcontract.NetworkId
+	address := worker.Smartcontract.Address
 
 	broadcastLogs := make([]map[string]interface{}, 0)
 
-	var block_number uint64 = worker.smartcontract.CategorizedBlockNumber
-	var block_timestamp uint64 = worker.smartcontract.CategorizedBlockTimestamp
+	var block_number uint64 = worker.Smartcontract.CategorizedBlockNumber
+	var block_timestamp uint64 = worker.Smartcontract.CategorizedBlockTimestamp
 
 	if len(logs) > 0 {
 		for log_index := 0; log_index < len(logs); log_index++ {
@@ -182,8 +143,8 @@ func (worker *Worker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
 				continue
 			}
 
-			l := log.New(log_reply.log_name, log_reply.outputs).AddMetadata(raw_log).AddSmartcontractData(worker.smartcontract)
-			err := log.Save(worker.db, l)
+			l := log.New(log_reply.log_name, log_reply.outputs).AddMetadata(raw_log).AddSmartcontractData(worker.Smartcontract)
+			err := log.Save(worker.Db, l)
 			if err != nil {
 				return 0, fmt.Errorf("emergency error. failed to create a log row in the database. this is an exception, that should not be. Consider fixing it. error message: " + err.Error())
 			}
@@ -203,9 +164,9 @@ func (worker *Worker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
 	}
 
 	fmt.Println(worker.log_prefix(), "categorization finished, update the block number to ", block_number)
-	worker.smartcontract.SetBlockParameter(block_number, block_timestamp)
+	worker.Smartcontract.SetBlockParameter(block_number, block_timestamp)
 	broadcast_block_categorization(worker, broadcastLogs)
-	err := smartcontract.SetSyncing(worker.db, worker.smartcontract, block_number, block_timestamp)
+	err := smartcontract.SetSyncing(worker.Db, worker.Smartcontract, block_number, block_timestamp)
 
 	return block_number, err
 }

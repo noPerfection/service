@@ -177,7 +177,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		// update the worker data by logs.
 		block_number_to := block_number_from
 		for _, worker := range group.workers {
-			logs := spaghetti_log.FilterByAddress(all_logs, worker.smartcontract.Address)
+			logs := spaghetti_log.FilterByAddress(all_logs, worker.Smartcontract.Address)
 			if len(logs) == 0 {
 				continue
 			}
@@ -218,10 +218,10 @@ func (manager *Manager) categorize_current_smartcontracts() {
 			block := manager.subscribed_blocks.Pop().(*spaghetti_block.Block)
 
 			for _, worker := range manager.current_workers {
-				if block.BlockNumber <= worker.smartcontract.CategorizedBlockNumber {
+				if block.BlockNumber <= worker.Smartcontract.CategorizedBlockNumber {
 					continue
 				}
-				logs := block.GetForSmartcontract(worker.smartcontract.Address)
+				logs := block.GetForSmartcontract(worker.Smartcontract.Address)
 				_, err := worker.categorize(logs)
 				if err != nil {
 					panic("failed to categorize the blockchain")

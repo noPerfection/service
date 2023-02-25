@@ -1,0 +1,60 @@
+// EVM blockchain worker
+package worker
+
+import (
+	"github.com/blocklords/gosds/categorizer/abi"
+	"github.com/blocklords/gosds/categorizer/smartcontract"
+	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/gosds/static/smartcontract/key"
+
+	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/gosds/app/remote/message"
+)
+
+type Worker struct {
+	Db *db.Database
+
+	spaghetti_sub_socket      *remote.Socket
+	spaghetti_block_range_in  chan RequestSpaghettiBlockRange
+	spaghetti_block_range_out chan ReplySpaghettiBlockRange
+	log_parse_in              chan RequestLogParse
+	log_parse_out             chan ReplyLogParse
+
+	Smartcontract  *smartcontract.Smartcontract
+	abi            *abi.Abi
+	broadcast_chan chan message.Broadcast
+}
+
+// Print the log
+func (worker *Worker) log_prefix() string {
+	k := key.New(worker.Smartcontract.NetworkId, worker.Smartcontract.Address)
+	return "categorizer " + k.ToString() + ": "
+}
+
+// Create a new worker
+func NewImxWorker(db *db.Database, sm *smartcontract.Smartcontract, broadcast chan message.Broadcast) *Worker {
+	worker := Worker{
+		Smartcontract:  sm,
+		broadcast_chan: broadcast,
+		Db:             db,
+	}
+
+	return &worker
+}
+
+// Create a new worker
+func NewEvmWorker(db *db.Database, abi *abi.Abi, worker_smartcontract *smartcontract.Smartcontract, broadcast chan message.Broadcast, in chan RequestSpaghettiBlockRange, out chan ReplySpaghettiBlockRange, log_parse_in chan RequestLogParse, log_parse_out chan ReplyLogParse) *Worker {
+	worker := Worker{
+		Smartcontract:             worker_smartcontract,
+		broadcast_chan:            broadcast,
+		Db:                        db,
+		spaghetti_block_range_in:  in,
+		spaghetti_block_range_out: out,
+		log_parse_in:              log_parse_in,
+		log_parse_out:             log_parse_out,
+		spaghetti_sub_socket:      nil,
+		abi:                       abi,
+	}
+
+	return &worker
+}

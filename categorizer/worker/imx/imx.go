@@ -2,7 +2,7 @@
 // for documentation see:
 // https://github.com/immutable/imx-core-sdk-golang/blob/6541766b54733580889f5051653d82f077c2aa17/imx/api/docs/TransfersApi.md#ListTransfers
 // https://github.com/immutable/imx-core-sdk-golang/blob/6541766b54733580889f5051653d82f077c2aa17/imx/api/docs/MintsApi.md#listmints
-package worker
+package imx
 
 import (
 	"context"
@@ -18,6 +18,8 @@ import (
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 
+	"github.com/blocklords/gosds/categorizer/worker"
+
 	"github.com/blocklords/gosds/app/remote/message"
 
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
@@ -28,22 +30,16 @@ import (
 const IMX_REQUEST_TYPE_AMOUNT = 2
 
 // Run the goroutine for each Imx smartcontract.
-func ImxRun(db *db.Database, block *smartcontract.Smartcontract, manager *imx.Manager, broadcast chan message.Broadcast) {
-	thisWorker := Worker{
-		smartcontract:  block,
-		broadcast_chan: broadcast,
-		db:             db,
-	}
-
-	fmt.Println("imx worker " + block.Address + "." + block.NetworkId + " starting categorization")
+func ImxRun(db *db.Database, sm *smartcontract.Smartcontract, manager *imx.Manager, broadcast chan message.Broadcast) {
+	thisWorker := worker.NewImxWorker(db, sm, broadcast)
 
 	configuration := imx_api.NewConfiguration()
 	apiClient := imx_api.NewAPIClient(configuration)
 
 	for {
-		timestamp := time.Unix(int64(block.CategorizedBlockTimestamp), 0).Format(time.RFC3339)
+		timestamp := time.Unix(int64(sm.CategorizedBlockTimestamp), 0).Format(time.RFC3339)
 
-		broadcast_logs, err := categorize_imx_transfers(&thisWorker, apiClient, manager.DelayPerSecond, timestamp)
+		_, err := categorize_imx_transfers(thisWorker, apiClient, manager.DelayPerSecond, timestamp)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error when calling `Imx.TransfersApi.ListTransfers``: %v\n", err)
 			fmt.Println("trying to request again in 10 seconds...")
@@ -52,7 +48,7 @@ func ImxRun(db *db.Database, block *smartcontract.Smartcontract, manager *imx.Ma
 		}
 
 		// it should be mints
-		mints, err := categorize_imx_mints(&thisWorker, apiClient, manager.DelayPerSecond, timestamp)
+		_, err = categorize_imx_mints(thisWorker, apiClient, manager.DelayPerSecond, timestamp)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error when calling `Imx.TransfersApi.ListTransfers``: %v\n", err)
 			fmt.Println("trying to request again in 10 seconds...")
@@ -60,14 +56,14 @@ func ImxRun(db *db.Database, block *smartcontract.Smartcontract, manager *imx.Ma
 			continue
 		}
 
-		broadcast_logs = append(broadcast_logs, mints...)
+		// broadcast_logs = append(broadcast_logs, mints...)
 
-		broadcast_block_categorization(&thisWorker, broadcast_logs)
+		//broadcast_block_categorization(&thisWorker, broadcast_logs)
 	}
 }
 
 // Returns list of transfers
-func categorize_imx_transfers(worker *Worker, apiClient *imx_api.APIClient, sleep time.Duration, timestamp string) ([]map[string]interface{}, error) {
+func categorize_imx_transfers(worker *worker.Worker, apiClient *imx_api.APIClient, sleep time.Duration, timestamp string) ([]map[string]interface{}, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -84,7 +80,7 @@ func categorize_imx_transfers(worker *Worker, apiClient *imx_api.APIClient, slee
 		if cursor != "" {
 			request = request.Cursor(cursor)
 		}
-		resp, r, err = request.OrderBy(orderBy).Direction(direction).Status(status).TokenAddress(worker.smartcontract.Address).Execute()
+		resp, r, err = request.OrderBy(orderBy).Direction(direction).Status(status).TokenAddress(worker.Smartcontract.Address).Execute()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error when calling `Imx.TransfersApi.ListTransfers``: %v\n", err)
 			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -123,7 +119,7 @@ func categorize_imx_transfers(worker *Worker, apiClient *imx_api.APIClient, slee
 			// todo change the imx to store in the log
 			tx := &log.Log{
 				NetworkId:      "imx",
-				Address:        worker.smartcontract.Address,
+				Address:        worker.Smartcontract.Address,
 				BlockNumber:    uint64(blockTime.Unix()),
 				BlockTimestamp: uint64(blockTime.Unix()),
 				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
@@ -135,7 +131,7 @@ func categorize_imx_transfers(worker *Worker, apiClient *imx_api.APIClient, slee
 			}
 
 			for {
-				createdErr := log.Save(worker.db, tx)
+				createdErr := log.Save(worker.Db, tx)
 				if createdErr == nil {
 					break
 				}
@@ -151,8 +147,8 @@ func categorize_imx_transfers(worker *Worker, apiClient *imx_api.APIClient, slee
 
 			// if mints or transfers update the same block number
 			// we skip it.
-			if int(blockTime.Unix()) > int(worker.smartcontract.CategorizedBlockNumber) {
-				smartcontract.SetSyncing(worker.db, worker.smartcontract, uint64(blockTime.Unix()), uint64(blockTime.Unix()))
+			if int(blockTime.Unix()) > int(worker.Smartcontract.CategorizedBlockNumber) {
+				smartcontract.SetSyncing(worker.Db, worker.Smartcontract, uint64(blockTime.Unix()), uint64(blockTime.Unix()))
 			}
 
 			tx_kv, err := key_value.NewFromInterface(tx)
@@ -175,7 +171,7 @@ func categorize_imx_transfers(worker *Worker, apiClient *imx_api.APIClient, slee
 	return broadcastTransactions, nil
 }
 
-func categorize_imx_mints(worker *Worker, apiClient *imx_api.APIClient, sleep time.Duration, timestamp string) ([]map[string]interface{}, error) {
+func categorize_imx_mints(worker *worker.Worker, apiClient *imx_api.APIClient, sleep time.Duration, timestamp string) ([]map[string]interface{}, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -192,7 +188,7 @@ func categorize_imx_mints(worker *Worker, apiClient *imx_api.APIClient, sleep ti
 		if cursor != "" {
 			request = request.Cursor(cursor)
 		}
-		resp, r, err = request.OrderBy(orderBy).Direction(direction).Status(status).TokenAddress(worker.smartcontract.Address).Execute()
+		resp, r, err = request.OrderBy(orderBy).Direction(direction).Status(status).TokenAddress(worker.Smartcontract.Address).Execute()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error when calling `Imx.TransfersApi.ListTransfers``: %v\n", err)
 			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -231,7 +227,7 @@ func categorize_imx_mints(worker *Worker, apiClient *imx_api.APIClient, sleep ti
 
 			tx, err := log.NewFromMap(map[string]interface{}{
 				"network_id":      "imx",
-				"address":         worker.smartcontract.Address,
+				"address":         worker.Smartcontract.Address,
 				"block_number":    uint64(blockTime.Unix()),
 				"block_timestamp": uint64(blockTime.Unix()),
 				"txid":            strconv.Itoa(int(imxTx.TransactionId)),
@@ -248,7 +244,7 @@ func categorize_imx_mints(worker *Worker, apiClient *imx_api.APIClient, sleep ti
 			}
 
 			for {
-				createdErr := log.Save(worker.db, tx)
+				createdErr := log.Save(worker.Db, tx)
 				if createdErr == nil {
 					break
 				}
@@ -264,8 +260,8 @@ func categorize_imx_mints(worker *Worker, apiClient *imx_api.APIClient, sleep ti
 
 			// if mints or transfers update the same block number
 			// we skip it.
-			if int(blockTime.Unix()) > int(worker.smartcontract.CategorizedBlockNumber) {
-				smartcontract.SetSyncing(worker.db, worker.smartcontract, uint64(blockTime.Unix()), uint64(blockTime.Unix()))
+			if int(blockTime.Unix()) > int(worker.Smartcontract.CategorizedBlockNumber) {
+				smartcontract.SetSyncing(worker.Db, worker.Smartcontract, uint64(blockTime.Unix()), uint64(blockTime.Unix()))
 			}
 
 			tx_kv, err := key_value.NewFromInterface(tx)

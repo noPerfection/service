@@ -5,6 +5,7 @@ import (
 	"github.com/blocklords/gosds/categorizer/imx"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/categorizer/worker"
+	imx_worker "github.com/blocklords/gosds/categorizer/worker/imx"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/static/network"
 
@@ -79,7 +80,7 @@ func run_imx_manager(db_con *db.Database, network *network.Network) {
 	for _, sm := range smartcontracts {
 		imx_manager.AddSmartcontract()
 
-		go worker.ImxRun(db_con, sm, imx_manager, broadcast_channel)
+		go imx_worker.ImxRun(db_con, sm, imx_manager, broadcast_channel)
 	}
 }
 
@@ -118,7 +119,7 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 				return message.Fail("unsupported network_id")
 			}
 			imx_manager.AddSmartcontract()
-			go worker.ImxRun(db_con, sm, imx_manager, broadcast_channel)
+			go imx_worker.ImxRun(db_con, sm, imx_manager, broadcast_channel)
 		} else {
 			manager_raw, ok := evm_managers[sm.NetworkId]
 			if !ok {

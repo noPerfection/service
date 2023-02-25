@@ -46,7 +46,7 @@ func WorkersFromSmartcontracts(
 
 		worker_smartcontract := smartcontract
 
-		worker := NewWorker(db, abi, worker_smartcontract, broadcast_channel, in, out, log_in, log_out)
+		worker := NewEvmWorker(db, abi, worker_smartcontract, broadcast_channel, in, out, log_in, log_out)
 
 		workers = append(workers, worker)
 	}
@@ -60,7 +60,7 @@ func (workers EvmWorkers) Split(block_number uint64) (EvmWorkers, EvmWorkers) {
 	new_workers := make(EvmWorkers, 0)
 
 	for _, worker := range workers {
-		if worker.smartcontract.CategorizedBlockNumber < block_number {
+		if worker.Smartcontract.CategorizedBlockNumber < block_number {
 			old_workers = append(old_workers, worker)
 		} else {
 			new_workers = append(new_workers, worker)
@@ -73,7 +73,7 @@ func (workers EvmWorkers) Split(block_number uint64) (EvmWorkers, EvmWorkers) {
 // Sort the workers from old to the newest
 func (workers EvmWorkers) Sort() EvmWorkers {
 	sort.SliceStable(workers, func(i, j int) bool {
-		return workers[i].smartcontract.CategorizedBlockNumber < workers[j].smartcontract.CategorizedBlockNumber
+		return workers[i].Smartcontract.CategorizedBlockNumber < workers[j].Smartcontract.CategorizedBlockNumber
 	})
 
 	return workers
@@ -86,7 +86,7 @@ func (workers EvmWorkers) EarliestBlockNumber() uint64 {
 		return 0
 	}
 
-	return sorted_workers[0].smartcontract.CategorizedBlockNumber
+	return sorted_workers[0].Smartcontract.CategorizedBlockNumber
 }
 
 func (workers EvmWorkers) RecentBlockNumber() uint64 {
@@ -96,7 +96,7 @@ func (workers EvmWorkers) RecentBlockNumber() uint64 {
 	}
 
 	latest := len(sorted_workers) - 1
-	return sorted_workers[latest].smartcontract.CategorizedBlockNumber
+	return sorted_workers[latest].Smartcontract.CategorizedBlockNumber
 }
 
 // Returns the smartcontract information that should be categorized
@@ -104,7 +104,7 @@ func (workers EvmWorkers) GetSmartcontracts() []*smartcontract.Smartcontract {
 	smartcontracts := make([]*smartcontract.Smartcontract, 0)
 
 	for _, worker := range workers {
-		smartcontracts = append(smartcontracts, worker.smartcontract)
+		smartcontracts = append(smartcontracts, worker.Smartcontract)
 	}
 
 	return smartcontracts
@@ -115,7 +115,7 @@ func (workers EvmWorkers) GetSmartcontractAddresses() []string {
 	addresses := make([]string, 0)
 
 	for _, worker := range workers {
-		addresses = append(addresses, worker.smartcontract.Address)
+		addresses = append(addresses, worker.Smartcontract.Address)
 	}
 
 	return addresses
