@@ -117,34 +117,32 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 		return message.Fail(saveErr.Error())
 	}
 
-	if broadcast_enabled, _ := argument.Exist(argument.BROADCAST); broadcast_enabled {
-		if sm.NetworkId == imx.NETWORK_ID {
-			if imx_manager == nil {
-				return message.Fail("unsupported network_id")
-			}
-			imx_manager.AddSmartcontract()
-			go imx_worker.ImxRun(db_con, sm, imx_manager)
-		} else {
-			manager_raw, ok := evm_managers[sm.NetworkId]
-			if !ok {
-				return message.Fail("unsupported network_id")
-			}
-			manager := manager_raw.(*evm_worker.Manager)
-
-			parent := worker.New(db_con, sm)
-
-			remote_abi, err := static_abi.Get(static_socket, sm.NetworkId, sm.Address)
-			if err != nil {
-				return message.Fail("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
-			}
-			abi, err := abi.NewAbi(remote_abi)
-			if err != nil {
-				return message.Fail("failed to create a categorizer abi wrapper. error message: " + err.Error())
-			}
-
-			worker := evm_worker.New(parent, abi, log_parse_in, log_parse_out)
-			manager.In <- evm_worker.EvmWorkers{worker}
+	if sm.NetworkId == imx.NETWORK_ID {
+		if imx_manager == nil {
+			return message.Fail("unsupported network_id")
 		}
+		imx_manager.AddSmartcontract()
+		go imx_worker.ImxRun(db_con, sm, imx_manager)
+	} else {
+		manager_raw, ok := evm_managers[sm.NetworkId]
+		if !ok {
+			return message.Fail("unsupported network_id")
+		}
+		manager := manager_raw.(*evm_worker.Manager)
+
+		parent := worker.New(db_con, sm)
+
+		remote_abi, err := static_abi.Get(static_socket, sm.NetworkId, sm.Address)
+		if err != nil {
+			return message.Fail("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
+		}
+		abi, err := abi.NewAbi(remote_abi)
+		if err != nil {
+			return message.Fail("failed to create a categorizer abi wrapper. error message: " + err.Error())
+		}
+
+		worker := evm_worker.New(parent, abi, log_parse_in, log_parse_out)
+		manager.In <- evm_worker.EvmWorkers{worker}
 	}
 
 	reply := message.Reply{
@@ -172,7 +170,7 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 		panic(err)
 	}
 
-	categorizer_env, err := service.New(service.CATEGORIZER, service.BROADCAST, service.THIS)
+	categorizer_env, err := service.New(service.CATEGORIZER, service.THIS)
 	if err != nil {
 		panic(err)
 	}
