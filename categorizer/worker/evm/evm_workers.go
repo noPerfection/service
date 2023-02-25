@@ -5,47 +5,10 @@ package evm
 import (
 	"sort"
 
-	"github.com/blocklords/gosds/db"
-
-	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 )
 
 type EvmWorkers []*EvmWorker
-
-// Creates the list of workers from the smartcontracts
-func WorkersFromSmartcontracts(
-	db *db.Database,
-	static_socket *remote.Socket,
-	smartcontracts []*smartcontract.Smartcontract,
-	log_in chan RequestLogParse,
-	log_out chan ReplyLogParse,
-) (EvmWorkers, error) {
-	workers := make(EvmWorkers, 0)
-
-	// for _, smartcontract := range smartcontracts {
-	// if smartcontract.NetworkId == "imx" {
-	// continue
-	// }
-
-	// remote_abi, err := static_abi.Get(static_socket, smartcontract.NetworkId, smartcontract.Address)
-	// if err != nil {
-	// return nil, fmt.Errorf("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
-	// }
-	// abi, err := abi.NewAbi(remote_abi)
-	// if err != nil {
-	// panic("failed to create a categorizer abi wrapper. error message: " + err.Error())
-	// }
-
-	// worker_smartcontract := smartcontract
-
-	// worker := New(db, abi, worker_smartcontract, broadcast_channel, in, out, log_in, log_out)
-
-	// workers = append(workers, worker)
-	// }
-
-	return workers, nil
-}
 
 // Splits the workers to two workers by the block number
 func (workers EvmWorkers) Split(block_number uint64) (EvmWorkers, EvmWorkers) {

@@ -1,12 +1,18 @@
 package categorizer
 
 import (
+	"errors"
+	"fmt"
+
+	"github.com/blocklords/gosds/categorizer/abi"
 	"github.com/blocklords/gosds/categorizer/handler"
 	"github.com/blocklords/gosds/categorizer/imx"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
+	"github.com/blocklords/gosds/categorizer/worker"
 	evm_worker "github.com/blocklords/gosds/categorizer/worker/evm"
 	imx_worker "github.com/blocklords/gosds/categorizer/worker/imx"
 	"github.com/blocklords/gosds/common/data_type/key_value"
+	static_abi "github.com/blocklords/gosds/static/abi"
 	"github.com/blocklords/gosds/static/network"
 
 	"github.com/blocklords/gosds/app/account"
@@ -42,19 +48,26 @@ func run_evm_manager(db_con *db.Database, network *network.Network) {
 		panic(`error to fetch all categorized smartcontracts. received database error: ` + err.Error() + ` for network id ` + network.Id)
 	}
 
-	workers, err := evm_worker.WorkersFromSmartcontracts(
-		db_con,
-		static_socket,
-		smartcontracts,
-		log_parse_in,
-		log_parse_out,
-	)
-	if err != nil {
-		panic("failed to create list of workers for network id " + network.Id)
-	}
-
 	manager := evm_worker.NewManager(network, log_parse_in, log_parse_out)
 	manager.Run()
+
+	workers := make(evm_worker.EvmWorkers, len(smartcontracts))
+	for i, smartcontract := range smartcontracts {
+		parent := worker.New(db_con, smartcontract)
+
+		remote_abi, err := static_abi.Get(static_socket, smartcontract.NetworkId, smartcontract.Address)
+		if err != nil {
+			panic(fmt.Errorf("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error()))
+		}
+		abi, err := abi.NewAbi(remote_abi)
+		if err != nil {
+			panic(errors.New("failed to create a categorizer abi wrapper. error message: " + err.Error()))
+		}
+
+		worker := evm_worker.New(parent, abi, log_parse_in, log_parse_out)
+		workers[i] = worker
+	}
+
 	manager.In <- workers
 
 	evm_managers = evm_managers.Set(network.Id, manager)
@@ -118,18 +131,19 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 			}
 			manager := manager_raw.(*evm_worker.Manager)
 
-			workers, err := evm_worker.WorkersFromSmartcontracts(
-				db_con,
-				static_socket,
-				[]*smartcontract.Smartcontract{sm},
-				log_parse_in,
-				log_parse_out,
-			)
+			parent := worker.New(db_con, sm)
+
+			remote_abi, err := static_abi.Get(static_socket, sm.NetworkId, sm.Address)
 			if err != nil {
-				return message.Fail("failed to create list of workers for network id " + sm.NetworkId)
+				return message.Fail("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
+			}
+			abi, err := abi.NewAbi(remote_abi)
+			if err != nil {
+				return message.Fail("failed to create a categorizer abi wrapper. error message: " + err.Error())
 			}
 
-			manager.In <- workers
+			worker := evm_worker.New(parent, abi, log_parse_in, log_parse_out)
+			manager.In <- evm_worker.EvmWorkers{worker}
 		}
 	}
 
