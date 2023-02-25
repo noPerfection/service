@@ -27,8 +27,6 @@ import (
 )
 
 var broadcast_channel chan message.Broadcast
-var spaghetti_in chan worker.RequestSpaghettiBlockRange
-var spaghetti_out chan worker.ReplySpaghettiBlockRange
 
 var log_parse_in chan worker.RequestLogParse = nil
 var log_parse_out chan worker.ReplyLogParse = nil
@@ -52,8 +50,6 @@ func run_evm_manager(db_con *db.Database, network *network.Network) {
 		static_socket,
 		smartcontracts,
 		broadcast_channel,
-		spaghetti_in,
-		spaghetti_out,
 		log_parse_in,
 		log_parse_out,
 	)
@@ -61,7 +57,7 @@ func run_evm_manager(db_con *db.Database, network *network.Network) {
 		panic("failed to create list of workers for network id " + network.Id)
 	}
 
-	manager := worker.NewManager(network, spaghetti_in, spaghetti_out)
+	manager := worker.NewManager(network, log_parse_in, log_parse_out)
 	manager.Run()
 	manager.In <- workers
 
@@ -132,8 +128,6 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 				static_socket,
 				[]*smartcontract.Smartcontract{sm},
 				broadcast_channel,
-				spaghetti_in,
-				spaghetti_out,
 				log_parse_in,
 				log_parse_out,
 			)
@@ -254,14 +248,10 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 	subscribers_env := []*service.Service{developer_gateway_env, publisher_env}
 
 	broadcast_channel = make(chan message.Broadcast)
-	spaghetti_in = make(chan worker.RequestSpaghettiBlockRange)
-	spaghetti_out = make(chan worker.ReplySpaghettiBlockRange)
 
 	log_parse_in = make(chan worker.RequestLogParse)
 	log_parse_out = make(chan worker.ReplyLogParse)
 	go worker.LogParse(log_parse_in, log_parse_out)
-
-	go worker.SpaghettiBlockRange(spaghetti_in, spaghetti_out)
 
 	for _, network := range networks {
 		if network.Id == imx.NETWORK_ID {

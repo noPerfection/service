@@ -1,4 +1,4 @@
-package worker
+package evm
 
 // Worker Groups are list of smartcontracts
 // That are categorized together.

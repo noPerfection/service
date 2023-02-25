@@ -3,7 +3,7 @@
 // Manager keeps the list of the smartcontract workers:
 // - list of workers for up to date smartcontracts
 // - list of workers for categorization outdated smartcontracts
-package worker
+package evm
 
 import (
 	"github.com/blocklords/gosds/categorizer/smartcontract"
