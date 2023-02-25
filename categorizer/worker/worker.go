@@ -5,15 +5,12 @@ import (
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/static/smartcontract/key"
-
-	"github.com/blocklords/gosds/app/remote/message"
 )
 
 type Worker struct {
 	Db *db.Database
 
-	Smartcontract  *smartcontract.Smartcontract
-	broadcast_chan chan message.Broadcast
+	Smartcontract *smartcontract.Smartcontract
 }
 
 // Print the log
@@ -22,22 +19,20 @@ func (worker *Worker) Prefix() string {
 	return "categorizer " + k.ToString() + ": "
 }
 
-func New(db *db.Database, sm *smartcontract.Smartcontract, broadcast chan message.Broadcast) *Worker {
+func New(db *db.Database, sm *smartcontract.Smartcontract) *Worker {
 	worker := Worker{
-		Smartcontract:  sm,
-		broadcast_chan: broadcast,
-		Db:             db,
+		Smartcontract: sm,
+		Db:            db,
 	}
 
 	return &worker
 }
 
 // Create a new worker
-func NewImxWorker(db *db.Database, sm *smartcontract.Smartcontract, broadcast chan message.Broadcast) *Worker {
+func NewImxWorker(db *db.Database, sm *smartcontract.Smartcontract) *Worker {
 	worker := Worker{
-		Smartcontract:  sm,
-		broadcast_chan: broadcast,
-		Db:             db,
+		Smartcontract: sm,
+		Db:            db,
 	}
 
 	return &worker

@@ -14,7 +14,6 @@ import (
 	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/security/vault"
 
-	"github.com/blocklords/gosds/app/broadcast"
 	"github.com/blocklords/gosds/app/remote"
 
 	"github.com/blocklords/gosds/app/remote/message"
@@ -25,8 +24,6 @@ import (
 
 	"github.com/blocklords/gosds/app/controller"
 )
-
-var broadcast_channel chan message.Broadcast
 
 var log_parse_in chan evm_worker.RequestLogParse = nil
 var log_parse_out chan evm_worker.ReplyLogParse = nil
@@ -49,7 +46,6 @@ func run_evm_manager(db_con *db.Database, network *network.Network) {
 		db_con,
 		static_socket,
 		smartcontracts,
-		broadcast_channel,
 		log_parse_in,
 		log_parse_out,
 	)
@@ -76,7 +72,7 @@ func run_imx_manager(db_con *db.Database, network *network.Network) {
 	for _, sm := range smartcontracts {
 		imx_manager.AddSmartcontract()
 
-		go imx_worker.ImxRun(db_con, sm, imx_manager, broadcast_channel)
+		go imx_worker.ImxRun(db_con, sm, imx_manager)
 	}
 }
 
@@ -87,7 +83,6 @@ func run_imx_manager(db_con *db.Database, network *network.Network) {
 ////////////////////////////////////////////////////////////////////
 
 // Saves the smartcontract in the database.
-// if SDS Categorizer was running with broadcast enabled,
 // then start a worker.
 func smartcontract_set(db_con *db.Database, request message.Request) message.Reply {
 	kv, err := request.Parameters.GetKeyValue("smartcontract")
@@ -115,7 +110,7 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 				return message.Fail("unsupported network_id")
 			}
 			imx_manager.AddSmartcontract()
-			go imx_worker.ImxRun(db_con, sm, imx_manager, broadcast_channel)
+			go imx_worker.ImxRun(db_con, sm, imx_manager)
 		} else {
 			manager_raw, ok := evm_managers[sm.NetworkId]
 			if !ok {
@@ -127,7 +122,6 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 				db_con,
 				static_socket,
 				[]*smartcontract.Smartcontract{sm},
-				broadcast_channel,
 				log_parse_in,
 				log_parse_out,
 			)
@@ -245,10 +239,6 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 
 	evm_managers = key_value.Empty()
 
-	subscribers_env := []*service.Service{developer_gateway_env, publisher_env}
-
-	broadcast_channel = make(chan message.Broadcast)
-
 	log_parse_in = make(chan evm_worker.RequestLogParse)
 	log_parse_out = make(chan evm_worker.ReplyLogParse)
 	go evm_worker.LogParse(log_parse_in, log_parse_out)
@@ -260,8 +250,6 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 			run_evm_manager(db_con, network)
 		}
 	}
-
-	go broadcast.Run(broadcast_channel, categorizer_env, subscribers_env)
 
 	var commands = controller.CommandHandlers{
 		"smartcontract_get_all": handler.GetSmartcontracts,

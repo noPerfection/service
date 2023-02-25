@@ -8,7 +8,6 @@ import (
 	"github.com/blocklords/gosds/categorizer/log"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/categorizer/worker"
-	"github.com/blocklords/gosds/common/data_type/key_value"
 
 	"github.com/blocklords/gosds/app/service"
 
@@ -21,9 +20,8 @@ import (
 type EvmWorker struct {
 	abi *abi.Abi
 
-	spaghetti_sub_socket *remote.Socket
-	log_parse_in         chan RequestLogParse
-	log_parse_out        chan ReplyLogParse
+	log_parse_in  chan RequestLogParse
+	log_parse_out chan ReplyLogParse
 
 	parent *worker.Worker
 }
@@ -75,34 +73,10 @@ func LogParse(in chan RequestLogParse, out chan ReplyLogParse) {
 	}
 }
 
-func broadcast_block_categorization(worker *EvmWorker, logs []map[string]interface{}) {
-	// // we assume that data is verified since the data comes from internal code.
-	// // not from outside.
-	// k := key.New(worker.Smartcontract.NetworkId, worker.Smartcontract.Address)
-	// broadcast_topic := k.ToString()
-
-	// new_reply := message.Reply{
-	// 	Status:  "OK",
-	// 	Message: "",
-	// 	Parameters: key_value.New(map[string]interface{}{
-	// 		"network_id":      worker.Smartcontract.NetworkId,
-	// 		"block_number":    worker.Smartcontract.CategorizedBlockNumber,
-	// 		"block_timestamp": worker.Smartcontract.CategorizedBlockTimestamp,
-	// 		"address":         worker.Smartcontract.Address,
-	// 		"logs":            logs,
-	// 	}),
-	// }
-	// new_broadcast := message.NewBroadcast(broadcast_topic, new_reply)
-
-	// worker.broadcast_chan <- new_broadcast
-}
-
 // Categorize the blocks for this smartcontract
 func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
 	network_id := worker.parent.Smartcontract.NetworkId
 	address := worker.parent.Smartcontract.Address
-
-	broadcastLogs := make([]map[string]interface{}, 0)
 
 	var block_number uint64 = worker.parent.Smartcontract.CategorizedBlockNumber
 	var block_timestamp uint64 = worker.parent.Smartcontract.CategorizedBlockTimestamp
@@ -135,19 +109,11 @@ func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
 				block_number = l.BlockNumber
 				block_timestamp = l.BlockTimestamp
 			}
-
-			log_kv, err := key_value.NewFromInterface(l)
-			if err != nil {
-				return 0, fmt.Errorf("failed to serialize Log to key-value while trying to broadcast it %v: %v", l, err)
-			}
-
-			broadcastLogs = append(broadcastLogs, log_kv)
 		}
 	}
 
 	fmt.Println(worker.parent.Prefix(), "categorization finished, update the block number to ", block_number)
 	worker.parent.Smartcontract.SetBlockParameter(block_number, block_timestamp)
-	broadcast_block_categorization(worker, broadcastLogs)
 	err := smartcontract.SetSyncing(worker.parent.Db, worker.parent.Smartcontract, block_number, block_timestamp)
 
 	return block_number, err

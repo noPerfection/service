@@ -5,7 +5,6 @@ package evm
 import (
 	"sort"
 
-	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/db"
 
 	"github.com/blocklords/gosds/app/remote"
@@ -19,7 +18,6 @@ func WorkersFromSmartcontracts(
 	db *db.Database,
 	static_socket *remote.Socket,
 	smartcontracts []*smartcontract.Smartcontract,
-	broadcast_channel chan message.Broadcast,
 	log_in chan RequestLogParse,
 	log_out chan ReplyLogParse,
 ) (EvmWorkers, error) {

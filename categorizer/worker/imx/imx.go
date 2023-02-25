@@ -20,8 +20,6 @@ import (
 
 	"github.com/blocklords/gosds/categorizer/worker"
 
-	"github.com/blocklords/gosds/app/remote/message"
-
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
 )
 
@@ -30,8 +28,8 @@ import (
 const IMX_REQUEST_TYPE_AMOUNT = 2
 
 // Run the goroutine for each Imx smartcontract.
-func ImxRun(db *db.Database, sm *smartcontract.Smartcontract, manager *imx.Manager, broadcast chan message.Broadcast) {
-	thisWorker := worker.NewImxWorker(db, sm, broadcast)
+func ImxRun(db *db.Database, sm *smartcontract.Smartcontract, manager *imx.Manager) {
+	thisWorker := worker.NewImxWorker(db, sm)
 
 	configuration := imx_api.NewConfiguration()
 	apiClient := imx_api.NewAPIClient(configuration)
@@ -56,9 +54,6 @@ func ImxRun(db *db.Database, sm *smartcontract.Smartcontract, manager *imx.Manag
 			continue
 		}
 
-		// broadcast_logs = append(broadcast_logs, mints...)
-
-		//broadcast_block_categorization(&thisWorker, broadcast_logs)
 	}
 }
 
