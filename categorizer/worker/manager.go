@@ -37,9 +37,6 @@ type Manager struct {
 
 	old_categorizers OldWorkerGroups
 
-	recent_workers EvmWorkers
-	recent_status  string
-
 	current_workers EvmWorkers
 	current_status  string
 
@@ -63,9 +60,6 @@ func NewManager(
 
 		old_categorizers: make(OldWorkerGroups, 0),
 
-		recent_status:  IDLE,
-		recent_workers: make(EvmWorkers, 0),
-
 		subscriber_status:                IDLE,
 		subscribed_blocks:                *data_type.NewQueue(),
 		subscribed_earliest_block_number: 0,
@@ -86,7 +80,6 @@ func (manager *Manager) GetSmartcontracts() []*smartcontract.Smartcontract {
 		smartcontracts = append(smartcontracts, group.workers.GetSmartcontracts()...)
 	}
 
-	smartcontracts = append(smartcontracts, manager.recent_workers.GetSmartcontracts()...)
 	smartcontracts = append(smartcontracts, manager.current_workers.GetSmartcontracts()...)
 
 	return smartcontracts
@@ -99,7 +92,6 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 		addresses = append(addresses, group.workers.GetSmartcontractAddresses()...)
 	}
 
-	addresses = append(addresses, manager.recent_workers.GetSmartcontractAddresses()...)
 	addresses = append(addresses, manager.current_workers.GetSmartcontractAddresses()...)
 
 	return addresses
@@ -201,7 +193,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 // Move recent to consuming
 func (manager *Manager) add_current_workers(workers EvmWorkers) {
-	manager.current_workers = append(manager.current_workers, manager.recent_workers...)
+	manager.current_workers = append(manager.current_workers, workers...)
 }
 
 // Consume each received block from SDS Spaghetti broadcast
