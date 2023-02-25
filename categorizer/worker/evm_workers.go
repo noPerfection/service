@@ -54,30 +54,20 @@ func WorkersFromSmartcontracts(
 	return workers, nil
 }
 
-// Returns the list of workers where categorizated up until block_number
-func (workers EvmWorkers) OldWorkers(block_number uint64) EvmWorkers {
+// Splits the workers to two workers by the block number
+func (workers EvmWorkers) Split(block_number uint64) (EvmWorkers, EvmWorkers) {
 	old_workers := make(EvmWorkers, 0)
+	new_workers := make(EvmWorkers, 0)
 
 	for _, worker := range workers {
 		if worker.smartcontract.CategorizedBlockNumber < block_number {
 			old_workers = append(old_workers, worker)
+		} else {
+			new_workers = append(new_workers, worker)
 		}
 	}
 
-	return old_workers
-}
-
-// Returns the list of workers where categorizated up until block_number
-func (workers EvmWorkers) RecentWorkers(block_number uint64) EvmWorkers {
-	recent_workers := make(EvmWorkers, 0)
-
-	for _, worker := range workers {
-		if worker.smartcontract.CategorizedBlockNumber >= block_number {
-			recent_workers = append(recent_workers, worker)
-		}
-	}
-
-	return recent_workers
+	return old_workers, new_workers
 }
 
 // Sort the workers from old to the newest

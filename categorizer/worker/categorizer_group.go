@@ -1,20 +1,24 @@
 package worker
 
-type CategorizerGroup struct {
+// Worker Groups are list of smartcontracts
+// That are categorized together.
+type OldWorkerGroup struct {
 	block_number uint64
 	workers      EvmWorkers
 }
 
-type CategorizerGroups []*CategorizerGroup
+type OldWorkerGroups []*OldWorkerGroup
 
-func NewCategorizerGroup(block_number uint64, workers EvmWorkers) *CategorizerGroup {
-	return &CategorizerGroup{
+// Create the old smartcontracts worker group
+func NewGroup(block_number uint64, workers EvmWorkers) *OldWorkerGroup {
+	return &OldWorkerGroup{
 		block_number: block_number,
 		workers:      workers,
 	}
 }
 
-func (group *CategorizerGroup) add_workers(workers EvmWorkers) {
+// Add new workers
+func (group *OldWorkerGroup) add_workers(workers EvmWorkers) {
 	group.workers = append(group.workers, workers...)
 }
 
@@ -22,7 +26,7 @@ func (group *CategorizerGroup) add_workers(workers EvmWorkers) {
 // That means, this categorizer group didn't reach to the block number.
 //
 // User can add his worker to this group. Then once its the time, categorization will happen.
-func (groups CategorizerGroups) GetUpcoming(block_number uint64) *CategorizerGroup {
+func (groups OldWorkerGroups) FirstGroupGreaterThan(block_number uint64) *OldWorkerGroup {
 	for _, group := range groups {
 		if block_number > group.block_number {
 			return group
@@ -34,7 +38,7 @@ func (groups CategorizerGroups) GetUpcoming(block_number uint64) *CategorizerGro
 
 // Delete the group from the list of groups
 // Manager has to reassign its old_categorizers to the updated version
-func (groups CategorizerGroups) Delete(group_to_delete *CategorizerGroup) CategorizerGroups {
+func (groups OldWorkerGroups) Delete(group_to_delete *OldWorkerGroup) OldWorkerGroups {
 	for i, group := range groups {
 		if group == group_to_delete {
 			return append(groups[:i], groups[i+1:]...)

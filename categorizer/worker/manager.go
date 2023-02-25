@@ -7,7 +7,6 @@ package worker
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/blocklords/gosds/app/service"
@@ -36,7 +35,7 @@ type Manager struct {
 	spaghetti_out    chan ReplySpaghettiBlockRange
 	Network          *network.Network
 
-	old_categorizers CategorizerGroups
+	old_categorizers OldWorkerGroups
 
 	recent_workers EvmWorkers
 	recent_status  string
@@ -62,7 +61,7 @@ func NewManager(
 		spaghetti_in:  in,
 		spaghetti_out: out,
 
-		old_categorizers: make(CategorizerGroups, 0),
+		old_categorizers: make(OldWorkerGroups, 0),
 
 		recent_status:  IDLE,
 		recent_workers: make(EvmWorkers, 0),
@@ -75,8 +74,6 @@ func NewManager(
 		current_status:  IDLE,
 		current_workers: make(EvmWorkers, 0),
 	}
-
-	go manager.start()
 
 	return &manager
 }
@@ -120,63 +117,45 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 // - update the smartcontract number
 // - get list of smartcontract addresses
 // - check whether address exists in the list
-func (manager *Manager) start() {
+func (manager *Manager) Run() {
+	manager.subscriber_status = RUNNING
+	go manager.subscribe()
+
+	manager.current_status = RUNNING
+	go manager.categorize_current_smartcontracts()
+
 	categorizer_env, _ := service.New(service.CATEGORIZER, service.BROADCAST, service.THIS)
 	spaghetti_env, _ := service.New(service.SPAGHETTI, service.REMOTE)
 
 	manager.spaghetti_socket = remote.TcpRequestSocketOrPanic(spaghetti_env, categorizer_env)
 
 	for {
-		all_workers := <-manager.In
+		new_workers := <-manager.In
 
-		var cached_block_number uint64
-		var err error
-
-		var mu sync.Mutex
-		mu.Lock()
+		var block_number uint64
 
 		for {
-
-			cached_block_number, _, err = spaghetti_block.RemoteBlockNumberCached(manager.spaghetti_socket, manager.Network.Id)
-			if err != nil {
-				panic("failed to get the earliest block number: " + err.Error())
+			block_number = manager.subscribed_earliest_block_number
+			if block_number == 0 {
+				time.Sleep(time.Second * 1)
+				continue
 			}
-
 			break
 		}
-		mu.Unlock()
 
-		old_workers := all_workers.OldWorkers(cached_block_number).Sort()
-		old_current_block_number := old_workers.EarliestBlockNumber()
+		old_workers, current_workers := new_workers.Sort().Split(block_number)
+		old_block_number := old_workers.EarliestBlockNumber()
 
-		group := manager.old_categorizers.GetUpcoming(old_current_block_number)
+		group := manager.old_categorizers.FirstGroupGreaterThan(old_block_number)
 		if group == nil {
-			group = NewCategorizerGroup(old_current_block_number, old_workers)
+			group = NewGroup(old_block_number, old_workers)
 			manager.old_categorizers = append(manager.old_categorizers, group)
 			go manager.categorize_old_smartcontracts(group)
 		} else {
 			group.add_workers(old_workers)
 		}
 
-		recent_workers := all_workers.RecentWorkers(cached_block_number).Sort()
-		manager.add_recent_workers(recent_workers)
-
-		// we launch the subscriber
-		if manager.subscriber_status == IDLE {
-			go manager.subscribe()
-		}
-
-		// goroutine will categorize the recently added workers automatically
-		// if the gorutine is running
-		if manager.recent_status == IDLE {
-			manager.recent_status = RUNNING
-			go manager.categorize_recent_smartcontracts()
-		}
-
-		if manager.current_status == IDLE {
-			manager.current_status = RUNNING
-			go manager.categorize_current_smartcontracts()
-		}
+		manager.add_current_workers(current_workers)
 	}
 }
 
@@ -184,7 +163,7 @@ func (manager *Manager) start() {
 //
 // Get List of smartcontract addresses
 // Get Log for the smartcontracts.
-func (manager *Manager) categorize_old_smartcontracts(group *CategorizerGroup) {
+func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 	for {
 		block_number_from := group.block_number + uint64(1)
 		addresses := manager.GetSmartcontractAddresses()
@@ -220,53 +199,6 @@ func (manager *Manager) categorize_old_smartcontracts(group *CategorizerGroup) {
 	manager.old_categorizers = manager.old_categorizers.Delete(group)
 }
 
-// Categorize smartcontracts with the cached blocks
-func (manager *Manager) categorize_recent_smartcontracts() {
-	for {
-		workers := manager.recent_workers
-		if len(workers) == 0 {
-			time.Sleep(time.Second * time.Duration(1))
-			continue
-		}
-		earliest := workers.EarliestBlockNumber()
-		recent := workers.RecentBlockNumber()
-
-		manager.spaghetti_in <- RequestSpaghettiBlockRange{
-			network_id:        manager.Network.Id,
-			address:           "",
-			block_number_from: earliest,
-			block_number_to:   recent,
-		}
-
-		spaghetti_reply := <-manager.spaghetti_out
-		fmt.Println(manager.Network.Id, "block range data returned from SDS Spaghetti")
-		if spaghetti_reply.err != nil {
-			fmt.Println(manager.Network.Id, "error returned from SDS Spaghetti for block_get_range, which should not be... Waiting for the next spaghetti block to start again")
-			fmt.Println(spaghetti_reply.err)
-			panic(spaghetti_reply.err)
-		}
-
-		block := spaghetti_block.NewBlock(manager.Network.Id, recent, spaghetti_reply.timestamp, spaghetti_reply.logs)
-
-		for _, worker := range workers {
-			logs := block.GetForSmartcontract(worker.smartcontract.Address)
-			_, err := worker.categorize(logs)
-			if err != nil {
-				panic("failed to categorize the blockchain")
-			}
-		}
-
-		if recent >= manager.subscribed_earliest_block_number {
-			manager.move_recent_to_current()
-		}
-	}
-}
-
-// Add recent workers
-func (manager *Manager) add_recent_workers(workers EvmWorkers) {
-	manager.recent_workers = append(manager.recent_workers, workers...)
-}
-
 // Move recent to consuming
 func (manager *Manager) add_current_workers(workers EvmWorkers) {
 	manager.current_workers = append(manager.current_workers, manager.recent_workers...)
@@ -297,13 +229,6 @@ func (manager *Manager) categorize_current_smartcontracts() {
 			}
 		}
 	}
-}
-
-// Move recent to consuming
-func (manager *Manager) move_recent_to_current() {
-	manager.current_workers = append(manager.current_workers, manager.recent_workers...)
-
-	manager.recent_workers = make(EvmWorkers, 0)
 }
 
 // We start to consume the block information from SDS Spaghetti
