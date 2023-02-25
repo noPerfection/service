@@ -31,8 +31,6 @@ const RUNNING = "running"
 type Manager struct {
 	In               chan EvmWorkers
 	spaghetti_socket *remote.Socket
-	spaghetti_in     chan RequestSpaghettiBlockRange
-	spaghetti_out    chan ReplySpaghettiBlockRange
 	Network          *network.Network
 
 	old_categorizers OldWorkerGroups
@@ -43,20 +41,23 @@ type Manager struct {
 	subscriber_status                string
 	subscribed_earliest_block_number uint64
 	subscribed_blocks                data_type.Queue
+
+	log_in  chan RequestLogParse
+	log_out chan ReplyLogParse
 }
 
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
 func NewManager(
 	network *network.Network,
-	in chan RequestSpaghettiBlockRange,
-	out chan ReplySpaghettiBlockRange,
+	in chan RequestLogParse,
+	out chan ReplyLogParse,
 ) *Manager {
 	manager := Manager{
-		In:            make(chan EvmWorkers),
-		Network:       network,
-		spaghetti_in:  in,
-		spaghetti_out: out,
+		In:      make(chan EvmWorkers),
+		Network: network,
+		log_in:  in,
+		log_out: out,
 
 		old_categorizers: make(OldWorkerGroups, 0),
 
@@ -169,7 +170,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		// update the worker data by logs.
 		block_number_to := block_number_from
 		for _, worker := range group.workers {
-			logs := spaghetti_log.FilterByAddress(all_logs, worker.Smartcontract.Address)
+			logs := spaghetti_log.FilterByAddress(all_logs, worker.parent.Smartcontract.Address)
 			if len(logs) == 0 {
 				continue
 			}
@@ -210,10 +211,10 @@ func (manager *Manager) categorize_current_smartcontracts() {
 			block := manager.subscribed_blocks.Pop().(*spaghetti_block.Block)
 
 			for _, worker := range manager.current_workers {
-				if block.BlockNumber <= worker.Smartcontract.CategorizedBlockNumber {
+				if block.BlockNumber <= worker.parent.Smartcontract.CategorizedBlockNumber {
 					continue
 				}
-				logs := block.GetForSmartcontract(worker.Smartcontract.Address)
+				logs := block.GetForSmartcontract(worker.parent.Smartcontract.Address)
 				_, err := worker.categorize(logs)
 				if err != nil {
 					panic("failed to categorize the blockchain")

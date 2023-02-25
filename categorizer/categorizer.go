@@ -4,7 +4,7 @@ import (
 	"github.com/blocklords/gosds/categorizer/handler"
 	"github.com/blocklords/gosds/categorizer/imx"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/categorizer/worker"
+	evm_worker "github.com/blocklords/gosds/categorizer/worker/evm"
 	imx_worker "github.com/blocklords/gosds/categorizer/worker/imx"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/static/network"
@@ -28,8 +28,8 @@ import (
 
 var broadcast_channel chan message.Broadcast
 
-var log_parse_in chan worker.RequestLogParse = nil
-var log_parse_out chan worker.ReplyLogParse = nil
+var log_parse_in chan evm_worker.RequestLogParse = nil
+var log_parse_out chan evm_worker.ReplyLogParse = nil
 
 var static_socket *remote.Socket
 
@@ -45,7 +45,7 @@ func run_evm_manager(db_con *db.Database, network *network.Network) {
 		panic(`error to fetch all categorized smartcontracts. received database error: ` + err.Error() + ` for network id ` + network.Id)
 	}
 
-	workers, err := worker.WorkersFromSmartcontracts(
+	workers, err := evm_worker.WorkersFromSmartcontracts(
 		db_con,
 		static_socket,
 		smartcontracts,
@@ -57,7 +57,7 @@ func run_evm_manager(db_con *db.Database, network *network.Network) {
 		panic("failed to create list of workers for network id " + network.Id)
 	}
 
-	manager := worker.NewManager(network, log_parse_in, log_parse_out)
+	manager := evm_worker.NewManager(network, log_parse_in, log_parse_out)
 	manager.Run()
 	manager.In <- workers
 
@@ -121,9 +121,9 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 			if !ok {
 				return message.Fail("unsupported network_id")
 			}
-			manager := manager_raw.(*worker.Manager)
+			manager := manager_raw.(*evm_worker.Manager)
 
-			workers, err := worker.WorkersFromSmartcontracts(
+			workers, err := evm_worker.WorkersFromSmartcontracts(
 				db_con,
 				static_socket,
 				[]*smartcontract.Smartcontract{sm},
@@ -249,9 +249,9 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 
 	broadcast_channel = make(chan message.Broadcast)
 
-	log_parse_in = make(chan worker.RequestLogParse)
-	log_parse_out = make(chan worker.ReplyLogParse)
-	go worker.LogParse(log_parse_in, log_parse_out)
+	log_parse_in = make(chan evm_worker.RequestLogParse)
+	log_parse_out = make(chan evm_worker.ReplyLogParse)
+	go evm_worker.LogParse(log_parse_in, log_parse_out)
 
 	for _, network := range networks {
 		if network.Id == imx.NETWORK_ID {
