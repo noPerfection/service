@@ -313,17 +313,16 @@ It supports the following arguments:
 		panic(err)
 	}
 
-	gateway_env, err := service.New(service.GATEWAY, service.REMOTE)
-	if err != nil {
-		panic(err)
-	}
-
 	static_env, err := service.New(service.STATIC, service.REMOTE)
 	if err != nil {
 		panic(err)
 	}
 
-	accounts := account.NewAccounts(account.NewService(categorizer_env), account.NewService(gateway_env))
+	whitelisted_services, err := get_whitelisted_services()
+	if err != nil {
+		panic(err)
+	}
+	accounts := account.NewServices(whitelisted_services)
 
 	static_socket = remote.TcpRequestSocketOrPanic(static_env, spaghetti_env)
 	networks, err := network.GetRemoteNetworks(static_socket, network.WITH_VM)
