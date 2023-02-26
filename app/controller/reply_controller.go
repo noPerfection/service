@@ -37,12 +37,13 @@ func NewReply(s *service.Service) (*Controller, error) {
 
 // We set the whitelisted accounts that has access to this controller
 func AddWhitelistedAccounts(s *service.Service, accounts account.Accounts) {
-	zmq.AuthCurveAdd(s.ServiceName(), accounts.PublicKeys()...)
+	zmq.AuthCurveAdd(s.Name, accounts.PublicKeys()...)
 }
 
 // Set the private key, so connected clients can identify this controller
+// You call it before running the controller
 func (c *Controller) SetControllerPrivateKey() error {
-	err := c.socket.ServerAuthCurve(c.service.ServiceName(), c.service.SecretKey)
+	err := c.socket.ServerAuthCurve(c.service.Name, c.service.SecretKey)
 	return err
 }
 
