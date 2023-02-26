@@ -9,10 +9,13 @@ import (
 	"log"
 
 	"github.com/blocklords/gosds/app/configuration"
+	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 	hashicorp "github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/api/auth/approle"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 type Vault struct {
@@ -30,7 +33,7 @@ type Vault struct {
 	// when vault is launched in the security
 	// we call the app role parameters
 	// the app role parameters should be renewed later
-	auth_token *hashicorp.Secret
+	auth_token          *hashicorp.Secret
 	database_auth_token *hashicorp.Secret
 }
 
@@ -125,6 +128,58 @@ func New(app_config *configuration.Config) (*Vault, error) {
 	}
 }
 
+// Run in the background to start to receive the messages
+func (v *Vault) RunController() {
+	// Socket to talk to clients
+	socket, err := zmq.NewSocket(zmq.REP)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := socket.Bind("inproc://sds_vault"); err != nil {
+		panic("error to bind socket for: " + err.Error())
+	}
+
+	for {
+		// msg_raw, metadata, err := socket.RecvMessageWithMetadata(0, "pub_key")
+		msgs, _ := socket.RecvMessage(0)
+
+		// All request types derive from the basic request.
+		// We first attempt to parse basic request from the raw message
+		request, _ := message.ParseRequest(msgs)
+
+		bucket, _ := request.Parameters.GetString("bucket")
+		key, _ := request.Parameters.GetString("key")
+
+		if request.Command == "GetString" {
+			value, err := v.get_string(bucket, key)
+
+			if err != nil {
+				fail := message.Fail("invalid smartcontract developer request " + err.Error())
+				reply_string, _ := fail.ToString()
+				if _, err := socket.SendMessage(reply_string); err != nil {
+					panic(errors.New("failed to reply: %w" + err.Error()))
+				}
+			} else {
+				reply := message.Reply{
+					Status:  "OK",
+					Message: "",
+					Parameters: map[string]interface{}{
+						"value": value,
+					},
+				}
+
+				reply_string, _ := reply.ToString()
+				if _, err := socket.SendMessage(reply_string); err != nil {
+					panic(errors.New("failed to reply: %w" + err.Error()))
+				}
+			}
+		} else {
+			panic("vault doesnt support this kind of command")
+		}
+	}
+}
+
 // A combination of a RoleID and a SecretID is required to log into Vault
 // with AppRole authentication method. The SecretID is a value that needs
 // to be protected, so instead of the app having knowledge of the SecretID
@@ -164,7 +219,7 @@ func (v *Vault) login(ctx context.Context) (*hashicorp.Secret, error) {
 }
 
 // Returns the String in the secret, by key
-func (v *Vault) GetString(secret_name string, key string) (string, error) {
+func (v *Vault) get_string(secret_name string, key string) (string, error) {
 	secret, err := v.client.KVv2(v.path).Get(v.context, secret_name)
 	if err != nil {
 		return "", err

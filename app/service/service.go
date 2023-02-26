@@ -80,17 +80,6 @@ func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 		BroadcastSecretKey: "",
 	}
 
-	var v *vault.Vault
-
-	if !app_config.Plain {
-		new_vault, err := vault.New(app_config)
-		if err != nil {
-			return nil, err
-		} else {
-			v = new_vault
-		}
-	}
-
 	for _, limit := range limits {
 		switch limit {
 		case REMOTE:
@@ -108,7 +97,8 @@ func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 
 			if !app_config.Plain {
 				bucket, key_name := s.SecretKeyVariable()
-				SecretKey, err := v.GetString(bucket, key_name)
+
+				SecretKey, err := vault.GetStringFromVault(bucket, key_name)
 				if err != nil {
 					return nil, err
 				}
@@ -132,7 +122,7 @@ func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 
 			if !app_config.Plain {
 				bucket, key_name := s.BroadcastSecretKeyVariable()
-				SecretKey, err := v.GetString(bucket, key_name)
+				SecretKey, err := vault.GetStringFromVault(bucket, key_name)
 				if err != nil {
 					return nil, err
 				}

@@ -59,6 +59,7 @@ func main() {
 			database_credetnails = new_credentials
 		}
 		go v.PeriodicallyRenewLeases(database.Reconnect)
+		go v.RunController()
 
 		s := security.New(app_config.DebugSecurity)
 		if err := s.StartAuthentication(); err != nil {

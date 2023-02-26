@@ -3,7 +3,6 @@ package message
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
@@ -12,7 +11,6 @@ type ServiceRequest struct {
 	PublicKey  string             `json:"public_key"`
 	Command    string             `json:"command"`    // Command type
 	Parameters key_value.KeyValue `json:"parameters"` // Parameters of the request
-	service    *service.Service   // The service parameters
 }
 
 // ServiceRequest message as a  sequence of bytes
@@ -23,10 +21,6 @@ func (request *ServiceRequest) ToBytes() ([]byte, error) {
 	}
 
 	return kv.ToBytes()
-}
-
-func (request *ServiceRequest) Service() *service.Service {
-	return request.service
 }
 
 // Convert ServiceRequest message to the string
@@ -53,15 +47,6 @@ func ParseServiceRequest(msgs []string) (ServiceRequest, error) {
 	if err != nil {
 		return ServiceRequest{}, fmt.Errorf("failed to convert key-value %v for message %s to intermediate interface: %v", data, msg, err)
 	}
-
-	// The developers or smartcontract developer public keys are not in the environment variable
-	// as a servie.
-	service_env, err := service.GetByPublicKey(request.PublicKey)
-	if err != nil {
-		return ServiceRequest{}, fmt.Errorf("service associated with public key %s not found: %v", request.PublicKey, err)
-	}
-
-	request.service = service_env
 
 	return request, nil
 }
