@@ -319,13 +319,6 @@ It supports the following arguments:
 		panic(err)
 	}
 
-	broadcast_debug := argument.Has(arguments, argument.BROADCAST_DEBUG)
-	broadcast_channel := make(chan message.Broadcast)
-	workers, err = setup_evm_workers(networks, broadcast_channel, broadcast_debug)
-	if err != nil {
-		panic(err)
-	}
-
 	// we whitelist before we initiate the reply controller
 	if !app_config.Plain {
 		whitelisted_services, err := get_whitelisted_services()
@@ -333,10 +326,23 @@ It supports the following arguments:
 			panic(err)
 		}
 		accounts := account.NewServices(whitelisted_services)
-		controller.AddWhitelistedAccounts(static_env, accounts)
+		controller.AddWhitelistedAccounts(spaghetti_env, accounts)
+
+		whitelisted_subscribers, err := get_whitelisted_subscribers()
+		if err != nil {
+			panic(err)
+		}
+		subsribers := account.NewServices(whitelisted_subscribers)
+
+		broadcast.AddWhitelistedAccounts(spaghetti_env, subsribers)
 	}
 
-	reply, err := controller.NewReply(static_env)
+	reply, err := controller.NewReply(spaghetti_env)
+	if err != nil {
+		panic(err)
+	}
+
+	broadcaster, err := broadcast.New(spaghetti_env)
 	if err != nil {
 		panic(err)
 	}
@@ -346,14 +352,20 @@ It supports the following arguments:
 		if err != nil {
 			panic(err)
 		}
+
+		err = broadcaster.SetPrivateKey()
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	whitelisted_subscribers, err := get_whitelisted_subscribers()
+	broadcast_debug := argument.Has(arguments, argument.BROADCAST_DEBUG)
+	workers, err = setup_evm_workers(networks, broadcaster.In, broadcast_debug)
 	if err != nil {
 		panic(err)
 	}
 
-	go broadcast.Run(broadcast_channel, spaghetti_env, whitelisted_subscribers)
+	go broadcaster.Run()
 
 	var commands = controller.CommandHandlers{
 		"block_get_cached_number":  block_get_cached_number,

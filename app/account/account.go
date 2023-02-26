@@ -141,3 +141,13 @@ func (accounts Accounts) PublicKeys() []string {
 
 	return public_keys
 }
+
+func (accounts Accounts) BroadcastPublicKeys() []string {
+	public_keys := make([]string, len(accounts))
+
+	for i := range accounts {
+		public_keys[i] = accounts[i].service.BroadcastPublicKey
+	}
+
+	return public_keys
+}

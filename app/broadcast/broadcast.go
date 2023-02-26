@@ -3,8 +3,9 @@ package broadcast
 
 import (
 	"log"
+	"sync"
 
-	"github.com/blocklords/gosds/app/argument"
+	"github.com/blocklords/gosds/app/account"
 	"github.com/blocklords/gosds/app/service"
 
 	"github.com/blocklords/gosds/app/remote/message"
@@ -12,49 +13,69 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+type Broadcast struct {
+	service *service.Service
+	socket  *zmq.Socket
+	In      chan message.Broadcast
+}
+
+func broadcast_domain(s *service.Service) string {
+	return s.Name + "_broadcast"
+}
+
+// Starts a new broadcaster in the background
+// The first parameter is the way to publish the messages.
+// The second parameter starts the message
+func New(s *service.Service) (*Broadcast, error) {
+	// Socket to talk to clients
+	socket, err := zmq.NewSocket(zmq.PUB)
+	if err != nil {
+		return nil, err
+	}
+
+	broadcast := Broadcast{
+		socket:  socket,
+		service: s,
+		In:      make(chan message.Broadcast),
+	}
+
+	return &broadcast, nil
+}
+
+// We set the whitelisted accounts that has access to this controller
+func AddWhitelistedAccounts(s *service.Service, accounts account.Accounts) {
+	zmq.AuthCurveAdd(broadcast_domain(s), accounts.BroadcastPublicKeys()...)
+}
+
+// Set the private key, so connected clients can identify this controller
+// You call it before running the controller
+func (c *Broadcast) SetPrivateKey() error {
+	err := c.socket.ServerAuthCurve(broadcast_domain(c.service), c.service.BroadcastSecretKey)
+	return err
+}
+
 // Run a new broadcaster
 //
 // It assumes that the another package is starting an authentication layer of zmq:
 // ZAP.
 //
 // If some error is encountered, then this package panics
-func Run(channel chan message.Broadcast, broadcast_env *service.Service, whitelisted_users []*service.Service) {
-	public_keys := make([]string, len(whitelisted_users))
-	for k, v := range whitelisted_users {
-		public_keys[k] = v.BroadcastPublicKey
-	}
+func (b *Broadcast) Run() {
+	var mu sync.Mutex
 
-	plain, err := argument.Exist(argument.PLAIN)
-	if err != nil {
-		panic(err)
-	}
-
-	domain_name := ""
-	if !plain {
-		domain_name = broadcast_env.ServiceName() + "_broadcast"
-
-		zmq.AuthCurveAdd(domain_name, public_keys...)
-	}
-
-	// prepare the publisher
-	pub, err := zmq.NewSocket(zmq.PUB)
-	if err != nil {
-		panic("error while trying to create a new socket " + err.Error())
-	}
-	defer pub.Close()
-	if !plain {
-		pub.ServerAuthCurve(domain_name, broadcast_env.BroadcastSecretKey)
-	}
-
-	err = pub.Bind("tcp://*:" + broadcast_env.BroadcastPort())
+	mu.Lock()
+	err := b.socket.Bind("tcp://*:" + b.service.BroadcastPort())
 	if err != nil {
 		log.Fatalf("could not listen to publisher: %v", err)
 	}
+	mu.Unlock()
 
 	for {
-		broadcast := <-channel
+		broadcast := <-b.In
 
-		_, err = pub.SendMessage(broadcast.Topic, broadcast.ToBytes())
+		mu.Lock()
+		_, err = b.socket.SendMessage(broadcast.Topic, broadcast.ToBytes())
+		mu.Unlock()
 		if err != nil {
 			log.Fatal(err)
 		}
