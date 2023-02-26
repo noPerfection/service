@@ -26,6 +26,12 @@ type Vault struct {
 
 	// the locations / field names of the database credentials
 	database_path string
+
+	// when vault is launched in the security
+	// we call the app role parameters
+	// the app role parameters should be renewed later
+	auth_token *hashicorp.Secret
+	database_auth_token *hashicorp.Secret
 }
 
 // The configuration parameters
@@ -47,14 +53,11 @@ var VaultConfigurations = configuration.DefaultConfig{
 
 // Sets up the connection to the Hashicorp Vault
 // If you run the Vault in the dev mode, then path should be "secret/"
-func New(app_config *configuration.Config) (*Vault, *hashicorp.Secret, error) {
+//
+// Optionally the app configuration could be nil, in that case it creates a new vault
+func New(app_config *configuration.Config) (*Vault, error) {
 	if app_config == nil {
-		new_config, err := configuration.New()
-		if err != nil {
-			return nil, nil, err
-		} else {
-			app_config = new_config
-		}
+		return nil, errors.New("missing configuration file")
 	}
 	secure := app_config.GetBool("SDS_VAULT_SECURE")
 	host := app_config.GetString("SDS_VAULT_HOST")
@@ -71,13 +74,13 @@ func New(app_config *configuration.Config) (*Vault, *hashicorp.Secret, error) {
 
 		// AppRole RoleID to log in to Vault
 		if !app_config.Exist("SDS_VAULT_APPROLE_ROLE_ID") {
-			return nil, nil, errors.New("missing 'SDS_VAULT_APPROLE_ROLE_ID' environment variable")
+			return nil, errors.New("missing 'SDS_VAULT_APPROLE_ROLE_ID' environment variable")
 		}
 		approle_role_id = app_config.GetString("SDS_VAULT_APPROLE_ROLE_ID")
 
 		// AppRole SecretID file path to log in to Vault
 		if !app_config.Exist("SDS_VAULT_APPROLE_SECRET_ID_FILE") {
-			return nil, nil, errors.New("missing 'SDS_VAULT_APPROLE_SECRET_ID_FILE' environment variable")
+			return nil, errors.New("missing 'SDS_VAULT_APPROLE_SECRET_ID_FILE' environment variable")
 		}
 
 		approle_secret_id_file = app_config.GetString("SDS_VAULT_APPROLE_SECRET_ID_FILE")
@@ -85,13 +88,13 @@ func New(app_config *configuration.Config) (*Vault, *hashicorp.Secret, error) {
 		config.Address = fmt.Sprintf("http://%s:%s", host, port)
 
 		if !app_config.Exist("SDS_VAULT_TOKEN") {
-			return nil, nil, errors.New("missing 'SDS_VAULT_TOKEN' environment variable")
+			return nil, errors.New("missing 'SDS_VAULT_TOKEN' environment variable")
 		}
 	}
 
 	client, err := hashicorp.NewClient(config)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	ctx := context.TODO()
@@ -108,16 +111,17 @@ func New(app_config *configuration.Config) (*Vault, *hashicorp.Secret, error) {
 	if secure {
 		token, err := vault.login(ctx)
 		if err != nil {
-			return nil, nil, fmt.Errorf("vault login error: %w", err)
+			return nil, fmt.Errorf("vault login error: %w", err)
 		}
 
 		log.Println("connecting to vault: success!")
 
-		return &vault, token, nil
+		vault.auth_token = token
+		return &vault, nil
 	} else {
 		client.SetToken(app_config.GetString("SDS_VAULT_TOKEN"))
 
-		return &vault, nil, nil
+		return &vault, nil
 	}
 }
 
@@ -176,12 +180,12 @@ func (v *Vault) GetString(secret_name string, key string) (string, error) {
 }
 
 // GetDatabaseCredentials retrieves a new set of temporary database credentials
-func (v *Vault) GetDatabaseCredentials() (db.DatabaseCredentials, *hashicorp.Secret, error) {
+func (v *Vault) GetDatabaseCredentials() (db.DatabaseCredentials, error) {
 	log.Println("getting temporary database credentials from vault")
 
 	lease, err := v.client.Logical().ReadWithContext(v.context, v.database_path)
 	if err != nil {
-		return db.DatabaseCredentials{}, nil, fmt.Errorf("unable to read secret: %w", err)
+		return db.DatabaseCredentials{}, fmt.Errorf("unable to read secret: %w", err)
 	}
 
 	fmt.Println(v.database_path)
@@ -190,17 +194,19 @@ func (v *Vault) GetDatabaseCredentials() (db.DatabaseCredentials, *hashicorp.Sec
 
 	b, err := json.Marshal(lease.Data)
 	if err != nil {
-		return db.DatabaseCredentials{}, nil, fmt.Errorf("malformed credentials returned: %w", err)
+		return db.DatabaseCredentials{}, fmt.Errorf("malformed credentials returned: %w", err)
 	}
 
 	var credentials db.DatabaseCredentials
 
 	if err := json.Unmarshal(b, &credentials); err != nil {
-		return db.DatabaseCredentials{}, nil, fmt.Errorf("unable to unmarshal credentials: %w", err)
+		return db.DatabaseCredentials{}, fmt.Errorf("unable to unmarshal credentials: %w", err)
 	}
 
 	log.Println("getting temporary database credentials from vault: success!")
 
+	v.database_auth_token = lease
+
 	// raw secret is included to renew database credentials
-	return credentials, lease, nil
+	return credentials, nil
 }

@@ -8,9 +8,9 @@ import (
 	"sync"
 
 	"github.com/blocklords/gosds/app/configuration"
-	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/categorizer"
 	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/gosds/security"
 	"github.com/blocklords/gosds/security/vault"
 	"github.com/blocklords/gosds/spaghetti"
 	"github.com/blocklords/gosds/static"
@@ -24,6 +24,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("configuration: %v", err)
 	}
+
 	if app_config.Plain {
 		fmt.Println("Security is switched off")
 	} else {
@@ -43,31 +44,26 @@ func main() {
 	if !app_config.Plain {
 		app_config.SetDefaults(vault.VaultConfigurations)
 
-		new_vault, auth_token, err := vault.New(app_config)
+		new_vault, err := vault.New(app_config)
 		if err != nil {
 			log.Fatalf("vault initiation: %v", err)
 		} else {
 			v = new_vault
 		}
 
-		// database
-		new_credentials, databaseCredentialsLease, err := v.GetDatabaseCredentials()
+		// database credentials from the vault
+		new_credentials, err := v.GetDatabaseCredentials()
 		if err != nil {
 			log.Fatalf("reading database credentials from vault: %v", err)
 		} else {
 			database_credetnails = new_credentials
 		}
+		go v.PeriodicallyRenewLeases(database.Reconnect)
 
-		// start the lease-renewal goroutine & wait for it to finish on exit
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			v.PeriodicallyRenewLeases(auth_token, databaseCredentialsLease, database.Reconnect)
-			wg.Done()
-		}()
-		defer func() {
-			wg.Wait()
-		}()
+		s := security.New(app_config.DebugSecurity)
+		if err := s.StartAuthentication(); err != nil {
+			log.Fatalf("security: %v", err)
+		}
 	}
 
 	database, err = db.Open(database_parameters, database_credetnails)

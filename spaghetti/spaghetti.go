@@ -29,7 +29,6 @@ import (
 	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
-	"github.com/blocklords/gosds/security"
 )
 
 var static_socket *remote.Socket
@@ -286,10 +285,6 @@ func log_filter(_ *db.Database, request message.Request) message.Reply {
 }
 
 func Run(app_config *configuration.Config, db_con *db.Database) {
-	if err := security.EnableSecurity(); err != nil {
-		panic(err)
-	}
-
 	arguments, err := argument.GetArguments()
 	if err != nil {
 		panic(err)

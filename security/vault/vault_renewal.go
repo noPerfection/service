@@ -7,7 +7,7 @@ import (
 
 	"github.com/blocklords/gosds/app/env"
 	"github.com/blocklords/gosds/db"
-	vault "github.com/hashicorp/vault/api"
+	hashicorp "github.com/hashicorp/vault/api"
 )
 
 // Once you've set the token for your Vault client, you will need to
@@ -25,19 +25,12 @@ import (
 // this which are outside the scope of this code sample.
 //
 // ref: https://www.vaultproject.io/docs/enterprise/consistency#vault-1-7-mitigations
-func (v *Vault) PeriodicallyRenewLeases(
-	authToken *vault.Secret,
-	databaseCredentialsLease *vault.Secret,
-	databaseReconnectFunc func(ctx context.Context, credentials db.DatabaseCredentials) error,
-) {
+func (v *Vault) PeriodicallyRenewLeases(db_reconnect func(ctx context.Context, credentials db.DatabaseCredentials) error) {
 	/* */ log.Println("renew / recreate secrets loop: begin")
 	defer log.Println("renew / recreate secrets loop: end")
 
-	currentAuthToken := authToken
-	currentDatabaseCredentialsLease := databaseCredentialsLease
-
 	for {
-		renewed, err := v.renewLeases(v.context, currentAuthToken, currentDatabaseCredentialsLease)
+		renewed, err := v.renewLeases(v.context, v.auth_token, v.database_auth_token)
 		if err != nil {
 			log.Fatalf("renew error: %v", err) // simplified error handling
 		}
@@ -49,27 +42,25 @@ func (v *Vault) PeriodicallyRenewLeases(
 		if renewed&expiringAuthToken != 0 {
 			log.Printf("auth token: can no longer be renewed; will log in again")
 
-			authToken, err := v.login(v.context)
+			auth_token, err := v.login(v.context)
 			if err != nil {
 				log.Fatalf("login authentication error: %v", err) // simplified error handling
 			}
 
-			currentAuthToken = authToken
+			v.auth_token = auth_token
 		}
 
 		if renewed&expiringDatabaseCredentialsLease != 0 {
 			log.Printf("database credentials: can no longer be renewed; will fetch new credentials & reconnect")
 
-			databaseCredentials, databaseCredentialsLease, err := v.GetDatabaseCredentials()
+			databaseCredentials, err := v.GetDatabaseCredentials()
 			if err != nil {
 				log.Fatalf("database credentials error: %v", err) // simplified error handling
 			}
 
-			if err := databaseReconnectFunc(v.context, databaseCredentials); err != nil {
+			if err := db_reconnect(v.context, databaseCredentials); err != nil {
 				log.Fatalf("database connection error: %v", err) // simplified error handling
 			}
-
-			currentDatabaseCredentialsLease = databaseCredentialsLease
 		}
 	}
 }
@@ -88,16 +79,16 @@ const (
 // instances to periodically renew the given secrets when they are close to
 // their 'token_ttl' expiration times until one of the secrets is close to its
 // 'token_max_ttl' lease expiration time.
-func (v *Vault) renewLeases(ctx context.Context, authToken, databaseCredentialsLease *vault.Secret) (renewResult, error) {
+func (v *Vault) renewLeases(ctx context.Context, authToken, databaseCredentialsLease *hashicorp.Secret) (renewResult, error) {
 	/* */ log.Println("renew cycle: begin")
 	defer log.Println("renew cycle: end")
 
-	var authTokenWatcher *vault.LifetimeWatcher
+	var authTokenWatcher *hashicorp.LifetimeWatcher
 
 	// auth token
 	secure := env.GetString("SDS_VAULT_SECURE")
 	if secure == "true" {
-		authTokenWatcher, err := v.client.NewLifetimeWatcher(&vault.LifetimeWatcherInput{
+		authTokenWatcher, err := v.client.NewLifetimeWatcher(&hashicorp.LifetimeWatcherInput{
 			Secret: authToken,
 		})
 		if err != nil {
@@ -109,7 +100,7 @@ func (v *Vault) renewLeases(ctx context.Context, authToken, databaseCredentialsL
 	}
 
 	// database credentials
-	databaseCredentialsWatcher, err := v.client.NewLifetimeWatcher(&vault.LifetimeWatcherInput{
+	databaseCredentialsWatcher, err := v.client.NewLifetimeWatcher(&hashicorp.LifetimeWatcherInput{
 		Secret: databaseCredentialsLease,
 	})
 	if err != nil {

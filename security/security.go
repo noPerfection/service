@@ -4,31 +4,28 @@
 package security
 
 import (
-	"github.com/blocklords/gosds/app/argument"
-
 	zmq "github.com/pebbe/zmq4"
 )
 
-// Enables the authentication and encryption of SDS Service connection.
-// Under the hood it runs through the ZAP (Zeromq Authentication Protocol).
+type Security struct {
+	enabled bool
+	debug   bool
+}
+
+func New(debug bool) *Security {
+	return &Security{
+		enabled: true,
+		debug:   debug,
+	}
+}
+
+// Enables the authentication and encryption layer on of SDS Service connection.
+// Under the hood it runs the ZAP (Zeromq Authentication Protocol).
 //
 // This function should be called at the beginning of the main() function.
-func EnableSecurity() error {
-	exist, err := argument.Exist(argument.PLAIN)
-	if err != nil {
-		return err
-	}
-	// Plain connection, therefore we don't start authentication
-	if exist {
-		return nil
-	}
-
-	debug, err := argument.Exist(argument.SECURITY_DEBUG)
-	if err != nil {
-		return err
-	}
-	zmq.AuthSetVerbose(debug)
-	err = zmq.AuthStart()
+func (s *Security) StartAuthentication() error {
+	zmq.AuthSetVerbose(s.debug)
+	err := zmq.AuthStart()
 	if err != nil {
 		return err
 	}

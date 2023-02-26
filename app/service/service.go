@@ -83,7 +83,7 @@ func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 	var v *vault.Vault
 
 	if !app_config.Plain {
-		new_vault, _, err := vault.New(app_config)
+		new_vault, err := vault.New(app_config)
 		if err != nil {
 			return nil, err
 		} else {
