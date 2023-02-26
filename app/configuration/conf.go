@@ -13,9 +13,10 @@ import (
 type Config struct {
 	viper *viper.Viper
 
-	Plain     bool // if true then no security
-	Broadcast bool // if true then broadcast of the service will be enabled
-	Reply     bool // if true then reply controller of the service will be enabled
+	Plain         bool // if true then no security
+	Broadcast     bool // if true then broadcast of the service will be enabled
+	Reply         bool // if true then reply controller of the service will be enabled
+	DebugSecurity bool // if true then we print the security layer logs
 }
 
 // Returns the new configuration file after loading environment variables
@@ -28,9 +29,10 @@ func NewAppConfig() (*Config, error) {
 	}
 
 	conf := Config{
-		Plain:     argument.Has(arguments, argument.PLAIN),
-		Broadcast: argument.Has(arguments, argument.BROADCAST),
-		Reply:     argument.Has(arguments, argument.REPLY),
+		Plain:         argument.Has(arguments, argument.PLAIN),
+		Broadcast:     argument.Has(arguments, argument.BROADCAST),
+		Reply:         argument.Has(arguments, argument.REPLY),
+		DebugSecurity: argument.Has(arguments, argument.SECURITY_DEBUG),
 	}
 
 	log.Println("Supported application arguments:")
