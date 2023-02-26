@@ -186,41 +186,6 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 		panic(err)
 	}
 
-	log_env, err := service.New(service.LOG, service.REMOTE)
-	if err != nil {
-		panic(err)
-	}
-
-	developer_gateway_env, err := service.New(service.DEVELOPER_GATEWAY, service.REMOTE, service.SUBSCRIBE)
-	if err != nil {
-		panic(err)
-	}
-
-	publisher_env, err := service.New(service.PUBLISHER, service.REMOTE, service.SUBSCRIBE)
-	if err != nil {
-		panic(err)
-	}
-
-	gateway_env, err := service.New(service.GATEWAY, service.REMOTE)
-	if err != nil {
-		panic(err)
-	}
-
-	bundle_env, err := service.New(service.BUNDLE, service.REMOTE)
-	if err != nil {
-		panic(err)
-	}
-
-	reader_env, err := service.New(service.READER, service.REMOTE)
-	if err != nil {
-		panic(err)
-	}
-
-	writer_env, err := service.New(service.WRITER, service.REMOTE)
-	if err != nil {
-		panic(err)
-	}
-
 	static_socket = remote.TcpRequestSocketOrPanic(static_env, categorizer_env)
 
 	var networks network.Networks = make(network.Networks, 0)
@@ -277,10 +242,11 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 	}
 
 	// Allowed services to connect to SDS Categorizer
-	accounts := account.NewAccounts(account.NewService(developer_gateway_env))
-	accounts = accounts.Add(account.NewService(bundle_env), account.NewService(log_env))
-	accounts = accounts.Add(account.NewService(reader_env), account.NewService(writer_env))
-	accounts = accounts.Add(account.NewService(publisher_env), account.NewService(gateway_env))
+	whitelisted_services, err := get_whitelisted_services()
+	if err != nil {
+		panic(err)
+	}
+	accounts := account.NewServices(whitelisted_services)
 
 	err = controller.ReplyController(db_con, commands, categorizer_env, accounts)
 	if err != nil {
