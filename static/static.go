@@ -1,7 +1,6 @@
 package static
 
 import (
-	"github.com/blocklords/gosds/security/vault"
 	"github.com/blocklords/gosds/static/handler"
 
 	"github.com/blocklords/gosds/app/configuration"
@@ -13,7 +12,7 @@ import (
 	"github.com/blocklords/gosds/db"
 )
 
-func Run(app_config *configuration.Config, db_connection *db.Database, v *vault.Vault) {
+func Run(app_config *configuration.Config, db_connection *db.Database) {
 	var commands = controller.CommandHandlers{
 		"abi_get":                      handler.AbiGet,
 		"abi_get_by_smartcontract_key": handler.AbiGetBySmartcontractKey,

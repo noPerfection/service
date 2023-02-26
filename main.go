@@ -88,17 +88,17 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		static.Run(app_config, database, v)
+		static.Run(app_config, database)
 		wg.Done()
 	}()
 	wg.Add(1)
 	go func() {
-		categorizer.Run(app_config, database, v)
+		categorizer.Run(app_config, database)
 		wg.Done()
 	}()
 	wg.Add(1)
 	go func() {
-		spaghetti.Run(app_config, database, v)
+		spaghetti.Run(app_config, database)
 		wg.Done()
 	}()
 	defer func() {

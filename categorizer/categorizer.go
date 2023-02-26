@@ -18,7 +18,6 @@ import (
 	"github.com/blocklords/gosds/app/account"
 	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/configuration"
-	"github.com/blocklords/gosds/security/vault"
 
 	"github.com/blocklords/gosds/app/remote"
 
@@ -157,7 +156,7 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 }
 
 // Smartcontract data are parsed and stored in the database
-func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) {
+func Run(app_config *configuration.Config, db_con *db.Database) {
 	greeting := `SDS Categorizer preparing... Supported command line arguments:
     --network-id=<network id>   runs the smartcontract workers for this network id only
     --security-debug            prints the security logs`

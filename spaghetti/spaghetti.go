@@ -17,8 +17,6 @@ import (
 	"github.com/blocklords/gosds/spaghetti/worker"
 	"github.com/blocklords/gosds/static/network"
 
-	"github.com/blocklords/gosds/security/vault"
-
 	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/app/service"
 
@@ -287,7 +285,7 @@ func log_filter(_ *db.Database, request message.Request) message.Reply {
 	return reply
 }
 
-func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) {
+func Run(app_config *configuration.Config, db_con *db.Database) {
 	if err := security.EnableSecurity(); err != nil {
 		panic(err)
 	}
