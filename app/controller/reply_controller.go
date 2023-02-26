@@ -46,30 +46,21 @@ func (c *Controller) SetControllerPrivateKey() error {
 	return err
 }
 
-// Creates a new Reply controller using ZeroMQ
-// The requesters is the list of curve public keys that are allowed to connect to the socket.
-func ReplyController(db_connection *db.Database, commands CommandHandlers, e *service.Service) error {
-	// Socket to talk to clients
-	socket, err := zmq.NewSocket(zmq.REP)
-	if err != nil {
-		return err
-	} else {
-		defer socket.Close()
+// Controllers started to receive messages
+func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) error {
+	if err := c.socket.Bind("tcp://*:" + c.service.Port()); err != nil {
+		return errors.New("error to bind socket for '" + c.service.ServiceName() + ": " + c.service.Port() + "' : " + err.Error())
 	}
 
-	if err := socket.Bind("tcp://*:" + e.Port()); err != nil {
-		return errors.New("error to bind socket for '" + e.ServiceName() + " - " + e.Port() + "' : " + err.Error())
-	}
-
-	println("'" + e.ServiceName() + "' request-reply server runs on port " + e.Port())
+	println("'" + c.service.ServiceName() + "' request-reply server runs on port " + c.service.Port())
 
 	for {
 		// msg_raw, metadata, err := socket.RecvMessageWithMetadata(0, "pub_key")
-		msg_raw, err := socket.RecvMessage(0)
+		msg_raw, err := c.socket.RecvMessage(0)
 		if err != nil {
 			fail := message.Fail("socket error to receive message " + err.Error())
 			reply, _ := fail.ToString()
-			if _, err := socket.SendMessage(reply); err != nil {
+			if _, err := c.socket.SendMessage(reply); err != nil {
 				return errors.New("failed to reply: %w" + err.Error())
 			}
 			continue
@@ -81,7 +72,7 @@ func ReplyController(db_connection *db.Database, commands CommandHandlers, e *se
 		if err != nil {
 			fail := message.Fail(err.Error())
 			reply, _ := fail.ToString()
-			if _, err := socket.SendMessage(reply); err != nil {
+			if _, err := c.socket.SendMessage(reply); err != nil {
 				return errors.New("failed to reply: %w" + err.Error())
 			}
 			continue
@@ -91,7 +82,7 @@ func ReplyController(db_connection *db.Database, commands CommandHandlers, e *se
 		if commands[request.Command] == nil {
 			fail := message.Fail("unsupported command " + request.Command)
 			reply, _ := fail.ToString()
-			if _, err := socket.SendMessage(reply); err != nil {
+			if _, err := c.socket.SendMessage(reply); err != nil {
 				return errors.New("failed to reply: %w" + err.Error())
 			}
 			continue
@@ -106,7 +97,7 @@ func ReplyController(db_connection *db.Database, commands CommandHandlers, e *se
 			if err != nil {
 				fail := message.Fail("invalid smartcontract developer request " + err.Error())
 				reply, _ := fail.ToString()
-				if _, err := socket.SendMessage(reply); err != nil {
+				if _, err := c.socket.SendMessage(reply); err != nil {
 					return errors.New("failed to reply: %w" + err.Error())
 				}
 				continue
@@ -117,7 +108,7 @@ func ReplyController(db_connection *db.Database, commands CommandHandlers, e *se
 				println(smartcontract_developer_request.NonceTimestamp)
 				fail := message.Fail("reply controller error as invalid smartcontract developer request: " + err.Error())
 				reply, _ := fail.ToString()
-				if _, err := socket.SendMessage(reply); err != nil {
+				if _, err := c.socket.SendMessage(reply); err != nil {
 					return errors.New("failed to reply: %w" + err.Error())
 				}
 				continue
@@ -132,7 +123,7 @@ func ReplyController(db_connection *db.Database, commands CommandHandlers, e *se
 				if err != nil {
 					fail := message.Fail("invalid service request " + err.Error())
 					reply, _ := fail.ToString()
-					if _, err := socket.SendMessage(reply); err != nil {
+					if _, err := c.socket.SendMessage(reply); err != nil {
 						return errors.New("failed to reply: %w" + err.Error())
 					}
 					continue
@@ -149,11 +140,11 @@ func ReplyController(db_connection *db.Database, commands CommandHandlers, e *se
 
 		reply_string, err := reply.ToString()
 		if err != nil {
-			if _, err := socket.SendMessage(err.Error()); err != nil {
+			if _, err := c.socket.SendMessage(err.Error()); err != nil {
 				return errors.New("failed to reply: %w" + err.Error())
 			}
 		} else {
-			if _, err := socket.SendMessage(reply_string); err != nil {
+			if _, err := c.socket.SendMessage(reply_string); err != nil {
 				return errors.New("failed to reply: %w" + err.Error())
 			}
 		}

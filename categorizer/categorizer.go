@@ -266,7 +266,7 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 		}
 	}
 
-	err = controller.ReplyController(db_con, commands, categorizer_env)
+	err = reply.Run(db_con, commands)
 	if err != nil {
 		panic(err)
 	}

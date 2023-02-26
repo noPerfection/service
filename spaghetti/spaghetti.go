@@ -362,7 +362,7 @@ It supports the following arguments:
 		"log_filter":               log_filter,
 		"transaction_deployed_get": transaction_deployed_get,
 	}
-	err = controller.ReplyController(db_con, commands, spaghetti_env)
+	err = reply.Run(db_con, commands)
 	if err != nil {
 		panic(err)
 	}

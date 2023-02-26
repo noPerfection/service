@@ -60,7 +60,7 @@ func Run(app_config *configuration.Config, db_connection *db.Database, v *vault.
 		}
 	}
 
-	err = controller.ReplyController(db_connection, commands, static_env)
+	err = reply.Run(db_connection, commands)
 	if err != nil {
 		panic(err)
 	}
