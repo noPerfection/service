@@ -177,6 +177,9 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 		panic(err)
 	}
 
+	// check that spaghetti parameters are given
+	// categorizer should connect to spaghetti, therefore categorizer service should know
+	// the url and security parameters
 	if _, err := service.New(service.SPAGHETTI, service.REMOTE); err != nil {
 		panic(err)
 	}
@@ -241,14 +244,29 @@ func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) 
 		"smartcontract_set": smartcontract_set,
 	}
 
-	// Allowed services to connect to SDS Categorizer
-	whitelisted_services, err := get_whitelisted_services()
+	// we whitelist before we initiate the reply controller
+	if !app_config.Plain {
+		whitelisted_services, err := get_whitelisted_services()
+		if err != nil {
+			panic(err)
+		}
+		accounts := account.NewServices(whitelisted_services)
+		controller.AddWhitelistedAccounts(static_env, accounts)
+	}
+
+	reply, err := controller.NewReply(static_env)
 	if err != nil {
 		panic(err)
 	}
-	accounts := account.NewServices(whitelisted_services)
 
-	err = controller.ReplyController(db_con, commands, categorizer_env, accounts)
+	if !app_config.Plain {
+		err := reply.SetControllerPrivateKey()
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	err = controller.ReplyController(db_con, commands, categorizer_env)
 	if err != nil {
 		panic(err)
 	}

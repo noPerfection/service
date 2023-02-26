@@ -287,7 +287,7 @@ func log_filter(_ *db.Database, request message.Request) message.Reply {
 	return reply
 }
 
-func Run(_ *configuration.Config, db_con *db.Database, v *vault.Vault) {
+func Run(app_config *configuration.Config, db_con *db.Database, v *vault.Vault) {
 	if err := security.EnableSecurity(); err != nil {
 		panic(err)
 	}
@@ -308,21 +308,10 @@ It supports the following arguments:
 		panic(err)
 	}
 
-	categorizer_env, err := service.New(service.CATEGORIZER, service.SUBSCRIBE, service.REMOTE)
-	if err != nil {
-		panic(err)
-	}
-
 	static_env, err := service.New(service.STATIC, service.REMOTE)
 	if err != nil {
 		panic(err)
 	}
-
-	whitelisted_services, err := get_whitelisted_services()
-	if err != nil {
-		panic(err)
-	}
-	accounts := account.NewServices(whitelisted_services)
 
 	static_socket = remote.TcpRequestSocketOrPanic(static_env, spaghetti_env)
 	networks, err := network.GetRemoteNetworks(static_socket, network.WITH_VM)
@@ -337,7 +326,34 @@ It supports the following arguments:
 		panic(err)
 	}
 
-	go broadcast.Run(broadcast_channel, spaghetti_env, []*service.Service{categorizer_env})
+	// we whitelist before we initiate the reply controller
+	if !app_config.Plain {
+		whitelisted_services, err := get_whitelisted_services()
+		if err != nil {
+			panic(err)
+		}
+		accounts := account.NewServices(whitelisted_services)
+		controller.AddWhitelistedAccounts(static_env, accounts)
+	}
+
+	reply, err := controller.NewReply(static_env)
+	if err != nil {
+		panic(err)
+	}
+
+	if !app_config.Plain {
+		err := reply.SetControllerPrivateKey()
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	whitelisted_subscribers, err := get_whitelisted_subscribers()
+	if err != nil {
+		panic(err)
+	}
+
+	go broadcast.Run(broadcast_channel, spaghetti_env, whitelisted_subscribers)
 
 	var commands = controller.CommandHandlers{
 		"block_get_cached_number":  block_get_cached_number,
@@ -346,7 +362,7 @@ It supports the following arguments:
 		"log_filter":               log_filter,
 		"transaction_deployed_get": transaction_deployed_get,
 	}
-	err = controller.ReplyController(db_con, commands, spaghetti_env, accounts)
+	err = controller.ReplyController(db_con, commands, spaghetti_env)
 	if err != nil {
 		panic(err)
 	}

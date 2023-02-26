@@ -8,7 +8,6 @@ import (
 	"errors"
 
 	"github.com/blocklords/gosds/app/account"
-	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/db"
@@ -18,32 +17,44 @@ import (
 
 type CommandHandlers map[string]interface{}
 
+type Controller struct {
+	service *service.Service
+	socket  *zmq.Socket
+}
+
+func NewReply(s *service.Service) (*Controller, error) {
+	// Socket to talk to clients
+	socket, err := zmq.NewSocket(zmq.REP)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Controller{
+		socket:  socket,
+		service: s,
+	}, nil
+}
+
+// We set the whitelisted accounts that has access to this controller
+func AddWhitelistedAccounts(s *service.Service, accounts account.Accounts) {
+	zmq.AuthCurveAdd(s.ServiceName(), accounts.PublicKeys()...)
+}
+
+// Set the private key, so connected clients can identify this controller
+func (c *Controller) SetControllerPrivateKey() error {
+	err := c.socket.ServerAuthCurve(c.service.ServiceName(), c.service.SecretKey)
+	return err
+}
+
 // Creates a new Reply controller using ZeroMQ
 // The requesters is the list of curve public keys that are allowed to connect to the socket.
-func ReplyController(db_connection *db.Database, commands CommandHandlers, e *service.Service, accounts account.Accounts) error {
-	exist, err := argument.Exist(argument.PLAIN)
-	if err != nil {
-		return err
-	}
-
-	if !exist {
-		// only whitelisted users are allowed
-		zmq.AuthCurveAdd(e.ServiceName(), accounts.PublicKeys()...)
-	}
-
+func ReplyController(db_connection *db.Database, commands CommandHandlers, e *service.Service) error {
 	// Socket to talk to clients
 	socket, err := zmq.NewSocket(zmq.REP)
 	if err != nil {
 		return err
 	} else {
 		defer socket.Close()
-	}
-
-	if !exist {
-		err = socket.ServerAuthCurve(e.ServiceName(), e.SecretKey)
-		if err != nil {
-			return err
-		}
 	}
 
 	if err := socket.Bind("tcp://*:" + e.Port()); err != nil {

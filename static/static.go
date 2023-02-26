@@ -38,14 +38,29 @@ func Run(app_config *configuration.Config, db_connection *db.Database, v *vault.
 		panic(err)
 	}
 
-	whitelisted_services, err := get_whitelisted_services()
+	// we whitelist before we initiate the reply controller
+	if !app_config.Plain {
+		whitelisted_services, err := get_whitelisted_services()
+		if err != nil {
+			panic(err)
+		}
+		accounts := account.NewServices(whitelisted_services)
+		controller.AddWhitelistedAccounts(static_env, accounts)
+	}
+
+	reply, err := controller.NewReply(static_env)
 	if err != nil {
 		panic(err)
 	}
-	accounts := account.NewServices(whitelisted_services)
-	// pass to the security channel
 
-	err = controller.ReplyController(db_connection, commands, static_env, accounts)
+	if !app_config.Plain {
+		err := reply.SetControllerPrivateKey()
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	err = controller.ReplyController(db_connection, commands, static_env)
 	if err != nil {
 		panic(err)
 	}
