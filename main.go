@@ -30,12 +30,6 @@ func main() {
 		fmt.Println("Security is enabled. add '--plain' to switch off security")
 	}
 
-	// Initiate the default service configurations
-	service_default_configs := service.DefaultConfigurations()
-	for _, service_default_config := range service_default_configs {
-		app_config.SetDefaults(service_default_config)
-	}
-
 	app_config.SetDefaults(db.DatabaseConfigurations)
 	database_parameters, err := db.GetParameters(app_config)
 	if err != nil {
