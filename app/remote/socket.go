@@ -35,7 +35,7 @@ type Socket struct {
 }
 
 type SDS_Message interface {
-	*message.Request | *message.ServiceRequest
+	*message.Request
 
 	CommandName() string
 	ToString() (string, error)

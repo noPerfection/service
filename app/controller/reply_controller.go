@@ -116,27 +116,6 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 			}
 
 			reply = command_handler(db_connection, smartcontract_developer_request, smartcontract_developer)
-		} else {
-			// The command might be from another SDS Service
-			service_handler, ok := commands[request.Command].(func(*db.Database, message.ServiceRequest, *account.Account) message.Reply)
-			if ok {
-				service_request, err := message.ParseServiceRequest(msg_raw)
-				if err != nil {
-					fail := message.Fail("invalid service request " + err.Error())
-					reply, _ := fail.ToString()
-					if _, err := c.socket.SendMessage(reply); err != nil {
-						return errors.New("failed to reply: %w" + err.Error())
-					}
-					continue
-				}
-
-				service_account := account.NewService(service_request.Service())
-
-				reply = service_handler(db_connection, service_request, service_account)
-			} else {
-				// The command is from a developer.
-				reply = commands[request.Command].(func(*db.Database, message.Request) message.Reply)(db_connection, request)
-			}
 		}
 
 		reply_string, err := reply.ToString()
