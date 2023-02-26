@@ -28,7 +28,7 @@ func ReplyController(db_connection *db.Database, commands CommandHandlers, e *se
 
 	if !exist {
 		// only whitelisted users are allowed
-		zmq.AuthCurveAdd("*", accounts.PublicKeys()...)
+		zmq.AuthCurveAdd(e.ServiceName(), accounts.PublicKeys()...)
 	}
 
 	// Socket to talk to clients
