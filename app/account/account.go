@@ -39,6 +39,16 @@ func NewService(service *service.Service) *Account {
 	}
 }
 
+// Creates an account for a service
+func NewServices(services []*service.Service) []*Account {
+	accounts := make([]*Account, 0, len(services))
+	for i, s := range services {
+		accounts[i] = NewService(s)
+	}
+
+	return accounts
+}
+
 func (account *Account) IsDeveloper() bool {
 	return account.service == nil
 }
