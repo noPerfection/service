@@ -1,15 +1,15 @@
 package abi
 
 import (
-	"github.com/ethereum/go-ethereum/crypto"
+	"encoding/base64"
+	"errors"
+
+	"github.com/blocklords/gosds/common/data_type"
 )
 
 type Abi struct {
 	bytes []byte
-	// Body abi.ABI
-	Body    interface{} `json:"abi"`
-	AbiHash string      `json:"abi_hash"`
-	exists  bool
+	Id    string `json:"id"`
 }
 
 // Returns the abi content in string format
@@ -19,21 +19,17 @@ func (abi *Abi) ToString() string {
 
 // Creates the abi hash from the abi body
 // The abi hash is the unique identifier of the abi
-func (a *Abi) CalculateAbiHash() {
-	hash := crypto.Keccak256Hash(a.bytes)
-	a.AbiHash = hash.String()[2:10]
+func (abi *Abi) GenerateId() {
+	encoded := base64.StdEncoding.EncodeToString(abi.bytes)
+	abi.Id = encoded[0:8]
 }
 
-// check whether the abi when its build was built from the database or in memory
-func (a *Abi) Exists() bool {
-	return a.exists
-}
+// Get the interface from the bytes
+func (abi *Abi) Interface(body interface{}) error {
+	err := data_type.Deserialize(abi.bytes, &body)
+	if err != nil {
+		return errors.New("Failed to convert abi bytes to body interface")
+	}
 
-func (a *Abi) SetBytes(bytes []byte) {
-	a.bytes = bytes
-}
-
-// set the exists flag
-func (a *Abi) SetExists(exists bool) {
-	a.exists = exists
+	return nil
 }

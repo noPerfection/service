@@ -9,39 +9,32 @@ import (
 
 // Save the ABI in the Database
 func SetInDatabase(db *db.Database, a *Abi) error {
-	_, err := db.Connection.Exec(`INSERT IGNORE INTO static_abi (abi_hash, abi) VALUES (?, ?) `, a.AbiHash, a.bytes)
+	_, err := db.Connection.Exec(`INSERT IGNORE INTO static_abi (abi_hash, abi) VALUES (?, ?) `, a.Id, a.bytes)
 	if err != nil {
 		return fmt.Errorf("abi setting db error: %v", err)
 	}
-	a.SetExists(true)
 	return nil
 }
 
 // Returns the Abi from database by its abi_hash
-func GetFromDatabaseByAbiHash(db *db.Database, abi_hash string) *Abi {
+func GetFromDatabaseByAbiHash(db *db.Database, abi_hash string) (*Abi, error) {
 	var bytes []byte
 	abi := Abi{}
-	abi.AbiHash = abi_hash
-	abi.SetExists(false)
+	abi.Id = abi_hash
 	err := db.Connection.QueryRow("SELECT abi FROM static_abi WHERE abi_hash = ? ", abi_hash).Scan(&bytes)
 	if err != nil {
-		fmt.Println("Static Abi loading abi returned db error: ", err.Error())
-		return &abi
+		return nil, fmt.Errorf("Static Abi loading abi returned db error %v ", err.Error())
 	}
 
-	built := FromBytes(bytes)
-	built.SetExists(true)
-
-	return built
+	built, err := NewFromBytes(bytes)
+	return built, err
 }
 
-// Returns the Abi hash by the smartcontract key (network id . address)
+// Returns the Abi by the smartcontract key (network id . address)
 func GetFromDatabase(db *db.Database, network_id string, address string) (*Abi, error) {
 	var bytes []byte
 	var abi_hash string
 
-	abi := Abi{}
-	abi.SetExists(false)
 	err := db.Connection.QueryRow(`
 		SELECT 
 			static_abi.abi,
@@ -58,11 +51,12 @@ func GetFromDatabase(db *db.Database, network_id string, address string) (*Abi, 
 		return nil, err
 	}
 
-	built := FromBytes(bytes)
-	built.SetExists(true)
-	built.AbiHash = abi_hash
+	built, err := NewFromBytes(bytes)
+	if err == nil {
+		built.Id = abi_hash
+	}
 
-	return built, nil
+	return built, err
 }
 
 // Checks whether the Abi exists in the database or not

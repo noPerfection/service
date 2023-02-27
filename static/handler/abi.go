@@ -35,7 +35,7 @@ func AbiGet(con *db.Database, request message.Request) message.Reply {
 	reply := message.Reply{
 		Status:     "OK",
 		Message:    "",
-		Parameters: key_value.Empty().Set("abi", abi.Body).Set("abi_hash", abi.AbiHash),
+		Parameters: key_value.Empty().Set("abi", abi.ToString()).Set("abi_hash", abi.Id),
 	}
 
 	return reply
@@ -61,12 +61,15 @@ func AbiGetBySmartcontractKey(db *db.Database, request message.Request) message.
 		return message.Fail("failed to get smartcontract from database: " + err.Error())
 	}
 
-	abi := abi.GetFromDatabaseByAbiHash(db, smartcontract.AbiHash)
+	abi, err := abi.GetFromDatabaseByAbiHash(db, smartcontract.AbiHash)
+	if err != nil {
+		return message.Fail("failed to get abi from database: " + err.Error())
+	}
 
 	return message.Reply{
 		Status:     "OK",
 		Message:    "",
-		Parameters: key_value.Empty().Set("abi", abi.Body).Set("abi_hash", abi.AbiHash),
+		Parameters: key_value.Empty().Set("abi", abi.ToString()).Set("abi_hash", abi.Id),
 	}
 }
 
@@ -83,7 +86,7 @@ func AbiRegister(dbCon *db.Database, request message.Request) message.Reply {
 	if !ok {
 		return message.Fail("missing 'abi' parameter")
 	}
-	new_abi, err := abi.New(abi_body)
+	new_abi, err := abi.NewFromInterface(abi_body)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -91,10 +94,10 @@ func AbiRegister(dbCon *db.Database, request message.Request) message.Reply {
 	reply := message.Reply{
 		Status:     "OK",
 		Message:    "",
-		Parameters: key_value.Empty().Set("abi", new_abi.Body).Set("abi_hash", new_abi.AbiHash),
+		Parameters: key_value.Empty().Set("abi", new_abi.ToString()).Set("abi_hash", new_abi.Id),
 	}
 
-	if abi.ExistInDatabase(dbCon, new_abi.AbiHash) {
+	if abi.ExistInDatabase(dbCon, new_abi.Id) {
 		return reply
 	}
 

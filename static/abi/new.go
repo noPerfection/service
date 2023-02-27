@@ -2,34 +2,24 @@
 package abi
 
 import (
-	"encoding/json"
-	"fmt"
+	"github.com/blocklords/gosds/common/data_type"
 )
 
-// creates the Abi data based on the abi JSON. The function calculates the abi hash
-// but won't set it in the database.
-func New(body interface{}) (*Abi, error) {
-	abi := Abi{Body: body, exists: false}
-	byt, err := json.Marshal(body)
+// Wraps the JSON abi interface to the internal data type.
+// It's blockchain agnostic.
+func NewFromInterface(body interface{}) (*Abi, error) {
+	bytes, err := data_type.Serialize(body)
 	if err != nil {
 		return nil, err
 	}
-
-	abi.bytes = byt
-	abi.CalculateAbiHash()
-
-	return &abi, nil
+	return NewFromBytes(bytes)
 }
 
 // creates the Abi data based on the JSON string. This function calculates the abi hash
 // but won't set it in the database.
-func FromBytes(bytes []byte) *Abi {
-	body := []interface{}{}
-	err := json.Unmarshal(bytes, &body)
-	if err != nil {
-		fmt.Println("Failed to convert abi bytes to body interface")
-	}
+func NewFromBytes(bytes []byte) (*Abi, error) {
+	abi := Abi{bytes: bytes}
+	abi.GenerateId()
 
-	abi := Abi{Body: body, exists: false, bytes: bytes}
-	return &abi
+	return &abi, nil
 }

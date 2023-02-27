@@ -6,7 +6,6 @@ import (
 
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // Sends the ABI information to the remote SDS Static.
@@ -37,23 +36,16 @@ func Get(socket *remote.Socket, network_id string, address string) (*Abi, error)
 	if err != nil {
 		return nil, err
 	}
-	params := key_value.New(raw_params)
 
 	abi_bytes, ok := raw_params["abi"]
 	if !ok {
 		return nil, errors.New("missing 'abi' parameter from the SDS Static 'abi_get' command")
 	}
 
-	abi_hash, err := params.GetString("abi_hash")
+	new_abi, err := NewFromInterface(abi_bytes)
 	if err != nil {
 		return nil, err
 	}
-
-	new_abi, err := New(abi_bytes)
-	if err != nil {
-		return nil, err
-	}
-	new_abi.AbiHash = abi_hash
 
 	return new_abi, nil
 }
