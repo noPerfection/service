@@ -10,13 +10,10 @@
 package spaghetti
 
 import (
-	"fmt"
-
 	"github.com/blocklords/gosds/blockchain"
 	"github.com/blocklords/gosds/spaghetti/log"
 	"github.com/blocklords/gosds/spaghetti/transaction"
 
-	// "github.com/blocklords/gosds/spaghetti/network_client"
 	"github.com/blocklords/gosds/spaghetti/worker"
 
 	"github.com/blocklords/gosds/app/configuration"
@@ -27,7 +24,6 @@ import (
 	"github.com/blocklords/gosds/app/controller"
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 )
@@ -59,77 +55,6 @@ var workers worker.Workers
 // Command handlers
 //
 ////////////////////////////////////////////////////////////////////
-
-// Returns the transactions and logs in a range of the block.
-// Optionally it accepts to parameter that filters the transactions and logs
-// for the smartcontract.
-func block_get_range(_ *db.Database, request message.Request) message.Reply {
-	network_id, err := request.Parameters.GetString("network_id")
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-	block_numbers, err := request.Parameters.GetUint64s("block_number_from", "block_number_to")
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-
-	to, _ := request.Parameters.GetString("to")
-
-	if !workers.Exist(network_id) {
-		return message.Fail("unsupported network_id " + network_id)
-	}
-
-	// client := workers.Client(network_id)
-	// earliest_block_number, err := client.GetRecentBlockNumber()
-	// if err != nil {
-	// 	return message.Fail(err.Error())
-	// }
-	earliest_block_number := uint64(1)
-	if block_numbers[0] < earliest_block_number || block_numbers[1] < earliest_block_number {
-		return message.Fail(fmt.Sprintf("please run a worker, the database keeps the blockchain data up until %d", earliest_block_number))
-	}
-
-	// block_length, err := client.Network.GetFirstProviderLength()
-	// if err != nil {
-	// 	return message.Fail(err.Error())
-	// }
-	// recent_block_number := earliest_block_number + block_length
-	// if block_numbers[0] < recent_block_number || block_numbers[1] < recent_block_number {
-	// return message.Fail(fmt.Sprintf("please run a worker, the database keeps the blockchain data up until %d", earliest_block_number))
-	// }
-
-	// timestamp, err := client.GetBlockTimestamp(block_numbers[1])
-	// if err != nil {
-	// return message.Fail(err.Error())
-	// }
-	timestamp := 0
-
-	var logs []*log.Log = make([]*log.Log, 0)
-	var addresses []string = make([]string, 0)
-	if to != "" {
-		addresses = append(addresses, to)
-	}
-
-	// raw_logs, err := client.GetBlockRangeLogs(block_numbers[0], block_numbers[1], addresses)
-	// if err != nil {
-	// 	return message.Fail(err.Error())
-	// }
-	// logs, err = log.NewLogsFromRaw(network_id, timestamp, raw_logs)
-	// if err != nil {
-	// 	return message.Fail(err.Error())
-	// }
-
-	return message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"network_id": network_id,
-			"to":         to,
-			"timestamp":  timestamp,
-			"logs":       data_type.ToMapList(logs),
-		}),
-	}
-}
 
 // this function returns the smartcontract deployer, deployed block number
 // and block timestamp by a transaction hash of the smartcontract deployment.
@@ -315,7 +240,6 @@ It supports the following arguments:
 	go broadcaster.Run()
 
 	var commands = controller.CommandHandlers{
-		"block_get_range":          block_get_range,
 		"log_filter":               log_filter,
 		"transaction_deployed_get": transaction_deployed_get,
 	}
