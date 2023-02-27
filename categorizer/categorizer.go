@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/blocklords/gosds/blockchain"
-	evm_worker "github.com/blocklords/gosds/blockchain/evm/categorizer"
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer/handler"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
@@ -24,9 +23,6 @@ import (
 
 	"github.com/blocklords/gosds/app/controller"
 )
-
-var log_parse_in chan evm_worker.RequestLogParse = nil
-var log_parse_out chan evm_worker.ReplyLogParse = nil
 
 var static_socket *remote.Socket
 
@@ -166,10 +162,6 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 	if err != nil {
 		panic(err)
 	}
-
-	log_parse_in = make(chan evm_worker.RequestLogParse)
-	log_parse_out = make(chan evm_worker.ReplyLogParse)
-	go evm_worker.LogParse(log_parse_in, log_parse_out)
 
 	for _, the_network := range networks {
 		register_smartcontracts(db_con, the_network)

@@ -118,6 +118,12 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 
 // Same as Run. Run it as a goroutine
 func (manager *Manager) Start() {
+	log_parse_in := make(chan RequestLogParse)
+	log_parse_out := make(chan ReplyLogParse)
+	go LogParse(log_parse_in, log_parse_out)
+	manager.log_in = log_parse_in
+	manager.log_out = log_parse_out
+
 	go manager.subscribe()
 	go manager.categorize_current_smartcontracts()
 
