@@ -183,57 +183,6 @@ func (manager *Manager) Start() {
 	}
 }
 
-// Starts the manager in a background as a goroutine.
-// IMPORTANT! it doesn't validate the service configurations
-// They should be validated in the main page.
-//
-// Change the block_get_range to accept multiple addresses
-// create a []*Worker data type that manipulates the list of contracts
-// - get all below the block number
-// - get all above the block number
-// - sort from top to bottom
-// - update the smartcontract number
-// - get list of smartcontract addresses
-// - check whether address exists in the list
-func (manager *Manager) Run() {
-	go manager.subscribe()
-	go manager.categorize_current_smartcontracts()
-
-	categorizer_env, _ := service.New(service.CATEGORIZER, service.BROADCAST, service.THIS)
-	spaghetti_env, _ := service.New(service.SPAGHETTI, service.REMOTE)
-
-	manager.spaghetti_socket = remote.TcpRequestSocketOrPanic(spaghetti_env, categorizer_env)
-
-	for {
-		new_workers := <-manager.In
-
-		var block_number uint64
-
-		for {
-			block_number = manager.subscribed_earliest_block_number
-			if block_number == 0 {
-				time.Sleep(time.Second * 1)
-				continue
-			}
-			break
-		}
-
-		old_workers, current_workers := new_workers.Sort().Split(block_number)
-		old_block_number := old_workers.EarliestBlockNumber()
-
-		group := manager.old_categorizers.FirstGroupGreaterThan(old_block_number)
-		if group == nil {
-			group = NewGroup(old_block_number, old_workers)
-			manager.old_categorizers = append(manager.old_categorizers, group)
-			go manager.categorize_old_smartcontracts(group)
-		} else {
-			group.add_workers(old_workers)
-		}
-
-		manager.add_current_workers(current_workers)
-	}
-}
-
 // Categorization of the smartcontracts that are super old.
 //
 // Get List of smartcontract addresses
