@@ -1,10 +1,9 @@
 package handler
 
 import (
-	"github.com/blocklords/gosds/common/data_type"
+	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
-	"github.com/blocklords/gosds/static/network"
 
 	"github.com/blocklords/gosds/app/remote/message"
 )
@@ -16,16 +15,16 @@ func NetworkGet(_ *db.Database, request message.Request) message.Reply {
 		return message.Fail(err.Error())
 	}
 
-	flag_64, err := request.Parameters.GetUint64("flag")
+	raw_network_type, err := request.Parameters.GetString("network_type")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	flag := int8(flag_64)
-	if !network.IsValidFlag(flag) {
-		return message.Fail("'flag' parameter is invalid")
+	network_type, err := network.NewNetworkType(raw_network_type)
+	if err != nil {
+		return message.Fail("'network_type' parameter is invalid")
 	}
 
-	networks, err := network.GetNetworks(flag)
+	networks, err := network.GetNetworks(network_type)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -46,16 +45,16 @@ func NetworkGet(_ *db.Database, request message.Request) message.Reply {
 
 // Returns an abi by the smartcontract key.
 func NetworkGetIds(_ *db.Database, request message.Request) message.Reply {
-	flag_64, err := request.Parameters.GetUint64("flag")
+	raw_network_type, err := request.Parameters.GetString("network_type")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	flag := int8(flag_64)
-	if !network.IsValidFlag(flag) {
-		return message.Fail("'flag' parameter is invalid")
+	network_type, err := network.NewNetworkType(raw_network_type)
+	if err != nil {
+		return message.Fail("'network_type' parameter is invalid")
 	}
 
-	network_ids, err := network.GetNetworkIds(flag)
+	network_ids, err := network.GetNetworkIds(network_type)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -71,25 +70,23 @@ func NetworkGetIds(_ *db.Database, request message.Request) message.Reply {
 
 // Returns an abi by the smartcontract key.
 func NetworkGetAll(_ *db.Database, request message.Request) message.Reply {
-	flag_64, err := request.Parameters.GetUint64("flag")
+	raw_network_type, err := request.Parameters.GetString("network_type")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	flag := int8(flag_64)
-	if !network.IsValidFlag(flag) {
-		return message.Fail("'flag' parameter is invalid")
+	network_type, err := network.NewNetworkType(raw_network_type)
+	if err != nil {
+		return message.Fail("'network_type' parameter is invalid")
 	}
 
-	networks, err := network.GetNetworks(flag)
+	networks, err := network.GetNetworks(network_type)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-
-	raw_networks := data_type.ToMapList(networks)
 
 	return message.Reply{
 		Status:     "OK",
 		Message:    "",
-		Parameters: key_value.Empty().Set("networks", raw_networks),
+		Parameters: key_value.Empty().Set("networks", networks),
 	}
 }

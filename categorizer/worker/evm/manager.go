@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/blocklords/gosds/app/service"
-	"github.com/blocklords/gosds/static/network"
+	"github.com/blocklords/gosds/blockchain/network"
 
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/common/data_type"

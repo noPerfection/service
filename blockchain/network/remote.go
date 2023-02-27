@@ -1,7 +1,6 @@
 package network
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/blocklords/gosds/app/remote"
@@ -10,14 +9,11 @@ import (
 )
 
 // Returns list of support network IDs from SDS Static
-func GetRemoteNetworkIds(socket *remote.Socket, flag int8) ([]string, error) {
-	if !IsValidFlag(flag) {
-		return nil, errors.New("invalid 'flag' parameter")
-	}
+func GetRemoteNetworkIds(socket *remote.Socket, network_type NetworkType) ([]string, error) {
 	request := message.Request{
 		Command: "network_id_get_all",
 		Parameters: map[string]interface{}{
-			"flag": flag,
+			"network_type": network_type,
 		},
 	}
 
@@ -29,14 +25,11 @@ func GetRemoteNetworkIds(socket *remote.Socket, flag int8) ([]string, error) {
 }
 
 // Returns list of support network IDs from SDS Static
-func GetRemoteNetworks(socket *remote.Socket, flag int8) (Networks, error) {
-	if !IsValidFlag(flag) {
-		return nil, errors.New("invalid 'flag' parameter")
-	}
+func GetRemoteNetworks(socket *remote.Socket, network_type NetworkType) (Networks, error) {
 	request := message.Request{
 		Command: "network_get_all",
 		Parameters: map[string]interface{}{
-			"flag": flag,
+			"network_type": network_type,
 		},
 	}
 
@@ -54,15 +47,12 @@ func GetRemoteNetworks(socket *remote.Socket, flag int8) (Networks, error) {
 }
 
 // Returns the Blockchain Network access provider
-func GetRemoteNetwork(socket *remote.Socket, network_id string, flag int8) (*Network, error) {
-	if !IsValidFlag(flag) {
-		return nil, errors.New("invalid 'flag' parameter")
-	}
+func GetRemoteNetwork(socket *remote.Socket, network_id string, network_type NetworkType) (*Network, error) {
 	request := message.Request{
 		Command: "network_get",
 		Parameters: map[string]interface{}{
-			"network_id": network_id,
-			"flag":       flag,
+			"network_id":   network_id,
+			"network_type": network_type,
 		},
 	}
 

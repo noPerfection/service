@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer/abi"
 	"github.com/blocklords/gosds/categorizer/handler"
 	"github.com/blocklords/gosds/categorizer/imx"
@@ -13,7 +14,6 @@ import (
 	imx_worker "github.com/blocklords/gosds/categorizer/worker/imx"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	static_abi "github.com/blocklords/gosds/static/abi"
-	"github.com/blocklords/gosds/static/network"
 
 	"github.com/blocklords/gosds/app/account"
 	"github.com/blocklords/gosds/app/argument"

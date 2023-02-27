@@ -17,10 +17,7 @@ const (
 )
 
 // Returns list of the blockchain networks
-func GetNetworks(flag int8) (Networks, error) {
-	if !IsValidFlag(flag) {
-		return nil, errors.New("invalid 'flag' parameter value")
-	}
+func GetNetworks(network_type NetworkType) (Networks, error) {
 	network_config, err := configuration.New()
 	if err != nil {
 		return nil, err
@@ -48,7 +45,7 @@ func GetNetworks(flag int8) (Networks, error) {
 			return nil, err
 		}
 
-		if flag == ALL || flag == network.Flag {
+		if network_type == ALL || network_type == network.Type {
 			networks = append(networks, network)
 		}
 	}
@@ -57,8 +54,8 @@ func GetNetworks(flag int8) (Networks, error) {
 }
 
 // Returns list of support network IDs
-func GetNetworkIds(flag int8) ([]string, error) {
-	networks, err := GetNetworks(flag)
+func GetNetworkIds(network_type NetworkType) ([]string, error) {
+	networks, err := GetNetworks(network_type)
 	if err != nil {
 		return nil, err
 	}

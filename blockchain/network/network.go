@@ -4,13 +4,13 @@ package network
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/static/network/provider"
+	"github.com/blocklords/gosds/blockchain/network/provider"
 )
 
 type Network struct {
 	Id        string              `json:"id"`
 	Providers []provider.Provider `json:"providers"`
-	Flag      int8                `json:"flag"` // With VM or Without VM
+	Type      NetworkType         `json:"type"` // With VM or Without VM
 }
 
 // Returns the provider url

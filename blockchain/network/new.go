@@ -1,10 +1,8 @@
 package network
 
 import (
-	"errors"
-
 	"github.com/blocklords/gosds/common/data_type/key_value"
-	"github.com/blocklords/gosds/static/network/provider"
+	"github.com/blocklords/gosds/blockchain/network/provider"
 )
 
 // parses JSON object into the Network Type
@@ -14,13 +12,14 @@ func New(raw key_value.KeyValue) (*Network, error) {
 		return nil, err
 	}
 
-	flag_64, err := raw.GetUint64("flag")
+	raw_network_type, err := raw.GetString("type")
 	if err != nil {
 		return nil, err
 	}
-	flag := int8(flag_64)
-	if !IsValidFlag(flag) || flag == ALL {
-		return nil, errors.New("invalid 'flag' from the parsed data")
+
+	network_type, err := NewNetworkType(raw_network_type)
+	if err != nil {
+		return nil, err
 	}
 
 	raw_providers, err := raw.GetKeyValueList("providers")
@@ -35,6 +34,6 @@ func New(raw key_value.KeyValue) (*Network, error) {
 	return &Network{
 		Id:        id,
 		Providers: providers,
-		Flag:      flag,
+		Type:      network_type,
 	}, nil
 }
