@@ -8,12 +8,11 @@ import (
 )
 
 // Sends the command to the remote SDS Spaghetti to filter the logs
-func RemoteLogFilter(socket *remote.Socket, network_id string, block_number_from uint64, addresses []string) ([]*Log, error) {
+func RemoteLogFilter(socket *remote.Socket, block_number_from uint64, addresses []string) ([]*Log, error) {
 	// Send hello.
 	request := message.Request{
-		Command: "log_filter",
+		Command: "log-filter",
 		Parameters: map[string]interface{}{
-			"network_id":        network_id,
 			"block_number_from": block_number_from,
 			"addresses":         addresses,
 		},

@@ -32,6 +32,8 @@ type Socket struct {
 	thisService   *service.Service
 	poller        *zmq.Poller
 	socket        *zmq.Socket
+	protocol      string
+	inproc_url    string
 }
 
 type SDS_Message interface {
@@ -128,6 +130,59 @@ func (socket *Socket) reconnect() error {
 
 	if err := socket.socket.Connect("tcp://" + url); err != nil {
 		return fmt.Errorf("error '"+socket.remoteService.ServiceName()+"' connect: %w", err)
+	}
+
+	socket.poller = zmq.NewPoller()
+	socket.poller.Add(socket.socket, zmq.POLLIN)
+
+	return nil
+}
+
+func (socket *Socket) inproc_reconnect() error {
+	var socket_ctx *zmq.Context
+	var socket_type zmq.Type
+
+	if socket.socket != nil {
+		ctx, err := socket.socket.Context()
+		if err != nil {
+			return err
+		} else {
+			socket_ctx = ctx
+		}
+
+		socket_type, err = socket.socket.GetType()
+		if err != nil {
+			return err
+		}
+
+		err = socket.Close()
+		if err != nil {
+			return err
+		}
+		socket.socket = nil
+	} else {
+		new_ctx, err := zmq.NewContext()
+		if err != nil {
+			return err
+		} else {
+			socket_ctx = new_ctx
+		}
+		socket_type = zmq.REQ
+	}
+
+	sock, err := socket_ctx.NewSocket(socket_type)
+	if err != nil {
+		return err
+	} else {
+		socket.socket = sock
+		err = socket.socket.SetLinger(0)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := socket.socket.Connect("incproc://" + socket.inproc_url); err != nil {
+		return fmt.Errorf("error '%s' connect: %w", socket.inproc_url, err)
 	}
 
 	socket.poller = zmq.NewPoller()
@@ -308,8 +363,27 @@ func TcpRequestSocketOrPanic(e *service.Service, client *service.Service) *Socke
 		remoteService: e,
 		thisService:   client,
 		socket:        sock,
+		protocol:      "tcp",
 	}
 	err = new_socket.reconnect()
+	if err != nil {
+		panic(err)
+	}
+
+	return &new_socket
+}
+
+func InprocRequestSocket(url string) *Socket {
+	sock, err := zmq.NewSocket(zmq.REQ)
+	if err != nil {
+		panic(err)
+	}
+	new_socket := Socket{
+		socket:     sock,
+		protocol:   "inproc",
+		inproc_url: url,
+	}
+	err = new_socket.inproc_reconnect()
 	if err != nil {
 		panic(err)
 	}

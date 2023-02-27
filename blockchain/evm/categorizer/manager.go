@@ -71,10 +71,14 @@ func NewManagerWithLog(
 	in chan RequestLogParse,
 	out chan ReplyLogParse,
 ) *Manager {
+	url := "spaghetti_" + network.Id
+	blockchain_socket := remote.InprocRequestSocket(url)
+
 	manager := Manager{
-		Network: network,
-		log_in:  in,
-		log_out: out,
+		Network:          network,
+		spaghetti_socket: blockchain_socket,
+		log_in:           in,
+		log_out:          out,
 
 		old_categorizers: make(OldWorkerGroups, 0),
 
@@ -189,7 +193,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		block_number_from := group.block_number + uint64(1)
 		addresses := manager.GetSmartcontractAddresses()
 
-		all_logs, err := spaghetti_log.RemoteLogFilter(manager.spaghetti_socket, manager.Network.Id, block_number_from, addresses)
+		all_logs, err := spaghetti_log.RemoteLogFilter(manager.spaghetti_socket, block_number_from, addresses)
 		if err != nil {
 			fmt.Println("failed to get the remote block number for network: " + manager.Network.Id + " error: " + err.Error())
 			continue
