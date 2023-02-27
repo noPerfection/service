@@ -88,7 +88,7 @@ func (worker *SpaghettiWorker) SetupSocket() {
 
 func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message.Reply {
 	network_id := worker.client.Network.Id
-	block_number_from, _ := parameters.GetUint64("block_number_from")
+	block_number_from, _ := parameters.GetUint64("block_from")
 
 	addresses, _ := parameters.GetStringList("addresses")
 

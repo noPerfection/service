@@ -8,13 +8,15 @@ import (
 )
 
 // Sends the command to the remote SDS Spaghetti to filter the logs
-func RemoteLogFilter(socket *remote.Socket, block_number_from uint64, addresses []string) ([]*Log, error) {
+// block_from parameter is either block_number or block_timestamp
+// depending on the blockchain
+func RemoteLogFilter(socket *remote.Socket, block_from uint64, addresses []string) ([]*Log, error) {
 	// Send hello.
 	request := message.Request{
 		Command: "log-filter",
 		Parameters: map[string]interface{}{
-			"block_number_from": block_number_from,
-			"addresses":         addresses,
+			"block_from": block_from,
+			"addresses":  addresses,
 		},
 	}
 
