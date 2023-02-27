@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	evm_client "github.com/blocklords/gosds/blockchain/evm/client"
-	imx_client "github.com/blocklords/gosds/blockchain/evm/client"
+	imx_client "github.com/blocklords/gosds/blockchain/imx/client"
+
 	evm_worker "github.com/blocklords/gosds/blockchain/evm/worker"
-	imx_worker "github.com/blocklords/gosds/blockchain/evm/worker"
+	imx_worker "github.com/blocklords/gosds/blockchain/imx/worker"
 	"github.com/blocklords/gosds/blockchain/network"
 )
 
