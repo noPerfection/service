@@ -1,4 +1,4 @@
-package transaction
+package util
 
 import (
 	"fmt"
@@ -9,11 +9,11 @@ import (
 )
 
 // https://github.com/ethereum/go-ethereum/issues/21221
-func wei_to_ether(wei *big.Int) *big.Float {
+func WeiToEther(wei *big.Int) *big.Float {
 	return new(big.Float).Quo(new(big.Float).SetInt(wei), big.NewFloat(eth_parameters.Ether))
 }
 
-func ether_to_wei(eth *big.Float) *big.Int {
+func EtherToWei(eth *big.Float) *big.Int {
 	truncInt, _ := eth.Int(nil)
 	truncInt = new(big.Int).Mul(truncInt, big.NewInt(eth_parameters.Ether))
 	fracStr := strings.Split(fmt.Sprintf("%.18f", eth), ".")[1]
@@ -24,7 +24,7 @@ func ether_to_wei(eth *big.Float) *big.Int {
 }
 
 // parse_big_float parse string value to big.Float
-func parse_big_float(value string) (*big.Float, error) {
+func ParseBigFloat(value string) (*big.Float, error) {
 	f := new(big.Float)
 	f.SetPrec(236) //  IEEE 754 octuple-precision binary floating-point format: binary256
 	f.SetMode(big.ToNearestEven)

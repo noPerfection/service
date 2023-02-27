@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/blocklords/gosds/blockchain/evm/block"
-	"github.com/blocklords/gosds/spaghetti/transaction"
+	"github.com/blocklords/gosds/blockchain/evm/transaction"
+	spaghetti_transaction "github.com/blocklords/gosds/spaghetti/transaction"
 
 	"github.com/ethereum/go-ethereum"
 
@@ -89,7 +90,7 @@ func (c *Client) GetRecentBlockNumber() (uint64, error) {
 
 // Returns the information about the specific transaction from the blockchain
 // The transaction is converted into the gosds/spaghetti/transaction.Transaction data type
-func (c *Client) GetTransaction(transaction_id string) (*transaction.Transaction, error) {
+func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.Transaction, error) {
 	transaction_hash := eth_common.HexToHash(transaction_id)
 	var transaction_raw *eth_types.Transaction
 	var pending bool
