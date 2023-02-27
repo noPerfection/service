@@ -5,8 +5,9 @@ import (
 
 	"github.com/blocklords/gosds/app/configuration"
 	evm_categorizer "github.com/blocklords/gosds/blockchain/evm/categorizer"
-	evm_client "github.com/blocklords/gosds/blockchain/evm/client"
 	imx_categorizer "github.com/blocklords/gosds/blockchain/imx/categorizer"
+
+	evm_client "github.com/blocklords/gosds/blockchain/evm/client"
 	imx_client "github.com/blocklords/gosds/blockchain/imx/client"
 
 	evm_worker "github.com/blocklords/gosds/blockchain/evm/worker"
