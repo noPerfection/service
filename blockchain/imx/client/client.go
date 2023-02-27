@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/blocklords/gosds/blockchain/imx"
+	"github.com/blocklords/gosds/blockchain/imx/util"
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer/log"
 
@@ -81,7 +82,7 @@ func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration,
 			if imxTx.Token.Type == "ERC721" {
 				arguments["tokenId"] = imxTx.Token.Data.TokenId
 			} else {
-				value, err := imx.Erc20Amount(&imxTx.Token.Data)
+				value, err := util.Erc20Amount(&imxTx.Token.Data)
 				if err != nil {
 					return nil, err
 				}
@@ -164,7 +165,7 @@ func (client *Client) GetSmartcontractMintLogs(req_per_second time.Duration, add
 			if imxTx.Token.Type == "ERC721" {
 				arguments["tokenId"] = imxTx.Token.Data.TokenId
 			} else {
-				value, err := imx.Erc20Amount(&imxTx.Token.Data)
+				value, err := util.Erc20Amount(&imxTx.Token.Data)
 				if err != nil {
 					return nil, err
 				}

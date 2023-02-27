@@ -6,6 +6,7 @@ import (
 	"github.com/blocklords/gosds/app/configuration"
 	evm_categorizer "github.com/blocklords/gosds/blockchain/evm/categorizer"
 	evm_client "github.com/blocklords/gosds/blockchain/evm/client"
+	imx_categorizer "github.com/blocklords/gosds/blockchain/imx/categorizer"
 	imx_client "github.com/blocklords/gosds/blockchain/imx/client"
 
 	evm_worker "github.com/blocklords/gosds/blockchain/evm/worker"
@@ -51,6 +52,9 @@ func StartWorkers(app_config *configuration.Config) error {
 
 			new_worker := imx_worker.New(new_client, nil, false)
 			go new_worker.Sync()
+
+			imx_manager := imx_categorizer.NewManager(app_config, new_network)
+			go imx_manager.Start()
 		}
 	}
 

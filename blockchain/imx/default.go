@@ -8,6 +8,6 @@ import (
 var ImxConfiguration = configuration.DefaultConfig{
 	Title: "ImmutableX Network",
 	Parameters: key_value.New(map[string]interface{}{
-		request_per_second: uint64(20),
+		REQUEST_PER_SECOND: uint64(20),
 	}),
 }
