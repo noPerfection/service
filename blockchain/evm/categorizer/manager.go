@@ -32,7 +32,6 @@ const RUNNING = "running"
 
 // Manager of the smartcontracts in a particular network
 type Manager struct {
-	In               chan EvmWorkers
 	spaghetti_socket *remote.Socket
 	Network          *network.Network
 
@@ -51,7 +50,6 @@ type Manager struct {
 // New manager runs in the background.
 func NewManager(network *network.Network) *Manager {
 	manager := Manager{
-		In:      make(chan EvmWorkers),
 		Network: network,
 
 		old_categorizers: make(OldWorkerGroups, 0),
@@ -74,7 +72,6 @@ func NewManagerWithLog(
 	out chan ReplyLogParse,
 ) *Manager {
 	manager := Manager{
-		In:      make(chan EvmWorkers),
 		Network: network,
 		log_in:  in,
 		log_out: out,
