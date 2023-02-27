@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	evm_client "github.com/blocklords/gosds/blockchain/evm/client"
+	imx_client "github.com/blocklords/gosds/blockchain/evm/client"
 	evm_worker "github.com/blocklords/gosds/blockchain/evm/worker"
+	imx_worker "github.com/blocklords/gosds/blockchain/evm/worker"
 	"github.com/blocklords/gosds/blockchain/network"
 )
 
@@ -24,13 +26,14 @@ func StartWorkers() error {
 
 			new_worker := evm_worker.New(new_client, nil, false)
 			go new_worker.Sync()
-			// } else if new_network.Type == network.IMX {
-			// new_client, err := imx_client.New(new_network)
-			// if err != nil {
-			// return fmt.Errorf("gosds/blockchain: failed to create IMX client: %v", err)
-			// }
+		} else if new_network.Type == network.IMX {
+			new_client, err := imx_client.New(new_network)
+			if err != nil {
+				return fmt.Errorf("gosds/blockchain: failed to create IMX client: %v", err)
+			}
 
-			// new_worker := imx_worker.New()
+			new_worker := imx_worker.New(new_client, nil, false)
+			go new_worker.Sync()
 		}
 	}
 
