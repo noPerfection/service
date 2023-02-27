@@ -2,7 +2,7 @@
 // Worker is running per blockchain network with VM.
 package worker
 
-import "github.com/blocklords/gosds/spaghetti/network_client"
+import "github.com/blocklords/gosds/blockchain/evm/client"
 
 type Workers map[string]*SpaghettiWorker
 
@@ -13,6 +13,6 @@ func (workers Workers) Exist(network_id string) bool {
 }
 
 // Return the client thats connected to the blockchain
-func (workers Workers) Client(network_id string) *network_client.NetworkClient {
+func (workers Workers) Client(network_id string) *client.Client {
 	return workers[network_id].client
 }

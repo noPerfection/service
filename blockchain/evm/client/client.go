@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/blocklords/gosds/spaghetti/block"
+	"github.com/blocklords/gosds/blockchain/evm/block"
 	"github.com/blocklords/gosds/spaghetti/transaction"
 
 	"github.com/ethereum/go-ethereum"

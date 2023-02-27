@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/blocklords/gosds/blockchain/evm/block"
 	"github.com/blocklords/gosds/blockchain/evm/client"
-	"github.com/blocklords/gosds/spaghetti/block"
 
 	"github.com/blocklords/gosds/app/remote/message"
 

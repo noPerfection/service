@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/blocklords/gosds/spaghetti/block"
-	"github.com/blocklords/gosds/spaghetti/network_client"
+	"github.com/blocklords/gosds/blockchain/evm/block"
+	"github.com/blocklords/gosds/blockchain/evm/client"
 
 	"github.com/blocklords/gosds/app/remote/message"
 
@@ -17,7 +17,7 @@ import (
 // the global variables that we pass between functions in this worker.
 // the functions are recursive.
 type SpaghettiWorker struct {
-	client            *network_client.NetworkClient
+	client            *client.Client
 	broadcast_channel chan message.Broadcast
 	debug             bool
 }
@@ -36,7 +36,7 @@ func (worker *SpaghettiWorker) log_debug(message string) {
 }
 
 // A new SpaghettiWorker
-func New(client *network_client.NetworkClient, broadcast_channel chan message.Broadcast, debug bool) *SpaghettiWorker {
+func New(client *client.Client, broadcast_channel chan message.Broadcast, debug bool) *SpaghettiWorker {
 	return &SpaghettiWorker{
 		client:            client,
 		broadcast_channel: broadcast_channel,
@@ -62,15 +62,15 @@ func (worker *SpaghettiWorker) Sync() {
 	// or slow internet connection
 	// we need to get the data as fast as possible
 	for {
-		block, err := worker.client.GetBlock(block_number)
-		if err != nil {
-			println(worker.log_prefix(), `failed to get the block `, block_number, " from provider for network id ", worker.client.Network.Id, ". received error: ", err.Error())
-			println(worker.log_prefix(), `waiting for 10 seconds before trying again...`)
-			time.Sleep(10 * time.Second)
-			continue
-		}
+		// block, err := worker.client.GetBlock(block_number)
+		// if err != nil {
+		// println(worker.log_prefix(), `failed to get the block `, block_number, " from provider for network id ", worker.client.Network.Id, ". received error: ", err.Error())
+		// println(worker.log_prefix(), `waiting for 10 seconds before trying again...`)
+		// time.Sleep(10 * time.Second)
+		// continue
+		// }
 
-		worker.broadcast_block(block)
+		// worker.broadcast_block(block)
 
 		time.Sleep(1 * time.Second)
 
