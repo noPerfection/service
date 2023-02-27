@@ -1,6 +1,6 @@
 // Collection of workers as a data type
 // And the functions that works with the workers collection
-package evm
+package categorizer
 
 import (
 	"sort"

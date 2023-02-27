@@ -1,5 +1,5 @@
 // EVM blockchain worker
-package evm
+package categorizer
 
 import (
 	"fmt"
