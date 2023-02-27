@@ -54,6 +54,7 @@ func StartWorkers(app_config *configuration.Config) error {
 
 			new_worker := imx_worker.New(new_client, nil, false)
 			go new_worker.Sync()
+			go new_worker.SetupSocket()
 
 			imx_manager := imx_categorizer.NewManager(app_config, new_network)
 			go imx_manager.Start()
