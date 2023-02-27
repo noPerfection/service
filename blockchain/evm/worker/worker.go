@@ -71,6 +71,10 @@ func (worker *SpaghettiWorker) SetupSocket() {
 
 		if request.Command == "log-filter" {
 			reply = worker.filter_log(request.Parameters)
+		} else if request.Command == "transaction" {
+			reply = worker.get_transaction(request.Parameters)
+		} else {
+			reply = message.Fail("unsupported command")
 		}
 
 		reply_string, err := reply.ToString()
@@ -118,6 +122,25 @@ func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message
 		Message: "",
 		Parameters: key_value.New(map[string]interface{}{
 			"logs": logs,
+		}),
+	}
+
+	return reply
+}
+
+func (worker *SpaghettiWorker) get_transaction(parameters key_value.KeyValue) message.Reply {
+	transaction_id, _ := parameters.GetString("transaction_id")
+
+	tx, err := worker.client.GetTransaction(transaction_id)
+	if err != nil {
+		return message.Fail("failed to get the block range length for first provider of " + worker.client.Network.Id)
+	}
+
+	reply := message.Reply{
+		Status:  "OK",
+		Message: "",
+		Parameters: key_value.New(map[string]interface{}{
+			"transaction": tx,
 		}),
 	}
 
