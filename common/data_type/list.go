@@ -10,7 +10,6 @@ import (
 	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
 	spaghetti_transaction "github.com/blocklords/gosds/spaghetti/transaction"
 
-	static_abi "github.com/blocklords/gosds/static/abi"
 	static_configuration "github.com/blocklords/gosds/static/configuration"
 	static_network "github.com/blocklords/gosds/static/network"
 	static_smartcontract "github.com/blocklords/gosds/static/smartcontract"
@@ -19,7 +18,7 @@ import (
 
 type List interface {
 	*categorizer_log.Log | *categorizer_smartcontract.Smartcontract |
-		*spaghetti_log.Log | *spaghetti_transaction.Transaction | *static_abi.Abi |
+		*spaghetti_log.Log | *spaghetti_transaction.Transaction |
 		*static_configuration.Configuration | *static_smartcontract.Smartcontract |
 		*static_network.Network | *account.Account
 }
