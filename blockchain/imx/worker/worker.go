@@ -2,7 +2,7 @@
 // for documentation see:
 // https://github.com/immutable/imx-core-sdk-golang/blob/6541766b54733580889f5051653d82f077c2aa17/imx/api/docs/TransfersApi.md#ListTransfers
 // https://github.com/immutable/imx-core-sdk-golang/blob/6541766b54733580889f5051653d82f077c2aa17/imx/api/docs/MintsApi.md#listmints
-package imx
+package worker
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/blocklords/gosds/categorizer/imx"
+	"github.com/blocklords/gosds/blockchain/imx"
 	"github.com/blocklords/gosds/categorizer/log"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/common/data_type/key_value"
