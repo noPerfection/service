@@ -16,7 +16,6 @@ import (
 	static_abi "github.com/blocklords/gosds/static/abi"
 
 	"github.com/blocklords/gosds/app/account"
-	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/configuration"
 
 	"github.com/blocklords/gosds/app/remote"
@@ -158,14 +157,9 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 // Smartcontract data are parsed and stored in the database
 func Run(app_config *configuration.Config, db_con *db.Database) {
 	greeting := `SDS Categorizer preparing... Supported command line arguments:
-    --network-id=<network id>   runs the smartcontract workers for this network id only
     --security-debug            prints the security logs`
 	println(greeting + "\n\n")
 
-	arguments, err := argument.GetArguments()
-	if err != nil {
-		panic(err)
-	}
 	// check for missing environment variable otherwise panic exit.
 	if _, err := service.New(service.SPAGHETTI, service.SUBSCRIBE, service.REMOTE); err != nil {
 		panic(err)
@@ -190,24 +184,9 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	static_socket = remote.TcpRequestSocketOrPanic(static_env, categorizer_env)
 
-	var networks network.Networks = make(network.Networks, 0)
-	if argument.Has(arguments, argument.NETWORK_ID) {
-		network_id, err := argument.ExtractValue(arguments, argument.NETWORK_ID)
-		if err != nil {
-			panic(err)
-		}
-
-		one_network, err := network.GetRemoteNetwork(static_socket, network_id, network.ALL)
-		if err != nil {
-			panic(err)
-		}
-
-		networks = append(networks, one_network)
-	} else {
-		networks, err = network.GetRemoteNetworks(static_socket, network.ALL)
-		if err != nil {
-			panic(err)
-		}
+	networks, err := network.GetRemoteNetworks(static_socket, network.ALL)
+	if err != nil {
+		panic(err)
 	}
 
 	if networks.Exist(imx.NETWORK_ID) {
