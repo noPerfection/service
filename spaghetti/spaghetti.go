@@ -60,74 +60,6 @@ var workers worker.Workers
 //
 ////////////////////////////////////////////////////////////////////
 
-// returns the earliest cached block number
-func block_get_cached_number(_ *db.Database, request message.Request) message.Reply {
-	network_id, err := request.Parameters.GetString("network_id")
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-
-	if !workers.Exist(network_id) {
-		return message.Fail("unsupported network_id " + network_id)
-	}
-
-	// client := workers.Client(network_id)
-	// block_number, err := client.GetRecentBlockNumber()
-	// if err != nil {
-	// 	return message.Fail(err.Error())
-	// }
-
-	// block_timestamp, err := client.GetBlockTimestamp(block_number)
-	// if err != nil {
-	// 	return message.Fail(err.Error())
-	// }
-	block_number := 0
-	block_timestamp := 0
-
-	return message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"network_id":      network_id,
-			"block_number":    block_number,
-			"block_timestamp": block_timestamp,
-		}),
-	}
-}
-
-// Returns the block timestamp
-func block_get_timestamp(_ *db.Database, request message.Request) message.Reply {
-	network_id, err := request.Parameters.GetString("network_id")
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-	block_number, err := request.Parameters.GetUint64("block_number")
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-
-	if !workers.Exist(network_id) {
-		return message.Fail("unsupported network_id " + network_id)
-	}
-
-	// client := workers.Client(network_id)
-	// block_timestamp, err := client.GetBlockTimestamp(block_number)
-	// if err != nil {
-	// 	return message.Fail(err.Error())
-	// }
-	block_timestamp := 0
-
-	return message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"network_id":      network_id,
-			"block_number":    block_number,
-			"block_timestamp": block_timestamp,
-		}),
-	}
-}
-
 // Returns the transactions and logs in a range of the block.
 // Optionally it accepts to parameter that filters the transactions and logs
 // for the smartcontract.
@@ -383,8 +315,6 @@ It supports the following arguments:
 	go broadcaster.Run()
 
 	var commands = controller.CommandHandlers{
-		"block_get_cached_number":  block_get_cached_number,
-		"block_get_timestamp":      block_get_timestamp,
 		"block_get_range":          block_get_range,
 		"log_filter":               log_filter,
 		"transaction_deployed_get": transaction_deployed_get,
