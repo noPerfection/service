@@ -106,3 +106,7 @@ func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message
 
 	return reply
 }
+
+func (worker *SpaghettiWorker) get_transaction(_ key_value.KeyValue) message.Reply {
+	return message.Fail("get-transaction is not supported by imx network")
+}
