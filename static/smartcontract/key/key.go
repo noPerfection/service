@@ -1,3 +1,5 @@
+// Smartcontract key is the unique identifier within the SeascapeSDS
+// Its composed as network_id + "." + address
 package key
 
 import "strings"
@@ -5,7 +7,7 @@ import "strings"
 // network id + "." + address
 type Key string
 
-// smartcontract key => topic string
+// map(smartcontract_key => topic_string)
 type KeyToTopicString map[Key]string
 
 // Creates a new smartcontract key

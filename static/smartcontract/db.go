@@ -44,7 +44,6 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 		fmt.Println("Failed to insert static smartcontract at network id as address", a.NetworkId, a.Address)
 		return err
 	}
-	a.SetExists(true)
 	return nil
 }
 

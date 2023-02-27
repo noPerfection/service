@@ -5,7 +5,6 @@ import (
 )
 
 type Smartcontract struct {
-	// Body abi.ABI
 	NetworkId               string `json:"network_id"`
 	Address                 string `json:"address"`
 	AbiHash                 string `json:"abi_hash"`
@@ -16,10 +15,11 @@ type Smartcontract struct {
 	exists                  bool
 }
 
+// Get the unique smartcontract key within the SeascapeSDS.
+//
+// For more information about smartonctract keys check:
+//
+// “gosds/static/smartcontract/key“
 func (c *Smartcontract) Key() key.Key {
 	return key.New(c.NetworkId, c.Address)
-}
-
-func (c *Smartcontract) SetExists(exists bool) {
-	c.exists = exists
 }
