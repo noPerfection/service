@@ -189,14 +189,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		panic(err)
 	}
 
-	if networks.Exist(imx.NETWORK_ID) {
-		if err := imx.ValidateEnv(app_config); err != nil {
-			panic(err)
-		} else {
-			imx_manager = imx.NewManager(app_config)
-		}
-	}
-
+	imx_manager = imx.NewManager(app_config)
 	evm_managers = key_value.Empty()
 
 	log_parse_in = make(chan evm_worker.RequestLogParse)
