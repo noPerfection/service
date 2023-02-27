@@ -10,7 +10,6 @@ import (
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/categorizer/log"
-	"github.com/blocklords/gosds/categorizer/transaction"
 	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/static/smartcontract"
 	"github.com/blocklords/gosds/static/smartcontract/key"
@@ -148,28 +147,10 @@ func (s *Subscriber) get_snapshot() error {
 			return nil
 		}
 
-		transactions := make([]*transaction.Transaction, len(raw_transactions))
 		logs := make([]*log.Log, len(raw_logs))
 
 		// Saving the latest block number in the cache
 		// along the parsing raw data into SDS data type
-		for i, rawTx := range raw_transactions {
-			tx, err := transaction.ParseTransaction(rawTx)
-			if err != nil {
-				return errors.New("failed to parse the transaction. the error: " + err.Error())
-			} else {
-				transactions[i] = tx
-			}
-
-			key := key.New(tx.NetworkId, tx.Address)
-			cached_block_timestamp := s.db.GetBlockTimestamp(key)
-			if tx.BlockTimestamp > cached_block_timestamp {
-				err = s.db.SetBlockTimestamp(key, tx.BlockTimestamp)
-				if err != nil {
-					return err
-				}
-			}
-		}
 		for i, raw_log := range raw_logs {
 			log, err := log.NewFromMap(raw_log)
 			if err != nil {
@@ -182,7 +163,6 @@ func (s *Subscriber) get_snapshot() error {
 			Status:  "OK",
 			Message: "",
 			Parameters: map[string]interface{}{
-				"transactions":    transactions,
 				"logs":            logs,
 				"block_timestamp": timestamp,
 			},
@@ -363,17 +343,6 @@ func (s *Subscriber) read_from_publisher() error {
 			return errors.New("the sds publisher invalid 'block_timestamp'. reconnect and try again until publisher won't fix it. error " + err.Error())
 		}
 
-		// Return the data to the SDK client.
-		// The SDK returns already formatted data instead of the generic interfaces.
-
-		// receive the transactions and logs of the smartcontract
-		raw_transactions, err := reply.Parameters.GetKeyValueList("transactions")
-		if err != nil {
-			if close_err := s.close(exit_channel); close_err != nil {
-				return errors.New("the sds publisher invalid 'transactions'. failed to close the subscriber loop. error " + close_err.Error())
-			}
-			return errors.New("the sds publisher invalid 'transactions'. reconnect and try again until publisher won't fix it. error " + err.Error())
-		}
 		raw_logs, err := reply.Parameters.GetKeyValueList("logs")
 		if err != nil {
 			if close_err := s.close(exit_channel); close_err != nil {
@@ -387,19 +356,6 @@ func (s *Subscriber) read_from_publisher() error {
 		// we skip the duplicate messages that were fetched by the Snapshot
 		if s.db.GetBlockTimestamp(key) > block_timestamp {
 			continue
-		}
-
-		transactions := make([]*transaction.Transaction, len(raw_transactions))
-		for i, raw := range raw_transactions {
-			transaction, err := transaction.ParseTransaction(raw)
-			if err != nil {
-				if close_err := s.close(exit_channel); close_err != nil {
-					return errors.New("failed to parse the transaction " + err.Error() + ", . failed to close the subscriber loop. error " + close_err.Error())
-				}
-				return errors.New("the sds publisher invalid 'transactions'. failed to parse it. error " + err.Error())
-			}
-
-			transactions[i] = transaction
 		}
 
 		logs := make([]*log.Log, len(raw_logs))
@@ -430,7 +386,6 @@ func (s *Subscriber) read_from_publisher() error {
 			Parameters: map[string]interface{}{
 				"topic_string":    s.db.GetTopicString(key),
 				"block_timestamp": block_timestamp,
-				"transactions":    transactions,
 				"logs":            logs,
 			},
 		}
