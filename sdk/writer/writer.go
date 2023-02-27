@@ -34,7 +34,7 @@ func (r *Writer) Write(t topic.Topic, args map[string]interface{}) message.Reply
 		return message.Fail(err.Error())
 	}
 
-	return message.Reply{Status: "OK", Message: "", Params: params}
+	return message.Reply{Status: "OK", Message: "", Parameters: params}
 }
 
 func (r *Writer) AddToPool(t topic.Topic, args map[string]interface{}) message.Reply {
@@ -56,5 +56,5 @@ func (r *Writer) AddToPool(t topic.Topic, args map[string]interface{}) message.R
 		return message.Fail(err.Error())
 	}
 
-	return message.Reply{Status: "OK", Message: "", Params: params}
+	return message.Reply{Status: "OK", Message: "", Parameters: params}
 }

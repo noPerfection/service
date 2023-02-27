@@ -34,5 +34,5 @@ func (r *Reader) Read(t topic.Topic, args map[string]interface{}) message.Reply 
 		return message.Fail(err.Error())
 	}
 
-	return message.Reply{Status: "OK", Message: "", Params: params}
+	return message.Reply{Status: "OK", Message: "", Parameters: params}
 }
