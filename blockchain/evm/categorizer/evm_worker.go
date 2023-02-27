@@ -7,7 +7,6 @@ import (
 	"github.com/blocklords/gosds/blockchain/evm/abi"
 	"github.com/blocklords/gosds/categorizer/log"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/categorizer/worker"
 
 	"github.com/blocklords/gosds/app/service"
 
@@ -23,7 +22,7 @@ type EvmWorker struct {
 	log_parse_in  chan RequestLogParse
 	log_parse_out chan ReplyLogParse
 
-	parent *worker.Worker
+	smartcontract *smartcontract.Smartcontract
 }
 
 type RequestLogParse struct {
@@ -40,12 +39,10 @@ type ReplyLogParse struct {
 }
 
 // Wraps the Worker with the EVM related data and returns the wrapped Worker as EvmWorker
-func New(parent *worker.Worker, abi *abi.Abi, log_parse_in chan RequestLogParse, log_parse_out chan ReplyLogParse) *EvmWorker {
+func New(sm *smartcontract.Smartcontract, abi *abi.Abi) *EvmWorker {
 	return &EvmWorker{
 		abi:           abi,
-		log_parse_in:  log_parse_in,
-		log_parse_out: log_parse_out,
-		parent:        parent,
+		smartcontract: sm,
 	}
 }
 
@@ -75,17 +72,17 @@ func LogParse(in chan RequestLogParse, out chan ReplyLogParse) {
 
 // Categorize the blocks for this smartcontract
 func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
-	network_id := worker.parent.Smartcontract.NetworkId
-	address := worker.parent.Smartcontract.Address
+	network_id := worker.smartcontract.NetworkId
+	address := worker.smartcontract.Address
 
-	var block_number uint64 = worker.parent.Smartcontract.CategorizedBlockNumber
-	var block_timestamp uint64 = worker.parent.Smartcontract.CategorizedBlockTimestamp
+	var block_number uint64 = worker.smartcontract.CategorizedBlockNumber
+	var block_timestamp uint64 = worker.smartcontract.CategorizedBlockTimestamp
 
 	if len(logs) > 0 {
 		for log_index := 0; log_index < len(logs); log_index++ {
 			raw_log := logs[log_index]
 
-			fmt.Println(worker.parent.Prefix(), "requesting parse of smartcontract log to SDS Log...")
+			fmt.Println("requesting parse of smartcontract log to SDS Log...", raw_log, worker.smartcontract)
 			worker.log_parse_in <- RequestLogParse{
 				network_id: network_id,
 				address:    address,
@@ -93,17 +90,13 @@ func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
 				topics:     raw_log.Topics,
 			}
 			log_reply := <-worker.log_parse_out
-			fmt.Println(worker.parent.Prefix(), "reply received from SDS Log")
+			fmt.Println("reply received from SDS Log")
 			if log_reply.err != nil {
 				fmt.Println("abi.remote parse %w, we skip this log records", log_reply.err)
 				continue
 			}
 
-			l := log.New(log_reply.log_name, log_reply.outputs).AddMetadata(raw_log).AddSmartcontractData(worker.parent.Smartcontract)
-			err := log.Save(worker.parent.Db, l)
-			if err != nil {
-				return 0, fmt.Errorf("emergency error. failed to create a log row in the database. this is an exception, that should not be. Consider fixing it. error message: " + err.Error())
-			}
+			l := log.New(log_reply.log_name, log_reply.outputs).AddMetadata(raw_log).AddSmartcontractData(worker.smartcontract)
 
 			if l.BlockNumber > block_number {
 				block_number = l.BlockNumber
@@ -112,9 +105,8 @@ func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
 		}
 	}
 
-	fmt.Println(worker.parent.Prefix(), "categorization finished, update the block number to ", block_number)
-	worker.parent.Smartcontract.SetBlockParameter(block_number, block_timestamp)
-	err := smartcontract.SetSyncing(worker.parent.Db, worker.parent.Smartcontract, block_number, block_timestamp)
+	fmt.Println("categorization finished, update the block number to ", block_number, worker.smartcontract.NetworkId, worker.smartcontract.Address)
+	worker.smartcontract.SetBlockParameter(block_number, block_timestamp)
 
-	return block_number, err
+	return block_number, nil
 }

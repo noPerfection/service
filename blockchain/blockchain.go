@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/blocklords/gosds/app/configuration"
+	evm_categorizer "github.com/blocklords/gosds/blockchain/evm/categorizer"
 	evm_client "github.com/blocklords/gosds/blockchain/evm/client"
 	imx_client "github.com/blocklords/gosds/blockchain/imx/client"
 
@@ -12,6 +13,8 @@ import (
 	imx_worker "github.com/blocklords/gosds/blockchain/imx/worker"
 
 	"github.com/blocklords/gosds/blockchain/network"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // Start the workers
@@ -30,6 +33,11 @@ func StartWorkers(app_config *configuration.Config) error {
 
 			new_worker := evm_worker.New(new_client, nil, false)
 			go new_worker.Sync()
+
+			// Categorizer of the smartcontracts
+			// This categorizers are interacting with the SDS Categorizer
+			categorizer := evm_categorizer.NewManager(new_network)
+			go categorizer.Start()
 		} else if new_network.Type == network.IMX {
 			err := imx.ValidateEnv(app_config)
 			if err != nil {
@@ -47,4 +55,18 @@ func StartWorkers(app_config *configuration.Config) error {
 	}
 
 	return nil
+}
+
+func NewCategorizerPusher(network_id string) (*zmq.Socket, error) {
+	sock, err := zmq.NewSocket(zmq.PUSH)
+	if err != nil {
+		return nil, err
+	}
+
+	url := "cat_" + network_id
+	if err := sock.Bind("inproc://" + url); err != nil {
+		return nil, fmt.Errorf("trying to create categorizer for network id %s: %v", network_id, err)
+	}
+
+	return sock, nil
 }

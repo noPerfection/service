@@ -1,10 +1,9 @@
 package categorizer
 
 import (
-	"errors"
 	"fmt"
 
-	"github.com/blocklords/gosds/blockchain/evm/abi"
+	"github.com/blocklords/gosds/blockchain"
 	evm_worker "github.com/blocklords/gosds/blockchain/evm/categorizer"
 	"github.com/blocklords/gosds/blockchain/imx"
 	imx_worker "github.com/blocklords/gosds/blockchain/imx/categorizer"
@@ -35,40 +34,45 @@ var log_parse_out chan evm_worker.ReplyLogParse = nil
 var static_socket *remote.Socket
 
 var imx_manager *imx.Manager = nil
-var evm_managers key_value.KeyValue
 
 // Manages the EVM based smartcontracts on a certain blockchain
-func run_evm_manager(db_con *db.Database, network *network.Network) {
-	// smartcontract.GetAll() is the first database connection.
-	// therefore it checks database liveness.
+// todo use the blockchain/categorizer_push(network_id); defer close()
+// then to categorizer_request.add_smartcontract(smartcontract)
+func register_smartcontracts(db_con *db.Database, network *network.Network) {
 	smartcontracts, err := smartcontract.GetAllByNetworkId(db_con, network.Id)
 	if err != nil {
 		panic(`error to fetch all categorized smartcontracts. received database error: ` + err.Error() + ` for network id ` + network.Id)
 	}
 
-	manager := evm_worker.NewManager(network, log_parse_in, log_parse_out)
-	manager.Run()
+	pusher, err := blockchain.NewCategorizerPusher(network.Id)
+	if err != nil {
+		panic(err)
+	}
+	defer pusher.Close()
 
-	workers := make(evm_worker.EvmWorkers, len(smartcontracts))
+	static_abis := make([]*static_abi.Abi, 0, len(smartcontracts))
+
 	for i, smartcontract := range smartcontracts {
-		parent := worker.New(db_con, smartcontract)
-
 		remote_abi, err := static_abi.Get(static_socket, smartcontract.NetworkId, smartcontract.Address)
 		if err != nil {
 			panic(fmt.Errorf("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error()))
 		}
-		abi, err := abi.NewAbi(remote_abi)
-		if err != nil {
-			panic(errors.New("failed to create a categorizer abi wrapper. error message: " + err.Error()))
-		}
-
-		worker := evm_worker.New(parent, abi, log_parse_in, log_parse_out)
-		workers[i] = worker
+		static_abis[i] = remote_abi
 	}
 
-	manager.In <- workers
+	request := message.Request{
+		Command: "",
+		Parameters: map[string]interface{}{
+			"smartcontracts": smartcontracts,
+			"abis":           static_abis,
+		},
+	}
+	request_string, _ := request.ToString()
 
-	evm_managers = evm_managers.Set(network.Id, manager)
+	_, err = pusher.SendMessage(request_string)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Manages the ImmutableX blockchain smartcontracts
@@ -116,6 +120,12 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 		return message.Fail(saveErr.Error())
 	}
 
+	pusher, err := blockchain.NewCategorizerPusher(sm.NetworkId)
+	if err != nil {
+		panic(err)
+	}
+	defer pusher.Close()
+
 	if sm.NetworkId == imx.NETWORK_ID {
 		if imx_manager == nil {
 			return message.Fail("unsupported network_id")
@@ -124,25 +134,27 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 		new_worker := worker.New(db_con, sm)
 		go imx_worker.ImxRun(new_worker, imx_manager)
 	} else {
-		manager_raw, ok := evm_managers[sm.NetworkId]
-		if !ok {
-			return message.Fail("unsupported network_id")
-		}
-		manager := manager_raw.(*evm_worker.Manager)
-
-		parent := worker.New(db_con, sm)
-
 		remote_abi, err := static_abi.Get(static_socket, sm.NetworkId, sm.Address)
 		if err != nil {
 			return message.Fail("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
 		}
-		abi, err := abi.NewAbi(remote_abi)
-		if err != nil {
-			return message.Fail("failed to create a categorizer abi wrapper. error message: " + err.Error())
-		}
 
-		worker := evm_worker.New(parent, abi, log_parse_in, log_parse_out)
-		manager.In <- evm_worker.EvmWorkers{worker}
+		smartcontracts := []*smartcontract.Smartcontract{sm}
+		static_abis := []*static_abi.Abi{remote_abi}
+
+		request := message.Request{
+			Command: "",
+			Parameters: map[string]interface{}{
+				"smartcontracts": smartcontracts,
+				"abis":           static_abis,
+			},
+		}
+		request_string, _ := request.ToString()
+
+		_, err = pusher.SendMessage(request_string)
+		if err != nil {
+			return message.Fail(err.Error())
+		}
 	}
 
 	reply := message.Reply{
@@ -170,9 +182,6 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		panic(err)
 	}
 
-	// check that spaghetti parameters are given
-	// categorizer should connect to spaghetti, therefore categorizer service should know
-	// the url and security parameters
 	if _, err := service.New(service.SPAGHETTI, service.REMOTE); err != nil {
 		panic(err)
 	}
@@ -190,18 +199,13 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 	}
 
 	imx_manager = imx.NewManager(app_config)
-	evm_managers = key_value.Empty()
 
 	log_parse_in = make(chan evm_worker.RequestLogParse)
 	log_parse_out = make(chan evm_worker.ReplyLogParse)
 	go evm_worker.LogParse(log_parse_in, log_parse_out)
 
-	for _, network := range networks {
-		if network.Id == imx.NETWORK_ID {
-			run_imx_manager(db_con, network)
-		} else {
-			run_evm_manager(db_con, network)
-		}
+	for _, the_network := range networks {
+		register_smartcontracts(db_con, the_network)
 	}
 
 	var commands = controller.CommandHandlers{

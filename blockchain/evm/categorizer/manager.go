@@ -7,13 +7,16 @@ package categorizer
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/blockchain/network"
 
+	"github.com/blocklords/gosds/blockchain/evm/abi"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/common/data_type"
+	static_abi "github.com/blocklords/gosds/static/abi"
 
 	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/remote/message"
@@ -36,9 +39,7 @@ type Manager struct {
 	old_categorizers OldWorkerGroups
 
 	current_workers EvmWorkers
-	current_status  string
 
-	subscriber_status                string
 	subscribed_earliest_block_number uint64
 	subscribed_blocks                data_type.Queue
 
@@ -48,7 +49,26 @@ type Manager struct {
 
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
-func NewManager(
+func NewManager(network *network.Network) *Manager {
+	manager := Manager{
+		In:      make(chan EvmWorkers),
+		Network: network,
+
+		old_categorizers: make(OldWorkerGroups, 0),
+
+		subscribed_blocks:                *data_type.NewQueue(),
+		subscribed_earliest_block_number: 0,
+
+		// consumes the data from the subscribed blocks
+		current_workers: make(EvmWorkers, 0),
+	}
+
+	return &manager
+}
+
+// Creates a new manager for the given EVM Network
+// New manager runs in the background.
+func NewManagerWithLog(
 	network *network.Network,
 	in chan RequestLogParse,
 	out chan ReplyLogParse,
@@ -61,12 +81,10 @@ func NewManager(
 
 		old_categorizers: make(OldWorkerGroups, 0),
 
-		subscriber_status:                IDLE,
 		subscribed_blocks:                *data_type.NewQueue(),
 		subscribed_earliest_block_number: 0,
 
 		// consumes the data from the subscribed blocks
-		current_status:  IDLE,
 		current_workers: make(EvmWorkers, 0),
 	}
 
@@ -98,6 +116,67 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 	return addresses
 }
 
+// Same as Run. Run it as a goroutine
+func (manager *Manager) Start() {
+	go manager.subscribe()
+	go manager.categorize_current_smartcontracts()
+
+	// wait until we receive the new block number
+	for {
+		if manager.subscribed_earliest_block_number == 0 {
+			time.Sleep(time.Second * 1)
+			continue
+		}
+		break
+	}
+
+	sock, err := zmq.NewSocket(zmq.PULL)
+	if err != nil {
+		panic(err)
+	}
+
+	url := "cat_" + manager.Network.Id
+	if err := sock.Bind("inproc://" + url); err != nil {
+		log.Fatalf("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
+	}
+
+	for {
+		// Wait for reply.
+		msgs, _ := sock.RecvMessage(0)
+		request, _ := message.ParseRequest(msgs)
+
+		raw_smartcontracts, _ := request.Parameters.GetKeyValueList("smartcontracts")
+		raw_abis, _ := request.Parameters["abis"].([]interface{})
+
+		new_workers := make(EvmWorkers, 0, len(raw_abis))
+
+		for i, raw_abi := range raw_abis {
+			abi_data, _ := static_abi.NewFromBytes(raw_abi.([]byte))
+			cat_abi, _ := abi.NewAbi(abi_data)
+
+			sm, _ := smartcontract.New(raw_smartcontracts[i])
+
+			new_workers[i] = New(sm, cat_abi)
+		}
+
+		block_number := manager.subscribed_earliest_block_number
+
+		old_workers, current_workers := new_workers.Sort().Split(block_number)
+		old_block_number := old_workers.EarliestBlockNumber()
+
+		group := manager.old_categorizers.FirstGroupGreaterThan(old_block_number)
+		if group == nil {
+			group = NewGroup(old_block_number, old_workers)
+			manager.old_categorizers = append(manager.old_categorizers, group)
+			go manager.categorize_old_smartcontracts(group)
+		} else {
+			group.add_workers(old_workers)
+		}
+
+		manager.add_current_workers(current_workers)
+	}
+}
+
 // Starts the manager in a background as a goroutine.
 // IMPORTANT! it doesn't validate the service configurations
 // They should be validated in the main page.
@@ -111,10 +190,7 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 // - get list of smartcontract addresses
 // - check whether address exists in the list
 func (manager *Manager) Run() {
-	manager.subscriber_status = RUNNING
 	go manager.subscribe()
-
-	manager.current_status = RUNNING
 	go manager.categorize_current_smartcontracts()
 
 	categorizer_env, _ := service.New(service.CATEGORIZER, service.BROADCAST, service.THIS)
@@ -170,7 +246,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		// update the worker data by logs.
 		block_number_to := block_number_from
 		for _, worker := range group.workers {
-			logs := spaghetti_log.FilterByAddress(all_logs, worker.parent.Smartcontract.Address)
+			logs := spaghetti_log.FilterByAddress(all_logs, worker.smartcontract.Address)
 			if len(logs) == 0 {
 				continue
 			}
@@ -211,10 +287,10 @@ func (manager *Manager) categorize_current_smartcontracts() {
 			block := manager.subscribed_blocks.Pop().(*spaghetti_block.Block)
 
 			for _, worker := range manager.current_workers {
-				if block.BlockNumber <= worker.parent.Smartcontract.CategorizedBlockNumber {
+				if block.BlockNumber <= worker.smartcontract.CategorizedBlockNumber {
 					continue
 				}
-				logs := block.GetForSmartcontract(worker.parent.Smartcontract.Address)
+				logs := block.GetForSmartcontract(worker.smartcontract.Address)
 				_, err := worker.categorize(logs)
 				if err != nil {
 					panic("failed to categorize the blockchain")
