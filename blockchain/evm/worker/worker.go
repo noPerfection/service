@@ -3,15 +3,21 @@
 package worker
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/blocklords/gosds/blockchain/evm/block"
 	"github.com/blocklords/gosds/blockchain/evm/client"
+	evm_log "github.com/blocklords/gosds/blockchain/evm/log"
 
 	"github.com/blocklords/gosds/app/remote/message"
 
 	"github.com/blocklords/gosds/common/data_type"
+	"github.com/blocklords/gosds/common/data_type/key_value"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // the global variables that we pass between functions in this worker.
@@ -42,6 +48,80 @@ func New(client *client.Client, broadcast_channel chan message.Broadcast, debug 
 		broadcast_channel: broadcast_channel,
 		debug:             debug,
 	}
+}
+
+// Sets up the socket to interact with the clients
+func (worker *SpaghettiWorker) SetupSocket() {
+	sock, err := zmq.NewSocket(zmq.REP)
+	if err != nil {
+		panic(err)
+	}
+
+	url := "spaghetti_" + worker.client.Network.Id
+	if err := sock.Bind("inproc://" + url); err != nil {
+		log.Fatalf("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
+	}
+
+	for {
+		// Wait for reply.
+		msgs, _ := sock.RecvMessage(0)
+		request, _ := message.ParseRequest(msgs)
+
+		var reply message.Reply
+
+		if request.Command == "log-filter" {
+			reply = worker.filter_log(request.Parameters)
+		}
+
+		reply_string, err := reply.ToString()
+		if err != nil {
+			if _, err := sock.SendMessage(err.Error()); err != nil {
+				panic(err)
+			}
+		} else {
+			if _, err := sock.SendMessage(reply_string); err != nil {
+				panic(errors.New("failed to reply: %w" + err.Error()))
+			}
+		}
+	}
+}
+
+func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message.Reply {
+	network_id := worker.client.Network.Id
+	block_number_from, _ := parameters.GetUint64("block_number_from")
+
+	addresses, _ := parameters.GetStringList("addresses")
+
+	length, err := worker.client.Network.GetFirstProviderLength()
+	if err != nil {
+		return message.Fail("failed to get the block range length for first provider of " + network_id)
+	}
+	block_number_to := block_number_from + length
+
+	raw_logs, err := worker.client.GetBlockRangeLogs(block_number_from, block_number_to, addresses)
+	if err != nil {
+		return message.Fail(err.Error())
+	}
+
+	block_timestamp, err := worker.client.GetBlockTimestamp(block_number_from)
+	if err != nil {
+		return message.Fail(err.Error())
+	}
+
+	logs, err := evm_log.NewSpaghettiLogs(network_id, block_timestamp, raw_logs)
+	if err != nil {
+		return message.Fail(err.Error())
+	}
+
+	reply := message.Reply{
+		Status:  "OK",
+		Message: "",
+		Parameters: key_value.New(map[string]interface{}{
+			"logs": logs,
+		}),
+	}
+
+	return reply
 }
 
 // run the worker as a goroutine.

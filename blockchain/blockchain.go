@@ -35,6 +35,7 @@ func StartWorkers(app_config *configuration.Config) error {
 
 			new_worker := evm_worker.New(new_client, nil, false)
 			go new_worker.Sync()
+			go new_worker.SetupSocket()
 
 			// Categorizer of the smartcontracts
 			// This categorizers are interacting with the SDS Categorizer
