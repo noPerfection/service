@@ -1,46 +1,10 @@
 package log
 
 import (
-	"encoding/hex"
 	"errors"
 
 	"github.com/blocklords/gosds/common/data_type/key_value"
-	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
-
-// Converts the ethereum's log to SeascapeSDS Spaghetti Log type
-func NewFromRawLog(network_id string, block_timestamp uint64, log *eth_types.Log) (*Log, error) {
-	topics := make([]string, len(log.Topics))
-	for i, topic := range log.Topics {
-		topics[i] = topic.Hex()
-	}
-
-	return &Log{
-		NetworkId:      network_id,
-		BlockNumber:    log.BlockHash.Big().Uint64(),
-		BlockTimestamp: block_timestamp,
-		Txid:           log.TxHash.Hex(),
-		LogIndex:       log.Index,
-		Data:           hex.EncodeToString(log.Data),
-		Address:        log.Address.Hex(),
-		Topics:         topics,
-	}, nil
-}
-
-// Converts the ethereum's log to SeascapeSDS Spaghetti Log type
-func NewLogsFromRaw(network_id string, block_timestamp uint64, raw_logs []eth_types.Log) ([]*Log, error) {
-	logs := make([]*Log, 0, len(raw_logs))
-	for i, raw := range raw_logs {
-		log, err := NewFromRawLog(network_id, block_timestamp, &raw)
-		if err != nil {
-			return nil, err
-		}
-
-		logs[i] = log
-	}
-
-	return logs, nil
-}
 
 // Convert the JSON into spaghetti.Log
 func New(parameters key_value.KeyValue) (*Log, error) {
