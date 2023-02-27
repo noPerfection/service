@@ -12,7 +12,7 @@ type Abi struct {
 	Id    string `json:"id"`
 }
 
-// Returns the abi content in string format
+// Returns the abi content as a string
 func (abi *Abi) ToString() string {
 	return string(abi.bytes)
 }
@@ -28,7 +28,7 @@ func (abi *Abi) GenerateId() {
 func (abi *Abi) Interface(body interface{}) error {
 	err := data_type.Deserialize(abi.bytes, &body)
 	if err != nil {
-		return errors.New("Failed to convert abi bytes to body interface")
+		return errors.New("failed to convert abi bytes to body interface")
 	}
 
 	return nil
