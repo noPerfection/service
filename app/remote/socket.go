@@ -271,9 +271,16 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 			return reply.Parameters, nil
 		} else {
 			fmt.Println("command '", request.Command, "' wasn't replied by '", socket.remoteService.ServiceName(), "' in ", request_timeout, ", retrying...")
-			err := socket.reconnect()
-			if err != nil {
-				return nil, err
+			if socket.protocol == "inproc" {
+				err := socket.inproc_reconnect()
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				err := socket.reconnect()
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
