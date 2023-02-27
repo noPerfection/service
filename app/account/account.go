@@ -17,6 +17,13 @@ type Account struct {
 
 type Accounts []*Account
 
+// Creates the account from the public key
+func New(public_key string) *Account {
+	return &Account{
+		PublicKey: public_key,
+	}
+}
+
 // Creates a new Account for a developer.
 func NewDeveloper(id uint64, public_key string, nonce_timestamp uint64, organization string) *Account {
 	return &Account{
