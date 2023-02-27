@@ -5,12 +5,9 @@ import (
 
 	"github.com/blocklords/gosds/blockchain"
 	evm_worker "github.com/blocklords/gosds/blockchain/evm/categorizer"
-	"github.com/blocklords/gosds/blockchain/imx"
-	imx_worker "github.com/blocklords/gosds/blockchain/imx/categorizer"
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer/handler"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/categorizer/worker"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	static_abi "github.com/blocklords/gosds/static/abi"
 
@@ -32,8 +29,6 @@ var log_parse_in chan evm_worker.RequestLogParse = nil
 var log_parse_out chan evm_worker.ReplyLogParse = nil
 
 var static_socket *remote.Socket
-
-var imx_manager *imx.Manager = nil
 
 // Manages the EVM based smartcontracts on a certain blockchain
 // todo use the blockchain/categorizer_push(network_id); defer close()
@@ -75,23 +70,6 @@ func register_smartcontracts(db_con *db.Database, network *network.Network) {
 	}
 }
 
-// Manages the ImmutableX blockchain smartcontracts
-func run_imx_manager(db_con *db.Database, network *network.Network) {
-	// smartcontract.GetAll() is the first database connection.
-	// therefore it checks database liveness.
-	smartcontracts, err := smartcontract.GetAllByNetworkId(db_con, network.Id)
-	if err != nil {
-		panic(`error to fetch all categorized smartcontracts. received database error: ` + err.Error() + ` for network id ` + network.Id)
-	}
-
-	for _, sm := range smartcontracts {
-		imx_manager.AddSmartcontract()
-		new_worker := worker.New(db_con, sm)
-
-		go imx_worker.ImxRun(new_worker, imx_manager)
-	}
-}
-
 ////////////////////////////////////////////////////////////////////
 //
 // Command handlers
@@ -126,35 +104,26 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 	}
 	defer pusher.Close()
 
-	if sm.NetworkId == imx.NETWORK_ID {
-		if imx_manager == nil {
-			return message.Fail("unsupported network_id")
-		}
-		imx_manager.AddSmartcontract()
-		new_worker := worker.New(db_con, sm)
-		go imx_worker.ImxRun(new_worker, imx_manager)
-	} else {
-		remote_abi, err := static_abi.Get(static_socket, sm.NetworkId, sm.Address)
-		if err != nil {
-			return message.Fail("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
-		}
+	remote_abi, err := static_abi.Get(static_socket, sm.NetworkId, sm.Address)
+	if err != nil {
+		return message.Fail("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
+	}
 
-		smartcontracts := []*smartcontract.Smartcontract{sm}
-		static_abis := []*static_abi.Abi{remote_abi}
+	smartcontracts := []*smartcontract.Smartcontract{sm}
+	static_abis := []*static_abi.Abi{remote_abi}
 
-		request := message.Request{
-			Command: "",
-			Parameters: map[string]interface{}{
-				"smartcontracts": smartcontracts,
-				"abis":           static_abis,
-			},
-		}
-		request_string, _ := request.ToString()
+	push := message.Request{
+		Command: "",
+		Parameters: map[string]interface{}{
+			"smartcontracts": smartcontracts,
+			"abis":           static_abis,
+		},
+	}
+	request_string, _ := push.ToString()
 
-		_, err = pusher.SendMessage(request_string)
-		if err != nil {
-			return message.Fail(err.Error())
-		}
+	_, err = pusher.SendMessage(request_string)
+	if err != nil {
+		return message.Fail(err.Error())
 	}
 
 	reply := message.Reply{
@@ -197,8 +166,6 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 	if err != nil {
 		panic(err)
 	}
-
-	imx_manager = imx.NewManager(app_config)
 
 	log_parse_in = make(chan evm_worker.RequestLogParse)
 	log_parse_out = make(chan evm_worker.ReplyLogParse)
