@@ -2,23 +2,26 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"sync"
 
 	"github.com/blocklords/gosds/app/configuration"
+	"github.com/blocklords/gosds/blockchain"
 	"github.com/blocklords/gosds/categorizer"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/security"
 	"github.com/blocklords/gosds/security/vault"
-	"github.com/blocklords/gosds/spaghetti"
 	"github.com/blocklords/gosds/static"
 )
 
 /** SeascapeSDS + its SDK to use it.*/
 func main() {
 	fmt.Println("SeascapeSDS!!!")
+
+	// register the blockchain
+	// blockchain.Register(blockchainModel, evm)
+	// blockchain.Fetch()
 
 	app_config, err := configuration.NewAppConfig()
 	if err != nil {
@@ -89,21 +92,21 @@ func main() {
 	}()
 	wg.Add(1)
 	go func() {
-		spaghetti.Run(app_config, database)
+		blockchain.Run(app_config)
 		wg.Done()
 	}()
 	defer func() {
 		wg.Wait()
 	}()
 
-	fmt.Println("query the database")
-	result, err := database.Query(context.TODO(), "SELECT address FROM static_smartcontract WHERE 1", nil)
-	if err != nil {
-		log.Fatalf("test query to database: %v", err)
-	}
+	// fmt.Println("query the database")
+	// result, err := database.Query(context.TODO(), "SELECT address FROM static_smartcontract WHERE 1", nil)
+	// if err != nil {
+	// log.Fatalf("test query to database: %v", err)
+	// }
 
-	fmt.Println("database query result: ")
-	for _, address := range result {
-		fmt.Println("address ", address)
-	}
+	// fmt.Println("database query result: ")
+	// for _, address := range result {
+	// fmt.Println("address ", address)
+	// }
 }
