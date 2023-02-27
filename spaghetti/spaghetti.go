@@ -338,7 +338,7 @@ It supports the following arguments:
 		broadcast.AddWhitelistedAccounts(spaghetti_env, subsribers)
 	}
 
-	err = blockchain.StartWorkers()
+	err = blockchain.StartWorkers(app_config)
 	if err != nil {
 		panic(err)
 	}
