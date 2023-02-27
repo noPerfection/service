@@ -4,7 +4,7 @@ package evm
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/categorizer/abi"
+	"github.com/blocklords/gosds/blockchain/evm/abi"
 	"github.com/blocklords/gosds/categorizer/log"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/categorizer/worker"

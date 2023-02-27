@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/blocklords/gosds/blockchain/evm/abi"
 	evm_worker "github.com/blocklords/gosds/blockchain/evm/categorizer"
 	"github.com/blocklords/gosds/blockchain/imx"
 	imx_worker "github.com/blocklords/gosds/blockchain/imx/categorizer"
 	"github.com/blocklords/gosds/blockchain/network"
-	"github.com/blocklords/gosds/categorizer/abi"
 	"github.com/blocklords/gosds/categorizer/handler"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/categorizer/worker"
