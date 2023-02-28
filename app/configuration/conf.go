@@ -29,10 +29,7 @@ func NewAppConfig(logger log.Logger) (*Config, error) {
 	config_logger.SetReportCaller(false)
 	config_logger.SetReportTimestamp(false)
 	// First we check the parameters of the application arguments
-	arguments, err := argument.GetArguments(config_logger)
-	if err != nil {
-		return nil, fmt.Errorf("reading application arguments: %v", err)
-	}
+	arguments := argument.GetArguments(config_logger)
 
 	conf := Config{
 		Plain:         argument.Has(arguments, argument.PLAIN),
@@ -45,7 +42,7 @@ func NewAppConfig(logger log.Logger) (*Config, error) {
 	config_logger.Info("--"+argument.SECURITY_DEBUG, "to hide security debug. Enabled", conf.DebugSecurity)
 
 	// First we load the environment variables
-	err = env.LoadAnyEnv()
+	err := env.LoadAnyEnv()
 	if err != nil {
 		return nil, fmt.Errorf("loading environment variables: %v", err)
 	}
@@ -60,10 +57,7 @@ func NewAppConfig(logger log.Logger) (*Config, error) {
 // Return the configuration engine to use with default parameters
 func New() (*Config, error) {
 	// First we check the parameters of the application arguments
-	arguments, err := argument.GetArguments(nil)
-	if err != nil {
-		return nil, fmt.Errorf("reading application arguments: %v", err)
-	}
+	arguments := argument.GetArguments(nil)
 
 	conf := Config{
 		Plain:     argument.Has(arguments, argument.PLAIN),
@@ -83,10 +77,7 @@ func New() (*Config, error) {
 // Only the underlying configuration engine is loaded.
 func NewService(default_config DefaultConfig) (*Config, error) {
 	// First we check the parameters of the application arguments
-	arguments, err := argument.GetArguments(nil)
-	if err != nil {
-		return nil, fmt.Errorf("reading application arguments: %v", err)
-	}
+	arguments := argument.GetArguments(nil)
 
 	conf := Config{
 		Plain:     argument.Has(arguments, argument.PLAIN),

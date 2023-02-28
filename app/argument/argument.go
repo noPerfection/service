@@ -2,7 +2,7 @@
 package argument
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -30,10 +30,10 @@ const (
 // any command line data that comes after the files are .env file paths
 // Any argument for application without '--' prefix is considered to be path to the
 // environment file.
-func GetEnvPaths() ([]string, error) {
+func GetEnvPaths() []string {
 	args := os.Args[1:]
 	if len(args) == 0 {
-		return nil, nil
+		return []string{}
 	}
 
 	paths := make([]string, 0)
@@ -44,12 +44,12 @@ func GetEnvPaths() ([]string, error) {
 		}
 	}
 
-	return paths, nil
+	return paths
 }
 
 // Load arguments, not the environment variable paths.
-// Arguments are with --prefix
-func GetArguments(logger log.Logger) ([]string, error) {
+// Arguments starts with '--'
+func GetArguments(logger log.Logger) []string {
 	if logger != nil {
 		env_logger := app_log.Child(logger, "arguments")
 		env_logger.SetReportCaller(false)
@@ -60,7 +60,7 @@ func GetArguments(logger log.Logger) ([]string, error) {
 
 	args := os.Args[1:]
 	if len(args) == 0 {
-		return nil, nil
+		return []string{}
 	}
 
 	parameters := make([]string, 0)
@@ -71,18 +71,13 @@ func GetArguments(logger log.Logger) ([]string, error) {
 		}
 	}
 
-	return parameters, nil
+	return parameters
 }
 
 // This function is same as `env.HasArgument`,
 // except `env.ArgumentExist()` loads arguments automatically.
 func Exist(argument string) (bool, error) {
-	arguments, err := GetArguments(nil)
-	if err != nil {
-		return false, err
-	}
-
-	return Has(arguments, argument), nil
+	return Has(GetArguments(nil), argument), nil
 }
 
 // Extracts the value of the argument if it has.
@@ -107,7 +102,12 @@ func ExtractValue(arguments []string, required string) (string, error) {
 		}
 	}
 
-	return GetValue(found)
+	value, err := GetValue(found)
+	if err != nil {
+		return "", fmt.Errorf("GetValue for %s argument: %w", required, err)
+	}
+
+	return value, nil
 }
 
 // Extracts the value of the argument.
@@ -115,7 +115,7 @@ func ExtractValue(arguments []string, required string) (string, error) {
 func GetValue(argument string) (string, error) {
 	parts := strings.Split(argument, "=")
 	if len(parts) != 2 {
-		return "", errors.New("no value found, or too many values")
+		return "", fmt.Errorf("strings.split(`%s`) should has two parts", argument)
 	}
 
 	return parts[1], nil
