@@ -7,6 +7,7 @@ import (
 
 	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/env"
+	app_log "github.com/blocklords/gosds/app/log"
 	"github.com/spf13/viper"
 )
 
@@ -18,13 +19,13 @@ type Config struct {
 	Broadcast     bool // if true then broadcast of the service will be enabled
 	Reply         bool // if true then reply controller of the service will be enabled
 	DebugSecurity bool // if true then we print the security layer logs
+	logger        log.Logger
 }
 
 // Returns the new configuration file after loading environment variables
 // At the application level
 func NewAppConfig(logger log.Logger) (*Config, error) {
-	config_logger := logger.With()
-	config_logger.SetPrefix(logger.GetPrefix() + " > app-config")
+	config_logger := app_log.Child(logger, "app-config")
 	config_logger.SetReportCaller(false)
 	config_logger.SetReportTimestamp(false)
 	// First we check the parameters of the application arguments
@@ -36,6 +37,7 @@ func NewAppConfig(logger log.Logger) (*Config, error) {
 	conf := Config{
 		Plain:         argument.Has(arguments, argument.PLAIN),
 		DebugSecurity: argument.Has(arguments, argument.SECURITY_DEBUG),
+		logger:        config_logger,
 	}
 
 	config_logger.Info("Supported application arguments:")
@@ -103,16 +105,19 @@ func NewService(default_config DefaultConfig) (*Config, error) {
 
 // Populates the app configuration with the default vault configuration parameters.
 func (config *Config) SetDefaults(default_config DefaultConfig) {
-	// log.Printf("'%s' default values. Override on environment variables\n", default_config.Title)
+	if config.logger != nil {
+		config.logger.Info("Set the default config parameters for", "title", default_config.Title)
+	}
 
 	for name, value := range default_config.Parameters {
 		if value == nil {
 			continue
 		}
+		if config.logger != nil {
+			config.logger.Info("default", name, value)
+		}
 		config.SetDefault(name, value)
 	}
-
-	// log.Printf("\n\n")
 }
 
 // Sets the default value

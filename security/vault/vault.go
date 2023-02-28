@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+
+	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/gosds/app/configuration"
+	app_log "github.com/blocklords/gosds/app/log"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
@@ -58,10 +60,13 @@ var VaultConfigurations = configuration.DefaultConfig{
 // If you run the Vault in the dev mode, then path should be "secret/"
 //
 // Optionally the app configuration could be nil, in that case it creates a new vault
-func New(app_config *configuration.Config) (*Vault, error) {
+func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 	if app_config == nil {
 		return nil, errors.New("missing configuration file")
 	}
+	vault_logger := app_log.Child(logger, "vault")
+	vault_logger.SetReportCaller(false)
+
 	secure := app_config.GetBool("SDS_VAULT_SECURE")
 	host := app_config.GetString("SDS_VAULT_HOST")
 	port := app_config.GetString("SDS_VAULT_PORT")
@@ -73,6 +78,8 @@ func New(app_config *configuration.Config) (*Vault, error) {
 
 	config := hashicorp.DefaultConfig()
 	if secure {
+		vault_logger.Info("Connecting to vault over SSL")
+
 		config.Address = fmt.Sprintf("https://%s:%s", host, port)
 
 		// AppRole RoleID to log in to Vault
@@ -88,6 +95,8 @@ func New(app_config *configuration.Config) (*Vault, error) {
 
 		approle_secret_id_file = app_config.GetString("SDS_VAULT_APPROLE_SECRET_ID_FILE")
 	} else {
+		vault_logger.Info("Connecting to vault without SSL")
+
 		config.Address = fmt.Sprintf("http://%s:%s", host, port)
 
 		if !app_config.Exist("SDS_VAULT_TOKEN") {
@@ -117,7 +126,7 @@ func New(app_config *configuration.Config) (*Vault, error) {
 			return nil, fmt.Errorf("vault login error: %w", err)
 		}
 
-		log.Println("connecting to vault: success!")
+		log.Info("connecting to vault: success!")
 
 		vault.auth_token = token
 		return &vault, nil
@@ -190,7 +199,7 @@ func (v *Vault) RunController() {
 // ref: https://learn.hashicorp.com/tutorials/vault/secure-introduction?in=vault/app-integration#trusted-orchestrator
 // ref: https://learn.hashicorp.com/tutorials/vault/approle-best-practices?in=vault/auth-methods#secretid-delivery-best-practices
 func (v *Vault) login(ctx context.Context) (*hashicorp.Secret, error) {
-	log.Printf("logging in to vault with approle auth; role id: %s", v.approle_role_id)
+	log.Info("logging in to vault with approle auth; role id: %s", v.approle_role_id)
 
 	approleSecretID := &approle.SecretID{
 		FromFile: v.approle_secret_id_file,
@@ -213,7 +222,7 @@ func (v *Vault) login(ctx context.Context) (*hashicorp.Secret, error) {
 		return nil, fmt.Errorf("no approle info was returned after login")
 	}
 
-	log.Println("logging in to vault with approle auth: success!")
+	log.Info("logging in to vault with approle auth: success!")
 
 	return authInfo, nil
 }
@@ -236,7 +245,7 @@ func (v *Vault) get_string(secret_name string, key string) (string, error) {
 
 // GetDatabaseCredentials retrieves a new set of temporary database credentials
 func (v *Vault) GetDatabaseCredentials() (db.DatabaseCredentials, error) {
-	log.Println("getting temporary database credentials from vault")
+	log.Info("getting temporary database credentials from vault")
 
 	lease, err := v.client.Logical().ReadWithContext(v.context, v.database_path)
 	if err != nil {
@@ -258,7 +267,7 @@ func (v *Vault) GetDatabaseCredentials() (db.DatabaseCredentials, error) {
 		return db.DatabaseCredentials{}, fmt.Errorf("unable to unmarshal credentials: %w", err)
 	}
 
-	log.Println("getting temporary database credentials from vault: success!")
+	log.Info("getting temporary database credentials from vault: success!")
 
 	v.database_auth_token = lease
 
