@@ -7,9 +7,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"time"
+
+	app_log "github.com/blocklords/gosds/app/log"
+	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/common/data_type/key_value"
@@ -33,6 +35,7 @@ type Database struct {
 	Connection      *sql.DB
 	connectionMutex sync.Mutex
 	parameters      DatabaseParameters
+	logger          log.Logger
 }
 
 // The configuration parameters
@@ -79,11 +82,13 @@ func GetDefaultCredentials(app_config *configuration.Config) DatabaseCredentials
 }
 
 // NewDatabase establishes a database connection with the given Vault credentials
-func Open(parameters *DatabaseParameters, credentials DatabaseCredentials) (*Database, error) {
+func Open(logger log.Logger, parameters *DatabaseParameters, credentials DatabaseCredentials) (*Database, error) {
+	database_logger := app_log.Child(logger, "database")
 	database := &Database{
 		Connection:      nil,
 		connectionMutex: sync.Mutex{},
 		parameters:      *parameters,
+		logger:          database_logger,
 	}
 
 	ctx := context.TODO()
@@ -105,13 +110,14 @@ func (db *Database) Reconnect(ctx context.Context, credentials DatabaseCredentia
 	ctx, cancelContextFunc := context.WithTimeout(ctx, db.parameters.timeout)
 	defer cancelContextFunc()
 
-	log.Printf(
-		"connecting to %q database tcp://%s:%s with username %q and timeout %s",
-		db.parameters.name,
-		db.parameters.hostname,
-		db.parameters.port,
-		credentials.Username,
-		db.parameters.timeout,
+	db.logger.Info(
+		"connecting to database",
+		"protocol", "tcp",
+		"database", db.parameters.name,
+		"host", db.parameters.hostname,
+		"port", db.parameters.port,
+		"user", credentials.Username,
+		"timeout", db.parameters.timeout,
 	)
 
 	dsn := fmt.Sprintf(
@@ -139,13 +145,13 @@ func (db *Database) Reconnect(ctx context.Context, credentials DatabaseCredentia
 		case <-time.After(500 * time.Millisecond):
 			continue
 		case <-ctx.Done():
-			return fmt.Errorf("database connection test failed: %w", err)
+			return fmt.Errorf("database ping error: %v", err.Error())
 		}
 	}
 
 	db.closeReplaceConnection(connection)
 
-	log.Printf("connecting to %q database: success!", db.parameters.name)
+	db.logger.Info("connection success!", "name", db.parameters.name)
 
 	return nil
 }
