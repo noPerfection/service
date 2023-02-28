@@ -111,7 +111,7 @@ func (db *Database) Reconnect(ctx context.Context, credentials DatabaseCredentia
 	defer cancelContextFunc()
 
 	db.logger.Info(
-		"connecting to database",
+		"connecting to `mysql` database",
 		"protocol", "tcp",
 		"database", db.parameters.name,
 		"host", db.parameters.hostname,
