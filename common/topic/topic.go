@@ -99,17 +99,17 @@ func (t *Topic) Level() uint8 {
 func ParseJSON(parameters key_value.KeyValue) (*Topic, error) {
 	organization, err := parameters.GetString("o")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parameters.GetString(`o`): %w", err)
 	}
 	if len(organization) == 0 {
-		return nil, errors.New("organization is empty")
+		return nil, errors.New("empty 'o' parameter")
 	}
 	project, err := parameters.GetString("p")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parameters.GetString(`p`): %w", err)
 	}
 	if len(project) == 0 {
-		return nil, errors.New("project is empty")
+		return nil, errors.New("empty 'p' parameter")
 	}
 	topic := Topic{
 		Organization:  organization,
@@ -221,41 +221,41 @@ func (t *Topic) setNewValue(pathName string, val string) error {
 //   - Topic string should contain atleast 'organization' and 'project'
 //   - Order of the path names does not matter: o:org;p:proj == p:proj;o:org
 //   - The values between `<` and `>` are literals and should return true by `isLiteral(literal)` function
-func ParseString(topicString string) (Topic, error) {
-	parts := strings.Split(topicString, ";")
+func ParseString(topic_string string) (Topic, error) {
+	parts := strings.Split(topic_string, ";")
 	length := len(parts)
 	if length < 2 {
-		return Topic{}, fmt.Errorf("path should have atleast two elements")
+		return Topic{}, fmt.Errorf("%s should have atleast 2 parts divided by ';'", topic_string)
 	}
 
 	if length > 6 {
-		return Topic{}, fmt.Errorf("at most topic string can have six path names")
+		return Topic{}, fmt.Errorf("%s should have at most 6 parts divided by ';'", topic_string)
 	}
 
 	t := Topic{}
 
-	for _, part := range parts {
-		keyValue := strings.Split(part, ":")
-		if len(keyValue) != 2 {
-			return Topic{}, fmt.Errorf("invalid key:value in the topic string")
+	for i, part := range parts {
+		key_value := strings.Split(part, ":")
+		if len(key_value) != 2 {
+			return Topic{}, fmt.Errorf("part[%d] is %s, it can't be divided to two elements by ':'", i, part)
 		}
 
-		if !isPathName(keyValue[0]) {
-			return Topic{}, fmt.Errorf("invalid path name: %s", keyValue[0])
+		if !isPathName(key_value[0]) {
+			return Topic{}, fmt.Errorf("part[%d] isPathName(%s) false", i, key_value[0])
 		}
 
-		if !isLiteral(keyValue[1]) {
-			return Topic{}, fmt.Errorf("invalid literal for path name '%s': %s", keyValue[0], keyValue[1])
+		if !isLiteral(key_value[1]) {
+			return Topic{}, fmt.Errorf("part[%d] ('%s') isLiteral(%v) false", i, key_value[0], key_value[1])
 		}
 
-		err := t.setNewValue(keyValue[0], keyValue[1])
+		err := t.setNewValue(key_value[0], key_value[1])
 		if err != nil {
-			return t, err
+			return t, fmt.Errorf("part[%d] setNewValue: %w", i, err)
 		}
 	}
 
 	if len(t.Method) > 0 && len(t.Event) > 0 {
-		return Topic{}, fmt.Errorf("only 'method' path name or 'event' path name can be set, but not at the same time")
+		return Topic{}, fmt.Errorf("both method and event parts of topic is given of %s", topic_string)
 	}
 
 	return t, nil
