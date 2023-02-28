@@ -8,7 +8,7 @@ import (
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
-// Requeter to the SDS Service. It's either a developer or another SDS service.
+// Requester to the SDS Service. It's either a developer or another SDS service.
 type Account struct {
 	Id             uint64           `json:"id,omitempty"`    // Auto incremented for every new developer
 	PublicKey      string           `json:"public_key"`      // Public Key for authentication.
@@ -17,6 +17,7 @@ type Account struct {
 	service        *service.Service // If the account is another service, then this parameter keeps the data. Otherwise this parameter is a nil.
 }
 
+// List of accounts to manipulate with
 type Accounts []*Account
 
 // Creates the account from the public key
@@ -69,22 +70,23 @@ func (account *Account) IsService() bool {
 func ParseJson(raw key_value.KeyValue) (*Account, error) {
 	public_key, err := raw.GetString("public_key")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("map.GetString(`public_key`): %w", err)
 	}
 	service, err := service.GetByPublicKey(public_key)
 	if err != nil {
 		id, err := raw.GetUint64("id")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("map.GetUint64(`id`): %w", err)
 		}
 		nonce_timestamp, err := raw.GetUint64("nonce_timestamp")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("map.GetUint64(`nonce_timestamp`): %w", err)
 		}
 
 		organization, err := raw.GetString("organization")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("map.GetString(`organization`): %w", err)
+
 		}
 		return NewDeveloper(id, public_key, nonce_timestamp, organization), nil
 	} else {
@@ -111,7 +113,7 @@ func NewAccountsFromJson(raw_accounts []key_value.KeyValue) (Accounts, error) {
 	for i, raw := range raw_accounts {
 		account, err := ParseJson(raw)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("raw_account[%d] ParseJson(): %w", i, err)
 		}
 
 		accounts[i] = account

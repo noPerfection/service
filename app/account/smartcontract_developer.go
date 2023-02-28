@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/blocklords/gosds/app/remote/message"
@@ -15,6 +16,7 @@ import (
 
 const ECDSA uint8 = 1
 
+// Smartcontract developer uses Ecdsapublic key
 type SmartcontractDeveloper struct {
 	Address         string
 	AccountType     uint8             // The cryptographic algorithm key
@@ -52,11 +54,11 @@ func NewSmartcontractDeveloper(request *message.SmartcontractDeveloperRequest) (
 	// without 0x prefix
 	signature, err := hexutil.Decode(request.Signature)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("hexutil.Decode: %w", err)
 	}
 	digested_hash, err := request.DigestedMessage()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request.DigestMessage: %w", err)
 	}
 
 	if len(signature) != 65 {
@@ -69,12 +71,12 @@ func NewSmartcontractDeveloper(request *message.SmartcontractDeveloperRequest) (
 
 	ecdsa_public_key, err := crypto.SigToPub(digested_hash, signature)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("crypto.SigToPub for %v hash and %s signature: %w", digested_hash, string(signature), err)
 	}
 
 	address := crypto.PubkeyToAddress(*ecdsa_public_key).Hex()
 	if !strings.EqualFold(address, request.Address) {
-		return nil, errors.New("the request 'address' parameter mismatches to the account derived from signature. Account derived from the signature: " + address + "...")
+		return nil, fmt.Errorf("derived address %s mismatch smartcontract developer address %s", address, request.Address)
 	}
 
 	return NewEcdsaPublicKey(ecdsa_public_key), nil
@@ -101,8 +103,11 @@ func (account *SmartcontractDeveloper) Encrypt(plain_text []byte) ([]byte, error
 	// Encrypt the message with the public key
 	curve_pb := ecies.ImportECDSAPublic(account.EcdsaPublicKey)
 	cipher_text, err := ecies.Encrypt(rand.Reader, curve_pb, plain_text, nil, nil)
+	if err != nil {
+		return []byte{}, fmt.Errorf("ecies.encrypt by public key %v: %w", curve_pb, err)
+	}
 
-	return cipher_text, err
+	return cipher_text, nil
 }
 
 func (account *SmartcontractDeveloper) Decrypt(cipher_text []byte) ([]byte, error) {
@@ -116,5 +121,10 @@ func (account *SmartcontractDeveloper) Decrypt(cipher_text []byte) ([]byte, erro
 
 	curve_secret_key := ecies.ImportECDSA(account.EcdsaPrivateKey)
 	plain_text, err := curve_secret_key.Decrypt(cipher_text, nil, nil)
+
+	if err != nil {
+		return []byte{}, fmt.Errorf("ecies.decrypt cipher text %v: %w", cipher_text, err)
+	}
+
 	return plain_text, err
 }
