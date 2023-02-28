@@ -31,7 +31,7 @@ var static_socket *remote.Socket
 // Manages the EVM based smartcontracts on a certain blockchain
 // todo use the blockchain/categorizer_push(network_id); defer close()
 // then to categorizer_request.add_smartcontract(smartcontract)
-func register_smartcontracts(db_con *db.Database, network *network.Network) error {
+func setup_smartcontracts(db_con *db.Database, network *network.Network) error {
 	smartcontracts, err := smartcontract.GetAllByNetworkId(db_con, network.Id)
 	if err != nil {
 		return fmt.Errorf("smartcontract.GetAllByNetworkId: %w", err)
@@ -168,8 +168,10 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 	}
 
 	for _, the_network := range networks {
-		err := register_smartcontracts(db_con, the_network)
-		panic(fmt.Errorf("register_smartcontracts %s network_id: %w", the_network.Id, err))
+		err := setup_smartcontracts(db_con, the_network)
+		if err != nil {
+			panic(fmt.Errorf("setup_smartcontracts on %s network_id: %w", the_network.Id, err))
+		}
 	}
 
 	var commands = controller.CommandHandlers{
