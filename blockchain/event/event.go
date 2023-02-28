@@ -1,5 +1,5 @@
 /*Spaghetti transaction without method name and without clear input parameters*/
-package log
+package event
 
 import (
 	"encoding/json"

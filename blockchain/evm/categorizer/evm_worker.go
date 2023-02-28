@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/blocklords/gosds/blockchain/evm/abi"
-	"github.com/blocklords/gosds/categorizer/log"
+	"github.com/blocklords/gosds/categorizer/event"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 
 	"github.com/blocklords/gosds/app/service"
 
 	"github.com/blocklords/gosds/app/remote"
-	spaghetti_log "github.com/blocklords/gosds/blockchain/log"
+	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
 )
 
 // Wrapper around the gosds/categorizer/worker.Worker
@@ -59,7 +59,7 @@ func LogParse(in chan RequestLogParse, out chan ReplyLogParse) {
 		req := <-in
 		fmt.Println(req.network_id, ".", req.address, ": request a log parse for data", req.data)
 
-		log_name, outputs, err := log.RemoteLogParse(log_socket, req.network_id, req.address, req.data, req.topics)
+		log_name, outputs, err := event.RemoteLogParse(log_socket, req.network_id, req.address, req.data, req.topics)
 		fmt.Println(req.network_id, ".", req.address, ": reply from SDS Log with a parsed log name", log_name)
 
 		out <- ReplyLogParse{
@@ -96,7 +96,7 @@ func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
 				continue
 			}
 
-			l := log.New(log_reply.log_name, log_reply.outputs).AddMetadata(raw_log).AddSmartcontractData(worker.smartcontract)
+			l := event.New(log_reply.log_name, log_reply.outputs).AddMetadata(raw_log).AddSmartcontractData(worker.smartcontract)
 
 			if l.BlockNumber > block_number {
 				block_number = l.BlockNumber

@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/blocklords/gosds/categorizer/log"
+	"github.com/blocklords/gosds/categorizer/event"
 	"github.com/blocklords/gosds/db"
 
 	"github.com/blocklords/gosds/app/remote/message"
@@ -76,7 +76,7 @@ func GetSnapshot(db *db.Database, request message.Request) message.Reply {
 		return message.Fail(err.Error())
 	}*/
 
-	var logs []*log.Log = []*log.Log{}
+	var logs []*event.Log = []*event.Log{}
 	/*
 		if len(transactions) > 0 {
 			txKeys := make([]string, len(transactions))

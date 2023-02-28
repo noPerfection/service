@@ -11,7 +11,7 @@ import (
 
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
-	spaghetti_log "github.com/blocklords/gosds/blockchain/log"
+	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
 	"github.com/blocklords/gosds/categorizer"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 )

@@ -3,7 +3,7 @@ package data_type
 
 import (
 	"github.com/blocklords/gosds/app/account"
-	categorizer_log "github.com/blocklords/gosds/categorizer/log"
+	categorizer_log "github.com/blocklords/gosds/categorizer/event"
 	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 

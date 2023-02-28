@@ -5,7 +5,7 @@ import (
 	debug_log "log"
 
 	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/categorizer/log"
+	"github.com/blocklords/gosds/categorizer/event"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/db"
 
@@ -54,9 +54,9 @@ func SetupSocket(database *db.Database) {
 
 		raw_logs, _ := request.Parameters.GetKeyValueList("logs")
 
-		logs := make([]*log.Log, len(raw_logs))
+		logs := make([]*event.Log, len(raw_logs))
 		for i, raw := range raw_logs {
-			log, _ := log.NewFromMap(raw)
+			log, _ := event.NewFromMap(raw)
 			logs[i] = log
 		}
 
@@ -68,7 +68,7 @@ func SetupSocket(database *db.Database) {
 		}
 
 		for _, l := range logs {
-			err := log.Save(database, l)
+			err := event.Save(database, l)
 			if err != nil {
 				panic(err)
 			}

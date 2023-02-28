@@ -3,8 +3,8 @@ package block
 import (
 	"strings"
 
-	"github.com/blocklords/gosds/blockchain/evm/log"
-	spaghetti_log "github.com/blocklords/gosds/blockchain/log"
+	"github.com/blocklords/gosds/blockchain/evm/event"
+	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
 
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
@@ -23,7 +23,7 @@ func SetLogs(block *Block, raw_logs []eth_types.Log) error {
 			continue
 		}
 
-		log, txErr := log.NewSpaghettiLog(block.NetworkId, block.BlockTimestamp, &rawLog)
+		log, txErr := event.NewSpaghettiLog(block.NetworkId, block.BlockTimestamp, &rawLog)
 		if txErr != nil {
 			return txErr
 		}

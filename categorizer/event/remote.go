@@ -1,4 +1,4 @@
-package log
+package event
 
 import (
 	"github.com/blocklords/gosds/app/remote"

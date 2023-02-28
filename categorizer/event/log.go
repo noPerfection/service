@@ -1,8 +1,8 @@
 /*Categorized log containing log name and output parameters*/
-package log
+package event
 
 import (
-	spaghetti_log "github.com/blocklords/gosds/blockchain/log"
+	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 )
 

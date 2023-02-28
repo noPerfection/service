@@ -10,7 +10,7 @@ import (
 
 	"github.com/blocklords/gosds/blockchain/evm/block"
 	"github.com/blocklords/gosds/blockchain/evm/client"
-	evm_log "github.com/blocklords/gosds/blockchain/evm/log"
+	evm_log "github.com/blocklords/gosds/blockchain/evm/event"
 
 	"github.com/blocklords/gosds/app/remote/message"
 

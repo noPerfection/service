@@ -11,7 +11,7 @@ import (
 	"github.com/blocklords/gosds/blockchain/imx"
 	"github.com/blocklords/gosds/blockchain/imx/util"
 	"github.com/blocklords/gosds/blockchain/network"
-	"github.com/blocklords/gosds/categorizer/log"
+	"github.com/blocklords/gosds/categorizer/event"
 
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
 )
@@ -37,7 +37,7 @@ func New(network *network.Network) (*Client, error) {
 }
 
 // Returns list of transfers
-func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration, address string, sleep time.Duration, timestamp string) ([]*log.Log, error) {
+func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration, address string, sleep time.Duration, timestamp string) ([]*event.Log, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -47,7 +47,7 @@ func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration,
 	var resp *imx_api.ListTransfersResponse
 	var r *http.Response
 	var err error
-	logs := make([]*log.Log, 0)
+	logs := make([]*event.Log, 0)
 
 	for {
 		request := client.client.TransfersApi.ListTransfers(client.ctx).MinTimestamp(timestamp).PageSize(pageSize)
@@ -91,7 +91,7 @@ func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration,
 			}
 
 			// todo change the imx to store in the log
-			l := &log.Log{
+			l := &event.Log{
 				NetworkId:      "imx",
 				Address:        address,
 				BlockNumber:    uint64(blockTime.Unix()),
@@ -119,7 +119,7 @@ func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration,
 	return logs, nil
 }
 
-func (client *Client) GetSmartcontractMintLogs(req_per_second time.Duration, address string, sleep time.Duration, timestamp string) ([]*log.Log, error) {
+func (client *Client) GetSmartcontractMintLogs(req_per_second time.Duration, address string, sleep time.Duration, timestamp string) ([]*event.Log, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -129,7 +129,7 @@ func (client *Client) GetSmartcontractMintLogs(req_per_second time.Duration, add
 	var resp *imx_api.ListTransfersResponse
 	var r *http.Response
 	var err error
-	logs := make([]*log.Log, 0)
+	logs := make([]*event.Log, 0)
 
 	for {
 		request := client.client.TransfersApi.ListTransfers(context.Background()).MinTimestamp(timestamp).PageSize(pageSize)
@@ -173,7 +173,7 @@ func (client *Client) GetSmartcontractMintLogs(req_per_second time.Duration, add
 				arguments["value"] = value
 			}
 
-			l := &log.Log{
+			l := &event.Log{
 				NetworkId:      "imx",
 				Address:        address,
 				BlockNumber:    uint64(blockTime.Unix()),

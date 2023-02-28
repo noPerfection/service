@@ -9,7 +9,7 @@ import (
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/app/service"
-	"github.com/blocklords/gosds/categorizer/log"
+	"github.com/blocklords/gosds/categorizer/event"
 	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/static/smartcontract"
 	"github.com/blocklords/gosds/static/smartcontract/key"
@@ -147,12 +147,12 @@ func (s *Subscriber) get_snapshot() error {
 			return nil
 		}
 
-		logs := make([]*log.Log, len(raw_logs))
+		logs := make([]*event.Log, len(raw_logs))
 
 		// Saving the latest block number in the cache
 		// along the parsing raw data into SDS data type
 		for i, raw_log := range raw_logs {
-			log, err := log.NewFromMap(raw_log)
+			log, err := event.NewFromMap(raw_log)
 			if err != nil {
 				return errors.New("failed to parse the log. the error: " + err.Error())
 			}
@@ -358,9 +358,9 @@ func (s *Subscriber) read_from_publisher() error {
 			continue
 		}
 
-		logs := make([]*log.Log, len(raw_logs))
+		logs := make([]*event.Log, len(raw_logs))
 		for i, raw := range raw_logs {
-			log, err := log.NewFromMap(raw)
+			log, err := event.NewFromMap(raw)
 			if err != nil {
 				if close_err := s.close(exit_channel); close_err != nil {
 					return errors.New("failed to parse the log " + err.Error() + ", . failed to close the subscriber loop. error " + close_err.Error())

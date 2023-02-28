@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/blocklords/gosds/categorizer/log"
+	"github.com/blocklords/gosds/categorizer/event"
 	"github.com/blocklords/gosds/db"
 
 	"github.com/blocklords/gosds/app/remote/message"
@@ -17,7 +17,7 @@ func GetLogs(db *db.Database, request message.Request) message.Reply {
 		return message.Fail(err.Error())
 	}
 
-	logs, err := log.GetLogsFromDb(db, keys)
+	logs, err := event.GetLogsFromDb(db, keys)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
