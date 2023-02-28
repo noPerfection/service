@@ -1,6 +1,7 @@
 package categorizer
 
 import (
+	"fmt"
 	debug_log "log"
 
 	"github.com/blocklords/gosds/app/remote/message"
@@ -10,6 +11,20 @@ import (
 
 	zmq "github.com/pebbe/zmq4"
 )
+
+func NewCategorizerPusher() (*zmq.Socket, error) {
+	sock, err := zmq.NewSocket(zmq.PUSH)
+	if err != nil {
+		return nil, err
+	}
+
+	url := "cat"
+	if err := sock.Connect("inproc://" + url); err != nil {
+		return nil, fmt.Errorf("trying to create categorizer connecting pusher: %v", err)
+	}
+
+	return sock, nil
+}
 
 // Sets up the socket that will be connected by the blockchain/categorizers
 // The blockchain categorizers will set up the smartcontract informations on the database

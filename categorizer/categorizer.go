@@ -3,7 +3,7 @@ package categorizer
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/blockchain"
+	"github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer/handler"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
@@ -35,7 +35,7 @@ func register_smartcontracts(db_con *db.Database, network *network.Network) {
 		panic(`error to fetch all categorized smartcontracts. received database error: ` + err.Error() + ` for network id ` + network.Id)
 	}
 
-	pusher, err := blockchain.NewCategorizerPusher(network.Id)
+	pusher, err := inproc.NewCategorizerPusher(network.Id)
 	if err != nil {
 		panic(err)
 	}
@@ -94,7 +94,7 @@ func smartcontract_set(db_con *db.Database, request message.Request) message.Rep
 		return message.Fail(saveErr.Error())
 	}
 
-	pusher, err := blockchain.NewCategorizerPusher(sm.NetworkId)
+	pusher, err := inproc.NewCategorizerPusher(sm.NetworkId)
 	if err != nil {
 		panic(err)
 	}

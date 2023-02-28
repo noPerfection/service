@@ -69,3 +69,17 @@ func FilterByAddress(all_logs []*Log, address string) []*Log {
 
 	return logs
 }
+
+func RecentBlock(all_logs []*Log) (uint64, uint64) {
+	block_number := uint64(0)
+	block_timestamp := uint64(0)
+
+	for _, log := range all_logs {
+		if log.BlockNumber > block_number {
+			block_number = log.BlockNumber
+			block_timestamp = log.BlockTimestamp
+		}
+	}
+
+	return block_number, block_timestamp
+}

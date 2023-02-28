@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/blocklords/gosds/app/remote"
-	"github.com/blocklords/gosds/categorizer/smartcontract"
+	"github.com/blocklords/gosds/app/remote/message"
 	spaghetti_log "github.com/blocklords/gosds/blockchain/log"
+	"github.com/blocklords/gosds/categorizer"
+	"github.com/blocklords/gosds/categorizer/smartcontract"
 )
 
 // we fetch transfers and mints.
@@ -23,9 +25,17 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 	url := "spaghetti_" + manager.network.Id
 	sock := remote.InprocRequestSocket(url)
 
+	// if there are some logs, we should broadcast them to the SDS Categorizer
+	pusher, err := categorizer.NewCategorizerPusher()
+	if err != nil {
+		panic(err)
+	}
+	defer pusher.Close()
+
+	addresses := []string{sm.Address}
+
 	for {
-		addresses := []string{sm.Address}
-		_, err := spaghetti_log.RemoteLogFilter(sock, sm.CategorizedBlockTimestamp, addresses)
+		new_logs, err := spaghetti_log.RemoteLogFilter(sock, sm.CategorizedBlockTimestamp, addresses)
 		if err != nil {
 			fmt.Println("failed to get the remote block number for network: " + sm.NetworkId + " error: " + err.Error())
 			fmt.Fprintf(os.Stderr, "Error when imx client for logs`: %v\n", err)
@@ -34,7 +44,24 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 			continue
 		}
 
-		// if there are some logs, we should broadcast them to the SDS Categorizer
+		block_number, block_timestamp := spaghetti_log.RecentBlock(new_logs)
+		sm.SetBlockParameter(block_number, block_timestamp)
+
+		smartcontracts := []*smartcontract.Smartcontract{sm}
+
+		push := message.Request{
+			Command: "",
+			Parameters: map[string]interface{}{
+				"smartcontracts": smartcontracts,
+				"logs":           new_logs,
+			},
+		}
+		request_string, _ := push.ToString()
+
+		_, err = pusher.SendMessage(request_string)
+		if err != nil {
+			panic(err)
+		}
 
 		time.Sleep(time.Second * 1)
 	}
