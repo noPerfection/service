@@ -147,6 +147,7 @@ It supports the following arguments:
 		}
 	}
 
+	go broadcaster.Run()
 	var commands = controller.CommandHandlers{
 		"transaction_deployed_get": transaction_deployed_get,
 	}
