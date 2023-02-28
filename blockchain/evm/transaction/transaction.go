@@ -6,7 +6,7 @@ import (
 
 	"github.com/blocklords/gosds/blockchain/evm/util"
 
-	"github.com/blocklords/gosds/spaghetti/transaction"
+	"github.com/blocklords/gosds/blockchain/transaction"
 
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )

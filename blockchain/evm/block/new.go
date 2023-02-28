@@ -1,7 +1,7 @@
 package block
 
 import (
-	"github.com/blocklords/gosds/spaghetti/log"
+	"github.com/blocklords/gosds/blockchain/log"
 )
 
 func NewBlock(network_id string, block_number uint64, block_timestamp uint64, logs []*log.Log) *Block {

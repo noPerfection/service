@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/blocklords/gosds/blockchain/evm/log"
-	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
+	spaghetti_log "github.com/blocklords/gosds/blockchain/log"
 
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )

@@ -21,7 +21,7 @@ import (
 	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/remote/message"
 	spaghetti_block "github.com/blocklords/gosds/blockchain/evm/block"
-	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
+	spaghetti_log "github.com/blocklords/gosds/blockchain/log"
 	zmq "github.com/pebbe/zmq4"
 
 	"github.com/blocklords/gosds/app/remote"

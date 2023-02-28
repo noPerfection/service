@@ -12,7 +12,7 @@ import (
 
 	"github.com/blocklords/gosds/blockchain/evm/block"
 	"github.com/blocklords/gosds/blockchain/evm/transaction"
-	spaghetti_transaction "github.com/blocklords/gosds/spaghetti/transaction"
+	spaghetti_transaction "github.com/blocklords/gosds/blockchain/transaction"
 
 	"github.com/ethereum/go-ethereum"
 

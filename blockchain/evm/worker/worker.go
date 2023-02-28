@@ -14,7 +14,6 @@ import (
 
 	"github.com/blocklords/gosds/app/remote/message"
 
-	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 
 	zmq "github.com/pebbe/zmq4"
@@ -190,7 +189,7 @@ func (worker *SpaghettiWorker) broadcast_block(b *block.Block) {
 			"network_id":      worker.client.Network.Id,
 			"block_number":    b.BlockNumber,
 			"block_timestamp": b.BlockTimestamp,
-			"logs":            data_type.ToMapList(b.Logs),
+			"logs":            b.Logs,
 		},
 	}
 

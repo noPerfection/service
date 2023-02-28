@@ -11,7 +11,7 @@ import (
 
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
-	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
+	spaghetti_log "github.com/blocklords/gosds/blockchain/log"
 )
 
 // we fetch transfers and mints.

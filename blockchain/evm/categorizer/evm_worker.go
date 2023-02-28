@@ -11,7 +11,7 @@ import (
 	"github.com/blocklords/gosds/app/service"
 
 	"github.com/blocklords/gosds/app/remote"
-	spaghetti_log "github.com/blocklords/gosds/spaghetti/log"
+	spaghetti_log "github.com/blocklords/gosds/blockchain/log"
 )
 
 // Wrapper around the gosds/categorizer/worker.Worker

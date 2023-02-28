@@ -3,7 +3,7 @@ package log
 import (
 	"encoding/hex"
 
-	"github.com/blocklords/gosds/spaghetti/log"
+	"github.com/blocklords/gosds/blockchain/log"
 
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )

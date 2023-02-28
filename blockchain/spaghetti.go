@@ -10,7 +10,7 @@
 package blockchain
 
 import (
-	"github.com/blocklords/gosds/spaghetti/transaction"
+	"github.com/blocklords/gosds/blockchain/transaction"
 
 	"github.com/blocklords/gosds/blockchain/network"
 
