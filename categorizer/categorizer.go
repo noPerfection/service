@@ -3,6 +3,7 @@ package categorizer
 import (
 	"fmt"
 
+	app_log "github.com/blocklords/gosds/app/log"
 	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/gosds/blockchain/inproc"
@@ -31,11 +32,14 @@ var static_socket *remote.Socket
 // Manages the EVM based smartcontracts on a certain blockchain
 // todo use the blockchain/categorizer_push(network_id); defer close()
 // then to categorizer_request.add_smartcontract(smartcontract)
-func setup_smartcontracts(db_con *db.Database, network *network.Network) error {
+func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *network.Network) error {
+	logger.Info("get all smartcontracts from database", "network_id", network.Id)
 	smartcontracts, err := smartcontract.GetAllByNetworkId(db_con, network.Id)
 	if err != nil {
 		return fmt.Errorf("smartcontract.GetAllByNetworkId: %w", err)
 	}
+
+	logger.Info("all smartcontracts returned", "network_id", network.Id, "smartcontract amount", len(smartcontracts))
 
 	pusher, err := inproc.NewCategorizerPusher(network.Id)
 	if err != nil {
@@ -46,12 +50,17 @@ func setup_smartcontracts(db_con *db.Database, network *network.Network) error {
 	static_abis := make([]*static_abi.Abi, len(smartcontracts))
 
 	for i, smartcontract := range smartcontracts {
+		logger.Info("get abi from static", "network_id", smartcontract.NetworkId, "address", smartcontract.Address)
+
 		remote_abi, err := static_abi.Get(static_socket, smartcontract.NetworkId, smartcontract.Address)
 		if err != nil {
 			return fmt.Errorf("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
 		}
+
 		static_abis[i] = remote_abi
 	}
+
+	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id)
 
 	request := message.Request{
 		Command: "",
@@ -137,40 +146,43 @@ func smartcontract_set(db_con *db.Database, request message.Request, logger log.
 
 // Smartcontract data are parsed and stored in the database
 func Run(app_config *configuration.Config, db_con *db.Database) {
-	greeting := `SDS Categorizer preparing... Supported command line arguments:
-    --security-debug            prints the security logs`
-	println(greeting + "\n\n")
+	logger := app_log.New()
+	logger.SetPrefix("categorizer")
+	logger.SetReportCaller(true)
+	logger.SetReportTimestamp(true)
 
-	// check for missing environment variable otherwise panic exit.
+	logger.Info("starting")
+
+	// check for missing environment variable otherwise exit.
 	if _, err := service.New(service.SPAGHETTI, service.SUBSCRIBE, service.REMOTE); err != nil {
-		panic(err)
+		logger.Fatal("new spaghetti service config", "message", err)
 	}
 
 	categorizer_env, err := service.New(service.CATEGORIZER, service.THIS)
 	if err != nil {
-		panic(err)
-	}
-
-	if _, err := service.New(service.SPAGHETTI, service.REMOTE); err != nil {
-		panic(err)
+		logger.Fatal("new categorizer service config", "message", err)
 	}
 
 	static_env, err := service.New(service.STATIC, service.REMOTE)
 	if err != nil {
-		panic(err)
+		logger.Fatal("new static service config", "message", err)
 	}
 
 	static_socket = remote.TcpRequestSocketOrPanic(static_env, categorizer_env)
 
+	logger.Info("retreive networks", "network-type", network.ALL)
+
 	networks, err := network.GetRemoteNetworks(static_socket, network.ALL)
 	if err != nil {
-		panic(err)
+		logger.Fatal("newwork.GetRemoteNetworks", "message", err)
 	}
 
+	logger.Info("networks retreived")
+
 	for _, the_network := range networks {
-		err := setup_smartcontracts(db_con, the_network)
+		err := setup_smartcontracts(logger, db_con, the_network)
 		if err != nil {
-			panic(fmt.Errorf("setup_smartcontracts on %s network_id: %w", the_network.Id, err))
+			logger.Fatal("setup_smartcontracts", "network_id", the_network.Id, "message", err)
 		}
 	}
 
@@ -187,6 +199,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	// we whitelist before we initiate the reply controller
 	if !app_config.Plain {
+		logger.Info("whitelisting accounts")
 		whitelisted_services, err := get_whitelisted_services()
 		if err != nil {
 			panic(err)
@@ -197,13 +210,16 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	reply, err := controller.NewReply(categorizer_env)
 	if err != nil {
-		panic(err)
+		logger.Fatal("controller.NewReply", "service", categorizer_env)
+	} else {
+		reply.SetLogger(logger)
 	}
 
 	if !app_config.Plain {
+		logger.Info("set privatekey")
 		err := reply.SetControllerPrivateKey()
 		if err != nil {
-			panic(err)
+			logger.Fatal("controller.SetControllerPrivateKey", "message", err)
 		}
 	}
 
@@ -211,6 +227,6 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	err = reply.Run(db_con, commands)
 	if err != nil {
-		panic(err)
+		logger.Fatal("controller.Run", "message", err)
 	}
 }
