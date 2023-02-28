@@ -15,17 +15,17 @@ import (
 func GetSmartcontract(db *db.Database, request message.Request, logger log.Logger) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("validation: " + err.Error())
 	}
 	address, err := request.Parameters.GetString("address")
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("validation: " + err.Error())
 	}
 
 	sm, err := smartcontract.Get(db, network_id, address)
 
 	if err != nil {
-		return message.Fail("the smartcontract not found in the SDS Categorizer")
+		return message.Fail("smartcontract.Get: " + err.Error())
 	}
 
 	reply := message.Reply{

@@ -1,6 +1,8 @@
 package event
 
 import (
+	"fmt"
+
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type/key_value"
@@ -18,20 +20,20 @@ func RemoteLogs(socket *remote.Socket, keys []string) ([]*Log, error) {
 	}
 	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("log_get_all request: %w", err)
 	}
 	params := key_value.New(raw_params)
 
 	raw_logs, err := params.GetKeyValueList("logs")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetKeyValueList(`logs`): %w", err)
 	}
 
 	logs := make([]*Log, len(raw_logs))
 	for i, raw := range raw_logs {
 		log, err := NewFromMap(raw)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("raw_log[%d] converting to Log: %w", i, err)
 		}
 		logs[i] = log
 	}
@@ -55,18 +57,18 @@ func RemoteLogParse(socket *remote.Socket, network_id string, address string, da
 
 	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("parse remote request: %w", err)
 	}
 
 	params := key_value.New(raw_params)
 
 	name, err := params.GetString("name")
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("parameter.GetString(`name`): %w", err)
 	}
 	args, err := params.GetKeyValue("args")
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("parameter.GetKeyValue(`args`): %w", err)
 	}
 
 	return name, args, nil

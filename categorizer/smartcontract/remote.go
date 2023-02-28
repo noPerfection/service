@@ -1,6 +1,8 @@
 package smartcontract
 
 import (
+	"fmt"
+
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type/key_value"
@@ -31,16 +33,21 @@ func RemoteSmartcontract(socket *remote.Socket, network_id string, address strin
 	}
 	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("smartcontract_get remote request: %w", err)
 	}
 	params := key_value.New(raw_params)
 
 	smartcontract, err := params.GetKeyValue("smartcontract")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parameter.GetKeyValue(`smartcontract`): %w", err)
 	}
 
-	return New(smartcontract)
+	sm, err := New(smartcontract)
+	if err != nil {
+		return nil, fmt.Errorf("New: %w", err)
+	}
+
+	return sm, nil
 }
 
 // Returns all smartcontracts from SDS Categorizer
@@ -53,20 +60,20 @@ func RemoteSmartcontracts(socket *remote.Socket) ([]*Smartcontract, error) {
 
 	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("smartcontract_get_all remote request: %w", err)
 	}
 	params := key_value.New(raw_params)
 
 	raw_smartcontracts, err := params.GetKeyValueList("smartcontracts")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetKeyValueList(`smartcontracts`): %w", err)
 	}
 
 	smartcontracts := make([]*Smartcontract, len(raw_smartcontracts))
 	for i, raw := range raw_smartcontracts {
 		smartcontract, err := New(raw)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("raw_smartcontracts[%d] New: %w", i, err)
 		}
 
 		smartcontracts[i] = smartcontract

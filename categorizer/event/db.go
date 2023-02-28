@@ -2,6 +2,7 @@ package event
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/blocklords/gosds/db"
@@ -10,7 +11,7 @@ import (
 func Save(db *db.Database, t *Log) error {
 	byt, err := json.Marshal(t.Output)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.serialize event outputs %v: %w", t.Output, err)
 	}
 
 	transaction_key := t.NetworkId + "." + t.Txid
@@ -18,7 +19,12 @@ func Save(db *db.Database, t *Log) error {
 	_, err = db.Connection.Exec(`INSERT IGNORE INTO categorizer_logs 
 	(address, transaction_key, log_index, log, output)
 	VALUES (?, ?, ?, ?, ?)`, t.Address, transaction_key, t.LogIndex, t.Log, byt)
-	return err
+
+	if err != nil {
+		return fmt.Errorf("database exec: %w", err)
+	}
+
+	return nil
 }
 
 // returns list of logs by transaction keys
@@ -50,7 +56,7 @@ func GetLogsFromDb(con *db.Database, txKeys []string) ([]*Log, error) {
 
 	rows, err := con.Connection.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("database query: %w", err)
 	}
 	defer rows.Close()
 
@@ -60,12 +66,12 @@ func GetLogsFromDb(con *db.Database, txKeys []string) ([]*Log, error) {
 		var outputBytes []byte
 		var transaction_key string
 		if err := rows.Scan(s.BlockNumber, s.BlockTimestamp, &transaction_key, &s.LogIndex, &s.Address, &s.Log, &outputBytes); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("database row scan: %w", err)
 		}
 
 		jsonErr := json.Unmarshal(outputBytes, &s.Output)
 		if jsonErr != nil {
-			return nil, jsonErr
+			return nil, fmt.Errorf("json.deserialize %s: %w", string(outputBytes), err)
 		}
 
 		parts := strings.Split(transaction_key, ".")

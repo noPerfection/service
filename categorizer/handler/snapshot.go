@@ -39,7 +39,7 @@ func GetSnapshot(db *db.Database, request message.Request, logger log.Logger) me
 	// }
 	block_timestamp_to, err := request.Parameters.GetUint64("block_timestamp_to")
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("validation: " + err.Error())
 	}
 	// smartcontract_keys, err := request.Parameters.GetStringList("smartcontract_keys")
 	// if err != nil {
@@ -47,14 +47,14 @@ func GetSnapshot(db *db.Database, request message.Request, logger log.Logger) me
 	// }
 	page, err := request.Parameters.GetUint64("page")
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("validation: " + err.Error())
 	}
 	if page == 0 {
 		page = 1
 	}
 	limit, err := request.Parameters.GetUint64("limit")
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("validation: " + err.Error())
 	}
 	if limit > 500 {
 		return message.Fail("the limit exceeds 500. Please make it lower")

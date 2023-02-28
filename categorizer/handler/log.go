@@ -16,12 +16,12 @@ import (
 func GetLogs(db *db.Database, request message.Request, logger log.Logger) message.Reply {
 	keys, err := request.Parameters.GetStringList("keys")
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("validation: " + err.Error())
 	}
 
 	logs, err := event.GetLogsFromDb(db, keys)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("event.GetLogsFromDb: " + err.Error())
 	}
 
 	reply := message.Reply{

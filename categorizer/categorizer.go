@@ -31,15 +31,15 @@ var static_socket *remote.Socket
 // Manages the EVM based smartcontracts on a certain blockchain
 // todo use the blockchain/categorizer_push(network_id); defer close()
 // then to categorizer_request.add_smartcontract(smartcontract)
-func register_smartcontracts(db_con *db.Database, network *network.Network) {
+func register_smartcontracts(db_con *db.Database, network *network.Network) error {
 	smartcontracts, err := smartcontract.GetAllByNetworkId(db_con, network.Id)
 	if err != nil {
-		panic(`error to fetch all categorized smartcontracts. received database error: ` + err.Error() + ` for network id ` + network.Id)
+		return fmt.Errorf("smartcontract.GetAllByNetworkId: %w", err)
 	}
 
 	pusher, err := inproc.NewCategorizerPusher(network.Id)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("NewCategorizerPusher %s network_id: %w", network.Id, err)
 	}
 	defer pusher.Close()
 
@@ -48,7 +48,7 @@ func register_smartcontracts(db_con *db.Database, network *network.Network) {
 	for i, smartcontract := range smartcontracts {
 		remote_abi, err := static_abi.Get(static_socket, smartcontract.NetworkId, smartcontract.Address)
 		if err != nil {
-			panic(fmt.Errorf("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error()))
+			return fmt.Errorf("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
 		}
 		static_abis[i] = remote_abi
 	}
@@ -64,8 +64,10 @@ func register_smartcontracts(db_con *db.Database, network *network.Network) {
 
 	_, err = pusher.SendMessage(request_string)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to send: %w", err)
 	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -84,7 +86,7 @@ func smartcontract_set(db_con *db.Database, request message.Request, logger log.
 
 	sm, err := smartcontract.New(kv)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("request parameter -> smartcontract.New: " + err.Error())
 	}
 
 	if smartcontract.Exists(db_con, sm.NetworkId, sm.Address) {
@@ -93,12 +95,12 @@ func smartcontract_set(db_con *db.Database, request message.Request, logger log.
 
 	saveErr := smartcontract.Save(db_con, sm)
 	if saveErr != nil {
-		return message.Fail(saveErr.Error())
+		return message.Fail("database: " + saveErr.Error())
 	}
 
 	pusher, err := inproc.NewCategorizerPusher(sm.NetworkId)
 	if err != nil {
-		panic(err)
+		return message.Fail("inproc: " + err.Error())
 	}
 	defer pusher.Close()
 
@@ -121,7 +123,7 @@ func smartcontract_set(db_con *db.Database, request message.Request, logger log.
 
 	_, err = pusher.SendMessage(request_string)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("send: " + err.Error())
 	}
 
 	reply := message.Reply{
@@ -166,7 +168,8 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 	}
 
 	for _, the_network := range networks {
-		register_smartcontracts(db_con, the_network)
+		err := register_smartcontracts(db_con, the_network)
+		panic(fmt.Errorf("register_smartcontracts %s network_id: %w", the_network.Id, err))
 	}
 
 	var commands = controller.CommandHandlers{
