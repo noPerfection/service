@@ -12,7 +12,7 @@ func New(data key_value.KeyValue) (Provider, error) {
 	var provider Provider
 	err := data.ToInterface(&provider)
 	if err != nil {
-		return provider, fmt.Errorf("failed to serialize key-value to provider.Provider: %v", err)
+		return provider, fmt.Errorf("failed to convert key-value to provider.Provider: %v", err)
 	}
 
 	if provider.Length == 0 {
@@ -24,12 +24,12 @@ func New(data key_value.KeyValue) (Provider, error) {
 
 // Create the list of providers from the given key value list
 func NewList(datas []key_value.KeyValue) ([]Provider, error) {
-	providers := make([]Provider, 0, len(datas))
+	providers := make([]Provider, len(datas))
 
 	for i, data := range datas {
 		provider, err := New(data)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("converting '%v' json to provider '%v';", data, err)
 		}
 
 		providers[i] = provider

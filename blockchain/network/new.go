@@ -1,34 +1,36 @@
 package network
 
 import (
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"fmt"
+
 	"github.com/blocklords/gosds/blockchain/network/provider"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // parses JSON object into the Network Type
 func New(raw key_value.KeyValue) (*Network, error) {
 	id, err := raw.GetString("id")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting 'id' parameter '%v'; ", err)
 	}
 
 	raw_network_type, err := raw.GetString("type")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting 'type' parameter '%v'; ", err)
 	}
 
 	network_type, err := NewNetworkType(raw_network_type)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("converting 'type' parameter '%v'; ", err)
 	}
 
 	raw_providers, err := raw.GetKeyValueList("providers")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting 'providers' parameter '%v'; ", err)
 	}
 	providers, err := provider.NewList(raw_providers)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("convertings 'provider' parameter '%v'; ", err)
 	}
 
 	return &Network{

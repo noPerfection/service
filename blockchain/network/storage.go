@@ -20,7 +20,7 @@ const (
 func GetNetworks(network_type NetworkType) (Networks, error) {
 	network_config, err := configuration.New()
 	if err != nil {
-		return nil, err
+		return nil, errors.New("loading config object " + err.Error())
 	}
 	network_config.SetDefault(SDS_STATIC_NETWORKS, DefaultConfiguration())
 
@@ -34,7 +34,7 @@ func GetNetworks(network_type NetworkType) (Networks, error) {
 	decoder.UseNumber()
 
 	if err := decoder.Decode(&raw_networks); err != nil {
-		return nil, err
+		return nil, errors.New("invalid json for SDS_STATIC_NETWORKS " + err.Error())
 	}
 
 	networks := make([]*Network, 0)
@@ -42,7 +42,7 @@ func GetNetworks(network_type NetworkType) (Networks, error) {
 	for _, raw := range raw_networks {
 		network, err := New(raw)
 		if err != nil {
-			return nil, err
+			return nil, errors.New("convert json to network " + err.Error())
 		}
 
 		if network_type == ALL || network_type == network.Type {

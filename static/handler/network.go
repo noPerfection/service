@@ -80,16 +80,16 @@ func NetworkGetAll(_ *db.Database, request message.Request, logger log.Logger) m
 
 	raw_network_type, err := request.Parameters.GetString("network_type")
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("missing network_type parameter " + err.Error())
 	}
 	network_type, err := network.NewNetworkType(raw_network_type)
 	if err != nil {
-		return message.Fail("'network_type' parameter is invalid")
+		return message.Fail("parameter 'network_type' has invalid type")
 	}
 
 	networks, err := network.GetNetworks(network_type)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("blockchain " + err.Error())
 	}
 
 	return message.Reply{
