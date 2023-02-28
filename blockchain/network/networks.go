@@ -1,7 +1,7 @@
 package network
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
@@ -26,7 +26,7 @@ func NewNetworks(raw_networks []key_value.KeyValue) (Networks, error) {
 	for i, raw := range raw_networks {
 		network, err := New(raw)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("raw_networks[%d] New: %w", i, err)
 		}
 
 		networks[i] = network
@@ -43,5 +43,5 @@ func (networks Networks) Get(network_id string) (*Network, error) {
 		}
 	}
 
-	return nil, errors.New("network not found")
+	return nil, fmt.Errorf("'%s'not found", network_id)
 }

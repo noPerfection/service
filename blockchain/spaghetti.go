@@ -39,16 +39,16 @@ import (
 func transaction_deployed_get(_ *db.Database, request message.Request, logger log.Logger) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("validation: " + err.Error())
 	}
 	txid, err := request.Parameters.GetString("txid")
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("validation " + err.Error())
 	}
 
 	networks, err := network.GetNetworks(network.ALL)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("network: " + err.Error())
 	}
 
 	if !networks.Exist(network_id) {
@@ -68,7 +68,7 @@ func transaction_deployed_get(_ *db.Database, request message.Request, logger lo
 
 	blockchain_reply, err := sock.RequestRemoteService(&tx_request)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("remote transaction_request: " + err.Error())
 	}
 
 	tx_raw, _ := blockchain_reply.GetKeyValue("transaction")

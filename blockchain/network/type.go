@@ -13,7 +13,7 @@ const (
 func NewNetworkType(network_type string) (NetworkType, error) {
 	new_type := NetworkType(network_type)
 	if !new_type.valid() {
-		return new_type, fmt.Errorf("unsupported network type")
+		return new_type, fmt.Errorf("unsupported network type %s", network_type)
 	}
 
 	return new_type, nil

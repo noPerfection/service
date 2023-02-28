@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"fmt"
+
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type/key_value"
@@ -20,26 +22,26 @@ func RemoteTransactionDeployed(socket *remote.Socket, network_id string, Txid st
 
 	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", 0, 0, fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
 
 	params := key_value.New(raw_params)
 
 	address, err := params.GetString("address")
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", 0, 0, fmt.Errorf("params.GetString(`string`): %w", err)
 	}
 	deployer, err := params.GetString("deployer")
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", 0, 0, fmt.Errorf("params.GetString(`deployer`): %w", err)
 	}
 	block_number, err := params.GetUint64("block_number")
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", 0, 0, fmt.Errorf("params.GetUint64(`block_number`): %w", err)
 	}
 	block_timestamp, err := params.GetUint64("block_timestamp")
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", 0, 0, fmt.Errorf("params.GetUint64(`block_timestamp`): %w", err)
 	}
 
 	return address, deployer, block_number, block_timestamp, nil

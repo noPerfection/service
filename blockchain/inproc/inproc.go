@@ -9,7 +9,7 @@ import (
 func NewCategorizerPusher(network_id string) (*zmq.Socket, error) {
 	sock, err := zmq.NewSocket(zmq.PUSH)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("zmq error for new push socket: %w", err)
 	}
 
 	url := "cat_" + network_id

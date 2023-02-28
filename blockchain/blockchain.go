@@ -45,13 +45,9 @@ func StartWorkers(app_config *configuration.Config) error {
 				return fmt.Errorf("gosds/blockchain: failed to validate IMX specific config: %v", err)
 			}
 
-			new_client, err := imx_client.New(new_network)
-			if err != nil {
-				return fmt.Errorf("gosds/blockchain: failed to create IMX client: %v", err)
-			}
+			new_client := imx_client.New(new_network)
 
 			new_worker := imx_worker.New(new_client, nil, false)
-			go new_worker.Sync()
 			go new_worker.SetupSocket()
 
 			imx_manager := imx_categorizer.NewManager(app_config, new_network)

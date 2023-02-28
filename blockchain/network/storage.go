@@ -7,6 +7,7 @@ package network
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/blocklords/gosds/app/configuration"
@@ -54,7 +55,7 @@ func GetNetworks(network_type NetworkType) (Networks, error) {
 func GetNetworkIds(network_type NetworkType) ([]string, error) {
 	networks, err := GetNetworks(network_type)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetNetworks: %w", err)
 	}
 
 	ids := make([]string, len(networks))
