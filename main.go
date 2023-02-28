@@ -69,10 +69,9 @@ func main() {
 		}
 	}
 
-	database, err = db.Open(database_parameters, database_credetnails)
+	database, err = db.Open(logger, database_parameters, database_credetnails)
 	if err != nil {
-		logger.Fatal("database connection: %v", err)
-		panic(1)
+		logger.Fatal("database error", "message", err)
 	}
 	defer func() {
 		_ = database.Close()
