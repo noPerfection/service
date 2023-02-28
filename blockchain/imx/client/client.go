@@ -24,7 +24,7 @@ type Client struct {
 
 // Create a network client connected to the blockchain based on a Static parameters
 // Static parameters include the node url
-func New(network *network.Network) (*Client, error) {
+func New(network *network.Network) *Client {
 	configuration := imx_api.NewConfiguration()
 	client := imx_api.NewAPIClient(configuration)
 	ctx := context.TODO()
@@ -33,7 +33,7 @@ func New(network *network.Network) (*Client, error) {
 		client:  client,
 		ctx:     ctx,
 		Network: network,
-	}, nil
+	}
 }
 
 // Returns list of transfers

@@ -66,15 +66,6 @@ func (worker *SpaghettiWorker) SetupSocket() {
 	}
 }
 
-// run the worker as a goroutine.
-// the channel is used to receive the data necessary for running goroutine.
-//
-// the channel should pass three arguments:
-// - block number
-// - network id
-func (worker *SpaghettiWorker) Sync() {
-}
-
 func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message.Reply {
 	block_timestamp, _ := parameters.GetUint64("block_from")
 	timestamp := strconv.FormatUint(block_timestamp, 10)
@@ -86,12 +77,12 @@ func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message
 	// when the categorizer.manager.delay_per_second should be moved to here
 	transfers, err := worker.client.GetSmartcontractTransferLogs(10, address, time.Duration(time.Second*1), timestamp)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("client.GetSmartcontractTransferLogs: " + err.Error())
 	}
 
 	mints, err := worker.client.GetSmartcontractMintLogs(10, address, time.Duration(time.Second*1), timestamp)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("client.GetSmartcontractMingLogs: " + err.Error())
 	}
 
 	transfers = append(transfers, mints...)
