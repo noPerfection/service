@@ -184,7 +184,7 @@ func (worker *SpaghettiWorker) Sync() {
 			},
 		}
 
-		sync_logger.Info("broadcasting new block", "topic", worker.client.Network.Id, "block_number", block.BlockNumber)
+		sync_logger.Info("send to broadcaster about new block", "topic", worker.client.Network.Id, "block_number", block.BlockNumber)
 
 		broadcast := message.NewBroadcast(worker.client.Network.Id+" ", new_reply)
 		broadcast_string := string(broadcast.ToBytes())
