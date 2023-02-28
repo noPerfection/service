@@ -148,6 +148,9 @@ It supports the following arguments:
 	}
 
 	go broadcaster.Run()
+
+	go StartWorkers(app_config)
+
 	var commands = controller.CommandHandlers{
 		"transaction_deployed_get": transaction_deployed_get,
 	}
