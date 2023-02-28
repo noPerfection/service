@@ -22,15 +22,11 @@ type StringList interface {
 	*static_smartcontract_key.Key
 }
 
-// Converts the data structs to the JSON objects (represented as a golang map) list.
-// []map[string]interface{}
 func ToMapList[V List](list []V) []map[string]interface{} {
 	map_list := make([]map[string]interface{}, len(list))
 	for i, element := range list {
-		kv, err := key_value.NewFromInterface(element)
-		if err == nil {
-			map_list[i] = kv.ToMap()
-		}
+		kv, _ := key_value.NewFromInterface(element)
+		map_list[i] = kv.ToMap()
 	}
 
 	return map_list
