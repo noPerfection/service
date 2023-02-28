@@ -61,25 +61,25 @@ func (socket *Socket) reconnect() error {
 	if socket.socket != nil {
 		ctx, err := socket.socket.Context()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get context from zmq socket: %w", err)
 		} else {
 			socket_ctx = ctx
 		}
 
 		socket_type, err = socket.socket.GetType()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get socket type from zmq socket: %w", err)
 		}
 
 		err = socket.Close()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to close socket in zmq: %w", err)
 		}
 		socket.socket = nil
 	} else {
 		new_ctx, err := zmq.NewContext()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create zmq context: %w", err)
 		} else {
 			socket_ctx = new_ctx
 		}
@@ -88,18 +88,18 @@ func (socket *Socket) reconnect() error {
 
 	sock, err := socket_ctx.NewSocket(socket_type)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create %s socket: %w", socket_type.String(), err)
 	} else {
 		socket.socket = sock
 		err = socket.socket.SetLinger(0)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to set up linger parameter for zmq socket: %w", err)
 		}
 	}
 
 	plain, err := argument.Exist(argument.PLAIN)
 	if err != nil {
-		return err
+		return fmt.Errorf("argument.Exist: %w", err)
 	}
 	if !plain {
 		public_key := ""
@@ -117,7 +117,7 @@ func (socket *Socket) reconnect() error {
 
 		err = socket.socket.ClientAuthCurve(public_key, client_public_key, client_secret_key)
 		if err != nil {
-			return err
+			return fmt.Errorf("socket.ClientAuthCurve: %w", err)
 		}
 	}
 
@@ -145,25 +145,25 @@ func (socket *Socket) inproc_reconnect() error {
 	if socket.socket != nil {
 		ctx, err := socket.socket.Context()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get context from zmq socket: %w", err)
 		} else {
 			socket_ctx = ctx
 		}
 
 		socket_type, err = socket.socket.GetType()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get socket type from zmq socket: %w", err)
 		}
 
 		err = socket.Close()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to close socket in zmq: %w", err)
 		}
 		socket.socket = nil
 	} else {
 		new_ctx, err := zmq.NewContext()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create zmq context: %w", err)
 		} else {
 			socket_ctx = new_ctx
 		}
@@ -172,12 +172,12 @@ func (socket *Socket) inproc_reconnect() error {
 
 	sock, err := socket_ctx.NewSocket(socket_type)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create %s socket: %w", socket_type.String(), err)
 	} else {
 		socket.socket = sock
 		err = socket.socket.SetLinger(0)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to set up linger parameter for zmq socket: %w", err)
 		}
 	}
 
@@ -193,7 +193,12 @@ func (socket *Socket) inproc_reconnect() error {
 
 // Close the remote connection
 func (socket *Socket) Close() error {
-	return socket.socket.Close()
+	err := socket.socket.Close()
+	if err != nil {
+		return fmt.Errorf("error closing socket: %w", err)
+	}
+
+	return nil
 }
 
 // Broadcaster URL of the SDS Service
@@ -203,9 +208,10 @@ func (socket *Socket) RemoteBroadcastUrl() string {
 
 // Broadcaster Port of the SDS Service
 func (socket *Socket) RemoteBroadcastPort() (uint, error) {
-	port, err := strconv.Atoi(socket.remoteService.BroadcastPort())
+	broadcast_port := socket.remoteService.BroadcastPort()
+	port, err := strconv.Atoi(broadcast_port)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("convert %s string to number: %w", broadcast_port, err)
 	}
 	return uint(port), nil
 }
@@ -231,7 +237,7 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 
 	request_string, err := request.ToString()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request.ToString: %w", err)
 	}
 
 	// we attempt requests for an infinite amount of time.
@@ -274,12 +280,12 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 			if socket.protocol == "inproc" {
 				err := socket.inproc_reconnect()
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("socket.inproc_reconnect: %w", err)
 				}
 			} else {
 				err := socket.reconnect()
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("socket.reconnect: %w", err)
 				}
 			}
 		}
@@ -292,7 +298,7 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue, error) {
 	socket_type, err := socket.socket.GetType()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("zmq socket get type: %w", err)
 	}
 
 	if socket_type != zmq.REQ && socket_type != zmq.DEALER {
@@ -311,7 +317,7 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 
 	request_string, err := request.ToString()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request.ToString: %w", err)
 	}
 
 	// we attempt requests for an infinite amount of time.
@@ -353,7 +359,7 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 			fmt.Println("command '", command_name, "' wasn't replied by '", socket.remoteService.ServiceName(), "' in ", request_timeout, ", retrying...")
 			err := socket.reconnect()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("socket.reconnect: %w", err)
 			}
 		}
 	}

@@ -14,13 +14,18 @@ import (
 func (socket *Socket) SetSubscribeFilter(topic string) error {
 	socketType, err := socket.socket.GetType()
 	if err != nil {
-		return err
+		return fmt.Errorf("zmq socket get type: %w", err)
 	}
 	if socketType != zmq.SUB {
 		return errors.New("the socket is not a Broadcast. Can not call subscribe")
 	}
 
-	return socket.socket.SetSubscribe(topic)
+	err = socket.socket.SetSubscribe(topic)
+	if err != nil {
+		return fmt.Errorf("zmq socket set subscribe: %w", err)
+	}
+
+	return nil
 }
 
 // Subscribe to the SDS Broadcast.
@@ -57,6 +62,7 @@ func (socket *Socket) Subscribe(channel chan message.Reply, exit_channel chan in
 			msgRaw, err := socket.socket.RecvMessage(zmq.DONTWAIT)
 
 			if err != nil {
+				fmt.Println("receive message", err)
 				time.Sleep(time.Millisecond * 200)
 				continue
 			}
