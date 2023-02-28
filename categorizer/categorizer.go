@@ -190,7 +190,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		controller.AddWhitelistedAccounts(static_env, accounts)
 	}
 
-	reply, err := controller.NewReply(static_env)
+	reply, err := controller.NewReply(categorizer_env)
 	if err != nil {
 		panic(err)
 	}
