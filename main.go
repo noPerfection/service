@@ -23,6 +23,7 @@ func main() {
 
 	logger.SetPrefix("main")
 	logger.SetReportCaller(true)
+	logger.SetReportTimestamp(true)
 
 	app_config, err := configuration.NewAppConfig(logger)
 	if err != nil {
@@ -42,11 +43,12 @@ func main() {
 	var database *db.Database = nil
 
 	if !app_config.Plain {
+		logger.Info("Setting up Vault connection and authentication layer...")
 		app_config.SetDefaults(vault.VaultConfigurations)
 
-		new_vault, err := vault.New(app_config)
+		new_vault, err := vault.New(logger, app_config)
 		if err != nil {
-			logger.Fatal("vault initiation: %v", err)
+			logger.Fatal("vault error", "message", err)
 		} else {
 			v = new_vault
 		}
@@ -55,7 +57,6 @@ func main() {
 		new_credentials, err := v.GetDatabaseCredentials()
 		if err != nil {
 			logger.Fatal("reading database credentials from vault: %v", err)
-			panic(1)
 		} else {
 			database_credetnails = new_credentials
 		}
@@ -65,7 +66,6 @@ func main() {
 		s := security.New(app_config.DebugSecurity)
 		if err := s.StartAuthentication(); err != nil {
 			logger.Fatal("security: %v", err)
-			panic(1)
 		}
 	}
 
