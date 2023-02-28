@@ -200,6 +200,8 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		}
 	}
 
+	go SetupSocket(db_con)
+
 	err = reply.Run(db_con, commands)
 	if err != nil {
 		panic(err)

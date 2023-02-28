@@ -6,6 +6,7 @@ import (
 	"github.com/blocklords/gosds/db"
 )
 
+// Update the block number and block timestamp of the smartcontract
 func SetSyncing(db *db.Database, b *Smartcontract, n uint64, t uint64) error {
 	b.SetBlockParameter(n, t)
 	_, err := db.Connection.Exec(`UPDATE categorizer_smartcontracts SET categorized_block_number = ?, categorized_block_timestamp = ? WHERE network_id = ? AND address = ? `,
