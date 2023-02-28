@@ -12,6 +12,7 @@ import (
 
 	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/blockchain/network"
+	"github.com/blocklords/gosds/categorizer"
 
 	"github.com/blocklords/gosds/blockchain/evm/abi"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
@@ -33,6 +34,7 @@ const RUNNING = "running"
 // Manager of the smartcontracts in a particular network
 type Manager struct {
 	spaghetti_socket *remote.Socket
+	pusher           *zmq.Socket
 	Network          *network.Network
 
 	old_categorizers OldWorkerGroups
@@ -147,6 +149,13 @@ func (manager *Manager) Start() {
 		log.Fatalf("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
 	}
 
+	// if there are some logs, we should broadcast them to the SDS Categorizer
+	pusher, err := categorizer.NewCategorizerPusher()
+	if err != nil {
+		panic(err)
+	}
+	manager.pusher = pusher
+
 	for {
 		// Wait for reply.
 		msgs, _ := sock.RecvMessage(0)
@@ -210,6 +219,22 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			if err != nil {
 				panic("failed to categorize the blockchain")
 			}
+
+			smartcontracts := []*smartcontract.Smartcontract{worker.smartcontract}
+
+			push := message.Request{
+				Command: "",
+				Parameters: map[string]interface{}{
+					"smartcontracts": smartcontracts,
+					"logs":           logs,
+				},
+			}
+			request_string, _ := push.ToString()
+
+			_, err = manager.pusher.SendMessage(request_string)
+			if err != nil {
+				panic(err)
+			}
 		}
 
 		group.block_number = block_number_to
@@ -250,6 +275,22 @@ func (manager *Manager) categorize_current_smartcontracts() {
 				_, err := worker.categorize(logs)
 				if err != nil {
 					panic("failed to categorize the blockchain")
+				}
+
+				smartcontracts := []*smartcontract.Smartcontract{worker.smartcontract}
+
+				push := message.Request{
+					Command: "",
+					Parameters: map[string]interface{}{
+						"smartcontracts": smartcontracts,
+						"logs":           logs,
+					},
+				}
+				request_string, _ := push.ToString()
+
+				_, err = manager.pusher.SendMessage(request_string)
+				if err != nil {
+					panic(err)
 				}
 			}
 		}
