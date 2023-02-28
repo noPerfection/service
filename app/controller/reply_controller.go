@@ -133,7 +133,7 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 		}
 
 		reply_string, err := reply.ToString()
-		c.logger.Info("reply back command result", "parameters", reply)
+		c.logger.Info("reply back command result")
 		if err != nil {
 			if _, err := c.socket.SendMessage(err.Error()); err != nil {
 				return errors.New("converting reply to string %w" + err.Error())
