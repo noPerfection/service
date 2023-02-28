@@ -31,7 +31,7 @@ func (p *Service) set_curve_key(secret_key string) error {
 
 	pub_key, err := zmq.AuthCurvePublic(secret_key)
 	if err != nil {
-		return err
+		return fmt.Errorf("zmq.Convert Secret to Pub: %w", err)
 	}
 
 	p.PublicKey = pub_key
@@ -44,7 +44,7 @@ func (p *Service) set_broadcast_curve_key(secret_key string) error {
 
 	pub_key, err := zmq.AuthCurvePublic(secret_key)
 	if err != nil {
-		return err
+		return fmt.Errorf("zmq.Convert Secret to Pub: %w", err)
 	}
 
 	p.BroadcastPublicKey = pub_key
@@ -97,11 +97,11 @@ func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 
 				SecretKey, err := vault.GetStringFromVault(bucket, key_name)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("vault.GetString for %s service secret key: %w", s.Name, err)
 				}
 
 				if err := s.set_curve_key(SecretKey); err != nil {
-					return nil, err
+					return nil, fmt.Errorf("socket.set_curve_key %s: %w", s.Name, err)
 				}
 			}
 		case SUBSCRIBE:
@@ -121,11 +121,12 @@ func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 				bucket, key_name := s.BroadcastSecretKeyVariable()
 				SecretKey, err := vault.GetStringFromVault(bucket, key_name)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("vault.GetString for %s service broadcast secret key: %w", s.Name, err)
+
 				}
 
 				if err := s.set_broadcast_curve_key(SecretKey); err != nil {
-					return nil, err
+					return nil, fmt.Errorf("socket.set_broadcast_curve_key %s: %w", s.Name, err)
 				}
 			}
 		}
@@ -149,14 +150,14 @@ func GetByPublicKey(PublicKey string) (*Service, error) {
 	for _, service_type := range service_types() {
 		service, err := New(service_type)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("service.New(`%s`): %w", service_type, err)
 		}
 		if service != nil && service.PublicKey == PublicKey {
 			return service, nil
 		}
 	}
 
-	return nil, errors.New("the service wasn't found for a given public key")
+	return nil, fmt.Errorf("public key '%s' not matches to any service", PublicKey)
 }
 
 // Returns the Service Name
