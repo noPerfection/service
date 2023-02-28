@@ -167,7 +167,7 @@ func (manager *Manager) Start() {
 		new_workers := make(EvmWorkers, len(raw_abis))
 
 		for i, raw_abi := range raw_abis {
-			abi_data, _ := static_abi.NewFromBytes(raw_abi.([]byte))
+			abi_data, _ := static_abi.New(raw_abi.(map[string]interface{}))
 			cat_abi, _ := abi.NewAbi(abi_data)
 
 			sm, _ := smartcontract.New(raw_smartcontracts[i])

@@ -9,7 +9,7 @@ import (
 
 // Save the ABI in the Database
 func SetInDatabase(db *db.Database, a *Abi) error {
-	_, err := db.Connection.Exec(`INSERT IGNORE INTO static_abi (abi_hash, abi) VALUES (?, ?) `, a.Id, a.bytes)
+	_, err := db.Connection.Exec(`INSERT IGNORE INTO static_abi (abi_hash, abi) VALUES (?, ?) `, a.Id, a.Bytes)
 	if err != nil {
 		return fmt.Errorf("abi setting db error: %v", err)
 	}
