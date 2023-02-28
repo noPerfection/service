@@ -3,6 +3,9 @@ package blockchain
 import (
 	"fmt"
 
+	app_log "github.com/blocklords/gosds/app/log"
+	"github.com/charmbracelet/log"
+
 	"github.com/blocklords/gosds/app/configuration"
 	evm_categorizer "github.com/blocklords/gosds/blockchain/evm/categorizer"
 	imx_categorizer "github.com/blocklords/gosds/blockchain/imx/categorizer"
@@ -18,20 +21,23 @@ import (
 )
 
 // Start the workers
-func StartWorkers(app_config *configuration.Config) error {
+func StartWorkers(logger log.Logger, app_config *configuration.Config) error {
 	networks, err := network.GetNetworks(network.ALL)
 	if err != nil {
 		return fmt.Errorf("gosds/blockchain: failed to get networks: %v", err)
 	}
 
 	for _, new_network := range networks {
+		worker_logger := app_log.Child(logger, new_network.Type.String()+"_network_id_"+new_network.Id)
+		worker_logger.SetReportCaller(false)
+
 		if new_network.Type == network.EVM {
 			new_client, err := evm_client.New(new_network)
 			if err != nil {
 				return fmt.Errorf("gosds/blockchain: failed to create EVM client: %v", err)
 			}
 
-			new_worker := evm_worker.New(new_client, nil, false)
+			new_worker := evm_worker.New(new_client, nil, worker_logger)
 			go new_worker.Sync()
 			go new_worker.SetupSocket()
 
@@ -52,6 +58,8 @@ func StartWorkers(app_config *configuration.Config) error {
 
 			imx_manager := imx_categorizer.NewManager(app_config, new_network)
 			go imx_manager.Start()
+		} else {
+			logger.Fatal("unrecognized network type", "network_type", new_network.Type)
 		}
 	}
 

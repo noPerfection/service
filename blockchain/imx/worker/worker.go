@@ -3,7 +3,6 @@ package worker
 import (
 	"errors"
 	"log"
-	"strconv"
 	"time"
 
 	"github.com/blocklords/gosds/app/remote/message"
@@ -68,7 +67,7 @@ func (worker *SpaghettiWorker) SetupSocket() {
 
 func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message.Reply {
 	block_timestamp, _ := parameters.GetUint64("block_from")
-	timestamp := strconv.FormatUint(block_timestamp, 10)
+	timestamp := time.Unix(int64(block_timestamp), 0).Format(time.RFC3339)
 
 	addresses, _ := parameters.GetStringList("addresses")
 	address := addresses[0]

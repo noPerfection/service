@@ -10,6 +10,7 @@
 package blockchain
 
 import (
+	app_log "github.com/blocklords/gosds/app/log"
 	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/gosds/blockchain/transaction"
@@ -91,30 +92,30 @@ func transaction_deployed_get(_ *db.Database, request message.Request, logger lo
 }
 
 func Run(app_config *configuration.Config) {
-	// arguments, err := argument.GetArguments()
-	// if err != nil {
-	// panic(err)
-	// }
+	logger := app_log.New()
+	logger.SetPrefix("blockchain")
+	logger.SetReportCaller(true)
+	logger.SetReportTimestamp(true)
 
-	greeting := `SDS Spaghetti preparation...
-It supports the following arguments:
-    --broadcast-debug   set it to print the spaghetti worker log
-    --security-debug    set it to print the security log`
-	println(greeting)
+	logger.Info("starting")
 
 	spaghetti_env, err := service.New(service.SPAGHETTI, service.BROADCAST, service.THIS)
 	if err != nil {
-		panic(err)
+		logger.Fatal("spaghetti service configuration", "message", err)
 	}
 
 	// we whitelist before we initiate the reply controller
 	if !app_config.Plain {
+		logger.Info("get the whitelisted services")
+
 		whitelisted_services, err := get_whitelisted_services()
 		if err != nil {
 			panic(err)
 		}
 		accounts := account.NewServices(whitelisted_services)
 		controller.AddWhitelistedAccounts(spaghetti_env, accounts)
+
+		logger.Info("get the whitelisted subscribers")
 
 		whitelisted_subscribers, err := get_whitelisted_subscribers()
 		if err != nil {
@@ -127,35 +128,39 @@ It supports the following arguments:
 
 	reply, err := controller.NewReply(spaghetti_env)
 	if err != nil {
-		panic(err)
+		logger.Fatal("controller new", "message", err)
+	} else {
+		reply.SetLogger(logger)
 	}
 
-	broadcaster, err := broadcast.New(spaghetti_env)
+	broadcaster, err := broadcast.New(spaghetti_env, logger)
 	if err != nil {
-		panic(err)
+		logger.Fatal("broadcast", "message", err)
 	}
 
 	if !app_config.Plain {
+		logger.Info("set the private keys")
+
 		err := reply.SetControllerPrivateKey()
 		if err != nil {
-			panic(err)
+			logger.Fatal("controller.SetControllerPrivateKey", "message", err)
 		}
 
 		err = broadcaster.SetPrivateKey()
 		if err != nil {
-			panic(err)
+			logger.Fatal("broadcast.SetPrivateKey", "message", err)
 		}
 	}
 
 	go broadcaster.Run()
 
-	go StartWorkers(app_config)
+	go StartWorkers(logger, app_config)
 
 	var commands = controller.CommandHandlers{
 		"transaction_deployed_get": transaction_deployed_get,
 	}
 	err = reply.Run(nil, commands)
 	if err != nil {
-		panic(err)
+		logger.Fatal("controller error", "message", err)
 	}
 }

@@ -4,13 +4,15 @@ package broadcast
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/blocklords/gosds/app/account"
 	"github.com/blocklords/gosds/app/service"
 
 	"github.com/blocklords/gosds/app/remote/message"
+
+	app_log "github.com/blocklords/gosds/app/log"
+	"github.com/charmbracelet/log"
 
 	zmq "github.com/pebbe/zmq4"
 )
@@ -19,6 +21,7 @@ import (
 type Broadcast struct {
 	service *service.Service
 	socket  *zmq.Socket
+	logger  log.Logger
 	In      chan message.Broadcast
 }
 
@@ -30,17 +33,20 @@ func broadcast_domain(s *service.Service) string {
 // Starts a new broadcaster in the background
 // The first parameter is the way to publish the messages.
 // The second parameter starts the message
-func New(s *service.Service) (*Broadcast, error) {
+func New(s *service.Service, logger log.Logger) (*Broadcast, error) {
 	// Socket to talk to clients
 	socket, err := zmq.NewSocket(zmq.PUB)
 	if err != nil {
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
+	child := app_log.Child(logger, "broadcast")
+
 	broadcast := Broadcast{
 		socket:  socket,
 		service: s,
 		In:      make(chan message.Broadcast),
+		logger:  child,
 	}
 
 	return &broadcast, nil
@@ -70,21 +76,23 @@ func (c *Broadcast) SetPrivateKey() error {
 func (b *Broadcast) Run() {
 	var mu sync.Mutex
 
-	mu.Lock()
 	err := b.socket.Bind("tcp://*:" + b.service.BroadcastPort())
 	if err != nil {
-		log.Fatalf("could not listen to publisher: %v", err)
+		b.logger.Fatal("could not listen to publisher", "broadcast_port", b.service.BroadcastPort(), "message", err)
 	}
-	mu.Unlock()
+
+	b.logger.Info("waiting for new messages...")
 
 	for {
 		broadcast := <-b.In
+
+		b.logger.Info("broadcast a new message", "topic", broadcast.Topic)
 
 		mu.Lock()
 		_, err = b.socket.SendMessage(broadcast.Topic, broadcast.ToBytes())
 		mu.Unlock()
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("socket error to send message", "message", err)
 		}
 	}
 }

@@ -3,9 +3,10 @@
 package worker
 
 import (
-	"fmt"
-	"log"
 	"time"
+
+	app_log "github.com/blocklords/gosds/app/log"
+	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/gosds/blockchain/evm/block"
 	"github.com/blocklords/gosds/blockchain/evm/client"
@@ -21,49 +22,40 @@ import (
 // the global variables that we pass between functions in this worker.
 // the functions are recursive.
 type SpaghettiWorker struct {
+	logger            log.Logger
 	client            *client.Client
 	broadcast_channel chan message.Broadcast
-	debug             bool
-}
-
-// Differentiate the workers from each other
-// We have multiple workers running concurrently.
-func (worker *SpaghettiWorker) log_prefix() string {
-	return "worker network_id: " + worker.client.Network.Id + ": "
-}
-
-// Print the logs on stdout or not
-func (worker *SpaghettiWorker) log_debug(message string) {
-	if worker.debug {
-		println(worker.log_prefix(), message)
-	}
 }
 
 // A new SpaghettiWorker
-func New(client *client.Client, broadcast_channel chan message.Broadcast, debug bool) *SpaghettiWorker {
+func New(client *client.Client, broadcast_channel chan message.Broadcast, logger log.Logger) *SpaghettiWorker {
 	return &SpaghettiWorker{
 		client:            client,
 		broadcast_channel: broadcast_channel,
-		debug:             debug,
+		logger:            logger,
 	}
 }
 
 // Sets up the socket to interact with the clients
 func (worker *SpaghettiWorker) SetupSocket() {
+	worker.logger.Info("reply controller starting")
+
 	sock, err := zmq.NewSocket(zmq.REP)
 	if err != nil {
-		log.Fatalf("trying to create new reply socket for network id %s: %v", worker.client.Network.Id, err)
+		log.Fatal("trying to create new reply socket for network id %s: %v", worker.client.Network.Id, err)
 	}
 
 	url := "spaghetti_" + worker.client.Network.Id
 	if err := sock.Bind("inproc://" + url); err != nil {
-		log.Fatalf("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
+		log.Fatal("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
 	}
 
 	for {
 		// Wait for reply.
 		msgs, _ := sock.RecvMessage(0)
 		request, _ := message.ParseRequest(msgs)
+
+		worker.logger.Info("received a message", "command", request.Command)
 
 		var reply message.Reply
 
@@ -75,14 +67,16 @@ func (worker *SpaghettiWorker) SetupSocket() {
 			reply = message.Fail("unsupported command")
 		}
 
+		worker.logger.Info("command handled", "reply_status", reply.Status)
+
 		reply_string, err := reply.ToString()
 		if err != nil {
 			if _, err := sock.SendMessage(err.Error()); err != nil {
-				log.Fatalf("reply.ToString error to send error: %w", worker.client.Network.Id, err)
+				log.Fatal("reply.ToString error to send message for network id %s error: %w", worker.client.Network.Id, err)
 			}
 		} else {
 			if _, err := sock.SendMessage(reply_string); err != nil {
-				log.Fatalf("failed to reply: %w", err)
+				log.Fatal("failed to reply: %w", err)
 			}
 		}
 	}
@@ -149,12 +143,23 @@ func (worker *SpaghettiWorker) get_transaction(parameters key_value.KeyValue) me
 // - block number
 // - network id
 func (worker *SpaghettiWorker) Sync() {
-	worker.log_debug("worker for network id " + worker.client.Network.Id + " started!\n\n")
+	sync_logger := app_log.Child(worker.logger, "sync")
 
-	block_number, err := worker.client.GetRecentBlockNumber()
-	if err != nil {
-		panic(err)
+	sync_logger.Info("get recent block number")
+
+	var block_number uint64
+	var err error
+	for {
+		block_number, err = worker.client.GetRecentBlockNumber()
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		break
 	}
+
+	sync_logger.Info("the most recent block number", "block_number", block_number)
 
 	// optimize in case of the error
 	// or slow internet connection
@@ -162,8 +167,7 @@ func (worker *SpaghettiWorker) Sync() {
 	for {
 		block, err := worker.client.GetBlock(block_number)
 		if err != nil {
-			println(worker.log_prefix(), `failed to get the block `, block_number, " from provider for network id ", worker.client.Network.Id, ". received error: ", err.Error())
-			println(worker.log_prefix(), `waiting for 10 seconds before trying again...`)
+			sync_logger.Info(`client.GetBlock, retreiving in 10 second`, "block_number", block_number, "message", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
@@ -189,7 +193,7 @@ func (worker *SpaghettiWorker) broadcast_block(b *block.Block) {
 		},
 	}
 
-	worker.log_debug(fmt.Sprintf("broadcasting network id %s, block number %d", worker.client.Network.Id, b.BlockNumber))
+	worker.logger.Info("broadcasting new block", "topic", worker.client.Network.Id, "block_number", b.BlockNumber)
 
 	worker.broadcast_channel <- message.NewBroadcast(worker.client.Network.Id+" ", new_reply)
 }

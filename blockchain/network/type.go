@@ -23,3 +23,7 @@ func NewNetworkType(network_type string) (NetworkType, error) {
 func (network_type NetworkType) valid() bool {
 	return network_type == ALL || network_type == EVM || network_type == IMX
 }
+
+func (network_type NetworkType) String() string {
+	return string(network_type)
+}
