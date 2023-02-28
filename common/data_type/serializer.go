@@ -2,6 +2,7 @@ package data_type
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // Wraps the JSON abi interface to the internal data type.
@@ -9,7 +10,7 @@ import (
 func Serialize(body interface{}) ([]byte, error) {
 	bytes, err := json.Marshal(body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json: '%w'", err)
 	}
 	return bytes, nil
 }
@@ -17,5 +18,5 @@ func Serialize(body interface{}) ([]byte, error) {
 func Deserialize(bytes []byte, body interface{}) error {
 	err := json.Unmarshal(bytes, &body)
 
-	return err
+	return fmt.Errorf("json: '%w'", err)
 }
