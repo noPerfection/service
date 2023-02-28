@@ -43,7 +43,7 @@ func register_smartcontracts(db_con *db.Database, network *network.Network) {
 	}
 	defer pusher.Close()
 
-	static_abis := make([]*static_abi.Abi, 0, len(smartcontracts))
+	static_abis := make([]*static_abi.Abi, len(smartcontracts))
 
 	for i, smartcontract := range smartcontracts {
 		remote_abi, err := static_abi.Get(static_socket, smartcontract.NetworkId, smartcontract.Address)

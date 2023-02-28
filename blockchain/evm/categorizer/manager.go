@@ -21,8 +21,8 @@ import (
 
 	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/remote/message"
-	spaghetti_block "github.com/blocklords/gosds/blockchain/evm/block"
 	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
+	spaghetti_block "github.com/blocklords/gosds/blockchain/evm/block"
 	zmq "github.com/pebbe/zmq4"
 
 	"github.com/blocklords/gosds/app/remote"
@@ -164,7 +164,7 @@ func (manager *Manager) Start() {
 		raw_smartcontracts, _ := request.Parameters.GetKeyValueList("smartcontracts")
 		raw_abis, _ := request.Parameters["abis"].([]interface{})
 
-		new_workers := make(EvmWorkers, 0, len(raw_abis))
+		new_workers := make(EvmWorkers, len(raw_abis))
 
 		for i, raw_abi := range raw_abis {
 			abi_data, _ := static_abi.NewFromBytes(raw_abi.([]byte))

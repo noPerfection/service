@@ -50,7 +50,7 @@ func NewService(service *service.Service) *Account {
 
 // Creates an account for a service
 func NewServices(services []*service.Service) Accounts {
-	accounts := make(Accounts, 0, len(services))
+	accounts := make(Accounts, len(services))
 	for i, s := range services {
 		accounts[i] = NewService(s)
 	}

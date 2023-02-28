@@ -29,7 +29,7 @@ func NewSpaghettiLog(network_id string, block_timestamp uint64, raw_log *eth_typ
 
 // Converts the ethereum's log to SeascapeSDS Spaghetti Log type
 func NewSpaghettiLogs(network_id string, block_timestamp uint64, raw_logs []eth_types.Log) ([]*event.Log, error) {
-	logs := make([]*event.Log, 0, len(raw_logs))
+	logs := make([]*event.Log, len(raw_logs))
 	for i, raw := range raw_logs {
 		log, err := NewSpaghettiLog(network_id, block_timestamp, &raw)
 		if err != nil {
