@@ -18,6 +18,9 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// Any configuration time can not be greater than this
+const TIMEOUT_CAP = 3600
+
 type DatabaseParameters struct {
 	hostname string
 	port     string
@@ -31,6 +34,8 @@ type DatabaseCredentials struct {
 	Password string `json:"password"`
 }
 
+// Global database structure that's initiated in the main().
+// Then its passed to all controllers.
 type Database struct {
 	Connection      *sql.DB
 	connectionMutex sync.Mutex
@@ -53,15 +58,11 @@ var DatabaseConfigurations = configuration.DefaultConfig{
 	}),
 }
 
-// Database parameters fetched from the environment variable.
-// It loads parameters such as:
-// - host
-// - port
-// - name
+// Database parameters fetched from the environment variables
 func GetParameters(app_config *configuration.Config) (*DatabaseParameters, error) {
 	timeout := app_config.GetUint64("SDS_DATABASE_TIMEOUT")
-	if timeout > 3600 {
-		return nil, errors.New("the 'SDS_DATABASE_TIMEOUT' value can not be greater than 3600 (seconds)")
+	if timeout > TIMEOUT_CAP {
+		return nil, fmt.Errorf("'SDS_DATABASE_TIMEOUT' can not be greater than %d (seconds)", TIMEOUT_CAP)
 	} else if timeout == 0 {
 		return nil, errors.New("the 'SDS_DATABASE_TIMEOUT' can not be zero")
 	}
@@ -74,6 +75,7 @@ func GetParameters(app_config *configuration.Config) (*DatabaseParameters, error
 	}, nil
 }
 
+// Default user/password that has access to the database
 func GetDefaultCredentials(app_config *configuration.Config) DatabaseCredentials {
 	return DatabaseCredentials{
 		Username: app_config.GetString("SDS_DATABASE_USERNAME"),
@@ -95,7 +97,7 @@ func Open(logger log.Logger, parameters *DatabaseParameters, credentials Databas
 
 	// establish the first connection
 	if err := database.Reconnect(ctx, credentials); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("database.reconnect: %w", err)
 	}
 
 	return database, nil
@@ -132,7 +134,7 @@ func (db *Database) Reconnect(ctx context.Context, credentials DatabaseCredentia
 
 	connection, err := sql.Open("mysql", dsn)
 	if err != nil {
-		return fmt.Errorf("unable to open database connection: %w", err)
+		return fmt.Errorf("sql.open: %w", err)
 	}
 
 	// wait until the database is ready or timeout expires
@@ -174,7 +176,10 @@ func (db *Database) Close() error {
 	defer db.connectionMutex.Unlock()
 
 	if db.Connection != nil {
-		return db.Connection.Close()
+		err := db.Connection.Close()
+		if err != nil {
+			return fmt.Errorf("connection.Close: %w", err)
+		}
 	}
 
 	return nil
@@ -187,7 +192,7 @@ func (db *Database) Query(ctx context.Context, query string, arguments []interfa
 
 	rows, err := db.Connection.QueryContext(ctx, query, arguments...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute %q query: %w", query, err)
+		return nil, fmt.Errorf("failed to execute '%q' query with arguments %v: %w", query, arguments, err)
 	}
 	defer func() {
 		_ = rows.Close()
