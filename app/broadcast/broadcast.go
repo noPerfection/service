@@ -41,6 +41,7 @@ func New(s *service.Service, logger log.Logger) (*Broadcast, error) {
 	}
 
 	child := app_log.Child(logger, "broadcast")
+	child.SetReportCaller(false)
 
 	broadcast := Broadcast{
 		socket:  socket,
@@ -81,11 +82,22 @@ func (b *Broadcast) Run() {
 		b.logger.Fatal("could not listen to publisher", "broadcast_port", b.service.BroadcastPort(), "message", err)
 	}
 
-	b.logger.Info("waiting for new messages...")
+	sock, err := zmq.NewSocket(zmq.PULL)
+	if err != nil {
+		b.logger.Fatal("could not create pull socket", "message", err)
+	}
+
+	url := "inproc://broadcast_" + b.service.Name
+	if err := sock.Bind(url); err != nil {
+		b.logger.Fatal("socket binding to %s: %w", url, err)
+	}
+
+	b.logger.Info("waiting for new messages...", "url", url)
 
 	for {
-		broadcast := <-b.In
-
+		// Wait for reply.
+		msgs, _ := sock.RecvMessage(0)
+		broadcast, _ := message.ParseBroadcast(msgs)
 		b.logger.Info("broadcast a new message", "topic", broadcast.Topic)
 
 		mu.Lock()

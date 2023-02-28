@@ -51,12 +51,16 @@ func ParseBroadcast(msgs []string) (Broadcast, error) {
 		return Broadcast{}, fmt.Errorf("invalid broadcast message %s, no distinction between topic and reply", msg)
 	}
 
-	topic := msg[:i]
 	broadcastRaw := msg[i:]
 
 	dat, err := key_value.NewFromString(broadcastRaw)
 	if err != nil {
 		return Broadcast{}, fmt.Errorf("key_value.NewFromString: %w", err)
+	}
+
+	topic, err := dat.GetString("topic")
+	if err != nil {
+		return Broadcast{}, fmt.Errorf("broadcast.GetString(`topic`): %w", err)
 	}
 
 	raw_reply, err := dat.GetKeyValue("reply")

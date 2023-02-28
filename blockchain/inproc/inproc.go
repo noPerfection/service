@@ -19,3 +19,17 @@ func NewCategorizerPusher(network_id string) (*zmq.Socket, error) {
 
 	return sock, nil
 }
+
+func NewBroadcastPusher(service_name string) (*zmq.Socket, error) {
+	sock, err := zmq.NewSocket(zmq.PUSH)
+	if err != nil {
+		return nil, fmt.Errorf("zmq error for new push socket: %w", err)
+	}
+
+	url := "inproc://broadcast_" + service_name
+	if err := sock.Connect(url); err != nil {
+		return nil, fmt.Errorf("trying to create broadcast pusher url %s: %w", url, err)
+	}
+
+	return sock, nil
+}

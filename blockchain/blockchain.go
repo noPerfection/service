@@ -37,7 +37,7 @@ func StartWorkers(logger log.Logger, app_config *configuration.Config) error {
 				return fmt.Errorf("gosds/blockchain: failed to create EVM client: %v", err)
 			}
 
-			new_worker := evm_worker.New(new_client, nil, worker_logger)
+			new_worker := evm_worker.New(new_client, worker_logger)
 			go new_worker.Sync()
 			go new_worker.SetupSocket()
 

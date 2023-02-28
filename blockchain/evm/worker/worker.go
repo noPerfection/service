@@ -6,11 +6,12 @@ import (
 	"time"
 
 	app_log "github.com/blocklords/gosds/app/log"
+	"github.com/blocklords/gosds/app/service"
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/blockchain/evm/block"
 	"github.com/blocklords/gosds/blockchain/evm/client"
 	evm_log "github.com/blocklords/gosds/blockchain/evm/event"
+	"github.com/blocklords/gosds/blockchain/inproc"
 
 	"github.com/blocklords/gosds/app/remote/message"
 
@@ -22,17 +23,15 @@ import (
 // the global variables that we pass between functions in this worker.
 // the functions are recursive.
 type SpaghettiWorker struct {
-	logger            log.Logger
-	client            *client.Client
-	broadcast_channel chan message.Broadcast
+	logger log.Logger
+	client *client.Client
 }
 
 // A new SpaghettiWorker
-func New(client *client.Client, broadcast_channel chan message.Broadcast, logger log.Logger) *SpaghettiWorker {
+func New(client *client.Client, logger log.Logger) *SpaghettiWorker {
 	return &SpaghettiWorker{
-		client:            client,
-		broadcast_channel: broadcast_channel,
-		logger:            logger,
+		client: client,
+		logger: logger,
 	}
 }
 
@@ -145,7 +144,9 @@ func (worker *SpaghettiWorker) get_transaction(parameters key_value.KeyValue) me
 func (worker *SpaghettiWorker) Sync() {
 	sync_logger := app_log.Child(worker.logger, "sync")
 
-	sync_logger.Info("get recent block number")
+	broadcast_pusher, _ := inproc.NewBroadcastPusher(service.SPAGHETTI.ToString())
+
+	sync_logger.Info("get recent block number from client")
 
 	var block_number uint64
 	var err error
@@ -172,28 +173,29 @@ func (worker *SpaghettiWorker) Sync() {
 			continue
 		}
 
-		worker.broadcast_block(block)
+		new_reply := message.Reply{
+			Status:  "OK",
+			Message: "",
+			Parameters: map[string]interface{}{
+				"network_id":      worker.client.Network.Id,
+				"block_number":    block.BlockNumber,
+				"block_timestamp": block.BlockTimestamp,
+				"logs":            block.Logs,
+			},
+		}
+
+		sync_logger.Info("broadcasting new block", "topic", worker.client.Network.Id, "block_number", block.BlockNumber)
+
+		broadcast := message.NewBroadcast(worker.client.Network.Id+" ", new_reply)
+		broadcast_string := string(broadcast.ToBytes())
+
+		_, err = broadcast_pusher.SendMessage(broadcast_string)
+		if err != nil {
+			sync_logger.Fatal("failed to push to broadcaster", "message", err)
+		}
 
 		time.Sleep(1 * time.Second)
 
 		block_number++
 	}
-}
-
-// this function saves the b
-func (worker *SpaghettiWorker) broadcast_block(b *block.Block) {
-	new_reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: map[string]interface{}{
-			"network_id":      worker.client.Network.Id,
-			"block_number":    b.BlockNumber,
-			"block_timestamp": b.BlockTimestamp,
-			"logs":            b.Logs,
-		},
-	}
-
-	worker.logger.Info("broadcasting new block", "topic", worker.client.Network.Id, "block_number", b.BlockNumber)
-
-	worker.broadcast_channel <- message.NewBroadcast(worker.client.Network.Id+" ", new_reply)
 }
