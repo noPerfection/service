@@ -2,7 +2,8 @@ package configuration
 
 import (
 	"fmt"
-	"log"
+
+	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/env"
@@ -21,7 +22,11 @@ type Config struct {
 
 // Returns the new configuration file after loading environment variables
 // At the application level
-func NewAppConfig() (*Config, error) {
+func NewAppConfig(logger log.Logger) (*Config, error) {
+	config_logger := logger.With()
+	config_logger.SetPrefix(logger.GetPrefix() + " > app-config")
+	config_logger.SetReportCaller(false)
+	config_logger.SetReportTimestamp(false)
 	// First we check the parameters of the application arguments
 	arguments, err := argument.GetArguments()
 	if err != nil {
@@ -30,15 +35,12 @@ func NewAppConfig() (*Config, error) {
 
 	conf := Config{
 		Plain:         argument.Has(arguments, argument.PLAIN),
-		Broadcast:     argument.Has(arguments, argument.BROADCAST),
-		Reply:         argument.Has(arguments, argument.REPLY),
 		DebugSecurity: argument.Has(arguments, argument.SECURITY_DEBUG),
 	}
 
-	log.Println("Supported application arguments:")
-	log.Printf("--%s to switch off security. enabled: %v\n", argument.PLAIN, conf.Plain)
-	log.Printf("--%s to enable broadcast. enabled: %v\n", argument.BROADCAST, conf.Broadcast)
-	log.Printf("--%s to enable controller. enabled: %v\n\n", argument.REPLY, conf.Reply)
+	config_logger.Info("Supported application arguments:")
+	config_logger.Info("--"+argument.PLAIN, "to switch off security. Enabled", conf.Plain)
+	config_logger.Info("--"+argument.SECURITY_DEBUG, "to hide security debug. Enabled", conf.DebugSecurity)
 
 	// First we load the environment variables
 	err = env.LoadAnyEnv()
@@ -101,7 +103,7 @@ func NewService(default_config DefaultConfig) (*Config, error) {
 
 // Populates the app configuration with the default vault configuration parameters.
 func (config *Config) SetDefaults(default_config DefaultConfig) {
-	log.Printf("'%s' default values. Override on environment variables\n", default_config.Title)
+	// log.Printf("'%s' default values. Override on environment variables\n", default_config.Title)
 
 	for name, value := range default_config.Parameters {
 		if value == nil {
@@ -110,12 +112,12 @@ func (config *Config) SetDefaults(default_config DefaultConfig) {
 		config.SetDefault(name, value)
 	}
 
-	log.Printf("\n\n")
+	// log.Printf("\n\n")
 }
 
 // Sets the default value
 func (c *Config) SetDefault(name string, value interface{}) {
-	log.Printf("\tdefault config %s=%v", name, value)
+	// log.Printf("\tdefault config %s=%v", name, value)
 	c.viper.SetDefault(name, value)
 }
 

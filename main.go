@@ -3,7 +3,9 @@ package main
 
 import (
 	"fmt"
-	"log"
+
+	"github.com/blocklords/gosds/app/log"
+
 	"sync"
 
 	"github.com/blocklords/gosds/app/configuration"
@@ -17,27 +19,22 @@ import (
 
 /** SeascapeSDS + its SDK to use it.*/
 func main() {
-	fmt.Println("SeascapeSDS!!!")
+	logger := log.New()
 
-	// register the blockchain
-	// blockchain.Register(blockchainModel, evm)
-	// blockchain.Fetch()
+	logger.SetPrefix("main")
+	logger.SetReportCaller(true)
 
-	app_config, err := configuration.NewAppConfig()
+	app_config, err := configuration.NewAppConfig(logger)
 	if err != nil {
-		log.Fatalf("configuration: %v", err)
-	}
-
-	if app_config.Plain {
-		fmt.Println("Security is switched off")
-	} else {
-		fmt.Println("Security is enabled. add '--plain' to switch off security")
+		new_err := fmt.Errorf("configuration: %v", err)
+		logger.Fatal(new_err)
 	}
 
 	app_config.SetDefaults(db.DatabaseConfigurations)
 	database_parameters, err := db.GetParameters(app_config)
 	if err != nil {
-		log.Fatalf("database parameter fetching: %v", err)
+		logger.Fatal("database parameter fetching: %v", err)
+		panic(1)
 	}
 	database_credetnails := db.GetDefaultCredentials(app_config)
 
@@ -49,7 +46,7 @@ func main() {
 
 		new_vault, err := vault.New(app_config)
 		if err != nil {
-			log.Fatalf("vault initiation: %v", err)
+			logger.Fatal("vault initiation: %v", err)
 		} else {
 			v = new_vault
 		}
@@ -57,7 +54,8 @@ func main() {
 		// database credentials from the vault
 		new_credentials, err := v.GetDatabaseCredentials()
 		if err != nil {
-			log.Fatalf("reading database credentials from vault: %v", err)
+			logger.Fatal("reading database credentials from vault: %v", err)
+			panic(1)
 		} else {
 			database_credetnails = new_credentials
 		}
@@ -66,13 +64,15 @@ func main() {
 
 		s := security.New(app_config.DebugSecurity)
 		if err := s.StartAuthentication(); err != nil {
-			log.Fatalf("security: %v", err)
+			logger.Fatal("security: %v", err)
+			panic(1)
 		}
 	}
 
 	database, err = db.Open(database_parameters, database_credetnails)
 	if err != nil {
-		log.Fatalf("database connection: %v", err)
+		logger.Fatal("database connection: %v", err)
+		panic(1)
 	}
 	defer func() {
 		_ = database.Close()
@@ -109,4 +109,5 @@ func main() {
 	// for _, address := range result {
 	// fmt.Println("address ", address)
 	// }
+	logger.Info("Gracefully shutted down")
 }
