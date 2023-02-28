@@ -2,7 +2,6 @@ package key_value
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -27,7 +26,7 @@ func NewFromString(s string) (KeyValue, error) {
 	decoder.UseNumber()
 
 	if err := decoder.Decode(&key_value); err != nil {
-		return Empty(), err
+		return Empty(), fmt.Errorf("json.decoder: '%w'", err)
 	}
 
 	return key_value, nil
@@ -41,11 +40,11 @@ func NewFromInterface(i interface{}) (KeyValue, error) {
 	var k KeyValue
 	bytes, err := json.Marshal(i)
 	if err != nil {
-		return Empty(), fmt.Errorf("failed to serialize data structure %v: %v", i, err)
+		return Empty(), fmt.Errorf("json.marshal %T: '%w'", i, err)
 	}
 	err = json.Unmarshal(bytes, &k)
 	if err != nil {
-		return Empty(), fmt.Errorf("failed to unserialize data structure %v (serialized: %v): %v", i, bytes, err)
+		return Empty(), fmt.Errorf("json:unmarshal %s: '%w'", bytes, err)
 	}
 
 	return k, nil
@@ -65,7 +64,7 @@ func (k KeyValue) ToMap() map[string]interface{} {
 func (k KeyValue) ToBytes() ([]byte, error) {
 	bytes, err := json.Marshal(k)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, fmt.Errorf("json.serialize: '%w'", err)
 	}
 
 	return bytes, nil
@@ -75,7 +74,7 @@ func (k KeyValue) ToBytes() ([]byte, error) {
 func (k KeyValue) ToString() (string, error) {
 	bytes, err := k.ToBytes()
 	if err != nil {
-		return "", fmt.Errorf("failed to seralize key-value to bytes %v: %v", k, err)
+		return "", fmt.Errorf("k.ToBytes %v: %w", k, err)
 	}
 
 	return string(bytes), nil
@@ -85,11 +84,11 @@ func (k KeyValue) ToString() (string, error) {
 func (k KeyValue) ToInterface(i interface{}) error {
 	bytes, err := k.ToBytes()
 	if err != nil {
-		return fmt.Errorf("failed to serialize data structure %v: %v", i, err)
+		return fmt.Errorf("k.ToBytes of %v: '%w'", k, err)
 	}
 	err = json.Unmarshal(bytes, &i)
 	if err != nil {
-		return fmt.Errorf("failed to unserialize data structure %v (serialized: %v): %v", i, bytes, err)
+		return fmt.Errorf("json.deserialize of %s to %T: '%w'", bytes, i, err)
 	}
 
 	return nil
@@ -102,115 +101,10 @@ func (k KeyValue) Set(name string, value interface{}) KeyValue {
 	return k
 }
 
-// Returns the all uint64 parameters
-func (parameters KeyValue) GetUint64s(names ...string) ([]uint64, error) {
-	numbers := make([]uint64, len(names))
-	for i, name := range names {
-		number, err := parameters.GetUint64(name)
-		if err != nil {
-			return nil, err
-		}
-
-		numbers[i] = number
-	}
-
-	return numbers, nil
-}
-
-// Returns the all float64 parameters
-func (parameters KeyValue) GetFloat64s(names ...string) ([]float64, error) {
-	numbers := make([]float64, len(names))
-	for i, name := range names {
-		number, err := parameters.GetFloat64(name)
-		if err != nil {
-			return nil, err
-		}
-
-		numbers[i] = number
-	}
-
-	return numbers, nil
-}
-
-// Returns the all string parameters
-func (parameters KeyValue) GetStrings(names ...string) ([]string, error) {
-	values := make([]string, len(names))
-	for i, name := range names {
-		value, err := parameters.GetString(name)
-		if err != nil {
-			return nil, err
-		}
-
-		values[i] = value
-	}
-
-	return values, nil
-}
-
-// Returns the all big numbers
-func (parameters KeyValue) GetBigNumbers(names ...string) ([]*big.Int, error) {
-	values := make([]*big.Int, len(names))
-	for i, name := range names {
-		value, err := parameters.GetBigNumber(name)
-		if err != nil {
-			return nil, err
-		}
-
-		values[i] = value
-	}
-
-	return values, nil
-}
-
-// Returns the all string lists
-func (parameters KeyValue) GetStringLists(names ...string) ([][]string, error) {
-	values := make([][]string, len(names))
-	for i, name := range names {
-		value, err := parameters.GetStringList(name)
-		if err != nil {
-			return nil, err
-		}
-
-		values[i] = value
-	}
-
-	return values, nil
-}
-
-// Returns the all map lists
-func (parameters KeyValue) GetKeyValueLists(names ...string) ([][]KeyValue, error) {
-	values := make([][]KeyValue, len(names))
-	for i, name := range names {
-		value, err := parameters.GetKeyValueList(name)
-		if err != nil {
-			return nil, err
-		}
-
-		values[i] = value
-	}
-
-	return values, nil
-}
-
-// Returns the all maps
-func (parameters KeyValue) GetKeyValues(names ...string) ([]KeyValue, error) {
-	values := make([]KeyValue, len(names))
-	for i, name := range names {
-		value, err := parameters.GetKeyValue(name)
-		if err != nil {
-			return nil, err
-		}
-
-		values[i] = value
-	}
-
-	return values, nil
-}
-
 func (parameters KeyValue) exist(name string) error {
 	_, exists := parameters[name]
 	if !exists {
-		return fmt.Errorf("missing '%s' parameter in the KeyValue %v", name, parameters)
+		return fmt.Errorf("'%s' not found in %v", name, parameters)
 	}
 
 	return nil
@@ -219,7 +113,7 @@ func (parameters KeyValue) exist(name string) error {
 // Returns the parameter as an uint64
 func (parameters KeyValue) GetUint64(name string) (uint64, error) {
 	if err := parameters.exist(name); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
 
@@ -235,21 +129,25 @@ func (parameters KeyValue) GetUint64(name string) (uint64, error) {
 	json_value, ok := raw.(json.Number)
 	if ok {
 		number, err := strconv.ParseUint(string(json_value), 10, 64)
-		return number, err
+		return number, fmt.Errorf("strconv.ParseUint json_number %v (original: %v): '%w'", json_value, raw, err)
 	}
 
 	string_value, ok := raw.(string)
 	if !ok {
-		return 0, fmt.Errorf("parameter '%s' expected to be as a number but its type is %T", name, raw)
+		return 0, fmt.Errorf("'%s' parameter type %T, can not convert to number", name, raw)
 	}
 	number, err := strconv.ParseUint(string_value, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("strconv.ParseUint string %v (original: %v): '%w'", string_value, raw, err)
+	}
 
-	return number, err
+	return number, nil
 }
 
 func (parameters KeyValue) GetFloat64(name string) (float64, error) {
 	if err := parameters.exist(name); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("exist: %w", err)
+
 	}
 	raw := parameters[name]
 
@@ -259,20 +157,27 @@ func (parameters KeyValue) GetFloat64(name string) (float64, error) {
 	}
 	value, ok := raw.(json.Number)
 	if ok {
-		return value.Float64()
+		v, err := value.Float64()
+		if err != nil {
+			return 0, fmt.Errorf("json.Number.Float64() of %v (original: %v): '%w'", value, raw, err)
+		}
+		return v, nil
 	}
 	string_value, ok := raw.(string)
 	if !ok {
-		return 0, fmt.Errorf("parameter '%s' expected to be as a number but its type is %T", name, raw)
+		return 0, fmt.Errorf("'%s' parameter type %T, can not convert to number", name, raw)
 	}
 	number, err := strconv.ParseFloat(string(string_value), 64)
+	if err != nil {
+		return 0, fmt.Errorf("strconv.ParseUint string %v (original: %v): '%w'", string_value, raw, err)
+	}
 
-	return number, err
+	return number, nil
 }
 
 func (parameters KeyValue) GetBoolean(name string) (bool, error) {
 	if err := parameters.exist(name); err != nil {
-		return false, err
+		return false, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
 
@@ -281,24 +186,24 @@ func (parameters KeyValue) GetBoolean(name string) (bool, error) {
 		return pure_value, nil
 	}
 
-	return false, errors.New("the '" + name + "' is not in a boolean format")
+	return false, fmt.Errorf("'%s' parameter type %T, can not convert to boolean", name, raw)
 }
 
 // Returns the parsed large number. If the number size is more than 64 bits.
 func (parameters KeyValue) GetBigNumber(name string) (*big.Int, error) {
 	if err := parameters.exist(name); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
 
 	value, ok := raw.(json.Number)
 	if !ok {
-		return nil, errors.New("parameter '" + name + "' expected to be as a number")
+		return nil, fmt.Errorf("json.Number: '%s' parameter type %T", name, raw)
 	}
 
 	number, ok := math.ParseBig256(string(value))
 	if !ok {
-		return nil, errors.New("parameter '" + name + "' is not a big number")
+		return nil, fmt.Errorf("math.ParseBig256 failed to parse %s from '%s'", name, value)
 	}
 
 	return number, nil
@@ -307,13 +212,13 @@ func (parameters KeyValue) GetBigNumber(name string) (*big.Int, error) {
 // Returns the paramater as a string
 func (parameters KeyValue) GetString(name string) (string, error) {
 	if err := parameters.exist(name); err != nil {
-		return "", err
+		return "", fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
 
 	value, ok := raw.(string)
 	if !ok {
-		return "", errors.New("expected string type for '" + name + "' parameter")
+		return "", fmt.Errorf("%s parameter type %T, can not convert to string", name, raw)
 	}
 
 	return value, nil
@@ -322,7 +227,7 @@ func (parameters KeyValue) GetString(name string) (string, error) {
 // Returns list of strings
 func (parameters KeyValue) GetStringList(name string) ([]string, error) {
 	if err := parameters.exist(name); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("exist: '%w'", err)
 	}
 	raw := parameters[name]
 
@@ -330,7 +235,7 @@ func (parameters KeyValue) GetStringList(name string) ([]string, error) {
 	if !ok {
 		ready_list, ok := raw.([]string)
 		if !ok {
-			return nil, errors.New("expected list type for '" + name + "' parameter")
+			return nil, fmt.Errorf("'%s' parameter type %T, can not convert to string list", name, raw)
 		} else {
 			return ready_list, nil
 		}
@@ -340,7 +245,7 @@ func (parameters KeyValue) GetStringList(name string) ([]string, error) {
 	for i, raw_value := range values {
 		v, ok := raw_value.(string)
 		if !ok {
-			return nil, errors.New("one of the elements in the parameter is not a string")
+			return nil, fmt.Errorf("parameter %s[%d] type is %T, can not convert to string %v", name, i, raw_value, raw_value)
 		}
 
 		list[i] = v
@@ -354,7 +259,7 @@ func (parameters KeyValue) GetStringList(name string) ([]string, error) {
 // []key_value.KeyValue
 func (parameters KeyValue) GetKeyValueList(name string) ([]KeyValue, error) {
 	if err := parameters.exist(name); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
 
@@ -362,7 +267,7 @@ func (parameters KeyValue) GetKeyValueList(name string) ([]KeyValue, error) {
 	if !ok {
 		ready_list, ok := raw.([]KeyValue)
 		if !ok {
-			return nil, errors.New("expected list type for '" + name + "' parameter")
+			return nil, fmt.Errorf("'%s' parameter type %T, can not convert to key-value list", name, raw)
 		} else {
 			return ready_list, nil
 		}
@@ -372,7 +277,7 @@ func (parameters KeyValue) GetKeyValueList(name string) ([]KeyValue, error) {
 	for i, raw_value := range values {
 		v, ok := raw_value.(map[string]interface{})
 		if !ok {
-			return nil, errors.New("one of the elements in the parameter is not a map")
+			return nil, fmt.Errorf("parameter %s[%d] type is %T, can not convert to key-value %v", name, i, raw_value, raw_value)
 		}
 
 		list[i] = New(v)
@@ -386,7 +291,7 @@ func (parameters KeyValue) GetKeyValueList(name string) ([]KeyValue, error) {
 // key_value.KeyValue
 func (parameters KeyValue) GetKeyValue(name string) (KeyValue, error) {
 	if err := parameters.exist(name); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
 
@@ -397,7 +302,7 @@ func (parameters KeyValue) GetKeyValue(name string) (KeyValue, error) {
 
 	raw_map, ok := raw.(map[string]interface{})
 	if !ok {
-		return nil, errors.New("expected map type for '" + name + "' parameter")
+		return nil, fmt.Errorf("'%s' parameter type %T, can not convert to key-value", name, raw)
 	}
 
 	return New(raw_map), nil
