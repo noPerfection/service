@@ -6,6 +6,7 @@ package controller
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/charmbracelet/log"
 
@@ -27,7 +28,7 @@ func NewReply(s *service.Service) (*Controller, error) {
 	// Socket to talk to clients
 	socket, err := zmq.NewSocket(zmq.REP)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
 	return &Controller{
@@ -50,13 +51,16 @@ func AddWhitelistedAccounts(s *service.Service, accounts account.Accounts) {
 // You call it before running the controller
 func (c *Controller) SetControllerPrivateKey() error {
 	err := c.socket.ServerAuthCurve(c.service.Name, c.service.SecretKey)
-	return err
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("ServerAuthCurve for domain %s: %w", c.service.Name, err)
 }
 
 // Controllers started to receive messages
 func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) error {
 	if err := c.socket.Bind("tcp://*:" + c.service.Port()); err != nil {
-		return errors.New("error to bind socket for '" + c.service.ServiceName() + ": " + c.service.Port() + "' : " + err.Error())
+		return fmt.Errorf("socket.bind on tcp protocol for %s on port %s: %w", c.service.Name, c.service.Port(), err)
 	}
 
 	if c.logger != nil {
