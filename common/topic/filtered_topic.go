@@ -87,7 +87,7 @@ func (t *TopicFilter) ToString() string {
 }
 
 // Converts the JSON object to the topic.TopicFilter
-func ParseJSONToTopicFilter(parameters key_value.KeyValue) (*TopicFilter, error) {
+func ParseJSONToTopicFilter(parameters key_value.KeyValue) *TopicFilter {
 	topic_filter := TopicFilter{
 		Organizations:  []string{},
 		Projects:       []string{},
@@ -127,5 +127,5 @@ func ParseJSONToTopicFilter(parameters key_value.KeyValue) (*TopicFilter, error)
 		topic_filter.Events = logs
 	}
 
-	return &topic_filter, nil
+	return &topic_filter
 }

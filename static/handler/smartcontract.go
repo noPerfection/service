@@ -31,10 +31,7 @@ func SmartcontractFilter(dbCon *db.Database, request message.Request, logger log
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	topic_filter, err := topic.ParseJSONToTopicFilter(topic_filter_map)
-	if err != nil {
-		return message.Fail(err.Error())
-	}
+	topic_filter := topic.ParseJSONToTopicFilter(topic_filter_map)
 
 	query, parameters := configuration.QueryFilterSmartcontract(topic_filter)
 
@@ -72,10 +69,7 @@ func SmartcontractKeyFilter(dbCon *db.Database, request message.Request, logger 
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	topic_filter, err := topic.ParseJSONToTopicFilter(topic_filter_map)
-	if err != nil {
-		return message.Fail(err.Error())
-	}
+	topic_filter := topic.ParseJSONToTopicFilter(topic_filter_map)
 
 	query, parameters := configuration.QueryFilterSmartcontract(topic_filter)
 
