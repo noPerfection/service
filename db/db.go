@@ -151,7 +151,7 @@ func (db *Database) Reconnect(ctx context.Context, credentials DatabaseCredentia
 
 	db.closeReplaceConnection(connection)
 
-	db.logger.Info("connection success!", "name", db.parameters.name)
+	db.logger.Info("connection success!", "database", db.parameters.name)
 
 	return nil
 }
