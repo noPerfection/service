@@ -5,6 +5,9 @@ import (
 	"errors"
 	"os"
 	"strings"
+
+	app_log "github.com/blocklords/gosds/app/log"
+	"github.com/charmbracelet/log"
 )
 
 const (
@@ -46,7 +49,15 @@ func GetEnvPaths() ([]string, error) {
 
 // Load arguments, not the environment variable paths.
 // Arguments are with --prefix
-func GetArguments() ([]string, error) {
+func GetArguments(logger log.Logger) ([]string, error) {
+	if logger != nil {
+		env_logger := app_log.Child(logger, "arguments")
+		env_logger.SetReportCaller(false)
+		env_logger.SetReportTimestamp(false)
+
+		env_logger.Info("To load environment variable files pass them as application arguments")
+	}
+
 	args := os.Args[1:]
 	if len(args) == 0 {
 		return nil, nil
@@ -66,7 +77,7 @@ func GetArguments() ([]string, error) {
 // This function is same as `env.HasArgument`,
 // except `env.ArgumentExist()` loads arguments automatically.
 func Exist(argument string) (bool, error) {
-	arguments, err := GetArguments()
+	arguments, err := GetArguments(nil)
 	if err != nil {
 		return false, err
 	}

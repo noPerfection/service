@@ -7,6 +7,7 @@ import (
 
 // Load all .env files
 func LoadAnyEnv() error {
+
 	opts, optErr := argument.GetEnvPaths()
 	if optErr != nil {
 		return optErr
