@@ -9,6 +9,7 @@ import (
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
+// Blockchain agnostic Event Log for smartcontract
 type Log struct {
 	NetworkId      string   `json:"network_id"`
 	Txid           string   `json:"txid"`             // txId column
@@ -50,7 +51,7 @@ func (b *Log) ParseTopics(raw []byte) error {
 	var topics []string
 	err := json.Unmarshal(raw, &topics)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.deserialize: %w", err)
 	}
 	b.Topics = topics
 

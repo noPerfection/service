@@ -2,6 +2,7 @@ package event
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
@@ -10,36 +11,36 @@ import (
 func New(parameters key_value.KeyValue) (*Log, error) {
 	topics, err := parameters.GetStringList("topics")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetStringList(`topics`): %w", err)
 	}
 	network_id, err := parameters.GetString("network_id")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetString(`network_id`): %w", err)
 	}
 	txid, err := parameters.GetString("txid")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetString(`txid`): %w", err)
 	}
 	log_index, err := parameters.GetUint64("log_index")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetUint64(`log_index`): %w", err)
 	}
 	data, err := parameters.GetString("data")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetString(`data`): %w", err)
 	}
 	address, err := parameters.GetString("address")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetString(`address`): %w", err)
 	}
 
 	block_timestamp, err := parameters.GetUint64("block_timestamp")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetUint64(`block_timestamp`): %w", err)
 	}
 	block_number, err := parameters.GetUint64("block_number")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetUint64(`block_number`): %w", err)
 	}
 
 	return &Log{
@@ -67,7 +68,7 @@ func NewLogs(raw_logs []interface{}) ([]*Log, error) {
 		}
 		l, err := New(log_map)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("log[%d] converting to Log: %w", i, err)
 		}
 		logs[i] = l
 	}

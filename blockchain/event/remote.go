@@ -2,6 +2,7 @@ package event
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
@@ -22,12 +23,12 @@ func RemoteLogFilter(socket *remote.Socket, block_from uint64, addresses []strin
 
 	params, err := socket.RequestRemoteService(&request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
 
 	raw_logs, ok := params.ToMap()["logs"].([]interface{})
 	if !ok {
-		return nil, errors.New("no logs received from SDS Spaghetti")
+		return nil, errors.New("no logs parameter")
 	}
 	logs, err := NewLogs(raw_logs)
 	if err != nil {
