@@ -26,7 +26,7 @@ func (r *Reply) IsOK() bool { return r.Status == "OK" }
 func (reply *Reply) ToString() (string, error) {
 	bytes, err := reply.ToBytes()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("reply.ToBytes: %w", err)
 	}
 
 	return string(bytes), nil
@@ -39,7 +39,12 @@ func (reply *Reply) ToBytes() ([]byte, error) {
 		return nil, fmt.Errorf("failed to serialize Reply to key-value %v: %v", reply, err)
 	}
 
-	return kv.ToBytes()
+	bytes, err := kv.ToBytes()
+	if err != nil {
+		return nil, fmt.Errorf("serialized key-value.ToBytes: %w", err)
+	}
+
+	return bytes, nil
 }
 
 // Zeromq received raw strings converted to the Reply message.
@@ -47,10 +52,15 @@ func ParseReply(msgs []string) (Reply, error) {
 	msg := ToString(msgs)
 	data, err := key_value.NewFromString(msg)
 	if err != nil {
-		return Reply{}, err
+		return Reply{}, fmt.Errorf("key_value.NewFromString: %w", err)
 	}
 
-	return ParseJsonReply(data)
+	reply, err := ParseJsonReply(data)
+	if err != nil {
+		return Reply{}, fmt.Errorf("ParseJsonReply: %w", err)
+	}
+
+	return reply, nil
 }
 
 // Create 'Reply' message from a key value

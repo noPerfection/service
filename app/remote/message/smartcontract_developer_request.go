@@ -23,14 +23,19 @@ func (request *SmartcontractDeveloperRequest) ToBytes() ([]byte, error) {
 		return nil, fmt.Errorf("failed to serialize SmartcontractDeveloper Request to key-value %v: %v", request, err)
 	}
 
-	return kv.ToBytes()
+	bytes, err := kv.ToBytes()
+	if err != nil {
+		return nil, fmt.Errorf("kv.ToBytes: %w", err)
+	}
+
+	return bytes, nil
 }
 
 // Convert SmartcontractDeveloperRequest message to the string
 func (request *SmartcontractDeveloperRequest) ToString() (string, error) {
 	bytes, err := request.ToBytes()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("request.ToBytes: %w", err)
 	}
 
 	return string(bytes), nil
@@ -50,7 +55,7 @@ func (request *SmartcontractDeveloperRequest) message_hash() ([]byte, error) {
 
 	bytes, err := key_value.New(json_object).ToBytes()
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, fmt.Errorf("key_value.ToBytes: %w", err)
 	}
 
 	hash := crypto.Keccak256Hash(bytes)
@@ -63,7 +68,7 @@ func (request *SmartcontractDeveloperRequest) message_hash() ([]byte, error) {
 func (request *SmartcontractDeveloperRequest) DigestedMessage() ([]byte, error) {
 	message_hash, err := request.message_hash()
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, fmt.Errorf("request.message_hash: %w", err)
 	}
 	prefix := []byte("\x19Ethereum Signed Message:\n32")
 	digested_hash := crypto.Keccak256Hash(append(prefix, message_hash...))
@@ -76,31 +81,31 @@ func ParseSmartcontractDeveloperRequest(msgs []string) (SmartcontractDeveloperRe
 
 	data, err := key_value.NewFromString(msg)
 	if err != nil {
-		return SmartcontractDeveloperRequest{}, err
+		return SmartcontractDeveloperRequest{}, fmt.Errorf("key_value.NewFromString: %w", err)
 	}
 
 	command, err := data.GetString("command")
 	if err != nil {
-		return SmartcontractDeveloperRequest{}, err
+		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetString(`command`): %w", err)
 	}
 	parameters, err := data.GetKeyValue("parameters")
 	if err != nil {
-		return SmartcontractDeveloperRequest{}, err
+		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetKeyValue(`parameters`): %w", err)
 	}
 
 	address, err := data.GetString("address")
 	if err != nil {
-		return SmartcontractDeveloperRequest{}, err
+		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetString(`address`): %w", err)
 	}
 
 	nonce_timestamp, err := data.GetUint64("nonce_timestamp")
 	if err != nil {
-		return SmartcontractDeveloperRequest{}, err
+		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetUint64(`nonce_timestamp`): %w", err)
 	}
 
 	signature, err := data.GetString("signature")
 	if err != nil {
-		return SmartcontractDeveloperRequest{}, err
+		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetString(`signature`): %w", err)
 	}
 
 	request := SmartcontractDeveloperRequest{

@@ -7,7 +7,7 @@
 package message
 
 import (
-	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/blocklords/gosds/common/data_type/key_value"
@@ -44,14 +44,11 @@ func (b *Broadcast) ToBytes() []byte {
 
 // Parse the zeromq messages into a broadcast
 func ParseBroadcast(msgs []string) (Broadcast, error) {
-	msg := ""
-	for _, v := range msgs {
-		msg += v
-	}
+	msg := ToString(msgs)
 	i := strings.Index(msg, "{")
 
 	if i == -1 {
-		return Broadcast{}, errors.New("invalid message, no distinction between topic and reply")
+		return Broadcast{}, fmt.Errorf("invalid broadcast message %s, no distinction between topic and reply", msg)
 	}
 
 	topic := msg[:i]
@@ -59,17 +56,17 @@ func ParseBroadcast(msgs []string) (Broadcast, error) {
 
 	dat, err := key_value.NewFromString(broadcastRaw)
 	if err != nil {
-		return Broadcast{}, err
+		return Broadcast{}, fmt.Errorf("key_value.NewFromString: %w", err)
 	}
 
 	raw_reply, err := dat.GetKeyValue("reply")
 	if err != nil {
-		return Broadcast{}, err
+		return Broadcast{}, fmt.Errorf("broadcast.GetKeyValue(`reply`): %w", err)
 	}
 
 	reply, err := ParseJsonReply(raw_reply)
 	if err != nil {
-		return Broadcast{}, err
+		return Broadcast{}, fmt.Errorf("ParseJsonReply: %w", err)
 	}
 
 	return Broadcast{Topic: topic, Reply: reply}, nil

@@ -19,14 +19,19 @@ func (request *Request) ToBytes() ([]byte, error) {
 		return nil, fmt.Errorf("failed to serialize Request to key-value %v: %v", request, err)
 	}
 
-	return kv.ToBytes()
+	bytes, err := kv.ToBytes()
+	if err != nil {
+		return nil, fmt.Errorf("kv.ToBytes: %w", err)
+	}
+
+	return bytes, nil
 }
 
 // Convert Request message to the string
 func (request *Request) ToString() (string, error) {
 	bytes, err := request.ToBytes()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("request.ToBytes: %w", err)
 	}
 
 	return string(bytes), nil
