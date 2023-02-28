@@ -14,7 +14,6 @@ import (
 	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
 )
 
-// Wrapper around the gosds/categorizer/worker.Worker
 // For EVM based smartcontracts
 type EvmWorker struct {
 	abi *abi.Abi
