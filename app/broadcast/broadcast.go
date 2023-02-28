@@ -1,7 +1,9 @@
-/*Broadcast the new spaghetti update*/
+// Broadcast package creates a publishing socket
+// Use this package in a goroutine.
 package broadcast
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
@@ -13,12 +15,14 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// Broadcast
 type Broadcast struct {
 	service *service.Service
 	socket  *zmq.Socket
 	In      chan message.Broadcast
 }
 
+// Prefix for logging
 func broadcast_domain(s *service.Service) string {
 	return s.Name + "_broadcast"
 }
@@ -30,7 +34,7 @@ func New(s *service.Service) (*Broadcast, error) {
 	// Socket to talk to clients
 	socket, err := zmq.NewSocket(zmq.PUB)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
 	broadcast := Broadcast{
@@ -51,7 +55,10 @@ func AddWhitelistedAccounts(s *service.Service, accounts account.Accounts) {
 // You call it before running the controller
 func (c *Broadcast) SetPrivateKey() error {
 	err := c.socket.ServerAuthCurve(broadcast_domain(c.service), c.service.BroadcastSecretKey)
-	return err
+	if err != nil {
+		return fmt.Errorf("socket.ServerAuthCurve: %w", err)
+	}
+	return nil
 }
 
 // Run a new broadcaster
