@@ -215,10 +215,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			if len(logs) == 0 {
 				continue
 			}
-			block_number_to, err = worker.categorize(logs)
-			if err != nil {
-				panic("failed to categorize the blockchain")
-			}
+			block_number_to = worker.categorize(logs)
 
 			smartcontracts := []*smartcontract.Smartcontract{worker.smartcontract}
 
@@ -272,10 +269,7 @@ func (manager *Manager) categorize_current_smartcontracts() {
 					continue
 				}
 				logs := block.GetForSmartcontract(worker.smartcontract.Address)
-				_, err := worker.categorize(logs)
-				if err != nil {
-					panic("failed to categorize the blockchain")
-				}
+				worker.categorize(logs)
 
 				smartcontracts := []*smartcontract.Smartcontract{worker.smartcontract}
 
@@ -288,7 +282,7 @@ func (manager *Manager) categorize_current_smartcontracts() {
 				}
 				request_string, _ := push.ToString()
 
-				_, err = manager.pusher.SendMessage(request_string)
+				_, err := manager.pusher.SendMessage(request_string)
 				if err != nil {
 					panic(err)
 				}

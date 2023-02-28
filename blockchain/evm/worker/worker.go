@@ -3,7 +3,6 @@
 package worker
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -53,7 +52,7 @@ func New(client *client.Client, broadcast_channel chan message.Broadcast, debug 
 func (worker *SpaghettiWorker) SetupSocket() {
 	sock, err := zmq.NewSocket(zmq.REP)
 	if err != nil {
-		panic(err)
+		log.Fatalf("trying to create new reply socket for network id %s: %v", worker.client.Network.Id, err)
 	}
 
 	url := "spaghetti_" + worker.client.Network.Id
@@ -79,11 +78,11 @@ func (worker *SpaghettiWorker) SetupSocket() {
 		reply_string, err := reply.ToString()
 		if err != nil {
 			if _, err := sock.SendMessage(err.Error()); err != nil {
-				panic(err)
+				log.Fatalf("reply.ToString error to send error: %w", worker.client.Network.Id, err)
 			}
 		} else {
 			if _, err := sock.SendMessage(reply_string); err != nil {
-				panic(errors.New("failed to reply: %w" + err.Error()))
+				log.Fatalf("failed to reply: %w", err)
 			}
 		}
 	}
@@ -103,18 +102,15 @@ func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message
 
 	raw_logs, err := worker.client.GetBlockRangeLogs(block_number_from, block_number_to, addresses)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("client.GetBlockRangeLogs: " + err.Error())
 	}
 
 	block_timestamp, err := worker.client.GetBlockTimestamp(block_number_from)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("client.GetBlockTimestamp: " + err.Error())
 	}
 
-	logs, err := evm_log.NewSpaghettiLogs(network_id, block_timestamp, raw_logs)
-	if err != nil {
-		return message.Fail(err.Error())
-	}
+	logs := evm_log.NewSpaghettiLogs(network_id, block_timestamp, raw_logs)
 
 	reply := message.Reply{
 		Status:  "OK",

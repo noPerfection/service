@@ -14,8 +14,7 @@ import (
 func New(network_id string, block_number uint64, transaction_index uint, tx *eth_types.Transaction) (*transaction.Transaction, error) {
 	msg, err := tx.AsMessage(eth_types.LatestSignerForChainID(tx.ChainId()), tx.GasPrice())
 	if err != nil {
-		fmt.Println("Error parsing transaction. Failed to get 'From' field. Error: ", err)
-		return nil, err
+		return nil, fmt.Errorf("error parsing transaction. Failed to get 'From' field: %w", err)
 	}
 
 	bigValue := util.WeiToEther(tx.Value())

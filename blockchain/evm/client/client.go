@@ -36,12 +36,12 @@ type Client struct {
 func New(network *network.Network) (*Client, error) {
 	provider_url, err := network.GetFirstProviderUrl()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("network.GetFirstProvider: %w", err)
 	}
 	ctx := context.TODO()
 	client, err := ethclient.DialContext(ctx, provider_url)
 	if err != nil {
-		return nil, errors.New(`failed address connect address the provider. please try again later. error from provider package: ` + err.Error())
+		return nil, fmt.Errorf(`failed to connect to blockchain. please try again later: %w`, err)
 	}
 
 	return &Client{
@@ -55,10 +55,10 @@ func New(network *network.Network) (*Client, error) {
 func NewClients(networks []*network.Network) (map[string]*Client, error) {
 	network_clients := make(map[string]*Client, len(networks))
 
-	for _, network := range networks {
+	for i, network := range networks {
 		new_client, err := New(network)
 		if err != nil {
-			return nil, errors.New(err.Error())
+			return nil, fmt.Errorf("network[%d] network id %s New: %w", i, network.Id, err)
 		}
 
 		network_clients[network.Id] = new_client
@@ -77,7 +77,7 @@ func NewClients(networks []*network.Network) (map[string]*Client, error) {
 func (c *Client) GetBlockTimestamp(block_number uint64) (uint64, error) {
 	header, err := c.client.HeaderByNumber(c.ctx, big.NewInt(int64(block_number)))
 	if err != nil {
-		return 0, errors.New("failed to fetch block information from blockchain: " + err.Error())
+		return 0, errors.New("failed to fetch block information from provider: " + err.Error())
 	}
 
 	return header.Time, nil
@@ -85,7 +85,12 @@ func (c *Client) GetBlockTimestamp(block_number uint64) (uint64, error) {
 
 // Returns the most recent block number from blockchain
 func (c *Client) GetRecentBlockNumber() (uint64, error) {
-	return c.client.BlockNumber(c.ctx)
+	block_number, err := c.client.BlockNumber(c.ctx)
+	if err != nil {
+		return 0, fmt.Errorf("provider block number: %w", err)
+	}
+
+	return block_number, nil
 }
 
 // Returns the information about the specific transaction from the blockchain
@@ -108,7 +113,7 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.T
 		if attempt == 0 {
 			return nil, fmt.Errorf("transaction by hash error after 10 attempts: " + err.Error())
 		}
-		fmt.Println("transaction by hash wasn't found for txid ", transaction_id, "at network", c.network_id, " retrying again")
+		fmt.Printf("client.TransactionByHash txid (%s) attempts left=%d: %s", transaction_hash, attempt, err.Error())
 		time.Sleep(time.Second * 1)
 		attempt--
 	}
@@ -123,14 +128,14 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.T
 		if attempt == 0 {
 			return nil, fmt.Errorf("transaction receipt error after 10 attempts: " + err.Error())
 		}
-		fmt.Println("transaction by receipt wasn't found for txid ", transaction_hash, " at network ", c.network_id, " retrying again")
+		fmt.Printf("client.TransactionReceipt txid (%s) attempts left=%d: %s", transaction_hash, attempt, err.Error())
 		time.Sleep(time.Second * 1)
 		attempt--
 	}
 
 	tx, parse_err := transaction.New(c.network_id, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, transaction_raw)
 	if parse_err != nil {
-		return nil, parse_err
+		return nil, fmt.Errorf("transaction.New: %w", parse_err)
 	}
 	if tx.TxTo == "" {
 		tx.TxTo = receipt.ContractAddress.Hex()
@@ -145,7 +150,7 @@ func (c *Client) GetBlock(block_number uint64) (*block.Block, error) {
 
 	raw_block, err := c.client.BlockByNumber(c.ctx, big_int)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("BlockByNumer %d: %w", block_number, err)
 	}
 	b := &block.Block{
 		NetworkId:      c.Network.Id,
@@ -165,7 +170,7 @@ func (c *Client) GetBlock(block_number uint64) (*block.Block, error) {
 		time.Sleep(10 * time.Second)
 		attempt--
 		if attempt == 0 {
-			return nil, fmt.Errorf("failed to get the logs in 5 attempts. network id: %s block number %d", c.Network.Id, block_number)
+			return nil, fmt.Errorf("failed to get the logs in 5 attempts. network id: %s block number %d: %w", c.Network.Id, block_number, log_err)
 		}
 	}
 	err = block.SetLogs(b, raw_logs)
@@ -184,7 +189,10 @@ func (c *Client) GetBlockLogs(block_number uint64) ([]eth_types.Log, error) {
 	}
 
 	raw_logs, log_err := c.client.FilterLogs(c.ctx, query)
-	return raw_logs, log_err
+	if log_err != nil {
+		return nil, fmt.Errorf("client.FilterLogs query %v: %w", query, log_err)
+	}
+	return raw_logs, nil
 }
 
 // Returns the logs for a block range
@@ -205,5 +213,8 @@ func (c *Client) GetBlockRangeLogs(block_number_from uint64, block_number_to uin
 	}
 
 	raw_logs, log_err := c.client.FilterLogs(c.ctx, query)
+	if log_err != nil {
+		return nil, fmt.Errorf("client.FilterLogs query %v: %w", query, log_err)
+	}
 	return raw_logs, log_err
 }

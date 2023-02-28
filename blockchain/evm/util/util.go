@@ -29,5 +29,10 @@ func ParseBigFloat(value string) (*big.Float, error) {
 	f.SetPrec(236) //  IEEE 754 octuple-precision binary floating-point format: binary256
 	f.SetMode(big.ToNearestEven)
 	_, err := fmt.Sscan(value, f)
-	return f, err
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse '%s' string to big.Float: %w", value, err)
+	}
+
+	return f, nil
 }

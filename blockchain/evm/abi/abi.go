@@ -4,7 +4,6 @@ package abi
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -33,7 +32,7 @@ func (a *Abi) GetMethod(method string) (*abi.Method, error) {
 		}
 	}
 
-	return nil, errors.New("smartcontract method not found")
+	return nil, fmt.Errorf("method %s not found in abi", method)
 }
 
 // Given the transaction data, returns a categorized variant.

@@ -9,7 +9,7 @@ import (
 )
 
 // Converts the ethereum's log to SeascapeSDS Spaghetti Log type
-func NewSpaghettiLog(network_id string, block_timestamp uint64, raw_log *eth_types.Log) (*event.Log, error) {
+func NewSpaghettiLog(network_id string, block_timestamp uint64, raw_log *eth_types.Log) *event.Log {
 	topics := make([]string, len(raw_log.Topics))
 	for i, topic := range raw_log.Topics {
 		topics[i] = topic.Hex()
@@ -24,20 +24,16 @@ func NewSpaghettiLog(network_id string, block_timestamp uint64, raw_log *eth_typ
 		Data:           hex.EncodeToString(raw_log.Data),
 		Address:        raw_log.Address.Hex(),
 		Topics:         topics,
-	}, nil
+	}
 }
 
 // Converts the ethereum's log to SeascapeSDS Spaghetti Log type
-func NewSpaghettiLogs(network_id string, block_timestamp uint64, raw_logs []eth_types.Log) ([]*event.Log, error) {
+func NewSpaghettiLogs(network_id string, block_timestamp uint64, raw_logs []eth_types.Log) []*event.Log {
 	logs := make([]*event.Log, len(raw_logs))
 	for i, raw := range raw_logs {
-		log, err := NewSpaghettiLog(network_id, block_timestamp, &raw)
-		if err != nil {
-			return nil, err
-		}
-
+		log := NewSpaghettiLog(network_id, block_timestamp, &raw)
 		logs[i] = log
 	}
 
-	return logs, nil
+	return logs
 }

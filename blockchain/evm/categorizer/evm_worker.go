@@ -71,7 +71,7 @@ func LogParse(in chan RequestLogParse, out chan ReplyLogParse) {
 }
 
 // Categorize the blocks for this smartcontract
-func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
+func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) uint64 {
 	network_id := worker.smartcontract.NetworkId
 	address := worker.smartcontract.Address
 
@@ -108,5 +108,5 @@ func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) (uint64, error) {
 	fmt.Println("categorization finished, update the block number to ", block_number, worker.smartcontract.NetworkId, worker.smartcontract.Address)
 	worker.smartcontract.SetBlockParameter(block_number, block_timestamp)
 
-	return block_number, nil
+	return block_number
 }
