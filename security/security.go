@@ -4,6 +4,8 @@
 package security
 
 import (
+	"fmt"
+
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -27,7 +29,7 @@ func (s *Security) StartAuthentication() error {
 	zmq.AuthSetVerbose(s.debug)
 	err := zmq.AuthStart()
 	if err != nil {
-		return err
+		return fmt.Errorf("zmq.AuthStart: %w", err)
 	}
 
 	// allow income from any ip address

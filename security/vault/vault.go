@@ -84,13 +84,13 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 
 		// AppRole RoleID to log in to Vault
 		if !app_config.Exist("SDS_VAULT_APPROLE_ROLE_ID") {
-			return nil, errors.New("missing 'SDS_VAULT_APPROLE_ROLE_ID' environment variable")
+			return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_ROLE_ID' environment variable")
 		}
 		approle_role_id = app_config.GetString("SDS_VAULT_APPROLE_ROLE_ID")
 
 		// AppRole SecretID file path to log in to Vault
 		if !app_config.Exist("SDS_VAULT_APPROLE_SECRET_ID_FILE") {
-			return nil, errors.New("missing 'SDS_VAULT_APPROLE_SECRET_ID_FILE' environment variable")
+			return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_SECRET_ID_FILE' environment variable")
 		}
 
 		approle_secret_id_file = app_config.GetString("SDS_VAULT_APPROLE_SECRET_ID_FILE")
@@ -100,13 +100,13 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 		config.Address = fmt.Sprintf("http://%s:%s", host, port)
 
 		if !app_config.Exist("SDS_VAULT_TOKEN") {
-			return nil, errors.New("missing 'SDS_VAULT_TOKEN' environment variable")
+			return nil, errors.New("without ssl, missing 'SDS_VAULT_TOKEN' environment variable")
 		}
 	}
 
 	client, err := hashicorp.NewClient(config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("hashicorp.NewClient: %w", err)
 	}
 
 	ctx := context.TODO()
@@ -231,7 +231,7 @@ func (v *Vault) login(ctx context.Context) (*hashicorp.Secret, error) {
 func (v *Vault) get_string(secret_name string, key string) (string, error) {
 	secret, err := v.client.KVv2(v.path).Get(v.context, secret_name)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("vault.client.Get: %w", err)
 	}
 
 	value, ok := secret.Data[key].(string)
