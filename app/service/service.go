@@ -55,10 +55,7 @@ func (p *Service) set_broadcast_curve_key(secret_key string) error {
 // for example service.New(service.SPAGHETTI, service.REMOTE, service.SUBSCRIBE)
 func New(service_type ServiceType, limits ...Limit) (*Service, error) {
 	default_configuration := DefaultConfiguration(service_type)
-	app_config, err := configuration.NewService(default_configuration)
-	if err != nil {
-		return nil, err
-	}
+	app_config := configuration.NewService(default_configuration)
 
 	name := string(service_type)
 	host_env := name + "_HOST"

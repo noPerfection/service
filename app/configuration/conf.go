@@ -11,15 +11,15 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Application configuration
+// Configuration Engine
 type Config struct {
-	viper *viper.Viper
+	viper *viper.Viper // used to keep default values
 
-	Plain         bool // if true then no security
-	Broadcast     bool // if true then broadcast of the service will be enabled
-	Reply         bool // if true then reply controller of the service will be enabled
-	DebugSecurity bool // if true then we print the security layer logs
-	logger        log.Logger
+	Plain         bool       // if true then no security
+	Broadcast     bool       // if true then broadcast of the service will be enabled
+	Reply         bool       // if true then reply controller of the service will be enabled
+	DebugSecurity bool       // if true then we print the security layer logs
+	logger        log.Logger // debug purpose only
 }
 
 // Returns the new configuration file after loading environment variables
@@ -44,7 +44,7 @@ func NewAppConfig(logger log.Logger) (*Config, error) {
 	// First we load the environment variables
 	err := env.LoadAnyEnv()
 	if err != nil {
-		return nil, fmt.Errorf("loading environment variables: %v", err)
+		return nil, fmt.Errorf("loading environment variables: %w", err)
 	}
 
 	// replace the values with the ones we fetched from environment variables
@@ -55,8 +55,7 @@ func NewAppConfig(logger log.Logger) (*Config, error) {
 }
 
 // Return the configuration engine to use with default parameters
-func New() (*Config, error) {
-	// First we check the parameters of the application arguments
+func New() *Config {
 	arguments := argument.GetArguments(nil)
 
 	conf := Config{
@@ -69,13 +68,13 @@ func New() (*Config, error) {
 	conf.viper = viper.New()
 	conf.viper.AutomaticEnv()
 
-	return &conf, nil
+	return &conf
 }
 
 // Returns the configuration for the service
 // That means application arguments are not used.
 // Only the underlying configuration engine is loaded.
-func NewService(default_config DefaultConfig) (*Config, error) {
+func NewService(default_config DefaultConfig) *Config {
 	// First we check the parameters of the application arguments
 	arguments := argument.GetArguments(nil)
 
@@ -91,7 +90,7 @@ func NewService(default_config DefaultConfig) (*Config, error) {
 
 	conf.SetDefaults(default_config)
 
-	return &conf, nil
+	return &conf
 }
 
 // Populates the app configuration with the default vault configuration parameters.

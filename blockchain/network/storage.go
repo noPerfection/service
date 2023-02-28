@@ -18,10 +18,7 @@ const (
 
 // Returns list of the blockchain networks
 func GetNetworks(network_type NetworkType) (Networks, error) {
-	network_config, err := configuration.New()
-	if err != nil {
-		return nil, errors.New("loading config object " + err.Error())
-	}
+	network_config := configuration.New()
 	network_config.SetDefault(SDS_STATIC_NETWORKS, DefaultConfiguration())
 
 	env := network_config.GetString(SDS_STATIC_NETWORKS)
