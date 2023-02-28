@@ -10,29 +10,29 @@ func DefaultConfiguration() string {
 				"url": "https://rpc.ankr.com/bsc",
 				"length": 1000
 			}
-		], "flag": 1},
+		], "type": "evm"},
 		{"id": "1", "providers": [
 			{
 				"url": "https://eth.llamarpc.com",
 				"length": 1000
 			}
-		], "flag": 1},
+		], "type": "evm"},
 		{"id": "1285", "providers": [{
 			"url": "https://moonriver.public.blastapi.io",
 			"length": 1000
-		}], "flag": 1},
+		}], "type": "evm"},
 		{"id": "1284", "providers": [
 			{
 				"url": "https://1rpc.io/glmr",
 				"length": 1000
 			}
-		], "flag": 1},
+		], "type": "evm"},
 		{"id": "imx", "providers": [
 			{
 				"url": "https://api.sandbox.x.immutable.com/",
 				"length": 1000
 			}
-		], "flag": 2}
+		], "type": "imx"}
 	]`
 
 	return networks
