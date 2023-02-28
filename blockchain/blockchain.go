@@ -71,7 +71,7 @@ func NewCategorizerPusher(network_id string) (*zmq.Socket, error) {
 	}
 
 	url := "cat_" + network_id
-	if err := sock.Bind("inproc://" + url); err != nil {
+	if err := sock.Connect("inproc://" + url); err != nil {
 		return nil, fmt.Errorf("trying to create categorizer for network id %s: %v", network_id, err)
 	}
 
