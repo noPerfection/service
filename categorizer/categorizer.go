@@ -3,6 +3,8 @@ package categorizer
 import (
 	"fmt"
 
+	"github.com/charmbracelet/log"
+
 	"github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer/handler"
@@ -74,7 +76,7 @@ func register_smartcontracts(db_con *db.Database, network *network.Network) {
 
 // Saves the smartcontract in the database.
 // then start a worker.
-func smartcontract_set(db_con *db.Database, request message.Request) message.Reply {
+func smartcontract_set(db_con *db.Database, request message.Request, logger log.Logger) message.Reply {
 	kv, err := request.Parameters.GetKeyValue("smartcontract")
 	if err != nil {
 		return message.Fail("missing 'smartcontract' parameter")

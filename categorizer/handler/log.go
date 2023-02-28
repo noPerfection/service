@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"github.com/charmbracelet/log"
+
 	"github.com/blocklords/gosds/categorizer/event"
 	"github.com/blocklords/gosds/db"
 
@@ -11,7 +13,7 @@ import (
 
 // returns all event logs for a given list of transaction keys.
 // for a transaction key see sds-categorizer/packages/transaction.TransactionKey()
-func GetLogs(db *db.Database, request message.Request) message.Reply {
+func GetLogs(db *db.Database, request message.Request, logger log.Logger) message.Reply {
 	keys, err := request.Parameters.GetStringList("keys")
 	if err != nil {
 		return message.Fail(err.Error())

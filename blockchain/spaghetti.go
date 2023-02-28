@@ -10,6 +10,8 @@
 package blockchain
 
 import (
+	"github.com/charmbracelet/log"
+
 	"github.com/blocklords/gosds/blockchain/transaction"
 
 	"github.com/blocklords/gosds/blockchain/network"
@@ -34,7 +36,7 @@ import (
 
 // this function returns the smartcontract deployer, deployed block number
 // and block timestamp by a transaction hash of the smartcontract deployment.
-func transaction_deployed_get(_ *db.Database, request message.Request) message.Reply {
+func transaction_deployed_get(_ *db.Database, request message.Request, logger log.Logger) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())

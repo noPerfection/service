@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"github.com/charmbracelet/log"
+
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/db"
 
@@ -10,7 +12,7 @@ import (
 )
 
 // return a categorizer block by network id and smartcontract address
-func GetSmartcontract(db *db.Database, request message.Request) message.Reply {
+func GetSmartcontract(db *db.Database, request message.Request, logger log.Logger) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -36,7 +38,7 @@ func GetSmartcontract(db *db.Database, request message.Request) message.Reply {
 }
 
 // returns all smartcontract categorized smartcontracts
-func GetSmartcontracts(db *db.Database, _ message.Request) message.Reply {
+func GetSmartcontracts(db *db.Database, _ message.Request, logger log.Logger) message.Reply {
 	smartcontracts, err := smartcontract.GetAll(db)
 	if err != nil {
 		return message.Fail("the database error " + err.Error())

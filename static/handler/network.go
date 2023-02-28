@@ -4,12 +4,17 @@ import (
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
+	"github.com/charmbracelet/log"
 
+	app_log "github.com/blocklords/gosds/app/log"
 	"github.com/blocklords/gosds/app/remote/message"
 )
 
 // Returns Network
-func NetworkGet(_ *db.Database, request message.Request) message.Reply {
+func NetworkGet(_ *db.Database, request message.Request, logger log.Logger) message.Reply {
+	command_logger := app_log.Child(logger, "network-get-command")
+	command_logger.Info("incoming request", "parameters", request.Parameters)
+
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -44,7 +49,7 @@ func NetworkGet(_ *db.Database, request message.Request) message.Reply {
 }
 
 // Returns an abi by the smartcontract key.
-func NetworkGetIds(_ *db.Database, request message.Request) message.Reply {
+func NetworkGetIds(_ *db.Database, request message.Request, logger log.Logger) message.Reply {
 	raw_network_type, err := request.Parameters.GetString("network_type")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -69,7 +74,10 @@ func NetworkGetIds(_ *db.Database, request message.Request) message.Reply {
 }
 
 // Returns an abi by the smartcontract key.
-func NetworkGetAll(_ *db.Database, request message.Request) message.Reply {
+func NetworkGetAll(_ *db.Database, request message.Request, logger log.Logger) message.Reply {
+	command_logger := app_log.Child(logger, "network-get-all-command")
+	command_logger.Info("incoming request", "parameters", request.Parameters)
+
 	raw_network_type, err := request.Parameters.GetString("network_type")
 	if err != nil {
 		return message.Fail(err.Error())

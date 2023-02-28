@@ -2,6 +2,8 @@
 package account
 
 import (
+	"fmt"
+
 	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
@@ -47,8 +49,8 @@ func NewService(service *service.Service) *Account {
 }
 
 // Creates an account for a service
-func NewServices(services []*service.Service) []*Account {
-	accounts := make([]*Account, 0, len(services))
+func NewServices(services []*service.Service) Accounts {
+	accounts := make(Accounts, 0, len(services))
 	for i, s := range services {
 		accounts[i] = NewService(s)
 	}
@@ -157,4 +159,19 @@ func (accounts Accounts) BroadcastPublicKeys() []string {
 	}
 
 	return public_keys
+}
+
+// Returns the names of the account users
+func (accounts Accounts) Names() []string {
+	names := make([]string, 0)
+
+	for i := range accounts {
+		if accounts[i].IsDeveloper() {
+			names[i] = fmt.Sprintf("developer %s from %s organization", accounts[i].PublicKey, accounts[i].Organization)
+		} else {
+			names[i] = accounts[i].service.Name
+		}
+	}
+
+	return names
 }

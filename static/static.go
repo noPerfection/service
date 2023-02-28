@@ -7,6 +7,7 @@ import (
 	"github.com/blocklords/gosds/app/service"
 
 	"github.com/blocklords/gosds/app/account"
+	app_log "github.com/blocklords/gosds/app/log"
 
 	"github.com/blocklords/gosds/app/controller"
 	"github.com/blocklords/gosds/db"
@@ -31,36 +32,48 @@ func Run(app_config *configuration.Config, db_connection *db.Database) {
 		"network_get":        handler.NetworkGet,
 	}
 
+	logger := app_log.New()
+	logger.SetPrefix("static")
+	logger.SetReportCaller(true)
+	logger.SetReportTimestamp(true)
+
+	logger.Info("starting")
+
 	// Getting the services which has access to the SDS Static
 	static_env, err := service.New(service.STATIC, service.THIS)
 	if err != nil {
-		panic(err)
+		logger.Fatal("service configuration", "message", err)
 	}
 
 	// we whitelist before we initiate the reply controller
 	if !app_config.Plain {
+		logger.Info("getting whitelisted services")
 		whitelisted_services, err := get_whitelisted_services()
 		if err != nil {
-			panic(err)
+			logger.Fatal("whitelist service", "message", err)
 		}
 		accounts := account.NewServices(whitelisted_services)
 		controller.AddWhitelistedAccounts(static_env, accounts)
+		logger.Info("add whitelisted users", "whitelisted", accounts.Names())
 	}
 
 	reply, err := controller.NewReply(static_env)
 	if err != nil {
-		panic(err)
+		logger.Fatal("reply controller", "message", err)
+	} else {
+		reply.SetLogger(logger)
 	}
 
 	if !app_config.Plain {
+		logger.Info("set the private key")
 		err := reply.SetControllerPrivateKey()
 		if err != nil {
-			panic(err)
+			logger.Fatal("controller security", "message", err)
 		}
 	}
 
 	err = reply.Run(db_connection, commands)
 	if err != nil {
-		panic(err)
+		logger.Fatal("reply controller", "message", err)
 	}
 }

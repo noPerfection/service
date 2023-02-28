@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"github.com/charmbracelet/log"
+
 	"github.com/blocklords/gosds/categorizer/event"
 	"github.com/blocklords/gosds/db"
 
@@ -25,7 +27,7 @@ import (
 // 3. network_id
 // 4. address
 // 5. block_timestamp
-func GetSnapshot(db *db.Database, request message.Request) message.Reply {
+func GetSnapshot(db *db.Database, request message.Request, logger log.Logger) message.Reply {
 	/////////////////////////////////////////////////////////////////////////////
 	//
 	// Extract the parameters

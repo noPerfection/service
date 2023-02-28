@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/charmbracelet/log"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/static/abi"
@@ -16,7 +17,7 @@ import (
 //	     	"abi": []
 //	     }
 //	}
-func AbiGet(con *db.Database, request message.Request) message.Reply {
+func AbiGet(con *db.Database, request message.Request, logger log.Logger) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -42,7 +43,7 @@ func AbiGet(con *db.Database, request message.Request) message.Reply {
 }
 
 // Returns an abi by the smartcontract key.
-func AbiGetBySmartcontractKey(db *db.Database, request message.Request) message.Reply {
+func AbiGetBySmartcontractKey(db *db.Database, request message.Request, logger log.Logger) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -81,7 +82,7 @@ func AbiGetBySmartcontractKey(db *db.Database, request message.Request) message.
 //	     	"abi_hash": "0x012345"
 //	     }
 //	}
-func AbiRegister(dbCon *db.Database, request message.Request) message.Reply {
+func AbiRegister(dbCon *db.Database, request message.Request, logger log.Logger) message.Reply {
 	abi_body, ok := request.Parameters["abi"]
 	if !ok {
 		return message.Fail("missing 'abi' parameter")

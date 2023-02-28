@@ -4,6 +4,7 @@ import (
 	"github.com/blocklords/gosds/db"
 	"github.com/blocklords/gosds/static/configuration"
 	"github.com/blocklords/gosds/static/smartcontract"
+	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/common/data_type/key_value"
@@ -25,7 +26,7 @@ Algorithm
     The smartcontract package accepts the db_query from configuration config.
  4. return list of smartcontracts back
 */
-func SmartcontractFilter(dbCon *db.Database, request message.Request) message.Reply {
+func SmartcontractFilter(dbCon *db.Database, request message.Request, logger log.Logger) message.Reply {
 	topic_filter_map, err := request.Parameters.GetKeyValue("topic_filter")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -66,7 +67,7 @@ func SmartcontractFilter(dbCon *db.Database, request message.Request) message.Re
 //	returns {
 //			"smartcontract_keys" (where key is smartcontract key, value is a topic string)
 //	}
-func SmartcontractKeyFilter(dbCon *db.Database, request message.Request) message.Reply {
+func SmartcontractKeyFilter(dbCon *db.Database, request message.Request, logger log.Logger) message.Reply {
 	topic_filter_map, err := request.Parameters.GetKeyValue("topic_filter")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -101,7 +102,7 @@ func SmartcontractKeyFilter(dbCon *db.Database, request message.Request) message
 // Register a new smartcontract. It means we are adding smartcontract parameters into
 // static_smartcontract.
 // Requires abi_hash parameter. First call abi_register method first.
-func SmartcontractRegister(dbCon *db.Database, request message.Request) message.Reply {
+func SmartcontractRegister(dbCon *db.Database, request message.Request, logger log.Logger) message.Reply {
 	sm, err := smartcontract.New(request.Parameters)
 	if err != nil {
 		return message.Fail(err.Error())
@@ -128,7 +129,7 @@ func SmartcontractRegister(dbCon *db.Database, request message.Request) message.
 }
 
 // Returns configuration and smartcontract information related to the configuration
-func SmartcontractGet(db *db.Database, request message.Request) message.Reply {
+func SmartcontractGet(db *db.Database, request message.Request, logger log.Logger) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())

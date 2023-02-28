@@ -7,6 +7,8 @@ package controller
 import (
 	"errors"
 
+	"github.com/charmbracelet/log"
+
 	"github.com/blocklords/gosds/app/account"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/app/service"
@@ -18,6 +20,7 @@ import (
 type Controller struct {
 	service *service.Service
 	socket  *zmq.Socket
+	logger  log.Logger
 }
 
 func NewReply(s *service.Service) (*Controller, error) {
@@ -31,6 +34,11 @@ func NewReply(s *service.Service) (*Controller, error) {
 		socket:  socket,
 		service: s,
 	}, nil
+}
+
+// Set the logger
+func (c *Controller) SetLogger(logger log.Logger) {
+	c.logger = logger
 }
 
 // We set the whitelisted accounts that has access to this controller
@@ -51,7 +59,9 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 		return errors.New("error to bind socket for '" + c.service.ServiceName() + ": " + c.service.Port() + "' : " + err.Error())
 	}
 
-	println("'" + c.service.ServiceName() + "' request-reply server runs on port " + c.service.Port())
+	if c.logger != nil {
+		c.logger.Info("reply controller runs successfully", "port", c.service.Port())
+	}
 
 	for {
 		// msg_raw, metadata, err := c.socket.RecvMessageWithMetadata(0, "pub_key")
@@ -60,7 +70,7 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 			fail := message.Fail("socket error to receive message " + err.Error())
 			reply, _ := fail.ToString()
 			if _, err := c.socket.SendMessage(reply); err != nil {
-				return errors.New("failed to reply: %w" + err.Error())
+				return errors.New("recv error replying error %w" + err.Error())
 			}
 			continue
 		}
@@ -72,17 +82,17 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 			fail := message.Fail(err.Error())
 			reply, _ := fail.ToString()
 			if _, err := c.socket.SendMessage(reply); err != nil {
-				return errors.New("failed to reply: %w" + err.Error())
+				return errors.New("parsing error replying error: %w" + err.Error())
 			}
 			continue
 		}
 
 		// Any request types is compatible with the Request.
-		if commands[request.Command] == nil {
+		if !commands.Exist(request.Command) {
 			fail := message.Fail("unsupported command " + request.Command)
 			reply, _ := fail.ToString()
 			if _, err := c.socket.SendMessage(reply); err != nil {
-				return errors.New("failed to reply: %w" + err.Error())
+				return errors.New("invalid command message replying error: %w" + err.Error())
 			}
 			continue
 		}
@@ -93,7 +103,7 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 
 		// The command might be from a smartcontract developer.
 		command_handler, ok := commands[request.Command]
-		if ok {
+		if !ok {
 			// smartcontract_developer_request, err := message.ParseSmartcontractDeveloperRequest(msg_raw)
 			// if err != nil {
 			// 	fail := message.Fail("invalid smartcontract developer request " + err.Error())
@@ -117,17 +127,20 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 
 			// reply = command_handler(db_connection, smartcontract_developer_request, smartcontract_developer)
 		} else {
-			reply = command_handler(db_connection, request)
+			c.logger.Info("calling handler", "command", request.Command, "parameters", request.Parameters)
+			reply = command_handler(db_connection, request, c.logger)
+			c.logger.Info("command handled", "reply status", reply.Status)
 		}
 
 		reply_string, err := reply.ToString()
+		c.logger.Info("reply back command result", "parameters", reply)
 		if err != nil {
 			if _, err := c.socket.SendMessage(err.Error()); err != nil {
-				return errors.New("failed to reply: %w" + err.Error())
+				return errors.New("converting reply to string %w" + err.Error())
 			}
 		} else {
 			if _, err := c.socket.SendMessage(reply_string); err != nil {
-				return errors.New("failed to reply: %w" + err.Error())
+				return errors.New("replying error %w" + err.Error())
 			}
 		}
 	}

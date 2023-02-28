@@ -2,13 +2,15 @@
 package remote
 
 import (
+	"log"
+
 	"github.com/blocklords/gosds/app/remote/message"
 
 	zmq "github.com/pebbe/zmq4"
 )
 
 // Request Reply pattern. In the web it's called RPC.
-func ReqReply(host string, req message.Request) message.Reply {
+func ReqReply(host string, req message.Request, logger log.Logger) message.Reply {
 	socket, sockErr := zmq.NewSocket(zmq.REQ)
 	if sockErr != nil {
 		return message.Fail(`remote: failed to create a socket: ` + sockErr.Error())
