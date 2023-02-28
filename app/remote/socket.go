@@ -181,7 +181,7 @@ func (socket *Socket) inproc_reconnect() error {
 		}
 	}
 
-	if err := socket.socket.Connect("incproc://" + socket.inproc_url); err != nil {
+	if err := socket.socket.Connect("inproc://" + socket.inproc_url); err != nil {
 		return fmt.Errorf("error '%s' connect: %w", socket.inproc_url, err)
 	}
 
