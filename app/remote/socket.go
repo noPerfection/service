@@ -262,21 +262,20 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 			// Wait for reply.
 			r, err := socket.socket.RecvMessage(0)
 			if err != nil {
-				return nil, fmt.Errorf("failed to receive the command '%s' message from '%s'. socket error: %w", request.Command, socket.remoteService.ServiceName(), err)
+				return nil, fmt.Errorf("failed to receive the command '%s' message. socket error: %w", request.Command, err)
 			}
 
 			reply, err := message.ParseReply(r)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse the command '%s' reply from '%s'. gosds error %w", request.Command, socket.remoteService.ServiceName(), err)
+				return nil, fmt.Errorf("failed to parse the command '%s': %w", request.Command, err)
 			}
 
 			if !reply.IsOK() {
-				return nil, fmt.Errorf("the command '%s' replied with a failure by '%s'. the reply error message: %s", request.Command, socket.remoteService.ServiceName(), reply.Message)
+				return nil, fmt.Errorf("the command '%s' replied with a failure: %s", request.Command, reply.Message)
 			}
 
 			return reply.Parameters, nil
 		} else {
-			fmt.Println("command '", request.Command, "' wasn't replied by '", socket.remoteService.ServiceName(), "' in ", request_timeout, ", retrying...")
 			if socket.protocol == "inproc" {
 				err := socket.inproc_reconnect()
 				if err != nil {
