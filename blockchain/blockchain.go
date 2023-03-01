@@ -27,11 +27,15 @@ func StartWorkers(logger log.Logger, app_config *configuration.Config) error {
 		return fmt.Errorf("gosds/blockchain: failed to get networks: %v", err)
 	}
 
+	evm_network_found := false
+
 	for _, new_network := range networks {
 		worker_logger := app_log.Child(logger, new_network.Type.String()+"_network_id_"+new_network.Id)
 		worker_logger.SetReportCaller(false)
 
 		if new_network.Type == network.EVM {
+			evm_network_found = true
+
 			new_client, err := evm_client.New(new_network)
 			if err != nil {
 				return fmt.Errorf("gosds/blockchain: failed to create EVM client: %v", err)
@@ -61,6 +65,10 @@ func StartWorkers(logger log.Logger, app_config *configuration.Config) error {
 		} else {
 			logger.Fatal("unrecognized network type", "network_type", new_network.Type)
 		}
+	}
+
+	if evm_network_found {
+		evm_categorizer.LogParse(nil, nil)
 	}
 
 	return nil
