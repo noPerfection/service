@@ -9,7 +9,6 @@ import (
 	app_log "github.com/blocklords/gosds/app/log"
 	"github.com/charmbracelet/log"
 
-	"fmt"
 	"time"
 
 	"github.com/blocklords/gosds/app/service"
@@ -170,6 +169,8 @@ func (manager *Manager) Start() {
 // Get List of smartcontract addresses
 // Get Log for the smartcontracts.
 func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
+	old_logger := app_log.Child(manager.logger, "old_logger_"+time.Now().String())
+
 	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
 	blockchain_socket := remote.InprocRequestSocket(url)
 	defer blockchain_socket.Close()
@@ -180,7 +181,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 		all_logs, err := spaghetti_log.RemoteLogFilter(blockchain_socket, block_number_from, addresses)
 		if err != nil {
-			fmt.Println("failed to get the remote block number for network: " + manager.Network.Id + " error: " + err.Error())
+			old_logger.Warn("SKIP, blockchain manager returned an error for block number %d and addresses %v: %w", block_number_from, addresses, err)
 			continue
 		}
 
@@ -204,22 +205,28 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			}
 			request_string, _ := push.ToString()
 
+			old_logger.Info("send to SDS Categorizer", "logs amount", len(logs))
+
 			_, err = manager.pusher.SendMessage(request_string)
 			if err != nil {
-				panic(err)
+				old_logger.Fatal("send to SDS Categorizer", "message", err)
 			}
 		}
 
+		left := block_number_to - group.block_number
+		old_logger.Info("categorized certain blocks", "block_number_left", left)
 		group.block_number = block_number_to
 
 		if block_number_to >= manager.subscribed_earliest_block_number {
+			old_logger.Info("catched the current blocks")
 			manager.add_current_workers(group.workers)
 			break
 		}
 	}
-
 	// delete the categorizer group
 	manager.old_categorizers = manager.old_categorizers.Delete(group)
+
+	old_logger.Info("finished!")
 }
 
 // Move recent to consuming
@@ -229,6 +236,10 @@ func (manager *Manager) add_current_workers(workers EvmWorkers) {
 
 // Consume each received block from SDS Spaghetti broadcast
 func (manager *Manager) categorize_current_smartcontracts() {
+	current_logger := app_log.Child(manager.logger, "current")
+
+	current_logger.Info("starting to consume subscribed blocks...")
+
 	for {
 		time.Sleep(time.Second * time.Duration(1))
 
@@ -247,6 +258,8 @@ func (manager *Manager) categorize_current_smartcontracts() {
 				logs := block.GetForSmartcontract(worker.smartcontract.Address)
 				worker.categorize(logs)
 
+				current_logger.Info("categorized a smartcontract", "address", worker.smartcontract.Address, "logs amount", len(logs))
+
 				smartcontracts := []*smartcontract.Smartcontract{worker.smartcontract}
 
 				push := message.Request{
@@ -258,9 +271,11 @@ func (manager *Manager) categorize_current_smartcontracts() {
 				}
 				request_string, _ := push.ToString()
 
+				current_logger.Info("send a notification to SDS Categorizer")
+
 				_, err := manager.pusher.SendMessage(request_string)
 				if err != nil {
-					panic(err)
+					current_logger.Fatal("sending notification to SDS Categorizer", "message", err)
 				}
 			}
 		}
@@ -309,31 +324,18 @@ func (manager *Manager) subscribe() {
 	for {
 		msgRaw, err := subscriber.RecvMessage(0)
 		if err != nil {
-			fmt.Println(manager.Network.Id, "subscribed message error", err)
-			panic(err)
+			sub_logger.Fatal("receiving socket message", "message", err)
 		}
 		sub_logger.Info("received a message from client worker")
 
-		broadcast, err := message.ParseBroadcast(msgRaw)
-		if err != nil {
-			fmt.Println(message.Fail("Error when parsing message: " + err.Error()))
-			panic(err)
-		}
+		broadcast, _ := message.ParseBroadcast(msgRaw)
 
 		reply := broadcast.Reply
 
-		block_number, err := reply.Parameters.GetUint64("block_number")
-		if err != nil {
-			fmt.Println(manager.Network.Id, "error to get the block number", err)
-			panic(err)
-		}
-		network_id, err := reply.Parameters.GetString("network_id")
-		if err != nil {
-			fmt.Println(manager.Network.Id, "failed to get the network_id from the reply params")
-			panic(err)
-		}
+		block_number, _ := reply.Parameters.GetUint64("block_number")
+		network_id, _ := reply.Parameters.GetString("network_id")
 		if network_id != manager.Network.Id {
-			fmt.Println(manager.Network.Id, `skipping unsupported network. it should not be as is`)
+			sub_logger.Warn("skipping, since categorizer manager catched an event for another blockchain", "network_id", network_id, "manager_network_id", manager.Network.Id)
 			continue
 		}
 
@@ -344,21 +346,14 @@ func (manager *Manager) subscribe() {
 			manager.subscribed_earliest_block_number = block_number
 		}
 
-		timestamp, err := reply.Parameters.GetUint64("block_timestamp")
-		if err != nil {
-			fmt.Printf(manager.Network.Id, "error getting block timestamp", err)
-			panic(err)
-		}
+		timestamp, _ := reply.Parameters.GetUint64("block_timestamp")
 
 		raw_logs, _ := reply.Parameters.ToMap()["logs"].([]interface{})
-		logs, err := spaghetti_log.NewLogs(raw_logs)
-		if err != nil {
-			fmt.Println(manager.Network.Id, "failed to parse log", err)
-			panic(err)
-		}
+		logs, _ := spaghetti_log.NewLogs(raw_logs)
 
 		new_block := spaghetti_block.NewBlock(manager.Network.Id, block_number, timestamp, logs)
 
+		sub_logger.Info("add a block to consume", "block_number", block_number, "event log amount", len(logs))
 		manager.subscribed_blocks.Push(new_block)
 	}
 }
