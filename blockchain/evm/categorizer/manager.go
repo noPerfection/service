@@ -192,7 +192,8 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			if len(logs) == 0 {
 				continue
 			}
-			block_number_to = worker.categorize(logs)
+			categorized_logs, recent_block_number := worker.categorize(logs)
+			block_number_to = recent_block_number
 
 			smartcontracts := []*smartcontract.Smartcontract{worker.smartcontract}
 
@@ -200,7 +201,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 				Command: "",
 				Parameters: map[string]interface{}{
 					"smartcontracts": smartcontracts,
-					"logs":           logs,
+					"logs":           categorized_logs,
 				},
 			}
 			request_string, _ := push.ToString()
@@ -256,9 +257,9 @@ func (manager *Manager) categorize_current_smartcontracts() {
 					continue
 				}
 				logs := block.GetForSmartcontract(worker.smartcontract.Address)
-				worker.categorize(logs)
+				categorized_logs, _ := worker.categorize(logs)
 
-				current_logger.Info("categorized a smartcontract", "address", worker.smartcontract.Address, "logs amount", len(logs))
+				current_logger.Info("categorized a smartcontract", "address", worker.smartcontract.Address, "logs amount", len(categorized_logs))
 
 				smartcontracts := []*smartcontract.Smartcontract{worker.smartcontract}
 
@@ -266,7 +267,7 @@ func (manager *Manager) categorize_current_smartcontracts() {
 					Command: "",
 					Parameters: map[string]interface{}{
 						"smartcontracts": smartcontracts,
-						"logs":           logs,
+						"logs":           categorized_logs,
 					},
 				}
 				request_string, _ := push.ToString()

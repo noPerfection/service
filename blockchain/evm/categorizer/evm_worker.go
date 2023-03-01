@@ -32,13 +32,15 @@ func New(sm *smartcontract.Smartcontract, abi *abi.Abi) *EvmWorker {
 }
 
 // Categorize the blocks for this smartcontract
-func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) uint64 {
+func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) ([]*event.Log, uint64) {
 	var mu sync.Mutex
 	network_id := worker.smartcontract.NetworkId
 	address := worker.smartcontract.Address
 
 	var block_number uint64 = worker.smartcontract.CategorizedBlockNumber
 	var block_timestamp uint64 = worker.smartcontract.CategorizedBlockTimestamp
+
+	categorized_logs := make([]*event.Log, 0, len(logs))
 
 	if len(logs) > 0 {
 		for log_index := 0; log_index < len(logs); log_index++ {
@@ -60,11 +62,13 @@ func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) uint64 {
 				block_number = l.BlockNumber
 				block_timestamp = l.BlockTimestamp
 			}
+
+			categorized_logs = append(categorized_logs, l)
 		}
 	}
 
 	fmt.Println("categorization finished, update the block number to ", block_number, worker.smartcontract.NetworkId, worker.smartcontract.Address)
 	worker.smartcontract.SetBlockParameter(block_number, block_timestamp)
 
-	return block_number
+	return categorized_logs, block_number
 }
