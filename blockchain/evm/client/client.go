@@ -144,40 +144,6 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.T
 	return tx, nil
 }
 
-// Returns the block with transactions and logs
-func (c *Client) GetBlock(block_number uint64) (*block.Block, error) {
-	big_int := big.NewInt(int64(block_number))
-
-	raw_block, err := c.client.BlockByNumber(c.ctx, big_int)
-	if err != nil {
-		return nil, fmt.Errorf("BlockByNumer %d: %w", block_number, err)
-	}
-	b := &block.Block{
-		NetworkId:      c.Network.Id,
-		BlockNumber:    raw_block.NumberU64(),
-		BlockTimestamp: raw_block.Time(),
-		Logs:           nil,
-	}
-
-	var raw_logs []eth_types.Log
-	var log_err error
-	attempt := 5
-	for {
-		raw_logs, log_err = c.GetBlockLogs(block_number)
-		if log_err == nil {
-			break
-		}
-		time.Sleep(10 * time.Second)
-		attempt--
-		if attempt == 0 {
-			return nil, fmt.Errorf("failed to get the logs in 5 attempts. network id: %s block number %d: %w", c.Network.Id, block_number, log_err)
-		}
-	}
-	err = block.SetLogs(b, raw_logs)
-
-	return b, err
-}
-
 // Returns the block logs
 func (c *Client) GetBlockLogs(block_number uint64) ([]eth_types.Log, error) {
 	big_int := big.NewInt(int64(block_number))

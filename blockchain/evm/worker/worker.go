@@ -166,25 +166,31 @@ func (worker *SpaghettiWorker) Sync() {
 	// or slow internet connection
 	// we need to get the data as fast as possible
 	for {
-		block, err := worker.client.GetBlock(block_number)
+		timestamp, err := worker.client.GetBlockTimestamp(block_number)
 		if err != nil {
-			sync_logger.Info(`client.GetBlock, retreiving in 10 second`, "block_number", block_number, "message", err)
+			sync_logger.Warn(`client.GetBlockTimestamp, retreiving in 10 second`, "block_number", block_number, "message", err)
+			time.Sleep(10 * time.Second)
+		}
+		raw_logs, err := worker.client.GetBlockLogs(block_number)
+		if err != nil {
+			sync_logger.Warn(`client.GetBlockLogs, retreiving in 10 second`, "block_number", block_number, "message", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
+		logs := evm_log.NewSpaghettiLogs(worker.client.Network.Id, timestamp, raw_logs)
 
 		new_reply := message.Reply{
 			Status:  "OK",
 			Message: "",
 			Parameters: map[string]interface{}{
 				"network_id":      worker.client.Network.Id,
-				"block_number":    block.BlockNumber,
-				"block_timestamp": block.BlockTimestamp,
-				"logs":            block.Logs,
+				"block_number":    block_number,
+				"block_timestamp": timestamp,
+				"logs":            logs,
 			},
 		}
 
-		sync_logger.Info("send to broadcaster about new block", "topic", worker.client.Network.Id, "block_number", block.BlockNumber)
+		sync_logger.Info("send to broadcaster about new block", "topic", worker.client.Network.Id, "block_number", block_number, "logs_amount", len(logs))
 
 		broadcast := message.NewBroadcast(worker.client.Network.Id+" ", new_reply)
 		broadcast_string := string(broadcast.ToBytes())
