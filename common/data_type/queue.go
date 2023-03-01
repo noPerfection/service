@@ -5,12 +5,14 @@ import (
 )
 
 type Queue struct {
-	l *list.List
+	l      *list.List
+	length int
 }
 
 func NewQueue() *Queue {
 	return &Queue{
-		l: list.New(),
+		length: 1000,
+		l:      list.New(),
 	}
 }
 
@@ -23,6 +25,9 @@ func (q *Queue) IsEmpty() bool {
 }
 
 func (q *Queue) Push(item interface{}) {
+	if q.Len() == q.length {
+		q.Pop()
+	}
 	q.l.PushBack(item)
 }
 
