@@ -8,10 +8,11 @@ import (
 )
 
 // Convert the JSON into spaghetti.Log
+// https://docs.soliditylang.org/en/v0.8.4/abi-spec.html?highlight=anonymous#json
 func New(parameters key_value.KeyValue) (*Log, error) {
 	topics, err := parameters.GetStringList("topics")
 	if err != nil {
-		return nil, fmt.Errorf("GetStringList(`topics`): %w", err)
+		topics = []string{}
 	}
 	network_id, err := parameters.GetString("network_id")
 	if err != nil {
