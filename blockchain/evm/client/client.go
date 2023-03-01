@@ -10,7 +10,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/blocklords/gosds/blockchain/evm/block"
 	"github.com/blocklords/gosds/blockchain/evm/transaction"
 	spaghetti_transaction "github.com/blocklords/gosds/blockchain/transaction"
 
@@ -154,9 +153,9 @@ func (c *Client) GetBlockLogs(block_number uint64) ([]eth_types.Log, error) {
 		Addresses: []eth_common.Address{},
 	}
 
-	raw_logs, log_err := c.client.FilterLogs(c.ctx, query)
+	raw_logs, log_err := c.filter_logs(query)
 	if log_err != nil {
-		return nil, fmt.Errorf("client.FilterLogs query %v: %w", query, log_err)
+		return nil, fmt.Errorf("client.filter_logs for block number %d: %w", block_number, log_err)
 	}
 	return raw_logs, nil
 }
@@ -178,9 +177,28 @@ func (c *Client) GetBlockRangeLogs(block_number_from uint64, block_number_to uin
 		Addresses: eth_addresses,
 	}
 
-	raw_logs, log_err := c.client.FilterLogs(c.ctx, query)
+	raw_logs, log_err := c.filter_logs(query)
 	if log_err != nil {
-		return nil, fmt.Errorf("client.FilterLogs query %v: %w", query, log_err)
+		return nil, fmt.Errorf("client.filter_logs for between %d - %d, addresses amount (%d): %w", block_number_from, block_number_to, len(addresses), log_err)
 	}
 	return raw_logs, log_err
+}
+
+func (c *Client) filter_logs(query ethereum.FilterQuery) ([]eth_types.Log, error) {
+	var raw_logs []eth_types.Log
+	var log_err error
+	attempt := 5
+	for {
+		raw_logs, log_err = c.client.FilterLogs(c.ctx, query)
+		if log_err == nil {
+			break
+		}
+		time.Sleep(10 * time.Second)
+		attempt--
+		if attempt == 0 {
+			return nil, fmt.Errorf("failed to get the logs in 5 attempts. network id: %s, query %v: %w", c.Network.Id, query, log_err)
+		}
+	}
+
+	return raw_logs, nil
 }
