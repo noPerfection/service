@@ -65,30 +65,6 @@ func NewManager(network *network.Network) *Manager {
 	return &manager
 }
 
-// Creates a new manager for the given EVM Network
-// New manager runs in the background.
-func NewManagerWithLog(
-	network *network.Network,
-	in chan RequestLogParse,
-	out chan ReplyLogParse,
-) *Manager {
-	manager := Manager{
-		Network: network,
-		log_in:  in,
-		log_out: out,
-
-		old_categorizers: make(OldWorkerGroups, 0),
-
-		subscribed_blocks:                *data_type.NewQueue(),
-		subscribed_earliest_block_number: 0,
-
-		// consumes the data from the subscribed blocks
-		current_workers: make(EvmWorkers, 0),
-	}
-
-	return &manager
-}
-
 // Returns all smartcontracts from all types of workers
 func (manager *Manager) GetSmartcontracts() []*smartcontract.Smartcontract {
 	smartcontracts := make([]*smartcontract.Smartcontract, 0)
