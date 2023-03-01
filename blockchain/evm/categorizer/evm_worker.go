@@ -3,7 +3,9 @@ package categorizer
 
 import (
 	"fmt"
+	"sync"
 
+	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/blockchain/evm/abi"
 	"github.com/blocklords/gosds/categorizer/event"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
@@ -13,24 +15,25 @@ import (
 
 // For EVM based smartcontracts
 type EvmWorker struct {
-	abi *abi.Abi
-
-	log_parse_in  chan RequestLogParse
-	log_parse_out chan ReplyLogParse
-
+	abi           *abi.Abi
+	log_sock      *remote.Socket
 	smartcontract *smartcontract.Smartcontract
 }
 
 // Wraps the Worker with the EVM related data and returns the wrapped Worker as EvmWorker
 func New(sm *smartcontract.Smartcontract, abi *abi.Abi) *EvmWorker {
+	log_sock := remote.InprocRequestSocket(LOG_PARSE_URL)
+
 	return &EvmWorker{
 		abi:           abi,
 		smartcontract: sm,
+		log_sock:      log_sock,
 	}
 }
 
 // Categorize the blocks for this smartcontract
 func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) uint64 {
+	var mu sync.Mutex
 	network_id := worker.smartcontract.NetworkId
 	address := worker.smartcontract.Address
 
@@ -41,21 +44,17 @@ func (worker *EvmWorker) categorize(logs []*spaghetti_log.Log) uint64 {
 		for log_index := 0; log_index < len(logs); log_index++ {
 			raw_log := logs[log_index]
 
+			mu.Lock()
 			fmt.Println("requesting parse of smartcontract log to SDS Log...", raw_log, worker.smartcontract)
-			worker.log_parse_in <- RequestLogParse{
-				network_id: network_id,
-				address:    address,
-				data:       raw_log.Data,
-				topics:     raw_log.Topics,
-			}
-			log_reply := <-worker.log_parse_out
+			log_name, outputs, err := ParseLog(worker.log_sock, network_id, address, raw_log.Data, raw_log.Topics)
+			mu.Unlock()
 			fmt.Println("reply received from SDS Log")
-			if log_reply.err != nil {
-				fmt.Println("abi.remote parse %w, we skip this log records", log_reply.err)
+			if err != nil {
+				fmt.Println("abi.remote parse %w, we skip this log records", err)
 				continue
 			}
 
-			l := event.New(log_reply.log_name, log_reply.outputs).AddMetadata(raw_log).AddSmartcontractData(worker.smartcontract)
+			l := event.New(log_name, outputs).AddMetadata(raw_log).AddSmartcontractData(worker.smartcontract)
 
 			if l.BlockNumber > block_number {
 				block_number = l.BlockNumber
