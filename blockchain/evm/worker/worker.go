@@ -11,7 +11,7 @@ import (
 
 	"github.com/blocklords/gosds/blockchain/evm/client"
 	evm_log "github.com/blocklords/gosds/blockchain/evm/event"
-	"github.com/blocklords/gosds/blockchain/inproc"
+	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
 
 	"github.com/blocklords/gosds/app/remote/message"
 
@@ -44,7 +44,7 @@ func (worker *SpaghettiWorker) SetupSocket() {
 		log.Fatal("trying to create new reply socket for network id %s: %v", worker.client.Network.Id, err)
 	}
 
-	url := "spaghetti_" + worker.client.Network.Id
+	url := blockchain_proc.BlockchainManagerUrl(worker.client.Network.Id)
 	if err := sock.Bind("inproc://" + url); err != nil {
 		log.Fatal("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
 	}
@@ -144,7 +144,7 @@ func (worker *SpaghettiWorker) get_transaction(parameters key_value.KeyValue) me
 func (worker *SpaghettiWorker) Sync() {
 	sync_logger := app_log.Child(worker.logger, "sync")
 
-	broadcast_pusher, _ := inproc.NewBroadcastPusher(service.SPAGHETTI.ToString())
+	broadcast_pusher, _ := blockchain_proc.NewBroadcastPusher(service.SPAGHETTI.ToString())
 
 	sync_logger.Info("get recent block number from client")
 

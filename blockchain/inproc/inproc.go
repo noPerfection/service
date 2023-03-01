@@ -6,6 +6,11 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// returns the url for a blockchain clients manager
+func BlockchainManagerUrl(network_id string) string {
+	return "inproc://spaghetti_" + network_id
+}
+
 // returns the categorizer manager url
 func CategorizerManagerUrl(network_id string) string {
 	return "inproc://cat_" + network_id

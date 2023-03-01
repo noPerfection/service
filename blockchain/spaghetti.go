@@ -11,6 +11,7 @@ package blockchain
 
 import (
 	app_log "github.com/blocklords/gosds/app/log"
+	blockchain_process "github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/gosds/blockchain/transaction"
@@ -56,7 +57,7 @@ func transaction_deployed_get(_ *db.Database, request message.Request, logger lo
 		return message.Fail("unsupported network id")
 	}
 
-	url := "spaghetti_" + network_id
+	url := blockchain_process.BlockchainManagerUrl(network_id)
 	sock := remote.InprocRequestSocket(url)
 	defer sock.Close()
 

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/blocklords/gosds/app/service"
-	"github.com/blocklords/gosds/blockchain/inproc"
+	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer"
 
@@ -113,10 +113,10 @@ func (manager *Manager) Start() {
 
 	sock, err := zmq.NewSocket(zmq.PULL)
 	if err != nil {
-		panic(err)
+		manager.logger.Fatal("new manager pull socket", "message", err)
 	}
 
-	url := inproc.CategorizerManagerUrl(manager.Network.Id)
+	url := blockchain_proc.CategorizerManagerUrl(manager.Network.Id)
 	if err := sock.Bind(url); err != nil {
 		log.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
 	}
@@ -124,7 +124,7 @@ func (manager *Manager) Start() {
 	// if there are some logs, we should broadcast them to the SDS Categorizer
 	pusher, err := categorizer.NewCategorizerPusher()
 	if err != nil {
-		panic(err)
+		manager.logger.Fatal("create a pusher to SDS Categorizer", "message", err)
 	}
 	manager.pusher = pusher
 
@@ -170,7 +170,7 @@ func (manager *Manager) Start() {
 // Get List of smartcontract addresses
 // Get Log for the smartcontracts.
 func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
-	url := "spaghetti_" + manager.Network.Id
+	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
 	blockchain_socket := remote.InprocRequestSocket(url)
 	defer blockchain_socket.Close()
 
@@ -273,8 +273,6 @@ func (manager *Manager) categorize_current_smartcontracts() {
 func (manager *Manager) subscribe() {
 	sub_logger := app_log.Child(manager.logger, "subscriber")
 
-	time_out := 20 * time.Second // the longest block mining time among all supported blockchains.
-
 	ctx, err := zmq.NewContext()
 	if err != nil {
 		sub_logger.Fatal("failed to create a zmq context", "message", err)
@@ -306,79 +304,61 @@ func (manager *Manager) subscribe() {
 		sub_logger.Fatal("failed to set the subscribed topic string", "topic", manager.Network.Id+" ", "message", err)
 	}
 
-	poller := zmq.NewPoller()
-	poller.Add(subscriber, zmq.POLLIN)
-	alarm := time.Now().Add(time_out)
-
-	sub_logger.Info("waiting for blockchain messages", "timeout", time_out)
+	sub_logger.Info("waiting for categorized data from blockchain")
 
 	for {
-		tickless := time.Until(alarm)
-		if tickless < 0 {
-			tickless = 0
-		}
-		polled, err := poller.Poll(tickless)
+		msgRaw, err := subscriber.RecvMessage(0)
 		if err != nil {
-			fmt.Println(manager.Network.Id, "failed to poll SDS Spaghetti Broadcast message", err)
+			fmt.Println(manager.Network.Id, "subscribed message error", err)
+			panic(err)
+		}
+		sub_logger.Info("received a message from client worker")
+
+		broadcast, err := message.ParseBroadcast(msgRaw)
+		if err != nil {
+			fmt.Println(message.Fail("Error when parsing message: " + err.Error()))
 			panic(err)
 		}
 
-		if len(polled) == 1 {
-			sub_logger.Info("received a message from client worker")
-			msgRaw, err := subscriber.RecvMessage(0)
-			if err != nil {
-				fmt.Println(manager.Network.Id, "subscribed message error", err)
-				panic(err)
-			}
+		reply := broadcast.Reply
 
-			broadcast, err := message.ParseBroadcast(msgRaw)
-			if err != nil {
-				fmt.Println(message.Fail("Error when parsing message: " + err.Error()))
-				panic(err)
-			}
-
-			reply := broadcast.Reply
-
-			block_number, err := reply.Parameters.GetUint64("block_number")
-			if err != nil {
-				fmt.Println(manager.Network.Id, "error to get the block number", err)
-				panic(err)
-			}
-			network_id, err := reply.Parameters.GetString("network_id")
-			if err != nil {
-				fmt.Println(manager.Network.Id, "failed to get the network_id from the reply params")
-				panic(err)
-			}
-			if network_id != manager.Network.Id {
-				fmt.Println(manager.Network.Id, `skipping unsupported network. it should not be as is`)
-				continue
-			}
-
-			// Repeated subscriptions are not catched
-			if manager.subscribed_earliest_block_number != 0 && block_number < manager.subscribed_earliest_block_number {
-				continue
-			} else if manager.subscribed_earliest_block_number == 0 {
-				manager.subscribed_earliest_block_number = block_number
-			}
-
-			timestamp, err := reply.Parameters.GetUint64("block_timestamp")
-			if err != nil {
-				fmt.Printf(manager.Network.Id, "error getting block timestamp", err)
-				panic(err)
-			}
-
-			raw_logs, _ := reply.Parameters.ToMap()["logs"].([]interface{})
-			logs, err := spaghetti_log.NewLogs(raw_logs)
-			if err != nil {
-				fmt.Println(manager.Network.Id, "failed to parse log", err)
-				panic(err)
-			}
-
-			new_block := spaghetti_block.NewBlock(manager.Network.Id, block_number, timestamp, logs)
-
-			manager.subscribed_blocks.Push(new_block)
+		block_number, err := reply.Parameters.GetUint64("block_number")
+		if err != nil {
+			fmt.Println(manager.Network.Id, "error to get the block number", err)
+			panic(err)
+		}
+		network_id, err := reply.Parameters.GetString("network_id")
+		if err != nil {
+			fmt.Println(manager.Network.Id, "failed to get the network_id from the reply params")
+			panic(err)
+		}
+		if network_id != manager.Network.Id {
+			fmt.Println(manager.Network.Id, `skipping unsupported network. it should not be as is`)
+			continue
 		}
 
-		alarm = time.Now().Add(time_out)
+		// Repeated subscriptions are not catched
+		if manager.subscribed_earliest_block_number != 0 && block_number < manager.subscribed_earliest_block_number {
+			continue
+		} else if manager.subscribed_earliest_block_number == 0 {
+			manager.subscribed_earliest_block_number = block_number
+		}
+
+		timestamp, err := reply.Parameters.GetUint64("block_timestamp")
+		if err != nil {
+			fmt.Printf(manager.Network.Id, "error getting block timestamp", err)
+			panic(err)
+		}
+
+		raw_logs, _ := reply.Parameters.ToMap()["logs"].([]interface{})
+		logs, err := spaghetti_log.NewLogs(raw_logs)
+		if err != nil {
+			fmt.Println(manager.Network.Id, "failed to parse log", err)
+			panic(err)
+		}
+
+		new_block := spaghetti_block.NewBlock(manager.Network.Id, block_number, timestamp, logs)
+
+		manager.subscribed_blocks.Push(new_block)
 	}
 }

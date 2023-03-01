@@ -12,6 +12,7 @@ import (
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
 	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
+	blockchain_process "github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/categorizer"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 )
@@ -22,7 +23,7 @@ const IMX_REQUEST_TYPE_AMOUNT = 2
 
 // Run the goroutine for each Imx smartcontract.
 func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
-	url := "spaghetti_" + manager.network.Id
+	url := blockchain_process.BlockchainManagerUrl(manager.network.Id)
 	sock := remote.InprocRequestSocket(url)
 
 	// if there are some logs, we should broadcast them to the SDS Categorizer

@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
+
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/blockchain/imx/client"
 	"github.com/blocklords/gosds/common/data_type/key_value"
@@ -36,7 +38,7 @@ func (worker *SpaghettiWorker) SetupSocket() {
 		panic(err)
 	}
 
-	url := "spaghetti_" + worker.client.Network.Id
+	url := blockchain_proc.BlockchainManagerUrl(worker.client.Network.Id)
 	if err := sock.Bind("inproc://" + url); err != nil {
 		log.Fatalf("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
 	}
