@@ -55,7 +55,8 @@ func GetArguments(logger log.Logger) []string {
 		env_logger.SetReportCaller(false)
 		env_logger.SetReportTimestamp(false)
 
-		env_logger.Info("To load environment variable files pass them as application arguments")
+		env_logger.Info("To load .env files pass them as application arguments")
+		env_logger.Info(".env in folder from where you call the app loaded automatically")
 	}
 
 	args := os.Args[1:]
