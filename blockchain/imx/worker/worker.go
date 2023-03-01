@@ -39,7 +39,7 @@ func (worker *SpaghettiWorker) SetupSocket() {
 	}
 
 	url := blockchain_proc.BlockchainManagerUrl(worker.client.Network.Id)
-	if err := sock.Bind("inproc://" + url); err != nil {
+	if err := sock.Bind(url); err != nil {
 		log.Fatalf("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
 	}
 

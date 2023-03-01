@@ -7,6 +7,7 @@ import (
 	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/blockchain/imx"
+	blockchai_process "github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 
@@ -42,8 +43,8 @@ func (manager *Manager) Start() {
 		panic(err)
 	}
 
-	url := "cat_" + manager.network.Id
-	if err := sock.Bind("inproc://" + url); err != nil {
+	url := blockchai_process.CategorizerManagerUrl(manager.network.Id)
+	if err := sock.Bind(url); err != nil {
 		log.Fatalf("trying to create categorizer for network id %s: %v", manager.network.Id, err)
 	}
 
