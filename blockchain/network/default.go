@@ -17,10 +17,16 @@ func DefaultConfiguration() string {
 				"length": 1000
 			}
 		], "type": "evm"},
-		{"id": "1285", "providers": [{
-			"url": "https://moonriver.public.blastapi.io",
-			"length": 1000
-		}], "type": "evm"},
+		{"id": "1285", "providers": [
+			{
+				"url": "https://moonriver.unitedbloc.com:2000",
+				"length": 1000
+			},
+			{
+				"url": "https://moonriver.api.onfinality.io/public",
+				"length": 1000
+			}
+		], "type": "evm"},
 		{"id": "1284", "providers": [
 			{
 				"url": "https://1rpc.io/glmr",
