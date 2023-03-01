@@ -381,11 +381,7 @@ func (manager *Manager) subscribe() {
 				panic(err)
 			}
 
-			raw_logs, ok := reply.Parameters.ToMap()["logs"].([]interface{})
-			if !ok {
-				fmt.Println(manager.Network.Id, "failed to get logs from SDS Spaghetti Broadcast")
-				panic("no logs received from SDS Spaghetti Broadcast")
-			}
+			raw_logs, _ := reply.Parameters.ToMap()["logs"].([]interface{})
 			logs, err := spaghetti_log.NewLogs(raw_logs)
 			if err != nil {
 				fmt.Println(raw_logs...)
