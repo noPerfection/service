@@ -31,6 +31,10 @@ func DefaultConfiguration() string {
 			{
 				"url": "https://api.sandbox.x.immutable.com/",
 				"length": 1000
+			},
+			{
+				"url": "https://rpc.ankr.com/moonbeam",
+				"length": 1000
 			}
 		], "type": "imx"}
 	]`
