@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer"
 
@@ -115,8 +116,8 @@ func (manager *Manager) Start() {
 		panic(err)
 	}
 
-	url := "cat_" + manager.Network.Id
-	if err := sock.Bind("inproc://" + url); err != nil {
+	url := inproc.CategorizerManagerUrl(manager.Network.Id)
+	if err := sock.Bind(url); err != nil {
 		log.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
 	}
 

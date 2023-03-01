@@ -35,7 +35,7 @@ func New(client *client.Client, logger log.Logger) *SpaghettiWorker {
 	}
 }
 
-// Sets up the socket to interact with the clients
+// Sets up the socket to interact with other packages within SDS
 func (worker *SpaghettiWorker) SetupSocket() {
 	worker.logger.Info("reply controller starting")
 
