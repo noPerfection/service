@@ -384,7 +384,6 @@ func (manager *Manager) subscribe() {
 			raw_logs, _ := reply.Parameters.ToMap()["logs"].([]interface{})
 			logs, err := spaghetti_log.NewLogs(raw_logs)
 			if err != nil {
-				fmt.Println(raw_logs...)
 				fmt.Println(manager.Network.Id, "failed to parse log", err)
 				panic(err)
 			}
