@@ -68,7 +68,7 @@ func StartWorkers(logger log.Logger, app_config *configuration.Config) error {
 	}
 
 	if evm_network_found {
-		evm_categorizer.LogParse(nil, nil)
+		evm_categorizer.RunLogParse()
 	}
 
 	return nil
