@@ -47,7 +47,7 @@ func StartWorkers(logger log.Logger, app_config *configuration.Config) error {
 
 			// Categorizer of the smartcontracts
 			// This categorizers are interacting with the SDS Categorizer
-			categorizer := evm_categorizer.NewManager(new_network)
+			categorizer := evm_categorizer.NewManager(worker_logger, new_network)
 			go categorizer.Start()
 		} else if new_network.Type == network.IMX {
 			err := imx.ValidateEnv(app_config)

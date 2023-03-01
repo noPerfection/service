@@ -6,8 +6,10 @@
 package categorizer
 
 import (
+	app_log "github.com/blocklords/gosds/app/log"
+	"github.com/charmbracelet/log"
+
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/blocklords/gosds/app/service"
@@ -36,6 +38,8 @@ type Manager struct {
 	pusher  *zmq.Socket
 	Network *network.Network
 
+	logger log.Logger
+
 	old_categorizers OldWorkerGroups
 
 	current_workers EvmWorkers
@@ -46,7 +50,9 @@ type Manager struct {
 
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
-func NewManager(network *network.Network) *Manager {
+func NewManager(logger log.Logger, network *network.Network) *Manager {
+	categorizer_logger := app_log.Child(logger, "categorizer")
+
 	manager := Manager{
 		Network: network,
 
@@ -57,6 +63,8 @@ func NewManager(network *network.Network) *Manager {
 
 		// consumes the data from the subscribed blocks
 		current_workers: make(EvmWorkers, 0),
+
+		logger: categorizer_logger,
 	}
 
 	return &manager
@@ -89,6 +97,7 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 
 // Same as Run. Run it as a goroutine
 func (manager *Manager) Start() {
+	manager.logger.Info("starting categorization")
 	go manager.subscribe()
 	go manager.categorize_current_smartcontracts()
 
@@ -108,7 +117,7 @@ func (manager *Manager) Start() {
 
 	url := "cat_" + manager.Network.Id
 	if err := sock.Bind("inproc://" + url); err != nil {
-		log.Fatalf("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
+		log.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
 	}
 
 	// if there are some logs, we should broadcast them to the SDS Categorizer
@@ -261,38 +270,46 @@ func (manager *Manager) categorize_current_smartcontracts() {
 // And put it in the queue.
 // The worker will start to consume them one by one.
 func (manager *Manager) subscribe() {
+	sub_logger := app_log.Child(manager.logger, "subscriber")
+
 	time_out := 20 * time.Second // the longest block mining time among all supported blockchains.
 
 	ctx, err := zmq.NewContext()
 	if err != nil {
-		panic(err)
+		sub_logger.Fatal("failed to create a zmq context", "message", err)
 	}
 
 	spaghetti_env, _ := service.New(service.SPAGHETTI, service.BROADCAST)
 	subscriber, sockErr := ctx.NewSocket(zmq.SUB)
 	if sockErr != nil {
-		panic(sockErr)
+		sub_logger.Fatal("failed to create a zmq sub socket", "message", sockErr)
 	}
 
 	plain, _ := argument.Exist(argument.PLAIN)
 
 	if !plain {
+		sub_logger.Info("setting up authentication key")
 		categorizer_env, _ := service.New(service.CATEGORIZER, service.SUBSCRIBE)
-		subscriber.ClientAuthCurve(spaghetti_env.BroadcastPublicKey, categorizer_env.BroadcastPublicKey, categorizer_env.BroadcastSecretKey)
+		err := subscriber.ClientAuthCurve(spaghetti_env.BroadcastPublicKey, categorizer_env.BroadcastPublicKey, categorizer_env.BroadcastSecretKey)
+		if err != nil {
+			sub_logger.Fatal("failed to set up authentication key", "message", err)
+		}
 	}
 
-	conErr := subscriber.Connect("tcp://" + spaghetti_env.BroadcastUrl())
-	if conErr != nil {
-		panic(conErr)
+	err = subscriber.Connect("tcp://" + spaghetti_env.BroadcastUrl())
+	if err != nil {
+		sub_logger.Fatal("failed to connect to blockchain client", "url", spaghetti_env.BroadcastUrl(), "message", err)
 	}
 	err = subscriber.SetSubscribe(manager.Network.Id + " ")
 	if err != nil {
-		panic(err)
+		sub_logger.Fatal("failed to set the subscribed topic string", "topic", manager.Network.Id+" ", "message", err)
 	}
 
 	poller := zmq.NewPoller()
 	poller.Add(subscriber, zmq.POLLIN)
 	alarm := time.Now().Add(time_out)
+
+	sub_logger.Info("waiting for blockchain messages", "timeout", time_out)
 
 	for {
 		tickless := time.Until(alarm)
@@ -306,6 +323,7 @@ func (manager *Manager) subscribe() {
 		}
 
 		if len(polled) == 1 {
+			sub_logger.Info("received a message from client worker")
 			msgRaw, err := subscriber.RecvMessage(0)
 			if err != nil {
 				fmt.Println(manager.Network.Id, "subscribed message error", err)
