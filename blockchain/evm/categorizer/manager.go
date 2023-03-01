@@ -42,9 +42,6 @@ type Manager struct {
 
 	subscribed_earliest_block_number uint64
 	subscribed_blocks                data_type.Queue
-
-	log_in  chan RequestLogParse
-	log_out chan ReplyLogParse
 }
 
 // Creates a new manager for the given EVM Network
@@ -92,12 +89,6 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 
 // Same as Run. Run it as a goroutine
 func (manager *Manager) Start() {
-	log_parse_in := make(chan RequestLogParse)
-	log_parse_out := make(chan ReplyLogParse)
-	go LogParse(log_parse_in, log_parse_out)
-	manager.log_in = log_parse_in
-	manager.log_out = log_parse_out
-
 	go manager.subscribe()
 	go manager.categorize_current_smartcontracts()
 
