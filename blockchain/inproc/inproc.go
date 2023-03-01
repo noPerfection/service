@@ -11,7 +11,7 @@ func CategorizerManagerUrl(network_id string) string {
 	return "inproc://cat_" + network_id
 }
 
-func NewCategorizerPusher(network_id string) (*zmq.Socket, error) {
+func CategorizerManagerSocket(network_id string) (*zmq.Socket, error) {
 	sock, err := zmq.NewSocket(zmq.PUSH)
 	if err != nil {
 		return nil, fmt.Errorf("zmq error for new push socket: %w", err)

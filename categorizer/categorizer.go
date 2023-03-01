@@ -6,7 +6,7 @@ import (
 	app_log "github.com/blocklords/gosds/app/log"
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/blockchain/inproc"
+	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer/handler"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
@@ -41,9 +41,9 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 
 	logger.Info("all smartcontracts returned", "network_id", network.Id, "smartcontract amount", len(smartcontracts))
 
-	pusher, err := inproc.NewCategorizerPusher(network.Id)
+	pusher, err := blockchain_proc.CategorizerManagerSocket(network.Id)
 	if err != nil {
-		return fmt.Errorf("NewCategorizerPusher %s network_id: %w", network.Id, err)
+		return fmt.Errorf("blockchain_proc.CategorizerManagerSocket %s network_id: %w", network.Id, err)
 	}
 	defer pusher.Close()
 
@@ -107,7 +107,7 @@ func smartcontract_set(db_con *db.Database, request message.Request, logger log.
 		return message.Fail("database: " + saveErr.Error())
 	}
 
-	pusher, err := inproc.NewCategorizerPusher(sm.NetworkId)
+	pusher, err := blockchain_proc.CategorizerManagerSocket(sm.NetworkId)
 	if err != nil {
 		return message.Fail("inproc: " + err.Error())
 	}
