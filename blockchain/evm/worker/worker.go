@@ -148,6 +148,8 @@ func (worker *SpaghettiWorker) Sync() {
 
 	sync_logger.Info("get recent block number from client")
 
+	confirmations := uint64(12)
+
 	var block_number uint64
 	var err error
 	for {
@@ -158,6 +160,13 @@ func (worker *SpaghettiWorker) Sync() {
 		}
 
 		break
+	}
+	if block_number < confirmations {
+		sync_logger.Fatal("the recent block number > confirmation ", "block_number", block_number, "confirmations", confirmations)
+	}
+	block_number -= confirmations
+	if block_number == 0 {
+		sync_logger.Fatal("block number is equal to confirmations. should be block number > confirmations. ", "block_number", block_number)
 	}
 
 	sync_logger.Info("the most recent block number", "block_number", block_number)
