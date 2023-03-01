@@ -99,7 +99,6 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 func (manager *Manager) Start() {
 	manager.logger.Info("starting categorization")
 	go manager.subscribe()
-	go manager.categorize_current_smartcontracts()
 
 	// wait until we receive the new block number
 	for {
@@ -109,6 +108,9 @@ func (manager *Manager) Start() {
 		}
 		break
 	}
+
+	manager.logger.Info("subscription started")
+	go manager.categorize_current_smartcontracts()
 
 	sock, err := zmq.NewSocket(zmq.PULL)
 	if err != nil {
@@ -126,6 +128,8 @@ func (manager *Manager) Start() {
 		manager.logger.Fatal("create a pusher to SDS Categorizer", "message", err)
 	}
 	manager.pusher = pusher
+
+	manager.logger.Info("waiting for messages")
 
 	for {
 		// Wait for reply.
