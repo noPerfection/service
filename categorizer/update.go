@@ -19,7 +19,7 @@ func NewCategorizerPusher() (*zmq.Socket, error) {
 	}
 
 	url := "cat"
-	if err := sock.Connect("inproc://" + url); err != nil {
+	if err := sock.Bind("inproc://" + url); err != nil {
 		return nil, fmt.Errorf("trying to create categorizer connecting pusher: %v", err)
 	}
 
@@ -35,7 +35,7 @@ func SetupSocket(database *db.Database) {
 	}
 
 	url := "cat"
-	if err := sock.Bind("inproc://" + url); err != nil {
+	if err := sock.Connect("inproc://" + url); err != nil {
 		debug_log.Fatalf("trying to create categorizer socket: %v", err)
 	}
 

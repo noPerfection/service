@@ -88,7 +88,7 @@ func (b *Broadcast) Run() {
 	}
 
 	url := "inproc://broadcast_" + b.service.Name
-	if err := sock.Bind(url); err != nil {
+	if err := sock.Connect(url); err != nil {
 		b.logger.Fatal("socket binding to %s: %w", url, err)
 	}
 

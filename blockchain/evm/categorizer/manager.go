@@ -109,7 +109,7 @@ func (manager *Manager) Start() {
 	}
 
 	url := blockchain_proc.CategorizerManagerUrl(manager.Network.Id)
-	if err := sock.Bind(url); err != nil {
+	if err := sock.Connect(url); err != nil {
 		log.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
 	}
 

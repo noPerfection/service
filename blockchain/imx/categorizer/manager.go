@@ -44,7 +44,7 @@ func (manager *Manager) Start() {
 	}
 
 	url := blockchai_process.CategorizerManagerUrl(manager.network.Id)
-	if err := sock.Bind(url); err != nil {
+	if err := sock.Connect(url); err != nil {
 		log.Fatalf("trying to create categorizer for network id %s: %v", manager.network.Id, err)
 	}
 

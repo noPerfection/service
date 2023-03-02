@@ -23,7 +23,7 @@ func CategorizerManagerSocket(network_id string) (*zmq.Socket, error) {
 	}
 
 	url := CategorizerManagerUrl(network_id)
-	if err := sock.Connect(url); err != nil {
+	if err := sock.Bind(url); err != nil {
 		return nil, fmt.Errorf("trying to create categorizer for network id %s: %v", network_id, err)
 	}
 
@@ -37,7 +37,7 @@ func NewBroadcastPusher(service_name string) (*zmq.Socket, error) {
 	}
 
 	url := "inproc://broadcast_" + service_name
-	if err := sock.Connect(url); err != nil {
+	if err := sock.Bind(url); err != nil {
 		return nil, fmt.Errorf("trying to create broadcast pusher url %s: %w", url, err)
 	}
 
