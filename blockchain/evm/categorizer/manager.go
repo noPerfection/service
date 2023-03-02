@@ -97,8 +97,6 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 func (manager *Manager) Start() {
 	manager.logger.Info("starting categorization")
 	go manager.queue_recent_blocks()
-
-	manager.logger.Info("subscription started")
 	go manager.categorize_current_smartcontracts()
 
 	sock, err := zmq.NewSocket(zmq.PULL)
@@ -191,6 +189,7 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 // Get List of smartcontract addresses
 // Get Log for the smartcontracts.
 func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
+	var mu sync.Mutex
 	old_logger := app_log.Child(manager.logger, "old_logger_"+time.Now().String())
 
 	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
@@ -239,7 +238,10 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 			old_logger.Info("send to SDS Categorizer", "logs amount", len(logs))
 
+			mu.Lock()
 			_, err = manager.pusher.SendMessage(request_string)
+			mu.Unlock()
+
 			if err != nil {
 				old_logger.Fatal("send to SDS Categorizer", "message", err)
 			}
@@ -269,6 +271,7 @@ func (manager *Manager) add_current_workers(workers smartcontract.EvmWorkers) {
 
 // Consume each received block from SDS Spaghetti broadcast
 func (manager *Manager) categorize_current_smartcontracts() {
+	var mu sync.Mutex
 	current_logger := app_log.Child(manager.logger, "current")
 
 	current_logger.Info("starting to consume subscribed blocks...")
@@ -306,7 +309,10 @@ func (manager *Manager) categorize_current_smartcontracts() {
 
 				current_logger.Info("send a notification to SDS Categorizer")
 
+				mu.Lock()
 				_, err := manager.pusher.SendMessage(request_string)
+
+				mu.Unlock()
 				if err != nil {
 					current_logger.Fatal("sending notification to SDS Categorizer", "message", err)
 				}
