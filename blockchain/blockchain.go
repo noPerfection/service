@@ -138,7 +138,7 @@ func Run(app_config *configuration.Config) {
 
 	go broadcaster.Run()
 
-	err = StartWorkers(logger, app_config)
+	err = start_clients(logger, app_config)
 	if err != nil {
 		logger.Fatal("StartWorkers", "message", err)
 	}
@@ -153,7 +153,7 @@ func Run(app_config *configuration.Config) {
 }
 
 // Start the workers
-func StartWorkers(logger log.Logger, app_config *configuration.Config) error {
+func start_clients(logger log.Logger, app_config *configuration.Config) error {
 	networks, err := network.GetNetworks(network.ALL)
 	if err != nil {
 		return fmt.Errorf("gosds/blockchain: failed to get networks: %v", err)
