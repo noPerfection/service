@@ -77,13 +77,7 @@ func (socket *Socket) reconnect() error {
 		}
 		socket.socket = nil
 	} else {
-		new_ctx, err := zmq.NewContext()
-		if err != nil {
-			return fmt.Errorf("failed to create zmq context: %w", err)
-		} else {
-			socket_ctx = new_ctx
-		}
-		socket_type = zmq.REQ
+		return fmt.Errorf("no socket initiated: %s", "reconnect")
 	}
 
 	sock, err := socket_ctx.NewSocket(socket_type)
@@ -161,13 +155,7 @@ func (socket *Socket) inproc_reconnect() error {
 		}
 		socket.socket = nil
 	} else {
-		new_ctx, err := zmq.NewContext()
-		if err != nil {
-			return fmt.Errorf("failed to create zmq context: %w", err)
-		} else {
-			socket_ctx = new_ctx
-		}
-		socket_type = zmq.REQ
+		return fmt.Errorf("failed to create zmq context: %s", "inproc_reconnect")
 	}
 
 	sock, err := socket_ctx.NewSocket(socket_type)
