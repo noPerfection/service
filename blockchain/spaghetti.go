@@ -155,7 +155,10 @@ func Run(app_config *configuration.Config) {
 
 	go broadcaster.Run()
 
-	go StartWorkers(logger, app_config)
+	err = StartWorkers(logger, app_config)
+	if err != nil {
+		logger.Fatal("StartWorkers", "message", err)
+	}
 
 	var commands = controller.CommandHandlers{
 		"transaction_deployed_get": transaction_deployed_get,
