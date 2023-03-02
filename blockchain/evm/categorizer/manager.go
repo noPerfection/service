@@ -179,15 +179,21 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 	blockchain_socket := remote.InprocRequestSocket(url)
 	defer blockchain_socket.Close()
 
+	old_logger.Info("starting categorization of old smartcontracts.", "blockchain client manager", url)
+
 	for {
 		block_number_from := group.block_number + uint64(1)
 		addresses := manager.GetSmartcontractAddresses()
+
+		old_logger.Info("fetch from blockchain client manager logs", "block_number", block_number_from, "addresses", addresses)
 
 		all_logs, err := spaghetti_log.RemoteLogFilter(blockchain_socket, block_number_from, addresses)
 		if err != nil {
 			old_logger.Warn("SKIP, blockchain manager returned an error for block number %d and addresses %v: %w", block_number_from, addresses, err)
 			continue
 		}
+
+		old_logger.Info("fetched from blockchain client manager", "logs amount", len(all_logs))
 
 		// update the worker data by logs.
 		block_number_to := block_number_from
