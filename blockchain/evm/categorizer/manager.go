@@ -131,7 +131,7 @@ func (manager *Manager) Start() {
 	}
 	manager.pusher = pusher
 
-	manager.logger.Info("waiting for messages")
+	manager.logger.Info("waiting for the messages")
 
 	for {
 		// Wait for reply.
