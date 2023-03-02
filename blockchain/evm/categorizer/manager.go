@@ -44,8 +44,7 @@ type Manager struct {
 
 	current_workers smartcontract.EvmWorkers
 
-	subscribed_earliest_block_number uint64
-	subscribed_blocks                data_type.Queue
+	subscribed_blocks data_type.Queue
 }
 
 // Creates a new manager for the given EVM Network
@@ -58,8 +57,7 @@ func NewManager(logger log.Logger, network *network.Network) *Manager {
 
 		old_categorizers: make(OldWorkerGroups, 0),
 
-		subscribed_blocks:                *data_type.NewQueue(),
-		subscribed_earliest_block_number: 0,
+		subscribed_blocks: *data_type.NewQueue(),
 
 		// consumes the data from the subscribed blocks
 		current_workers: make(smartcontract.EvmWorkers, 0),
@@ -247,11 +245,12 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			}
 		}
 
-		left := block_number_to - manager.subscribed_earliest_block_number
-		old_logger.Info("categorized certain blocks", "block_number_left", left, "subscribed", manager.subscribed_earliest_block_number)
+		recent_block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).BlockNumber
+		left := recent_block_number - block_number_to
+		old_logger.Info("categorized certain blocks", "block_number_left", left, "block_number_to", block_number_to, "subscribed", recent_block_number)
 		group.block_number = block_number_to
 
-		if block_number_to >= manager.subscribed_earliest_block_number {
+		if block_number_to >= manager.subscribed_blocks.First().(*spaghetti_block.Block).BlockNumber {
 			old_logger.Info("catched the current blocks")
 			manager.add_current_workers(group.workers)
 			break
@@ -284,8 +283,6 @@ func (manager *Manager) categorize_current_smartcontracts() {
 		// consume each block by workers
 		for {
 			block := manager.subscribed_blocks.Pop().(*spaghetti_block.Block)
-
-			manager.subscribed_earliest_block_number = block.BlockNumber
 
 			for _, worker := range manager.current_workers {
 				if block.BlockNumber <= worker.Smartcontract.CategorizedBlockNumber {
@@ -365,9 +362,5 @@ func (manager *Manager) queue_recent_blocks() {
 		manager.subscribed_blocks.Push(new_block)
 
 		block_number = block_number_to + 1
-
-		if manager.subscribed_earliest_block_number == 0 {
-			manager.subscribed_earliest_block_number = block_number
-		}
 	}
 }
