@@ -1,16 +1,18 @@
 package categorizer
 
+import "github.com/blocklords/gosds/blockchain/evm/categorizer/smartcontract"
+
 // Worker Groups are list of smartcontracts
 // That are categorized together.
 type OldWorkerGroup struct {
 	block_number uint64
-	workers      EvmWorkers
+	workers      smartcontract.EvmWorkers
 }
 
 type OldWorkerGroups []*OldWorkerGroup
 
 // Create the old smartcontracts worker group
-func NewGroup(block_number uint64, workers EvmWorkers) *OldWorkerGroup {
+func NewGroup(block_number uint64, workers smartcontract.EvmWorkers) *OldWorkerGroup {
 	return &OldWorkerGroup{
 		block_number: block_number,
 		workers:      workers,
@@ -18,7 +20,7 @@ func NewGroup(block_number uint64, workers EvmWorkers) *OldWorkerGroup {
 }
 
 // Add new workers
-func (group *OldWorkerGroup) add_workers(workers EvmWorkers) {
+func (group *OldWorkerGroup) add_workers(workers smartcontract.EvmWorkers) {
 	group.workers = append(group.workers, workers...)
 }
 
