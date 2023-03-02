@@ -214,18 +214,17 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			continue
 		}
 
-		old_logger.Info("fetched from blockchain client manager", "logs amount", len(all_logs))
+		block_number_to, _ := event.RecentBlock(all_logs)
+		old_logger.Info("fetched from blockchain client manager", "logs amount", len(all_logs), "smartcontracts", all_logs)
 
 		// update the worker data by logs.
-		block_number_to := block_number_from
 		for _, worker := range group.workers {
 			logs := spaghetti_log.FilterByAddress(all_logs, worker.Smartcontract.Address)
 			if len(logs) == 0 {
 				time.Sleep(time.Second)
 				continue
 			}
-			categorized_logs, recent_block_number := worker.Categorize(logs)
-			block_number_to = recent_block_number
+			categorized_logs, _ := worker.Categorize(logs)
 
 			smartcontracts := []*categorizer_smartcontract.Smartcontract{worker.Smartcontract}
 
@@ -246,7 +245,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			}
 		}
 
-		left := block_number_to - group.block_number
+		left := block_number_to - manager.subscribed_earliest_block_number
 		old_logger.Info("categorized certain blocks", "block_number_left", left)
 		group.block_number = block_number_to
 
