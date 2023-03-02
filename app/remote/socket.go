@@ -264,6 +264,7 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 
 			return reply.Parameters, nil
 		} else {
+			fmt.Println("timeout", socket.protocol, request_string, socket.inproc_url)
 			if socket.protocol == "inproc" {
 				err := socket.inproc_reconnect()
 				if err != nil {
