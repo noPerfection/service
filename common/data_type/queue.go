@@ -34,7 +34,7 @@ func (q *Queue) Push(item interface{}) {
 
 // Returns the first element without removing it from the queue
 func (q *Queue) First() interface{} {
-	return q.l.Front()
+	return q.l.Front().Value
 }
 
 func (q *Queue) Pop() interface{} {
