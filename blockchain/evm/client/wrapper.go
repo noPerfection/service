@@ -53,7 +53,6 @@ func (worker *SpaghettiWorker) SetupSocket() {
 		request, _ := message.ParseRequest(msgs)
 
 		worker.logger.Info("received a message", "command", request.Command)
-		worker.logger.Fatal("remove it")
 
 		var reply message.Reply
 
@@ -82,6 +81,8 @@ func (worker *SpaghettiWorker) SetupSocket() {
 	}
 }
 
+// Handle the filter-log command
+// Returns the smartcontract event logs filtered by the smartcontract addresses
 func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message.Reply {
 	network_id := worker.client.Network.Id
 	block_number_from, _ := parameters.GetUint64("block_from")
@@ -117,6 +118,8 @@ func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message
 	return reply
 }
 
+// Handle the deployed-transaction command
+// Returns the transaction information from blockchain
 func (worker *SpaghettiWorker) get_transaction(parameters key_value.KeyValue) message.Reply {
 	transaction_id, _ := parameters.GetString("transaction_id")
 
@@ -136,6 +139,8 @@ func (worker *SpaghettiWorker) get_transaction(parameters key_value.KeyValue) me
 	return reply
 }
 
+// Handle the get-recent-block-number command
+// Returns the most recent block number and its timestamp
 func (worker *SpaghettiWorker) get_recent_block() message.Reply {
 	confirmations := uint64(12)
 
