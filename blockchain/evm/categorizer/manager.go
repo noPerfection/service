@@ -6,14 +6,17 @@
 package categorizer
 
 import (
+	"sync"
+
 	app_log "github.com/blocklords/gosds/app/log"
+	"github.com/blocklords/gosds/categorizer"
 	"github.com/charmbracelet/log"
 
 	"time"
 
+	"github.com/blocklords/gosds/blockchain/event"
 	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/blockchain/network"
-	"github.com/blocklords/gosds/categorizer"
 
 	"github.com/blocklords/gosds/blockchain/evm/abi"
 	"github.com/blocklords/gosds/blockchain/evm/categorizer/smartcontract"
@@ -116,7 +119,7 @@ func (manager *Manager) Start() {
 	}
 	manager.pusher = pusher
 
-	manager.logger.Info("waiting for the messages")
+	manager.logger.Info("waiting for the messages at", "url", url)
 
 	for {
 		// Wait for reply.
@@ -147,6 +150,8 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 		}
 		break
 	}
+
+	manager.logger.Info("recent block determined, splitting smartcontracts to old and current")
 
 	for i, raw_abi := range raw_abis {
 		abi_data, _ := static_abi.New(raw_abi.(map[string]interface{}))
@@ -341,6 +346,7 @@ func (manager *Manager) queue_recent_blocks() {
 	}
 
 	block_number, _ := recent_reply.GetUint64("block_number")
+	sub_logger.Info("recent-block-number", "block_number", block_number)
 
 	for {
 		time.Sleep(10 * time.Second)
@@ -356,6 +362,7 @@ func (manager *Manager) queue_recent_blocks() {
 		}
 
 		block_number_to, block_timestamp_to := spaghetti_log.RecentBlock(logs)
+		sub_logger.Info("recent block number", "block_number", block_number, "block_number of the log", block_number_to, "logs amount", len(logs))
 
 		// we already accumulated the logs
 		if block_number_to == block_number {
