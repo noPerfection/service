@@ -178,6 +178,7 @@ func (worker *SpaghettiWorker) Sync() {
 		if err != nil {
 			sync_logger.Warn(`client.GetBlockTimestamp, retreiving in 10 second`, "block_number", block_number, "message", err)
 			time.Sleep(10 * time.Second)
+			continue
 		}
 		raw_logs, err := worker.client.GetBlockLogs(block_number)
 		if err != nil {
