@@ -2,6 +2,7 @@ package categorizer
 
 import (
 	"fmt"
+	"sync"
 
 	app_log "github.com/blocklords/gosds/app/log"
 	"github.com/charmbracelet/log"
@@ -33,6 +34,7 @@ var static_socket *remote.Socket
 // todo use the blockchain/categorizer_push(network_id); defer close()
 // then to categorizer_request.add_smartcontract(smartcontract)
 func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *network.Network) error {
+	var mu sync.Mutex
 	logger.Info("get all smartcontracts from database", "network_id", network.Id)
 	smartcontracts, err := smartcontract.GetAllByNetworkId(db_con, network.Id)
 	if err != nil {
@@ -41,18 +43,14 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 
 	logger.Info("all smartcontracts returned", "network_id", network.Id, "smartcontract amount", len(smartcontracts))
 
-	pusher, err := blockchain_proc.CategorizerManagerSocket(network.Id)
-	if err != nil {
-		return fmt.Errorf("blockchain_proc.CategorizerManagerSocket %s network_id: %w", network.Id, err)
-	}
-	defer pusher.Close()
-
 	static_abis := make([]*static_abi.Abi, len(smartcontracts))
 
 	for i, smartcontract := range smartcontracts {
 		logger.Info("get abi from static", "network_id", smartcontract.NetworkId, "address", smartcontract.Address)
 
+		mu.Lock()
 		remote_abi, err := static_abi.Get(static_socket, smartcontract.NetworkId, smartcontract.Address)
+		mu.Unlock()
 		if err != nil {
 			return fmt.Errorf("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
 		}
@@ -60,7 +58,7 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 		static_abis[i] = remote_abi
 	}
 
-	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id)
+	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id, "url", blockchain_proc.CategorizerManagerUrl(network.Id))
 
 	request := message.Request{
 		Command: "new-smartcontracts",
@@ -71,9 +69,17 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 	}
 	request_string, _ := request.ToString()
 
-	_, err = pusher.SendMessage(request_string)
+	pusher, err := blockchain_proc.CategorizerManagerSocket(network.Id)
 	if err != nil {
-		return fmt.Errorf("failed to send: %w", err)
+		return fmt.Errorf("blockchain_proc.CategorizerManagerSocket: %w", err)
+	}
+	defer pusher.Close()
+
+	mu.Lock()
+	_, err = pusher.SendMessage(request_string)
+	mu.Unlock()
+	if err != nil {
+		return fmt.Errorf("failed to send to blockchain package: %w", err)
 	}
 
 	return nil
