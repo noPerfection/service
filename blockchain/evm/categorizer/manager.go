@@ -203,7 +203,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 	for {
 		block_number_from := group.block_number + uint64(1)
-		addresses := manager.GetSmartcontractAddresses()
+		addresses := group.workers.GetSmartcontractAddresses()
 
 		old_logger.Info("fetch from blockchain client manager logs", "block_number", block_number_from, "addresses", addresses)
 
