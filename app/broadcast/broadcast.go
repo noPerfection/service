@@ -34,17 +34,10 @@ func broadcast_domain(s *service.Service) string {
 // The first parameter is the way to publish the messages.
 // The second parameter starts the message
 func New(s *service.Service, logger log.Logger) (*Broadcast, error) {
-	// Socket to talk to clients
-	socket, err := zmq.NewSocket(zmq.PUB)
-	if err != nil {
-		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
-	}
-
 	child := app_log.Child(logger, "broadcast")
 	child.SetReportCaller(false)
 
 	broadcast := Broadcast{
-		socket:  socket,
 		service: s,
 		In:      make(chan message.Broadcast),
 		logger:  child,
@@ -77,7 +70,14 @@ func (c *Broadcast) SetPrivateKey() error {
 func (b *Broadcast) Run() {
 	var mu sync.Mutex
 
-	err := b.socket.Bind("tcp://*:" + b.service.BroadcastPort())
+	// Socket to talk to clients
+	broadcast_socket, err := zmq.NewSocket(zmq.PUB)
+	if err != nil {
+		b.logger.Fatal("zmq.NewSocket: %w", err)
+	}
+	b.socket = broadcast_socket
+
+	err = b.socket.Bind("tcp://*:" + b.service.BroadcastPort())
 	if err != nil {
 		b.logger.Fatal("could not listen to publisher", "broadcast_port", b.service.BroadcastPort(), "message", err)
 	}
