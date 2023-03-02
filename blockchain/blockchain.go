@@ -153,6 +153,7 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 	}
 
 	evm_network_found := false
+	imx_network_found := false
 
 	for _, new_network := range networks {
 		worker_logger := app_log.Child(logger, new_network.Type.String()+"_network_id_"+new_network.Id)
@@ -174,10 +175,7 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 			categorizer := evm_categorizer.NewManager(worker_logger, new_network)
 			go categorizer.Start()
 		} else if new_network.Type == network.IMX {
-			err := imx.ValidateEnv(app_config)
-			if err != nil {
-				return fmt.Errorf("gosds/blockchain: failed to validate IMX specific config: %v", err)
-			}
+			imx_network_found = true
 
 			new_client := imx_client.New(new_network)
 
@@ -193,6 +191,12 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 
 	if evm_network_found {
 		go evm_log_parse.RunLogParse()
+	}
+	if imx_network_found {
+		err = imx.ValidateEnv(app_config)
+		if err != nil {
+			return fmt.Errorf("gosds/blockchain: failed to validate IMX specific config: %v", err)
+		}
 	}
 
 	logger.Warn("all workers are running! Exit this goroutine")
