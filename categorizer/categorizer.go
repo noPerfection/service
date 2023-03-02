@@ -63,7 +63,7 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id)
 
 	request := message.Request{
-		Command: "",
+		Command: "new-smartcontracts",
 		Parameters: map[string]interface{}{
 			"smartcontracts": smartcontracts,
 			"abis":           static_abis,
@@ -122,7 +122,7 @@ func smartcontract_set(db_con *db.Database, request message.Request, logger log.
 	static_abis := []*static_abi.Abi{remote_abi}
 
 	push := message.Request{
-		Command: "",
+		Command: "new-smartcontracts",
 		Parameters: map[string]interface{}{
 			"smartcontracts": smartcontracts,
 			"abis":           static_abis,
