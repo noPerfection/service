@@ -167,7 +167,6 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 			}
 
 			blockchain_manager := evm_client.NewWrapper(new_client, worker_logger)
-			go blockchain_manager.Sync()
 			go blockchain_manager.SetupSocket()
 
 			// Categorizer of the smartcontracts
