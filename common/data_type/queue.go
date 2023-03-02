@@ -24,8 +24,12 @@ func (q *Queue) IsEmpty() bool {
 	return q.l.Len() == 0
 }
 
+func (q *Queue) IsFull() bool {
+	return q.l.Len() == q.length
+}
+
 func (q *Queue) Push(item interface{}) {
-	if q.Len() == q.length {
+	if q.IsFull() {
 		q.Pop()
 	}
 	q.l.PushBack(item)
