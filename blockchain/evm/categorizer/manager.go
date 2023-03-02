@@ -20,6 +20,7 @@ import (
 	"github.com/blocklords/gosds/blockchain/evm/categorizer/smartcontract"
 	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/common/data_type"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 	static_abi "github.com/blocklords/gosds/static/abi"
 
 	"github.com/blocklords/gosds/app/argument"
@@ -137,46 +138,56 @@ func (manager *Manager) Start() {
 		msgs, _ := sock.RecvMessage(0)
 		request, _ := message.ParseRequest(msgs)
 
-		raw_smartcontracts, _ := request.Parameters.GetKeyValueList("smartcontracts")
-		raw_abis, _ := request.Parameters["abis"].([]interface{})
-
-		new_workers := make(smartcontract.EvmWorkers, len(raw_abis))
-
-		for i, raw_abi := range raw_abis {
-			abi_data, _ := static_abi.New(raw_abi.(map[string]interface{}))
-			cat_abi, _ := abi.NewAbi(abi_data)
-
-			sm, _ := categorizer_smartcontract.New(raw_smartcontracts[i])
-
-			manager.logger.Info("add a new worker", "number", i+1, "total", len(new_workers))
-			new_workers[i] = smartcontract.New(sm, cat_abi)
+		if request.Command == "new-smartcontracts" {
+			manager.new_smartcontracts(request.Parameters)
 		}
-
-		block_number := manager.subscribed_earliest_block_number
-
-		manager.logger.Info("information about workers", "block_number", block_number, "amount of workers", len(new_workers))
-
-		old_workers, current_workers := new_workers.Sort().Split(block_number)
-		old_block_number := old_workers.EarliestBlockNumber()
-
-		manager.logger.Info("splitting to old and new workers", "old amount", len(old_workers), "new amount", len(current_workers))
-		manager.logger.Info("old workers information", "earliest_block_number", old_block_number)
-
-		group := manager.old_categorizers.FirstGroupGreaterThan(old_block_number)
-		if group == nil {
-			manager.logger.Info("create a new group of old workers")
-			group = NewGroup(old_block_number, old_workers)
-			manager.old_categorizers = append(manager.old_categorizers, group)
-			go manager.categorize_old_smartcontracts(group)
-		} else {
-			manager.logger.Info("add to the existing group")
-			group.add_workers(old_workers)
-		}
-
-		manager.logger.Info("add current workers")
-
-		manager.add_current_workers(current_workers)
 	}
+}
+
+// Categorizer manager received new smartcontracts along with their ABI
+func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
+	manager.logger.SetLevel(log.DebugLevel)
+	manager.logger.Debug("add new smartcontracts to the manager", "request", parameters)
+
+	raw_smartcontracts, _ := parameters.GetKeyValueList("smartcontracts")
+	raw_abis, _ := parameters["abis"].([]interface{})
+
+	new_workers := make(smartcontract.EvmWorkers, len(raw_abis))
+
+	for i, raw_abi := range raw_abis {
+		abi_data, _ := static_abi.New(raw_abi.(map[string]interface{}))
+		cat_abi, _ := abi.NewAbi(abi_data)
+
+		sm, _ := categorizer_smartcontract.New(raw_smartcontracts[i])
+
+		manager.logger.Info("add a new worker", "number", i+1, "total", len(new_workers))
+		new_workers[i] = smartcontract.New(sm, cat_abi)
+	}
+
+	block_number := manager.subscribed_earliest_block_number
+
+	manager.logger.Info("information about workers", "block_number", block_number, "amount of workers", len(new_workers))
+
+	old_workers, current_workers := new_workers.Sort().Split(block_number)
+	old_block_number := old_workers.EarliestBlockNumber()
+
+	manager.logger.Info("splitting to old and new workers", "old amount", len(old_workers), "new amount", len(current_workers))
+	manager.logger.Info("old workers information", "earliest_block_number", old_block_number)
+
+	group := manager.old_categorizers.FirstGroupGreaterThan(old_block_number)
+	if group == nil {
+		manager.logger.Info("create a new group of old workers")
+		group = NewGroup(old_block_number, old_workers)
+		manager.old_categorizers = append(manager.old_categorizers, group)
+		go manager.categorize_old_smartcontracts(group)
+	} else {
+		manager.logger.Info("add to the existing group")
+		group.add_workers(old_workers)
+	}
+
+	manager.logger.Info("add current workers")
+
+	manager.add_current_workers(current_workers)
 }
 
 // Categorization of the smartcontracts that are super old.
