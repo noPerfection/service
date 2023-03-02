@@ -21,7 +21,6 @@ import (
 	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/app/service"
 
-	"github.com/blocklords/gosds/app/account"
 	"github.com/blocklords/gosds/app/broadcast"
 	"github.com/blocklords/gosds/app/controller"
 	"github.com/blocklords/gosds/app/remote"
@@ -118,24 +117,7 @@ func Run(app_config *configuration.Config) {
 
 	// we whitelist before we initiate the reply controller
 	if !app_config.Plain {
-		logger.Info("get the whitelisted services")
-
-		whitelisted_services, err := get_whitelisted_services()
-		if err != nil {
-			panic(err)
-		}
-		accounts := account.NewServices(whitelisted_services)
-		controller.AddWhitelistedAccounts(spaghetti_env, accounts)
-
-		logger.Info("get the whitelisted subscribers")
-
-		whitelisted_subscribers, err := get_whitelisted_subscribers()
-		if err != nil {
-			panic(err)
-		}
-		subsribers := account.NewServices(whitelisted_subscribers)
-
-		broadcast.AddWhitelistedAccounts(spaghetti_env, subsribers)
+		whitelist_access(logger, spaghetti_env)
 	}
 
 	reply, err := controller.NewReply(spaghetti_env)
@@ -151,17 +133,7 @@ func Run(app_config *configuration.Config) {
 	}
 
 	if !app_config.Plain {
-		logger.Info("set the private keys")
-
-		err := reply.SetControllerPrivateKey()
-		if err != nil {
-			logger.Fatal("controller.SetControllerPrivateKey", "message", err)
-		}
-
-		err = broadcaster.SetPrivateKey()
-		if err != nil {
-			logger.Fatal("broadcast.SetPrivateKey", "message", err)
-		}
+		set_curve_key(logger, reply, broadcaster)
 	}
 
 	go broadcaster.Run()
