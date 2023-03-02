@@ -195,7 +195,7 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 			imx_manager := imx_categorizer.NewManager(app_config, new_network)
 			go imx_manager.Start()
 		} else {
-			logger.Fatal("unrecognized network type", "network_type", new_network.Type)
+			return fmt.Errorf("no blockchain handler for network_type %v", new_network.Type)
 		}
 	}
 
