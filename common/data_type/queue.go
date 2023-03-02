@@ -29,9 +29,6 @@ func (q *Queue) IsFull() bool {
 }
 
 func (q *Queue) Push(item interface{}) {
-	if q.IsFull() {
-		q.Pop()
-	}
 	q.l.PushBack(item)
 }
 
