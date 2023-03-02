@@ -46,6 +46,7 @@ func (worker *SpaghettiWorker) SetupSocket() {
 		log.Fatal("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
 	}
 	worker.logger.Info("reply controller waiting for messages", "url", url)
+	defer sock.Close()
 
 	for {
 		// Wait for reply.
