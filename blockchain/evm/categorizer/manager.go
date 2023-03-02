@@ -143,8 +143,9 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 	new_workers := make(smartcontract.EvmWorkers, len(raw_abis))
 
 	// wait until we receive the new block number
+	manager.logger.Info("wait for recent block queue to have atleast one block")
 	for {
-		if manager.subscribed_earliest_block_number == 0 {
+		if manager.subscribed_blocks.IsEmpty() {
 			time.Sleep(time.Second * 1)
 			continue
 		}
@@ -161,7 +162,7 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 		new_workers[i] = smartcontract.New(sm, cat_abi)
 	}
 
-	block_number := manager.subscribed_earliest_block_number
+	block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).BlockNumber
 
 	manager.logger.Info("information about workers", "block_number", block_number, "amount of workers", len(new_workers))
 
