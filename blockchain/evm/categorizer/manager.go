@@ -360,5 +360,9 @@ func (manager *Manager) queue_recent_blocks() {
 		manager.subscribed_blocks.Push(new_block)
 
 		block_number = block_number_to
+
+		if manager.subscribed_earliest_block_number == 0 {
+			manager.subscribed_earliest_block_number = block_number
+		}
 	}
 }
