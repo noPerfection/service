@@ -11,7 +11,7 @@ type Queue struct {
 
 func NewQueue() *Queue {
 	return &Queue{
-		length: 1000,
+		length: 10,
 		l:      list.New(),
 	}
 }
