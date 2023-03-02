@@ -135,8 +135,7 @@ func (manager *Manager) Start() {
 
 // Categorizer manager received new smartcontracts along with their ABI
 func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
-	manager.logger.SetLevel(log.DebugLevel)
-	manager.logger.Debug("add new smartcontracts to the manager", "request", parameters)
+	manager.logger.Info("add new smartcontracts to the manager")
 
 	raw_smartcontracts, _ := parameters.GetKeyValueList("smartcontracts")
 	raw_abis, _ := parameters["abis"].([]interface{})
@@ -207,15 +206,17 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 		old_logger.Info("fetch from blockchain client manager logs", "block_number", block_number_from, "addresses", addresses)
 
-		all_logs, err := spaghetti_log.RemoteLogFilter(blockchain_socket, block_number_from, addresses)
+		all_logs, block_number_to, err := spaghetti_log.RemoteLogFilter(blockchain_socket, block_number_from, addresses)
 		if err != nil {
 			old_logger.Warn("SKIP, blockchain manager returned an error for block number %d and addresses %v: %w", block_number_from, addresses, err)
 			time.Sleep(time.Second)
 			continue
 		}
 
-		block_number_to, _ := event.RecentBlock(all_logs)
-		old_logger.Info("fetched from blockchain client manager", "logs amount", len(all_logs), "smartcontracts", all_logs)
+		if len(all_logs) > 0 {
+			block_number_to, _ = event.RecentBlock(all_logs)
+		}
+		old_logger.Info("fetched from blockchain client manager", "logs amount", len(all_logs), "smartcontract address", addresses, "block_number_to", block_number_to)
 
 		// update the worker data by logs.
 		for _, worker := range group.workers {
@@ -246,7 +247,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		}
 
 		left := block_number_to - manager.subscribed_earliest_block_number
-		old_logger.Info("categorized certain blocks", "block_number_left", left)
+		old_logger.Info("categorized certain blocks", "block_number_left", left, "subscribed", manager.subscribed_earliest_block_number)
 		group.block_number = block_number_to
 
 		if block_number_to >= manager.subscribed_earliest_block_number {
@@ -282,6 +283,8 @@ func (manager *Manager) categorize_current_smartcontracts() {
 		// consume each block by workers
 		for {
 			block := manager.subscribed_blocks.Pop().(*spaghetti_block.Block)
+
+			manager.subscribed_earliest_block_number = block.BlockNumber
 
 			for _, worker := range manager.current_workers {
 				if block.BlockNumber <= worker.Smartcontract.CategorizedBlockNumber {
@@ -342,7 +345,7 @@ func (manager *Manager) queue_recent_blocks() {
 			continue
 		}
 
-		logs, err := spaghetti_log.RemoteLogFilter(blockchain_socket, block_number, []string{})
+		logs, _, err := spaghetti_log.RemoteLogFilter(blockchain_socket, block_number, []string{})
 		if err != nil {
 			sub_logger.Warn("failed to get the log filters [trying in 10 seconds]", "message", err)
 			continue
@@ -360,7 +363,7 @@ func (manager *Manager) queue_recent_blocks() {
 		sub_logger.Info("add a block to consume", "block_number", block_number_to, "event log amount", len(logs))
 		manager.subscribed_blocks.Push(new_block)
 
-		block_number = block_number_to
+		block_number = block_number_to + 1
 
 		if manager.subscribed_earliest_block_number == 0 {
 			manager.subscribed_earliest_block_number = block_number
