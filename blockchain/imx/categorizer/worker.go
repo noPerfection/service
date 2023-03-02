@@ -36,7 +36,7 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 	addresses := []string{sm.Address}
 
 	for {
-		new_logs, err := spaghetti_log.RemoteLogFilter(sock, sm.CategorizedBlockTimestamp, addresses)
+		new_logs, _, err := spaghetti_log.RemoteLogFilter(sock, sm.CategorizedBlockTimestamp, addresses)
 		if err != nil {
 			fmt.Println("failed to get the remote block number for network: " + sm.NetworkId + " error: " + err.Error())
 			fmt.Fprintf(os.Stderr, "Error when imx client for logs`: %v\n", err)

@@ -88,11 +88,21 @@ func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message
 
 	transfers = append(transfers, mints...)
 
+	block_timestamp_to := block_timestamp
+	if len(transfers) > 0 {
+		for _, t := range transfers {
+			if t.BlockTimestamp > block_timestamp_to {
+				block_timestamp_to = t.BlockTimestamp
+			}
+		}
+	}
+
 	reply := message.Reply{
 		Status:  "OK",
 		Message: "",
 		Parameters: key_value.New(map[string]interface{}{
-			"logs": transfers,
+			"logs":     transfers,
+			"block_to": block_timestamp_to,
 		}),
 	}
 

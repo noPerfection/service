@@ -11,8 +11,7 @@ import (
 // Sends the command to the remote SDS Spaghetti to filter the logs
 // block_from parameter is either block_number or block_timestamp
 // depending on the blockchain
-func RemoteLogFilter(socket *remote.Socket, block_from uint64, addresses []string) ([]*Log, error) {
-	// Send hello.
+func RemoteLogFilter(socket *remote.Socket, block_from uint64, addresses []string) ([]*Log, uint64, error) {
 	request := message.Request{
 		Command: "log-filter",
 		Parameters: map[string]interface{}{
@@ -23,17 +22,19 @@ func RemoteLogFilter(socket *remote.Socket, block_from uint64, addresses []strin
 
 	params, err := socket.RequestRemoteService(&request)
 	if err != nil {
-		return nil, fmt.Errorf("socket.RequestRemoteService: %w", err)
+		return nil, 0, fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
 
 	raw_logs, ok := params.ToMap()["logs"].([]interface{})
 	if !ok {
-		return nil, errors.New("no logs parameter")
+		return nil, 0, errors.New("no logs parameter")
 	}
 	logs, err := NewLogs(raw_logs)
 	if err != nil {
-		return nil, errors.New("failed to parse log when filtering it")
+		return nil, 0, errors.New("failed to parse log when filtering it")
 	}
 
-	return logs, nil
+	block_to, _ := params.GetUint64("block_to")
+
+	return logs, block_to, nil
 }

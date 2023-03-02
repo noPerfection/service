@@ -112,7 +112,8 @@ func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message
 		Status:  "OK",
 		Message: "",
 		Parameters: key_value.New(map[string]interface{}{
-			"logs": logs,
+			"logs":     logs,
+			"block_to": block_number_to,
 		}),
 	}
 
