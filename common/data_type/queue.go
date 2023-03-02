@@ -36,5 +36,5 @@ func (q *Queue) Push(item interface{}) {
 }
 
 func (q *Queue) Pop() interface{} {
-	return q.l.Remove(q.l.Back())
+	return q.l.Remove(q.l.Front())
 }
