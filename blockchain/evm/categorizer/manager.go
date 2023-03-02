@@ -210,6 +210,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		all_logs, err := spaghetti_log.RemoteLogFilter(blockchain_socket, block_number_from, addresses)
 		if err != nil {
 			old_logger.Warn("SKIP, blockchain manager returned an error for block number %d and addresses %v: %w", block_number_from, addresses, err)
+			time.Sleep(time.Second)
 			continue
 		}
 
@@ -220,6 +221,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		for _, worker := range group.workers {
 			logs := spaghetti_log.FilterByAddress(all_logs, worker.Smartcontract.Address)
 			if len(logs) == 0 {
+				time.Sleep(time.Second)
 				continue
 			}
 			categorized_logs, recent_block_number := worker.Categorize(logs)
