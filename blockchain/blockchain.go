@@ -21,7 +21,6 @@ import (
 	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/app/service"
 
-	"github.com/blocklords/gosds/app/broadcast"
 	"github.com/blocklords/gosds/app/controller"
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
@@ -111,7 +110,7 @@ func Run(app_config *configuration.Config) {
 
 	logger.Info("starting")
 
-	spaghetti_env, err := service.New(service.SPAGHETTI, service.BROADCAST, service.THIS)
+	spaghetti_env, err := service.New(service.SPAGHETTI, service.THIS)
 	if err != nil {
 		logger.Fatal("spaghetti service configuration", "message", err)
 	}
@@ -128,16 +127,9 @@ func Run(app_config *configuration.Config) {
 		reply.SetLogger(logger)
 	}
 
-	broadcaster, err := broadcast.New(spaghetti_env, logger)
-	if err != nil {
-		logger.Fatal("broadcast", "message", err)
-	}
-
 	if !app_config.Plain {
-		set_curve_key(logger, reply, broadcaster)
+		set_curve_key(logger, reply)
 	}
-
-	go broadcaster.Run()
 
 	err = start_clients(logger, app_config)
 	if err != nil {
