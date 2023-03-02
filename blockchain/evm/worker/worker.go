@@ -27,7 +27,9 @@ type SpaghettiWorker struct {
 	client *client.Client
 }
 
-// A new SpaghettiWorker
+// A wrapper around Blockchain Client
+// This wrapper sets the connection between blockchain client and SDS.
+// All other parts of the SDS interacts with the client through this
 func New(client *client.Client, logger log.Logger) *SpaghettiWorker {
 	return &SpaghettiWorker{
 		client: client,
@@ -37,8 +39,6 @@ func New(client *client.Client, logger log.Logger) *SpaghettiWorker {
 
 // Sets up the socket to interact with other packages within SDS
 func (worker *SpaghettiWorker) SetupSocket() {
-	worker.logger.Info("reply controller starting")
-
 	sock, err := zmq.NewSocket(zmq.REP)
 	if err != nil {
 		log.Fatal("trying to create new reply socket for network id %s: %v", worker.client.Network.Id, err)
@@ -48,6 +48,7 @@ func (worker *SpaghettiWorker) SetupSocket() {
 	if err := sock.Bind(url); err != nil {
 		log.Fatal("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
 	}
+	worker.logger.Info("reply controller waiting for messages", "url", url)
 
 	for {
 		// Wait for reply.
@@ -135,12 +136,8 @@ func (worker *SpaghettiWorker) get_transaction(parameters key_value.KeyValue) me
 	return reply
 }
 
-// run the worker as a goroutine.
-// the channel is used to receive the data necessary for running goroutine.
-//
-// the channel should pass three arguments:
-// - block number
-// - network id
+// The EVM doesn't include the indexer.
+// Therefore we make an indexer to track the most recent block logs
 func (worker *SpaghettiWorker) Sync() {
 	sync_logger := app_log.Child(worker.logger, "sync")
 
@@ -174,6 +171,8 @@ func (worker *SpaghettiWorker) Sync() {
 	// optimize in case of the error
 	// or slow internet connection
 	// we need to get the data as fast as possible
+	//
+	// optimization could mean, we use worker.client.GetBlockRangeLogs
 	for {
 		timestamp, err := worker.client.GetBlockTimestamp(block_number)
 		if err != nil {

@@ -33,7 +33,7 @@ import (
 const IDLE = "idle"
 const RUNNING = "running"
 
-// Manager of the smartcontracts in a particular network
+// Categorization of the smartcontracts on the specific EVM blockchain
 type Manager struct {
 	pusher  *zmq.Socket
 	Network *network.Network
