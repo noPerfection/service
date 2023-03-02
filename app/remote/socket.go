@@ -46,7 +46,7 @@ type SDS_Message interface {
 // Request-Reply checks the internet connection after this amount of time.
 // This is the default time if argument wasn't given that changes the REQUEST_TIMEOUT
 const (
-	REQUEST_TIMEOUT = 60 * time.Second //  msecs, (> 1000!)
+	REQUEST_TIMEOUT = 30 * time.Second //  msecs, (> 1000!)
 )
 
 // Initiates the socket with a timeout.
