@@ -63,6 +63,8 @@ func (worker *SpaghettiWorker) SetupSocket() {
 			reply = worker.filter_log(request.Parameters)
 		} else if request.Command == "transaction" {
 			reply = worker.get_transaction(request.Parameters)
+		} else if request.Command == "recent-block-number" {
+			reply = worker.get_recent_block()
 		} else {
 			reply = message.Fail("unsupported command")
 		}
@@ -130,6 +132,51 @@ func (worker *SpaghettiWorker) get_transaction(parameters key_value.KeyValue) me
 		Message: "",
 		Parameters: key_value.New(map[string]interface{}{
 			"transaction": tx,
+		}),
+	}
+
+	return reply
+}
+
+func (worker *SpaghettiWorker) get_recent_block() message.Reply {
+	confirmations := uint64(12)
+
+	var block_number uint64
+	var err error
+	for {
+		block_number, err = worker.client.GetRecentBlockNumber()
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		break
+	}
+	if block_number < confirmations {
+		return message.Fail("the recent block number < confirmations")
+	}
+	block_number -= confirmations
+	if block_number == 0 {
+		return message.Fail("block number=confirmations")
+	}
+
+	var block_timestamp uint64
+	for {
+		block_timestamp, err = worker.client.GetBlockTimestamp(block_number)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		break
+	}
+
+	reply := message.Reply{
+		Status:  "OK",
+		Message: "",
+		Parameters: key_value.New(map[string]interface{}{
+			"block_number":    block_number,
+			"block_timestamp": block_timestamp,
 		}),
 	}
 
