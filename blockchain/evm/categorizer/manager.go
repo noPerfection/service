@@ -17,7 +17,8 @@ import (
 	"github.com/blocklords/gosds/categorizer"
 
 	"github.com/blocklords/gosds/blockchain/evm/abi"
-	"github.com/blocklords/gosds/categorizer/smartcontract"
+	"github.com/blocklords/gosds/blockchain/evm/categorizer/smartcontract"
+	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/common/data_type"
 	static_abi "github.com/blocklords/gosds/static/abi"
 
@@ -42,7 +43,7 @@ type Manager struct {
 
 	old_categorizers OldWorkerGroups
 
-	current_workers EvmWorkers
+	current_workers smartcontract.EvmWorkers
 
 	subscribed_earliest_block_number uint64
 	subscribed_blocks                data_type.Queue
@@ -62,7 +63,7 @@ func NewManager(logger log.Logger, network *network.Network) *Manager {
 		subscribed_earliest_block_number: 0,
 
 		// consumes the data from the subscribed blocks
-		current_workers: make(EvmWorkers, 0),
+		current_workers: make(smartcontract.EvmWorkers, 0),
 
 		logger: categorizer_logger,
 	}
@@ -71,8 +72,8 @@ func NewManager(logger log.Logger, network *network.Network) *Manager {
 }
 
 // Returns all smartcontracts from all types of workers
-func (manager *Manager) GetSmartcontracts() []*smartcontract.Smartcontract {
-	smartcontracts := make([]*smartcontract.Smartcontract, 0)
+func (manager *Manager) GetSmartcontracts() []*categorizer_smartcontract.Smartcontract {
+	smartcontracts := make([]*categorizer_smartcontract.Smartcontract, 0)
 
 	for _, group := range manager.old_categorizers {
 		smartcontracts = append(smartcontracts, group.workers.GetSmartcontracts()...)
@@ -139,16 +140,16 @@ func (manager *Manager) Start() {
 		raw_smartcontracts, _ := request.Parameters.GetKeyValueList("smartcontracts")
 		raw_abis, _ := request.Parameters["abis"].([]interface{})
 
-		new_workers := make(EvmWorkers, len(raw_abis))
+		new_workers := make(smartcontract.EvmWorkers, len(raw_abis))
 
 		for i, raw_abi := range raw_abis {
 			abi_data, _ := static_abi.New(raw_abi.(map[string]interface{}))
 			cat_abi, _ := abi.NewAbi(abi_data)
 
-			sm, _ := smartcontract.New(raw_smartcontracts[i])
+			sm, _ := categorizer_smartcontract.New(raw_smartcontracts[i])
 
 			manager.logger.Info("add a new worker", "number", i+1, "total", len(new_workers))
-			new_workers[i] = New(sm, cat_abi)
+			new_workers[i] = smartcontract.New(sm, cat_abi)
 		}
 
 		block_number := manager.subscribed_earliest_block_number
@@ -208,14 +209,14 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		// update the worker data by logs.
 		block_number_to := block_number_from
 		for _, worker := range group.workers {
-			logs := spaghetti_log.FilterByAddress(all_logs, worker.smartcontract.Address)
+			logs := spaghetti_log.FilterByAddress(all_logs, worker.Smartcontract.Address)
 			if len(logs) == 0 {
 				continue
 			}
-			categorized_logs, recent_block_number := worker.categorize(logs)
+			categorized_logs, recent_block_number := worker.Categorize(logs)
 			block_number_to = recent_block_number
 
-			smartcontracts := []*smartcontract.Smartcontract{worker.smartcontract}
+			smartcontracts := []*categorizer_smartcontract.Smartcontract{worker.Smartcontract}
 
 			push := message.Request{
 				Command: "",
@@ -251,7 +252,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 }
 
 // Move recent to consuming
-func (manager *Manager) add_current_workers(workers EvmWorkers) {
+func (manager *Manager) add_current_workers(workers smartcontract.EvmWorkers) {
 	manager.current_workers = append(manager.current_workers, workers...)
 }
 
@@ -273,15 +274,15 @@ func (manager *Manager) categorize_current_smartcontracts() {
 			block := manager.subscribed_blocks.Pop().(*spaghetti_block.Block)
 
 			for _, worker := range manager.current_workers {
-				if block.BlockNumber <= worker.smartcontract.CategorizedBlockNumber {
+				if block.BlockNumber <= worker.Smartcontract.CategorizedBlockNumber {
 					continue
 				}
-				logs := block.GetForSmartcontract(worker.smartcontract.Address)
-				categorized_logs, _ := worker.categorize(logs)
+				logs := block.GetForSmartcontract(worker.Smartcontract.Address)
+				categorized_logs, _ := worker.Categorize(logs)
 
-				current_logger.Info("categorized a smartcontract", "address", worker.smartcontract.Address, "logs amount", len(categorized_logs))
+				current_logger.Info("categorized a smartcontract", "address", worker.Smartcontract.Address, "logs amount", len(categorized_logs))
 
-				smartcontracts := []*smartcontract.Smartcontract{worker.smartcontract}
+				smartcontracts := []*categorizer_smartcontract.Smartcontract{worker.Smartcontract}
 
 				push := message.Request{
 					Command: "",

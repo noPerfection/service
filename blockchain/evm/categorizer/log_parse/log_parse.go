@@ -1,4 +1,4 @@
-package categorizer
+package log_parse
 
 import (
 	"fmt"

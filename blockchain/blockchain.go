@@ -31,6 +31,7 @@ import (
 	"fmt"
 
 	evm_categorizer "github.com/blocklords/gosds/blockchain/evm/categorizer"
+	evm_log_parse "github.com/blocklords/gosds/blockchain/evm/categorizer/log_parse"
 	imx_categorizer "github.com/blocklords/gosds/blockchain/imx/categorizer"
 
 	evm_client "github.com/blocklords/gosds/blockchain/evm/client"
@@ -200,7 +201,7 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 	}
 
 	if evm_network_found {
-		go evm_categorizer.RunLogParse()
+		go evm_log_parse.RunLogParse()
 	}
 
 	logger.Warn("all workers are running! Exit this goroutine")

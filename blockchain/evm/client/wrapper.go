@@ -136,7 +136,7 @@ func (worker *SpaghettiWorker) get_transaction(parameters key_value.KeyValue) me
 	return reply
 }
 
-// The EVM doesn't include the indexer.
+// Any EVM blockchain doesn't have an indexer.
 // Therefore we make an indexer to track the most recent block logs
 func (worker *SpaghettiWorker) Sync() {
 	sync_logger := app_log.Child(worker.logger, "sync")
