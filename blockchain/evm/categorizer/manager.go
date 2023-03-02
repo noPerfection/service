@@ -11,7 +11,6 @@ import (
 
 	"time"
 
-	"github.com/blocklords/gosds/app/service"
 	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer"
@@ -23,7 +22,6 @@ import (
 	"github.com/blocklords/gosds/common/data_type/key_value"
 	static_abi "github.com/blocklords/gosds/static/abi"
 
-	"github.com/blocklords/gosds/app/argument"
 	"github.com/blocklords/gosds/app/remote/message"
 	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
 	spaghetti_block "github.com/blocklords/gosds/blockchain/evm/block"
@@ -100,16 +98,7 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 // Same as Run. Run it as a goroutine
 func (manager *Manager) Start() {
 	manager.logger.Info("starting categorization")
-	go manager.subscribe()
-
-	// wait until we receive the new block number
-	for {
-		if manager.subscribed_earliest_block_number == 0 {
-			time.Sleep(time.Second * 1)
-			continue
-		}
-		break
-	}
+	go manager.queue_recent_blocks()
 
 	manager.logger.Info("subscription started")
 	go manager.categorize_current_smartcontracts()
@@ -153,6 +142,15 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 	raw_abis, _ := parameters["abis"].([]interface{})
 
 	new_workers := make(smartcontract.EvmWorkers, len(raw_abis))
+
+	// wait until we receive the new block number
+	for {
+		if manager.subscribed_earliest_block_number == 0 {
+			time.Sleep(time.Second * 1)
+			continue
+		}
+		break
+	}
 
 	for i, raw_abi := range raw_abis {
 		abi_data, _ := static_abi.New(raw_abi.(map[string]interface{}))
@@ -318,75 +316,44 @@ func (manager *Manager) categorize_current_smartcontracts() {
 // We start to consume the block information from SDS Spaghetti
 // And put it in the queue.
 // The worker will start to consume them one by one.
-func (manager *Manager) subscribe() {
-	sub_logger := app_log.Child(manager.logger, "subscriber")
+func (manager *Manager) queue_recent_blocks() {
+	sub_logger := app_log.Child(manager.logger, "recent_block_queue")
 
-	ctx, err := zmq.NewContext()
+	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
+	blockchain_socket := remote.InprocRequestSocket(url)
+
+	request := message.Request{
+		Command:    "recent-block-number",
+		Parameters: key_value.Empty(),
+	}
+
+	recent_reply, err := blockchain_socket.RequestRemoteService(&request)
 	if err != nil {
-		sub_logger.Fatal("failed to create a zmq context", "message", err)
+		sub_logger.Fatal("recent-block-number RemoteRequest", "message", err)
 	}
 
-	spaghetti_env, _ := service.New(service.SPAGHETTI, service.BROADCAST)
-	subscriber, sockErr := ctx.NewSocket(zmq.SUB)
-	if sockErr != nil {
-		sub_logger.Fatal("failed to create a zmq sub socket", "message", sockErr)
-	}
-
-	plain, _ := argument.Exist(argument.PLAIN)
-
-	if !plain {
-		sub_logger.Info("setting up authentication key")
-		categorizer_env, _ := service.New(service.CATEGORIZER, service.SUBSCRIBE)
-		err := subscriber.ClientAuthCurve(spaghetti_env.BroadcastPublicKey, categorizer_env.BroadcastPublicKey, categorizer_env.BroadcastSecretKey)
-		if err != nil {
-			sub_logger.Fatal("failed to set up authentication key", "message", err)
-		}
-	}
-
-	err = subscriber.Connect("tcp://" + spaghetti_env.BroadcastUrl())
-	if err != nil {
-		sub_logger.Fatal("failed to connect to blockchain client", "url", spaghetti_env.BroadcastUrl(), "message", err)
-	}
-	err = subscriber.SetSubscribe(manager.Network.Id + " ")
-	if err != nil {
-		sub_logger.Fatal("failed to set the subscribed topic string", "topic", manager.Network.Id+" ", "message", err)
-	}
-
-	sub_logger.Info("waiting for categorized data from blockchain")
+	block_number, _ := recent_reply.GetUint64("block_number")
 
 	for {
-		msgRaw, err := subscriber.RecvMessage(0)
+		logs, err := spaghetti_log.RemoteLogFilter(blockchain_socket, block_number, []string{})
 		if err != nil {
-			sub_logger.Fatal("receiving socket message", "message", err)
-		}
-		sub_logger.Info("received a message from client worker")
-
-		broadcast, _ := message.ParseBroadcast(msgRaw)
-
-		reply := broadcast.Reply
-
-		block_number, _ := reply.Parameters.GetUint64("block_number")
-		network_id, _ := reply.Parameters.GetString("network_id")
-		if network_id != manager.Network.Id {
-			sub_logger.Warn("skipping, since categorizer manager catched an event for another blockchain", "network_id", network_id, "manager_network_id", manager.Network.Id)
+			sub_logger.Warn("failed to get the log filters [trying in 10 seconds]", "message", err)
+			time.Sleep(10 * time.Second)
 			continue
 		}
 
-		// Repeated subscriptions are not catched
-		if manager.subscribed_earliest_block_number != 0 && block_number < manager.subscribed_earliest_block_number {
+		block_number_to, block_timestamp_to := spaghetti_log.RecentBlock(logs)
+
+		// we already accumulated the logs
+		if block_number_to == block_number {
 			continue
-		} else if manager.subscribed_earliest_block_number == 0 {
-			manager.subscribed_earliest_block_number = block_number
 		}
 
-		timestamp, _ := reply.Parameters.GetUint64("block_timestamp")
+		new_block := spaghetti_block.NewBlock(manager.Network.Id, block_number_to, block_timestamp_to, logs)
 
-		raw_logs, _ := reply.Parameters.ToMap()["logs"].([]interface{})
-		logs, _ := spaghetti_log.NewLogs(raw_logs)
-
-		new_block := spaghetti_block.NewBlock(manager.Network.Id, block_number, timestamp, logs)
-
-		sub_logger.Info("add a block to consume", "block_number", block_number, "event log amount", len(logs))
+		sub_logger.Info("add a block to consume", "block_number", block_number_to, "event log amount", len(logs))
 		manager.subscribed_blocks.Push(new_block)
+
+		block_number = block_number_to
 	}
 }
