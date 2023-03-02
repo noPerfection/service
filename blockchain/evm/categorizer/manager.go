@@ -335,6 +335,12 @@ func (manager *Manager) queue_recent_blocks() {
 	block_number, _ := recent_reply.GetUint64("block_number")
 
 	for {
+		if manager.subscribed_blocks.IsFull() {
+			sub_logger.Warn("subscribed block is full. Start to consume them [trying in 10 seconds]", "message", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
 		logs, err := spaghetti_log.RemoteLogFilter(blockchain_socket, block_number, []string{})
 		if err != nil {
 			sub_logger.Warn("failed to get the log filters [trying in 10 seconds]", "message", err)
