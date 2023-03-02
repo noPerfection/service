@@ -1,6 +1,6 @@
 // Spaghetti Worker connects to the blockchain over the loop.
 // Worker is running per blockchain network with VM.
-package worker
+package client
 
 import (
 	"time"
@@ -9,7 +9,6 @@ import (
 	"github.com/blocklords/gosds/app/service"
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/blockchain/evm/client"
 	evm_log "github.com/blocklords/gosds/blockchain/evm/event"
 	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
 
@@ -24,13 +23,13 @@ import (
 // the functions are recursive.
 type SpaghettiWorker struct {
 	logger log.Logger
-	client *client.Client
+	client *Client
 }
 
 // A wrapper around Blockchain Client
 // This wrapper sets the connection between blockchain client and SDS.
 // All other parts of the SDS interacts with the client through this
-func New(client *client.Client, logger log.Logger) *SpaghettiWorker {
+func NewWrapper(client *Client, logger log.Logger) *SpaghettiWorker {
 	return &SpaghettiWorker{
 		client: client,
 		logger: logger,
@@ -56,6 +55,7 @@ func (worker *SpaghettiWorker) SetupSocket() {
 		request, _ := message.ParseRequest(msgs)
 
 		worker.logger.Info("received a message", "command", request.Command)
+		worker.logger.Fatal("remove it")
 
 		var reply message.Reply
 

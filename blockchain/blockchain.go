@@ -37,7 +37,6 @@ import (
 	evm_client "github.com/blocklords/gosds/blockchain/evm/client"
 	imx_client "github.com/blocklords/gosds/blockchain/imx/client"
 
-	evm_worker "github.com/blocklords/gosds/blockchain/evm/worker"
 	"github.com/blocklords/gosds/blockchain/imx"
 	imx_worker "github.com/blocklords/gosds/blockchain/imx/worker"
 )
@@ -202,7 +201,7 @@ func StartWorkers(logger log.Logger, app_config *configuration.Config) error {
 				return fmt.Errorf("gosds/blockchain: failed to create EVM client: %v", err)
 			}
 
-			blockchain_manager := evm_worker.New(new_client, worker_logger)
+			blockchain_manager := evm_client.NewWrapper(new_client, worker_logger)
 			go blockchain_manager.Sync()
 			go blockchain_manager.SetupSocket()
 
