@@ -71,6 +71,8 @@ func FilterByAddress(all_logs []*Log, address string) []*Log {
 	return logs
 }
 
+// Get the most recent block parameters
+// returns block_number and block_timestamp
 func RecentBlock(all_logs []*Log) (uint64, uint64) {
 	block_number := uint64(0)
 	block_timestamp := uint64(0)
