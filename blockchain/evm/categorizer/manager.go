@@ -147,22 +147,32 @@ func (manager *Manager) Start() {
 
 			sm, _ := smartcontract.New(raw_smartcontracts[i])
 
+			manager.logger.Info("add a new worker", "number", i+1, "total", len(new_workers))
 			new_workers[i] = New(sm, cat_abi)
 		}
 
 		block_number := manager.subscribed_earliest_block_number
 
+		manager.logger.Info("information about workers", "block_number", block_number, "amount of workers", len(new_workers))
+
 		old_workers, current_workers := new_workers.Sort().Split(block_number)
 		old_block_number := old_workers.EarliestBlockNumber()
 
+		manager.logger.Info("splitting to old and new workers", "old amount", len(old_workers), "new amount", len(current_workers))
+		manager.logger.Info("old workers information", "earliest_block_number", old_block_number)
+
 		group := manager.old_categorizers.FirstGroupGreaterThan(old_block_number)
 		if group == nil {
+			manager.logger.Info("create a new group of old workers")
 			group = NewGroup(old_block_number, old_workers)
 			manager.old_categorizers = append(manager.old_categorizers, group)
 			go manager.categorize_old_smartcontracts(group)
 		} else {
+			manager.logger.Info("add to the existing group")
 			group.add_workers(old_workers)
 		}
+
+		manager.logger.Info("add current workers")
 
 		manager.add_current_workers(current_workers)
 	}
