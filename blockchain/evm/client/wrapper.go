@@ -53,7 +53,7 @@ func (worker *SpaghettiWorker) SetupSocket() {
 		msgs, _ := sock.RecvMessage(0)
 		request, _ := message.ParseRequest(msgs)
 
-		worker.logger.Info("received a message", "command", request.Command)
+		worker.logger.Info("received a request", "command", request.Command)
 
 		var reply message.Reply
 
