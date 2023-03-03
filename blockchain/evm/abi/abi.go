@@ -4,10 +4,12 @@ package abi
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	static_abi "github.com/blocklords/gosds/static/abi"
+	eth_common "github.com/ethereum/go-ethereum/common"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 )
@@ -77,12 +79,9 @@ func (a *Abi) Categorize(data string) (string, map[string]interface{}, error) {
 func NewAbi(static_abi *static_abi.Abi) (*Abi, error) {
 	abi_obj := Abi{static_abi: static_abi}
 
-	abiReader := strings.NewReader(abi_obj.static_abi.ToString())
-	geth_abi, err := abi.JSON(abiReader)
-	if err != nil {
-		return &abi_obj, fmt.Errorf("failed to parse body. probably an invalid json body. the geth package error: %w", err)
+	if err := json.Unmarshal(static_abi.Bytes, &abi_obj.geth_abi); err != nil {
+		return nil, fmt.Errorf("failed to decompose abi to geth abi: %w", err)
 	}
-	abi_obj.geth_abi = geth_abi
 
 	return &abi_obj, nil
 }
