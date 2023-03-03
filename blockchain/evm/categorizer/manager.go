@@ -7,6 +7,7 @@ package categorizer
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	app_log "github.com/blocklords/gosds/app/log"
@@ -241,16 +242,22 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 				}
 
 				decoded_logs = append(decoded_logs, decoded_log)
-				worker.Smartcontract.SetBlockParameter(decoded_log.BlockNumber, decoded_log.BlockTimestamp)
 			}
 		}
 
 		// update the categorization state for the smartcontract
 		smartcontracts := group.workers.GetSmartcontracts()
-		if len(decoded_logs) == 0 {
-			for _, smartcontract := range smartcontracts {
-				smartcontract.SetBlockParameter(block_number_to, block_timestamp_to)
+		for _, smartcontract := range smartcontracts {
+			new_block_number := block_number_to
+			new_block_timestamp := block_timestamp_to
+
+			for _, decoded_log := range decoded_logs {
+				if strings.EqualFold(decoded_log.Address, smartcontract.Address) {
+					new_block_number = decoded_log.BlockNumber
+					new_block_timestamp = decoded_log.BlockTimestamp
+				}
 			}
+			smartcontract.SetBlockParameter(new_block_number, new_block_timestamp)
 		}
 
 		// now we send the categorized smartcontracts and logs information
