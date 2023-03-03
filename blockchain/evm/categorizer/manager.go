@@ -380,6 +380,7 @@ func (manager *Manager) queue_recent_blocks() {
 
 	block_number, _ := recent_reply.GetUint64("block_number")
 	sub_logger.Info("recent-block-number", "block_number", block_number)
+	sub_logger.Info("pause 10 seconds before each log filter")
 
 	for {
 		time.Sleep(10 * time.Second)
