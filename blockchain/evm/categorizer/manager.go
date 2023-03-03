@@ -14,7 +14,6 @@ import (
 
 	"time"
 
-	"github.com/blocklords/gosds/blockchain/event"
 	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/blockchain/network"
 
@@ -219,7 +218,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 		block_timestamp_to := uint64(0)
 		if len(all_logs) > 0 {
-			block_number_to, block_timestamp_to = event.RecentBlock(all_logs)
+			block_number_to, block_timestamp_to = spaghetti_log.RecentBlock(all_logs)
 		}
 		old_logger.Info("fetched from blockchain client manager", "logs amount", len(all_logs), "smartcontract address", addresses, "block_number_to", block_number_to)
 
