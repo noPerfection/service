@@ -3,7 +3,6 @@ package smartcontract
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/blockchain/evm/abi"
