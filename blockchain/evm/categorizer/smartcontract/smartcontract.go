@@ -34,42 +34,13 @@ func New(sm *categorizer_smartcontract.Smartcontract, abi *abi.Abi) *EvmWorker {
 }
 
 // Categorize the blocks for this smartcontract
-func (worker *EvmWorker) Categorize(logs []*spaghetti_log.Log) ([]*event.Log, uint64) {
-	var mu sync.Mutex
-	network_id := worker.Smartcontract.NetworkId
-	address := worker.Smartcontract.Address
-	block_number := worker.Smartcontract.CategorizedBlockNumber
-	block_timestamp := worker.Smartcontract.CategorizedBlockTimestamp
-
-	categorized_logs := make([]*event.Log, 0, len(logs))
-
-	if len(logs) > 0 {
-		for log_index := 0; log_index < len(logs); log_index++ {
-			raw_log := logs[log_index]
-
-			mu.Lock()
-			fmt.Println("requesting parse of smartcontract log to SDS Log...", raw_log, worker.Smartcontract)
-			log_name, outputs, err := log_parse.ParseLog(worker.log_sock, network_id, address, raw_log.Data, raw_log.Topics)
-			mu.Unlock()
-			fmt.Println("reply received from SDS Log")
-			if err != nil {
-				fmt.Println("abi.remote parse %w, we skip this log records", err)
-				continue
-			}
-
-			l := event.New(log_name, outputs).AddMetadata(raw_log).AddSmartcontractData(worker.Smartcontract)
-
-			if l.BlockNumber > block_number {
-				block_number = l.BlockNumber
-				block_timestamp = l.BlockTimestamp
-			}
-
-			categorized_logs = append(categorized_logs, l)
-		}
+func (worker *EvmWorker) DecodeLog(raw_log *spaghetti_log.Log) (*event.Log, error) {
+	log_name, outputs, err := worker.abi.DecodeLog(raw_log.Topics, raw_log.Data)
+	if err != nil {
+		return nil, fmt.Errorf("abi.DecodeLog: %w", err)
 	}
 
-	fmt.Println("categorization finished, update the block number to ", block_number, worker.Smartcontract.NetworkId, worker.Smartcontract.Address)
-	worker.Smartcontract.SetBlockParameter(block_number, block_timestamp)
+	l := event.New(log_name, outputs).AddMetadata(raw_log).AddSmartcontractData(worker.Smartcontract)
 
-	return categorized_logs, block_number
+	return l, nil
 }
