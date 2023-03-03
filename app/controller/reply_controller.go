@@ -131,13 +131,10 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 
 			// reply = command_handler(db_connection, smartcontract_developer_request, smartcontract_developer)
 		} else {
-			c.logger.Info("calling handler", "command", request.Command, "parameters", request.Parameters)
 			reply = command_handler(db_connection, request, c.logger)
-			c.logger.Info("command handled", "reply status", reply.Status)
 		}
 
 		reply_string, err := reply.ToString()
-		c.logger.Info("reply back command result", "command", request.Command)
 		if err != nil {
 			if _, err := c.socket.SendMessage(err.Error()); err != nil {
 				return errors.New("converting reply to string %w" + err.Error())
