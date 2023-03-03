@@ -284,6 +284,9 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			manager.add_current_workers(group.workers)
 			break
 		}
+
+		// do not pressure the backend
+		time.Sleep(time.Second)
 	}
 	// delete the categorizer group
 	manager.old_categorizers = manager.old_categorizers.Delete(group)
