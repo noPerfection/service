@@ -94,9 +94,7 @@ func main() {
 		blockchain.Run(app_config)
 		wg.Done()
 	}()
-	defer func() {
-		wg.Wait()
-	}()
+	wg.Wait()
 
 	// fmt.Println("query the database")
 	// result, err := database.Query(context.TODO(), "SELECT address FROM static_smartcontract WHERE 1", nil)
