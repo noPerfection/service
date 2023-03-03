@@ -20,6 +20,7 @@ import (
 
 	"github.com/blocklords/gosds/blockchain/evm/abi"
 	"github.com/blocklords/gosds/blockchain/evm/categorizer/smartcontract"
+	categorizer_event "github.com/blocklords/gosds/categorizer/event"
 	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
 	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/common/data_type/key_value"
@@ -216,40 +217,55 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			continue
 		}
 
+		block_timestamp_to := uint64(0)
 		if len(all_logs) > 0 {
-			block_number_to, _ = event.RecentBlock(all_logs)
+			block_number_to, block_timestamp_to = event.RecentBlock(all_logs)
 		}
 		old_logger.Info("fetched from blockchain client manager", "logs amount", len(all_logs), "smartcontract address", addresses, "block_number_to", block_number_to)
 
-		// update the worker data by logs.
-		for _, worker := range group.workers {
-			logs := spaghetti_log.FilterByAddress(all_logs, worker.Smartcontract.Address)
-			if len(logs) == 0 {
-				time.Sleep(time.Second)
-				continue
+		decoded_logs := make([]*categorizer_event.Log, 0)
+
+		// decode the logs
+		for _, raw_log := range all_logs {
+			for _, worker := range group.workers {
+				if worker.Smartcontract.Address != raw_log.Address {
+					continue
+				}
+
+				decoded_log, err := worker.DecodeLog(raw_log)
+				if err != nil {
+					old_logger.Error("worker.DecodeLog", "smartcontract", worker.Smartcontract.Address, "message", err)
+					continue
+				}
+
+				decoded_logs = append(decoded_logs, decoded_log)
+				worker.Smartcontract.SetBlockParameter(decoded_log.BlockNumber, decoded_log.BlockTimestamp)
 			}
-			categorized_logs, _ := worker.Categorize(logs)
+		}
 
-			smartcontracts := []*categorizer_smartcontract.Smartcontract{worker.Smartcontract}
+		// update the categorization state for the smartcontract
+		smartcontracts := group.workers.GetSmartcontracts()
+		for _, smartcontract := range smartcontracts {
+			smartcontract.SetBlockParameter(block_number_to, block_timestamp_to)
+		}
 
-			push := message.Request{
-				Command: "",
-				Parameters: map[string]interface{}{
-					"smartcontracts": smartcontracts,
-					"logs":           categorized_logs,
-				},
-			}
-			request_string, _ := push.ToString()
+		// now we send the categorized smartcontracts and logs information
+		// to SDS Categorizer, so that SDS Categorizer will update its Database
+		push := message.Request{
+			Command: "",
+			Parameters: map[string]interface{}{
+				"smartcontracts": smartcontracts,
+				"logs":           decoded_logs,
+			},
+		}
+		request_string, _ := push.ToString()
 
-			old_logger.Info("send to SDS Categorizer", "logs amount", len(logs))
+		mu.Lock()
+		_, err = manager.pusher.SendMessage(request_string)
+		mu.Unlock()
 
-			mu.Lock()
-			_, err = manager.pusher.SendMessage(request_string)
-			mu.Unlock()
-
-			if err != nil {
-				old_logger.Fatal("send to SDS Categorizer", "message", err)
-			}
+		if err != nil {
+			old_logger.Fatal("send to SDS Categorizer", "message", err)
 		}
 
 		recent_block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).BlockNumber
@@ -292,35 +308,43 @@ func (manager *Manager) categorize_current_smartcontracts() {
 		for {
 			block := manager.subscribed_blocks.Pop().(*spaghetti_block.Block)
 
-			for _, worker := range manager.current_workers {
-				if block.BlockNumber <= worker.Smartcontract.CategorizedBlockNumber {
-					continue
+			decoded_logs := make([]*categorizer_event.Log, 0)
+
+			// decode the logs
+			for _, raw_log := range block.Logs {
+				for _, worker := range manager.current_workers {
+					if worker.Smartcontract.Address != raw_log.Address {
+						continue
+					}
+
+					decoded_log, err := worker.DecodeLog(raw_log)
+					if err != nil {
+						current_logger.Error("worker.DecodeLog", "smartcontract", worker.Smartcontract.Address, "message", err)
+						continue
+					}
+
+					decoded_logs = append(decoded_logs, decoded_log)
+					worker.Smartcontract.SetBlockParameter(decoded_log.BlockNumber, decoded_log.BlockTimestamp)
 				}
-				logs := block.GetForSmartcontract(worker.Smartcontract.Address)
-				categorized_logs, _ := worker.Categorize(logs)
+			}
 
-				current_logger.Info("categorized a smartcontract", "address", worker.Smartcontract.Address, "logs amount", len(categorized_logs))
+			push := message.Request{
+				Command: "",
+				Parameters: map[string]interface{}{
+					"smartcontracts": manager.current_workers.GetSmartcontracts(),
+					"logs":           decoded_logs,
+				},
+			}
+			request_string, _ := push.ToString()
 
-				smartcontracts := []*categorizer_smartcontract.Smartcontract{worker.Smartcontract}
+			current_logger.Info("send a notification to SDS Categorizer")
 
-				push := message.Request{
-					Command: "",
-					Parameters: map[string]interface{}{
-						"smartcontracts": smartcontracts,
-						"logs":           categorized_logs,
-					},
-				}
-				request_string, _ := push.ToString()
+			mu.Lock()
+			_, err := manager.pusher.SendMessage(request_string)
 
-				current_logger.Info("send a notification to SDS Categorizer")
-
-				mu.Lock()
-				_, err := manager.pusher.SendMessage(request_string)
-
-				mu.Unlock()
-				if err != nil {
-					current_logger.Fatal("sending notification to SDS Categorizer", "message", err)
-				}
+			mu.Unlock()
+			if err != nil {
+				current_logger.Fatal("sending notification to SDS Categorizer", "message", err)
 			}
 		}
 	}
