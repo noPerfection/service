@@ -162,8 +162,6 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 		if err != nil {
 			manager.logger.Fatal("failed to decode", "type", fmt.Sprintf("%T", raw_abi), "index", i, "smartcontract", sm.Address, "errr", err)
 		}
-		manager.logger.Warn("debugging the categorizer", cat_abi)
-
 		manager.logger.Info("add a new worker", "number", i+1, "total", len(new_workers))
 		new_workers[i] = smartcontract.New(sm, cat_abi)
 	}
