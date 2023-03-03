@@ -6,6 +6,7 @@
 package categorizer
 
 import (
+	"fmt"
 	"sync"
 
 	app_log "github.com/blocklords/gosds/app/log"
@@ -154,14 +155,14 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 	manager.logger.Info("recent block determined, splitting smartcontracts to old and current")
 
 	for i, raw_abi := range raw_abis {
+		sm, _ := categorizer_smartcontract.New(raw_smartcontracts[i])
+
 		abi_data, _ := static_abi.New(raw_abi.(map[string]interface{}))
 		cat_abi, err := abi.NewAbi(abi_data)
 		if err != nil {
-			manager.logger.Fatal("failed to decode ")
+			manager.logger.Fatal("failed to decode", "type", fmt.Sprintf("%T", raw_abi), "index", i, "smartcontract", sm.Address, "errr", err)
 		}
 		manager.logger.Warn("debugging the categorizer", cat_abi)
-
-		sm, _ := categorizer_smartcontract.New(raw_smartcontracts[i])
 
 		manager.logger.Info("add a new worker", "number", i+1, "total", len(new_workers))
 		new_workers[i] = smartcontract.New(sm, cat_abi)
@@ -248,8 +249,10 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 		// update the categorization state for the smartcontract
 		smartcontracts := group.workers.GetSmartcontracts()
-		for _, smartcontract := range smartcontracts {
-			smartcontract.SetBlockParameter(block_number_to, block_timestamp_to)
+		if len(decoded_logs) == 0 {
+			for _, smartcontract := range smartcontracts {
+				smartcontract.SetBlockParameter(block_number_to, block_timestamp_to)
+			}
 		}
 
 		// now we send the categorized smartcontracts and logs information
