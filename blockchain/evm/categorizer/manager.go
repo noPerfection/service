@@ -155,7 +155,11 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 
 	for i, raw_abi := range raw_abis {
 		abi_data, _ := static_abi.New(raw_abi.(map[string]interface{}))
-		cat_abi, _ := abi.NewAbi(abi_data)
+		cat_abi, err := abi.NewAbi(abi_data)
+		if err != nil {
+			manager.logger.Fatal("failed to decode ")
+		}
+		manager.logger.Warn("debugging the categorizer", cat_abi)
 
 		sm, _ := categorizer_smartcontract.New(raw_smartcontracts[i])
 
