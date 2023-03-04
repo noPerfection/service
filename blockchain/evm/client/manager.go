@@ -24,7 +24,7 @@ import (
 // All other services can send data through the manager.
 type Manager struct {
 	logger  log.Logger
-	client  *Client
+	clients []*Client
 	network *network.Network
 }
 
@@ -38,10 +38,24 @@ func NewManager(network *network.Network, logger log.Logger) (*Manager, error) {
 	}
 
 	return &Manager{
-		client:  clients[0],
+		clients: clients,
 		logger:  logger,
 		network: network,
 	}, nil
+}
+
+// Returns the client with the best rating
+func (m *Manager) client() *Client {
+	rating := MIN_RATING_CAP
+	index := 0
+
+	for i, c := range m.clients {
+		if c.Rating > rating {
+			index = i
+		}
+	}
+
+	return m.clients[index]
 }
 
 // Sets up the socket to interact with other packages within SDS
@@ -106,12 +120,12 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 	}
 	block_number_to := block_number_from + length
 
-	raw_logs, err := worker.client.GetBlockRangeLogs(block_number_from, block_number_to, addresses)
+	raw_logs, err := worker.client().GetBlockRangeLogs(block_number_from, block_number_to, addresses)
 	if err != nil {
 		return message.Fail("client.GetBlockRangeLogs: " + err.Error())
 	}
 
-	block_timestamp, err := worker.client.GetBlockTimestamp(block_number_from)
+	block_timestamp, err := worker.client().GetBlockTimestamp(block_number_from)
 	if err != nil {
 		return message.Fail("client.GetBlockTimestamp: " + err.Error())
 	}
@@ -135,7 +149,7 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 func (worker *Manager) get_transaction(parameters key_value.KeyValue) message.Reply {
 	transaction_id, _ := parameters.GetString("transaction_id")
 
-	tx, err := worker.client.GetTransaction(transaction_id)
+	tx, err := worker.client().GetTransaction(transaction_id)
 	if err != nil {
 		return message.Fail("failed to get the block range length for first provider of " + worker.network.Id)
 	}
@@ -159,7 +173,7 @@ func (worker *Manager) get_recent_block() message.Reply {
 	var block_number uint64
 	var err error
 	for {
-		block_number, err = worker.client.GetRecentBlockNumber()
+		block_number, err = worker.client().GetRecentBlockNumber()
 		if err != nil {
 			time.Sleep(1 * time.Second)
 			continue
@@ -177,7 +191,7 @@ func (worker *Manager) get_recent_block() message.Reply {
 
 	var block_timestamp uint64
 	for {
-		block_timestamp, err = worker.client.GetBlockTimestamp(block_number)
+		block_timestamp, err = worker.client().GetBlockTimestamp(block_number)
 		if err != nil {
 			time.Sleep(1 * time.Second)
 			continue

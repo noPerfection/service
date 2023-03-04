@@ -21,11 +21,22 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+const (
+	DECREASE_VALUE = 0.1
+	INCREASE_VALUE = 0.1
+	DEFAULT_RATING = 100.0
+	MAX_RATING_CAP = 1000.0
+	MIN_RATING_CAP = 0.0
+
+	ATTEMPT_DELAY = time.Duration(time.Second)
+)
+
 // todo any call should be with a context and repititon
 type Client struct {
 	client   *ethclient.Client
 	ctx      context.Context
 	provider provider.Provider
+	Rating   float64
 }
 
 // Create a network client connected to the blockchain based on a Static parameters
@@ -43,6 +54,7 @@ func new(p provider.Provider) (*Client, error) {
 		client:   client,
 		ctx:      ctx,
 		provider: p,
+		Rating:   DEFAULT_RATING,
 	}, nil
 }
 
@@ -53,13 +65,25 @@ func new_clients(providers []provider.Provider) ([]*Client, error) {
 	for i, p := range providers {
 		new_client, err := new(p)
 		if err != nil {
-			return nil, fmt.Errorf("New client[%d]: %w", i, err)
+			return nil, fmt.Errorf("new client[%d]: %w", i, err)
 		}
 
 		network_clients[i] = new_client
 	}
 
 	return network_clients, nil
+}
+
+func (c *Client) increase_rating() {
+	if c.Rating < MAX_RATING_CAP {
+		c.Rating += INCREASE_VALUE
+	}
+}
+
+func (c *Client) decrease_rating() {
+	if c.Rating > MIN_RATING_CAP {
+		c.Rating -= INCREASE_VALUE
+	}
 }
 
 //////////////////////////////////////////////////////////
@@ -72,9 +96,11 @@ func new_clients(providers []provider.Provider) ([]*Client, error) {
 func (c *Client) GetBlockTimestamp(block_number uint64) (uint64, error) {
 	header, err := c.client.HeaderByNumber(c.ctx, big.NewInt(int64(block_number)))
 	if err != nil {
+		c.decrease_rating()
 		return 0, errors.New("failed to fetch block information from provider: " + err.Error())
 	}
 
+	c.increase_rating()
 	return header.Time, nil
 }
 
@@ -82,9 +108,11 @@ func (c *Client) GetBlockTimestamp(block_number uint64) (uint64, error) {
 func (c *Client) GetRecentBlockNumber() (uint64, error) {
 	block_number, err := c.client.BlockNumber(c.ctx)
 	if err != nil {
+		c.decrease_rating()
 		return 0, fmt.Errorf("provider block number: %w", err)
 	}
 
+	c.increase_rating()
 	return block_number, nil
 }
 
@@ -106,13 +134,15 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.T
 			return nil, fmt.Errorf("the transaction is in the pending mode. please try again later fetching %s", transaction_hash)
 		}
 		if err == nil {
+			c.increase_rating()
 			break
 		}
+		c.decrease_rating()
 		if attempt == 0 {
 			return nil, fmt.Errorf("transaction by hash error after 10 attempts: " + err.Error())
 		}
 		fmt.Printf("client.TransactionByHash txid (%s) attempts left=%d: %s", transaction_hash, attempt, err.Error())
-		time.Sleep(time.Second * 1)
+		time.Sleep(ATTEMPT_DELAY)
 		attempt--
 	}
 
@@ -121,13 +151,15 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.T
 	for {
 		receipt, err = c.client.TransactionReceipt(c.ctx, transaction_hash)
 		if err == nil {
+			c.increase_rating()
 			break
 		}
+		c.decrease_rating()
 		if attempt == 0 {
 			return nil, fmt.Errorf("transaction receipt error after 10 attempts: " + err.Error())
 		}
 		fmt.Printf("client.TransactionReceipt txid (%s) attempts left=%d: %s", transaction_hash, attempt, err.Error())
-		time.Sleep(time.Second * 1)
+		time.Sleep(ATTEMPT_DELAY)
 		attempt--
 	}
 
@@ -190,9 +222,11 @@ func (c *Client) filter_logs(query ethereum.FilterQuery) ([]eth_types.Log, error
 	for {
 		raw_logs, log_err = c.client.FilterLogs(c.ctx, query)
 		if log_err == nil {
+			c.increase_rating()
 			break
 		}
-		time.Sleep(10 * time.Second)
+		c.decrease_rating()
+		time.Sleep(ATTEMPT_DELAY)
 		attempt--
 		if attempt == 0 {
 			return nil, fmt.Errorf("failed to get the logs in 5 attempts. network id: %s, query %v: %w", c.provider.Url, query, log_err)
