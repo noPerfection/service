@@ -18,9 +18,9 @@ func New(parameters key_value.KeyValue) (*Log, error) {
 	if err != nil {
 		return nil, fmt.Errorf("GetString(`network_id`): %w", err)
 	}
-	txid, err := parameters.GetString("txid")
+	txid, err := parameters.GetString("transaction_id")
 	if err != nil {
-		return nil, fmt.Errorf("GetString(`txid`): %w", err)
+		return nil, fmt.Errorf("GetString(`transaction_id`): %w", err)
 	}
 	log_index, err := parameters.GetUint64("log_index")
 	if err != nil {
@@ -43,16 +43,21 @@ func New(parameters key_value.KeyValue) (*Log, error) {
 	if err != nil {
 		return nil, fmt.Errorf("GetUint64(`block_number`): %w", err)
 	}
+	transaction_index, err := parameters.GetUint64("transaction_index")
+	if err != nil {
+		return nil, fmt.Errorf("GetUint64(`transaction_index`): %w", err)
+	}
 
 	return &Log{
-		NetworkId:      network_id,
-		Address:        address,
-		Txid:           txid,
-		BlockNumber:    block_number,
-		BlockTimestamp: block_timestamp,
-		LogIndex:       uint(log_index),
-		Data:           data,
-		Topics:         topics,
+		NetworkId:        network_id,
+		Address:          address,
+		TransactionId:    txid,
+		TransactionIndex: uint(transaction_index),
+		BlockNumber:      block_number,
+		BlockTimestamp:   block_timestamp,
+		LogIndex:         uint(log_index),
+		Data:             data,
+		Topics:           topics,
 	}, nil
 }
 

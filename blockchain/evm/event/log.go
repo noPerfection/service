@@ -16,14 +16,15 @@ func NewSpaghettiLog(network_id string, block_timestamp uint64, raw_log *eth_typ
 	}
 
 	return &event.Log{
-		NetworkId:      network_id,
-		BlockNumber:    raw_log.BlockNumber,
-		BlockTimestamp: block_timestamp,
-		Txid:           raw_log.TxHash.Hex(),
-		LogIndex:       raw_log.Index,
-		Data:           hex.EncodeToString(raw_log.Data),
-		Address:        raw_log.Address.Hex(),
-		Topics:         topics,
+		NetworkId:        network_id,
+		BlockNumber:      raw_log.BlockNumber,
+		BlockTimestamp:   block_timestamp,
+		TransactionId:    raw_log.TxHash.Hex(),
+		TransactionIndex: raw_log.TxIndex,
+		LogIndex:         raw_log.Index,
+		Data:             hex.EncodeToString(raw_log.Data),
+		Address:          raw_log.Address.Hex(),
+		Topics:           topics,
 	}
 }
 

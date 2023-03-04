@@ -14,11 +14,9 @@ func Save(db *db.Database, t *Log) error {
 		return fmt.Errorf("json.serialize event outputs %v: %w", t.Output, err)
 	}
 
-	transaction_key := t.NetworkId + "." + t.Txid
-
 	_, err = db.Connection.Exec(`INSERT IGNORE INTO categorizer_logs 
-	(address, transaction_key, log_index, log, output)
-	VALUES (?, ?, ?, ?, ?)`, t.Address, transaction_key, t.LogIndex, t.Log, byt)
+	(address, transaction_id, transaction_index, network_id, block_number, block_timestmap, log_index, log, output)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, t.Address, t.TransactionId, t.TransactionIndex, t.NetworkId, t.BlockNumber, t.BlockTimestamp, t.LogIndex, t.Log, byt)
 
 	if err != nil {
 		return fmt.Errorf("database exec: %w", err)
@@ -31,14 +29,16 @@ func Save(db *db.Database, t *Log) error {
 func GetLogsFromDb(con *db.Database, txKeys []string) ([]*Log, error) {
 	var logs []*Log = make([]*Log, 0)
 
+	return nil, fmt.Errorf("todo: change the transaction keys to the list of network_ids and transaction_ids")
+
 	if len(txKeys) == 0 {
 		return logs, nil
 	}
 
 	query := `
 	SELECT
-		txs.block_number, 
-		txs.block_timestamp,
+		logs.block_number, 
+		logs.block_timestamp,
 		logs.transaction_key,
 		logs.log_index,
 		logs.address,
@@ -76,7 +76,7 @@ func GetLogsFromDb(con *db.Database, txKeys []string) ([]*Log, error) {
 
 		parts := strings.Split(transaction_key, ".")
 		s.NetworkId = parts[0]
-		s.Txid = parts[1]
+		s.TransactionId = parts[1]
 
 		logs = append(logs, &s)
 	}

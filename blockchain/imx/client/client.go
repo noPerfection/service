@@ -107,14 +107,15 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 			}
 
 			l := &event.Log{
-				NetworkId:      "imx",
-				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
-				BlockNumber:    uint64(blockTime.UTC().Unix()),
-				BlockTimestamp: uint64(blockTime.UTC().Unix()),
-				LogIndex:       uint(i),
-				Data:           data_string,
-				Topics:         []string{},
-				Address:        address,
+				NetworkId:        "imx",
+				TransactionId:    strconv.Itoa(int(imxTx.TransactionId)),
+				TransactionIndex: uint(i),
+				BlockNumber:      uint64(blockTime.UTC().Unix()),
+				BlockTimestamp:   uint64(blockTime.UTC().Unix()),
+				LogIndex:         uint(i),
+				Data:             data_string,
+				Topics:           []string{},
+				Address:          address,
 			}
 
 			logs = append(logs, l)
@@ -203,14 +204,15 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 			}
 
 			l := &event.Log{
-				NetworkId:      "imx",
-				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
-				BlockNumber:    uint64(blockTime.UTC().Unix()),
-				BlockTimestamp: uint64(blockTime.UTC().Unix()),
-				LogIndex:       uint(i),
-				Data:           data_string,
-				Topics:         []string{},
-				Address:        address,
+				NetworkId:        "imx",
+				TransactionId:    strconv.Itoa(int(imxTx.TransactionId)),
+				TransactionIndex: uint(i),
+				BlockNumber:      uint64(blockTime.UTC().Unix()),
+				BlockTimestamp:   uint64(blockTime.UTC().Unix()),
+				LogIndex:         uint(i),
+				Data:             data_string,
+				Topics:           []string{},
+				Address:          address,
 			}
 
 			logs = append(logs, l)

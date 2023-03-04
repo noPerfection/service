@@ -11,14 +11,15 @@ import (
 
 // Blockchain agnostic Event Log for smartcontract
 type Log struct {
-	NetworkId      string   `json:"network_id"`
-	Txid           string   `json:"txid"`             // txId column
-	BlockNumber    uint64   `json:"block_number"`     // block
-	BlockTimestamp uint64   `json:"block_timestamp"`  // block
-	LogIndex       uint     `json:"log_index"`        // index
-	Data           string   `json:"data"`             // datatext data type
-	Topics         []string `json:"topics,omitempty"` // topics
-	Address        string   `json:"address"`          // address
+	NetworkId        string   `json:"network_id"`
+	TransactionId    string   `json:"transaction_id"`    // txId column
+	TransactionIndex uint     `json:"transaction_index"` // transaction index column
+	BlockNumber      uint64   `json:"block_number"`      // block
+	BlockTimestamp   uint64   `json:"block_timestamp"`   // block
+	LogIndex         uint     `json:"log_index"`         // index
+	Data             string   `json:"data"`              // datatext data type
+	Topics           []string `json:"topics,omitempty"`  // topics
+	Address          string   `json:"address"`           // address
 }
 
 // JSON string representation of the spaghetti.Log
