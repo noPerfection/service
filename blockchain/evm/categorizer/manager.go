@@ -362,6 +362,10 @@ func (manager *Manager) categorize_current_smartcontracts() {
 			if err != nil {
 				current_logger.Fatal("sending notification to SDS Categorizer", "message", err)
 			}
+
+			if len(manager.current_workers) == 0 || manager.subscribed_blocks.IsEmpty() {
+				break
+			}
 		}
 	}
 }
