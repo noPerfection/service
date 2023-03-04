@@ -11,11 +11,10 @@ import (
 	"time"
 
 	"github.com/blocklords/gosds/blockchain/evm/transaction"
+	"github.com/blocklords/gosds/blockchain/network/provider"
 	spaghetti_transaction "github.com/blocklords/gosds/blockchain/transaction"
 
 	"github.com/ethereum/go-ethereum"
-
-	"github.com/blocklords/gosds/blockchain/network"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_types "github.com/ethereum/go-ethereum/core/types"
@@ -27,16 +26,14 @@ type Client struct {
 	network_id string
 	client     *ethclient.Client
 	ctx        context.Context
-	Network    *network.Network
+	provider   provider.Provider
 }
 
 // Create a network client connected to the blockchain based on a Static parameters
 // Static parameters include the node url
-func New(network *network.Network) (*Client, error) {
-	provider_url, err := network.GetFirstProviderUrl()
-	if err != nil {
-		return nil, fmt.Errorf("network.GetFirstProvider: %w", err)
-	}
+func new(p provider.Provider) (*Client, error) {
+	provider_url := p.Url
+
 	ctx := context.TODO()
 	client, err := ethclient.DialContext(ctx, provider_url)
 	if err != nil {
@@ -44,23 +41,23 @@ func New(network *network.Network) (*Client, error) {
 	}
 
 	return &Client{
-		client:  client,
-		ctx:     ctx,
-		Network: network,
+		client:   client,
+		ctx:      ctx,
+		provider: p,
 	}, nil
 }
 
 // Creates a network clients connected to the blockchain network for each static parameter
-func NewClients(networks []*network.Network) (map[string]*Client, error) {
-	network_clients := make(map[string]*Client, len(networks))
+func new_clients(providers []provider.Provider) ([]*Client, error) {
+	network_clients := make([]*Client, len(providers))
 
-	for i, network := range networks {
-		new_client, err := New(network)
+	for i, p := range providers {
+		new_client, err := new(p)
 		if err != nil {
-			return nil, fmt.Errorf("network[%d] network id %s New: %w", i, network.Id, err)
+			return nil, fmt.Errorf("New client[%d]: %w", i, err)
 		}
 
-		network_clients[network.Id] = new_client
+		network_clients[i] = new_client
 	}
 
 	return network_clients, nil
@@ -196,7 +193,7 @@ func (c *Client) filter_logs(query ethereum.FilterQuery) ([]eth_types.Log, error
 		time.Sleep(10 * time.Second)
 		attempt--
 		if attempt == 0 {
-			return nil, fmt.Errorf("failed to get the logs in 5 attempts. network id: %s, query %v: %w", c.Network.Id, query, log_err)
+			return nil, fmt.Errorf("failed to get the logs in 5 attempts. network id: %s, query %v: %w", c.provider.Url, query, log_err)
 		}
 	}
 

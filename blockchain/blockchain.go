@@ -162,12 +162,10 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 		if new_network.Type == network.EVM {
 			evm_network_found = true
 
-			new_client, err := evm_client.New(new_network)
+			blockchain_manager, err := evm_client.NewManager(new_network, worker_logger)
 			if err != nil {
 				return fmt.Errorf("gosds/blockchain: failed to create EVM client: %v", err)
 			}
-
-			blockchain_manager := evm_client.NewWrapper(new_client, worker_logger)
 			go blockchain_manager.SetupSocket()
 
 			// Categorizer of the smartcontracts
