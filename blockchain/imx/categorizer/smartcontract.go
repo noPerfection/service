@@ -37,8 +37,7 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 			continue
 		}
 		if len(raw_logs) == 0 {
-			fmt.Println("request result is empty for", sm.CategorizedBlockNumber, "wait for 10 seconds and try again")
-			time.Sleep(10 * time.Second)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 
