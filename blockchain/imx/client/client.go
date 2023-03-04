@@ -132,13 +132,13 @@ func (client *Client) GetSmartcontractMintLogs(req_per_second time.Duration, add
 	direction := "asc"
 
 	cursor := ""
-	var resp *imx_api.ListTransfersResponse
+	var resp *imx_api.ListMintsResponse
 	var r *http.Response
 	var err error
 	logs := make([]*event.Log, 0)
 
 	for {
-		request := client.client.TransfersApi.ListTransfers(context.Background()).MinTimestamp(timestamp).PageSize(pageSize)
+		request := client.client.MintsApi.ListMints(context.Background()).MinTimestamp(timestamp).PageSize(pageSize)
 		if cursor != "" {
 			request = request.Cursor(cursor)
 		}
