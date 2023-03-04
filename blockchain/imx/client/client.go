@@ -8,10 +8,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/blocklords/gosds/blockchain/event"
 	"github.com/blocklords/gosds/blockchain/imx"
 	"github.com/blocklords/gosds/blockchain/imx/util"
 	"github.com/blocklords/gosds/blockchain/network"
-	"github.com/blocklords/gosds/categorizer/event"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
 )
@@ -90,18 +91,23 @@ func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration,
 				arguments["value"] = value
 			}
 
+			data := key_value.Empty().Set("log", "Transfer").Set("outputs", arguments)
+			data_string, err := data.ToString()
+			if err != nil {
+				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
+			}
+			fmt.Printf("data: %s", data_string)
+
 			// todo change the imx to store in the log
 			l := &event.Log{
 				NetworkId:      "imx",
-				Address:        address,
+				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
 				BlockNumber:    uint64(blockTime.Unix()),
 				BlockTimestamp: uint64(blockTime.Unix()),
-				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
-				LogIndex:       uint(0),
-				Log:            "Transfer",
-				Output:         arguments,
-				// TxFrom:         imxTx.User,
-				// Value:          0.0,
+				LogIndex:       uint(i),
+				Data:           data_string,
+				Topics:         []string{},
+				Address:        address,
 			}
 
 			logs = append(logs, l)
@@ -173,15 +179,22 @@ func (client *Client) GetSmartcontractMintLogs(req_per_second time.Duration, add
 				arguments["value"] = value
 			}
 
+			data := key_value.Empty().Set("log", "Transfer").Set("outputs", arguments)
+			data_string, err := data.ToString()
+			if err != nil {
+				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
+			}
+			fmt.Printf("data: %s", data_string)
+			// todo change the imx to store in the log
 			l := &event.Log{
 				NetworkId:      "imx",
-				Address:        address,
+				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
 				BlockNumber:    uint64(blockTime.Unix()),
 				BlockTimestamp: uint64(blockTime.Unix()),
-				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
-				LogIndex:       uint(0),
-				Log:            "Transfer",
-				Output:         arguments,
+				LogIndex:       uint(i),
+				Data:           data_string,
+				Topics:         []string{},
+				Address:        address,
 			}
 
 			logs = append(logs, l)
