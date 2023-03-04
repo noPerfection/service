@@ -53,6 +53,8 @@ func (worker *Manager) SetupSocket() {
 
 		if request.Command == "log-filter" {
 			reply = worker.filter_log(request.Parameters)
+		} else {
+			reply = message.Fail("unsupported command " + request.Command)
 		}
 
 		reply_string, err := reply.ToString()
@@ -108,8 +110,4 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 	}
 
 	return reply
-}
-
-func (worker *Manager) get_transaction(_ key_value.KeyValue) message.Reply {
-	return message.Fail("get-transaction is not supported by imx network")
 }
