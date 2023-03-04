@@ -425,7 +425,7 @@ func (manager *Manager) queue_recent_blocks() {
 		}
 
 		block_number_to, block_timestamp_to := spaghetti_log.RecentBlock(logs)
-		sub_logger.Info("recent block number", "block_number", block_number, "block_number of the log", block_number_to, "logs amount", len(logs))
+		sub_logger.Info("recent block number", "sds_block_number", block_number, "blockchain_recent_number", block_number_to, "logs amount", len(logs))
 
 		// we already accumulated the logs
 		if block_number_to == block_number {
