@@ -255,6 +255,8 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			smartcontract.SetBlockParameter(new_block_number, new_block_timestamp)
 		}
 
+		old_logger.Info("notify SDS Categorizer about update", "block_number_from", block_number_from, "block_number_to", block_number_to)
+
 		// now we send the categorized smartcontracts and logs information
 		// to SDS Categorizer, so that SDS Categorizer will update its Database
 		push := message.Request{
