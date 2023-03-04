@@ -38,7 +38,7 @@ func New(network *network.Network) *Client {
 }
 
 // Returns list of transfers
-func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration, address string, sleep time.Duration, timestamp string) ([]*event.Log, error) {
+func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Duration, timestamp string) ([]*event.Log, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -52,9 +52,11 @@ func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration,
 
 	for {
 		request := client.client.TransfersApi.ListTransfers(client.ctx).MinTimestamp(timestamp).PageSize(pageSize)
+
 		if cursor != "" {
 			request = request.Cursor(cursor)
 		}
+
 		resp, r, err = request.OrderBy(orderBy).Direction(direction).Status(status).TokenAddress(address).Execute()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error when calling `Imx.TransfersApi.ListTransfers``: %v\n", err)
@@ -97,7 +99,6 @@ func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration,
 			if err != nil {
 				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
 			}
-			fmt.Printf("data: %s", data_string)
 
 			// todo change the imx to store in the log
 			l := &event.Log{
@@ -114,7 +115,7 @@ func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration,
 			logs = append(logs, l)
 		}
 
-		time.Sleep(sleep * req_per_second)
+		time.Sleep(sleep)
 
 		if resp.Remaining == 0 {
 			break
@@ -122,11 +123,12 @@ func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration,
 			cursor = resp.Cursor
 		}
 	}
+	fmt.Println("return the parameters")
 
 	return logs, nil
 }
 
-func (client *Client) GetSmartcontractMintLogs(req_per_second time.Duration, address string, sleep time.Duration, timestamp string) ([]*event.Log, error) {
+func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Duration, timestamp string) ([]*event.Log, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -201,7 +203,9 @@ func (client *Client) GetSmartcontractMintLogs(req_per_second time.Duration, add
 
 			logs = append(logs, l)
 		}
-		time.Sleep(sleep * req_per_second)
+		// time.Sleep(sleep * req_per_second)
+
+		fmt.Println("cursor", resp.Cursor)
 
 		if resp.Remaining == 0 {
 			break

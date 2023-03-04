@@ -23,7 +23,7 @@ type Manager struct {
 	client             *client.Client
 	logger             log.Logger
 	request_per_second uint64
-	request_amount     uint64 // current amount of requests
+	request_amount     uint64 // concurrent running requests
 }
 
 // A new Manager
@@ -32,6 +32,7 @@ func New(app_config *configuration.Config, client *client.Client, logger log.Log
 		client:             client,
 		logger:             logger,
 		request_per_second: app_config.GetUint64(imx.REQUEST_PER_SECOND),
+		request_amount:     0,
 	}
 }
 
@@ -84,13 +85,19 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 
 	// todo
 	// when the categorizer.manager.delay_per_second should be moved to here
-	transfers, err := worker.client.GetSmartcontractTransferLogs(10, address, time.Duration(time.Second*1), timestamp)
+	worker.request_amount++
+	delay_duration := worker.delay_duration()
+	transfers, err := worker.client.GetSmartcontractTransferLogs(address, delay_duration, timestamp)
 	if err != nil {
+		worker.request_amount--
 		return message.Fail("client.GetSmartcontractTransferLogs: " + err.Error())
 	}
 
-	mints, err := worker.client.GetSmartcontractMintLogs(10, address, time.Duration(time.Second*1), timestamp)
+	worker.request_amount++
+	delay_duration = worker.delay_duration()
+	mints, err := worker.client.GetSmartcontractMintLogs(address, delay_duration, timestamp)
 	if err != nil {
+		worker.request_amount--
 		return message.Fail("client.GetSmartcontractMingLogs: " + err.Error())
 	}
 
@@ -115,4 +122,12 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 	}
 
 	return reply
+}
+
+// Based on total amount of smartcontracts, how long we delay to request to ImmutableX nodes
+func (manager *Manager) delay_duration() time.Duration {
+	per_second := float64(manager.request_per_second)
+	amount := float64(manager.request_amount)
+
+	return time.Duration(float64(time.Millisecond) * amount * 1000 / per_second)
 }

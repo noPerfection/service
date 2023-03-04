@@ -2,11 +2,9 @@ package categorizer
 
 import (
 	"log"
-	"time"
 
 	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/blockchain/imx"
 	blockchai_process "github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/blockchain/network"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
@@ -15,10 +13,7 @@ import (
 )
 
 type Manager struct {
-	network             *network.Network
-	SmartcontractAmount uint
-	DelayPerSecond      time.Duration
-	request_per_second  uint64
+	network *network.Network
 
 	smartcontracts []*smartcontract.Smartcontract
 	pusher         *zmq.Socket
@@ -26,14 +21,10 @@ type Manager struct {
 
 func NewManager(app_config *configuration.Config, network *network.Network, pusher *zmq.Socket) *Manager {
 	manager := &Manager{
-		network:             network,
-		SmartcontractAmount: 0,
-		request_per_second:  app_config.GetUint64(imx.REQUEST_PER_SECOND),
-		smartcontracts:      make([]*smartcontract.Smartcontract, 0),
-		pusher:              pusher,
+		network:        network,
+		smartcontracts: make([]*smartcontract.Smartcontract, 0),
+		pusher:         pusher,
 	}
-
-	manager.calculate_request_delay()
 
 	return manager
 }
@@ -69,17 +60,4 @@ func (manager *Manager) Start() {
 // Based on total amount of smartcontracts, how long we delay to request to ImmutableX nodes
 func (manager *Manager) AddSmartcontract(sm *smartcontract.Smartcontract) {
 	manager.smartcontracts = append(manager.smartcontracts, sm)
-	manager.SmartcontractAmount++
-
-	manager.calculate_request_delay()
 }
-
-// Based on total amount of smartcontracts, how long we delay to request to ImmutableX nodes
-func (manager *Manager) calculate_request_delay() {
-	per_second := float64(manager.request_per_second)
-	amount := float64(manager.SmartcontractAmount)
-
-	manager.DelayPerSecond = time.Duration(float64(time.Millisecond) * amount * 1000 / per_second)
-}
-
-////////////////////////////////////////////////////////////////
