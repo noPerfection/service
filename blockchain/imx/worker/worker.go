@@ -2,8 +2,9 @@ package worker
 
 import (
 	"errors"
-	"log"
 	"time"
+
+	"github.com/charmbracelet/log"
 
 	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
 
@@ -17,17 +18,15 @@ import (
 // the global variables that we pass between functions in this worker.
 // the functions are recursive.
 type SpaghettiWorker struct {
-	client            *client.Client
-	broadcast_channel chan message.Broadcast
-	debug             bool
+	client *client.Client
+	logger log.Logger
 }
 
 // A new SpaghettiWorker
-func New(client *client.Client, broadcast_channel chan message.Broadcast, debug bool) *SpaghettiWorker {
+func New(client *client.Client, logger log.Logger) *SpaghettiWorker {
 	return &SpaghettiWorker{
-		client:            client,
-		broadcast_channel: broadcast_channel,
-		debug:             debug,
+		client: client,
+		logger: logger,
 	}
 }
 
@@ -40,8 +39,10 @@ func (worker *SpaghettiWorker) SetupSocket() {
 
 	url := blockchain_proc.BlockchainManagerUrl(worker.client.Network.Id)
 	if err := sock.Bind(url); err != nil {
-		log.Fatalf("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
+		log.Fatal("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
 	}
+
+	worker.logger.Info("reply controller waiting for messages", "url", url)
 
 	for {
 		// Wait for reply.
