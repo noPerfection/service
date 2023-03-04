@@ -19,10 +19,6 @@ import (
 	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
-// we fetch transfers and mints.
-// each will slow down the sleep time to the IMX open client API.
-const IMX_REQUEST_TYPE_AMOUNT = 2
-
 // Run the goroutine for each Imx smartcontract.
 func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 	var mu sync.Mutex
