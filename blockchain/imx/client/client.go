@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/blocklords/gosds/blockchain/event"
@@ -38,7 +39,7 @@ func New(network *network.Network) *Client {
 }
 
 // Returns list of transfers
-func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Duration, timestamp string) ([]*event.Log, error) {
+func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]*event.Log, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -49,8 +50,16 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 	var err error
 	logs := make([]*event.Log, 0)
 
+	till_max := false
+	if strings.Compare(timestamp, timestamp_to) != 0 {
+		till_max = true
+	}
+
 	for {
 		request := client.client.TransfersApi.ListTransfers(client.ctx).MinTimestamp(timestamp).PageSize(pageSize)
+		if till_max {
+			request = request.MaxTimestamp(timestamp_to)
+		}
 
 		resp, r, err = request.OrderBy(orderBy).Direction(direction).Status(status).TokenAddress(address).Execute()
 		if err != nil {
@@ -62,8 +71,10 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 		}
 
 		for i, imxTx := range resp.Result {
-			timestamp = imxTx.GetTimestamp()
-			blockTime, err := time.Parse(time.RFC3339, timestamp)
+			blockTime, err := time.ParseInLocation(time.RFC3339, imxTx.GetTimestamp(), time.UTC)
+			next_time := blockTime.Add(time.Second)
+			timestamp = next_time.UTC().Format(time.RFC3339)
+
 			if err != nil {
 				return nil, fmt.Errorf("error, parsing transaction data error: %v", err)
 			}
@@ -98,8 +109,8 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 			l := &event.Log{
 				NetworkId:      "imx",
 				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
-				BlockNumber:    uint64(blockTime.Unix()),
-				BlockTimestamp: uint64(blockTime.Unix()),
+				BlockNumber:    uint64(blockTime.UTC().Unix()),
+				BlockTimestamp: uint64(blockTime.UTC().Unix()),
 				LogIndex:       uint(i),
 				Data:           data_string,
 				Topics:         []string{},
@@ -109,18 +120,21 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 			logs = append(logs, l)
 		}
 
-		time.Sleep(sleep)
+		if !till_max {
+			break
+		}
 
 		if resp.Remaining == 0 {
 			break
 		}
+
+		time.Sleep(sleep)
 	}
-	fmt.Println("return the parameters")
 
 	return logs, nil
 }
 
-func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Duration, timestamp string) ([]*event.Log, error) {
+func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]*event.Log, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -131,8 +145,17 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 	var err error
 	logs := make([]*event.Log, 0)
 
+	till_max := false
+	if strings.Compare(timestamp, timestamp_to) != 0 {
+		till_max = true
+	}
+
 	for {
 		request := client.client.MintsApi.ListMints(context.Background()).MinTimestamp(timestamp).PageSize(pageSize)
+		if till_max {
+			request = request.MaxTimestamp(timestamp_to)
+		}
+
 		resp, r, err = request.OrderBy(orderBy).Direction(direction).Status(status).TokenAddress(address).Execute()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error when calling `Imx.TransfersApi.ListTransfers``: %v\n", err)
@@ -143,8 +166,10 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 		}
 
 		for i, imxTx := range resp.Result {
-			timestamp = imxTx.GetTimestamp()
-			blockTime, err := time.Parse(time.RFC3339, timestamp)
+			blockTime, err := time.ParseInLocation(time.RFC3339, imxTx.GetTimestamp(), time.UTC)
+			next_time := blockTime.Add(time.Second)
+			timestamp = next_time.UTC().Format(time.RFC3339)
+
 			if err != nil {
 				return nil, fmt.Errorf("error, parsing transaction data error: %v", err)
 			}
@@ -176,12 +201,12 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 			if err != nil {
 				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
 			}
-			fmt.Printf("data: %s", data_string)
+
 			l := &event.Log{
 				NetworkId:      "imx",
 				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
-				BlockNumber:    uint64(blockTime.Unix()),
-				BlockTimestamp: uint64(blockTime.Unix()),
+				BlockNumber:    uint64(blockTime.UTC().Unix()),
+				BlockTimestamp: uint64(blockTime.UTC().Unix()),
 				LogIndex:       uint(i),
 				Data:           data_string,
 				Topics:         []string{},
@@ -190,13 +215,16 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 
 			logs = append(logs, l)
 		}
-		time.Sleep(sleep)
 
-		fmt.Println("cursor", resp.Cursor)
+		if !till_max {
+			break
+		}
 
 		if resp.Remaining == 0 {
 			break
 		}
+
+		time.Sleep(sleep)
 	}
 
 	return logs, nil

@@ -11,6 +11,7 @@ import (
 
 	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/app/remote/message"
+	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
 	"github.com/blocklords/gosds/blockchain/imx/client"
 	"github.com/blocklords/gosds/common/data_type/key_value"
 
@@ -77,25 +78,30 @@ func (worker *Manager) SetupSocket() {
 }
 
 func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
-	block_timestamp, _ := parameters.GetUint64("block_from")
-	timestamp := time.Unix(int64(block_timestamp), 0).Format(time.RFC3339)
-
 	addresses, _ := parameters.GetStringList("addresses")
 	address := addresses[0]
 
-	// todo
-	// when the categorizer.manager.delay_per_second should be moved to here
+	block_timestamp, _ := parameters.GetUint64("block_from")
+	timestamp := time.Unix(int64(block_timestamp), 0).UTC().Format(time.RFC3339)
+
+	block_timestamp_to := uint64(block_timestamp)
+	timestamp_to := time.Unix(int64(block_timestamp_to), 0).UTC().Format(time.RFC3339)
+
 	worker.request_amount++
 	delay_duration := worker.delay_duration()
-	transfers, err := worker.client.GetSmartcontractTransferLogs(address, delay_duration, timestamp)
+	transfers, err := worker.client.GetSmartcontractTransferLogs(address, delay_duration, timestamp, timestamp_to)
 	if err != nil {
 		worker.request_amount--
 		return message.Fail("client.GetSmartcontractTransferLogs: " + err.Error())
 	}
+	if len(transfers) > 0 {
+		_, block_timestamp_to = spaghetti_log.RecentBlock(transfers)
+		timestamp_to = time.Unix(int64(block_timestamp_to), 0).UTC().Format(time.RFC3339)
+	}
 
 	worker.request_amount++
 	delay_duration = worker.delay_duration()
-	mints, err := worker.client.GetSmartcontractMintLogs(address, delay_duration, timestamp)
+	mints, err := worker.client.GetSmartcontractMintLogs(address, delay_duration, timestamp, timestamp_to)
 	if err != nil {
 		worker.request_amount--
 		return message.Fail("client.GetSmartcontractMingLogs: " + err.Error())
@@ -103,13 +109,8 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 
 	transfers = append(transfers, mints...)
 
-	block_timestamp_to := block_timestamp
 	if len(transfers) > 0 {
-		for _, t := range transfers {
-			if t.BlockTimestamp > block_timestamp_to {
-				block_timestamp_to = t.BlockTimestamp
-			}
-		}
+		_, block_timestamp_to = spaghetti_log.RecentBlock(transfers)
 	}
 
 	reply := message.Reply{
