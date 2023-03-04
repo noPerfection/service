@@ -64,8 +64,9 @@ func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration,
 			return nil, fmt.Errorf("failed to fetch transfers list: %v", err)
 		}
 
-		for _, imxTx := range resp.Result {
-			blockTime, err := time.Parse(time.RFC3339, imxTx.GetTimestamp())
+		for i, imxTx := range resp.Result {
+			timestamp = imxTx.GetTimestamp()
+			blockTime, err := time.Parse(time.RFC3339, timestamp)
 			if err != nil {
 				return nil, fmt.Errorf("error, parsing transaction data error: %v", err)
 			}
@@ -151,8 +152,9 @@ func (client *Client) GetSmartcontractMintLogs(req_per_second time.Duration, add
 			return nil, fmt.Errorf("failed to fetch transfers list: %v", err)
 		}
 
-		for _, imxTx := range resp.Result {
-			blockTime, err := time.Parse(time.RFC3339, imxTx.GetTimestamp())
+		for i, imxTx := range resp.Result {
+			timestamp = imxTx.GetTimestamp()
+			blockTime, err := time.Parse(time.RFC3339, timestamp)
 			if err != nil {
 				return nil, fmt.Errorf("error, parsing transaction data error: %v", err)
 			}
