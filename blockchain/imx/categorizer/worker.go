@@ -14,7 +14,9 @@ import (
 	"github.com/blocklords/gosds/app/remote/message"
 	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
 	blockchain_process "github.com/blocklords/gosds/blockchain/inproc"
+	"github.com/blocklords/gosds/categorizer/event"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
+	"github.com/blocklords/gosds/common/data_type/key_value"
 )
 
 // we fetch transfers and mints.
@@ -30,7 +32,7 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 	addresses := []string{sm.Address}
 
 	for {
-		new_logs, _, err := spaghetti_log.RemoteLogFilter(sock, sm.CategorizedBlockTimestamp, addresses)
+		raw_logs, _, err := spaghetti_log.RemoteLogFilter(sock, sm.CategorizedBlockTimestamp, addresses)
 		if err != nil {
 			fmt.Println("failed to get the remote block number for network: " + sm.NetworkId + " error: " + err.Error())
 			fmt.Fprintf(os.Stderr, "Error when imx client for logs`: %v\n", err)
@@ -38,9 +40,35 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 			time.Sleep(10 * time.Second)
 			continue
 		}
+		if len(raw_logs) == 0 {
+			fmt.Println("request result is empty for", sm.CategorizedBlockNumber, "wait for 10 seconds and try again")
+			time.Sleep(10 * time.Second)
+			continue
+		}
 
-		block_number, block_timestamp := spaghetti_log.RecentBlock(new_logs)
+		block_number, block_timestamp := spaghetti_log.RecentBlock(raw_logs)
 		sm.SetBlockParameter(block_number, block_timestamp)
+
+		new_logs := make([]*event.Log, len(raw_logs))
+		for i, raw_log := range raw_logs {
+			data_string := raw_log.Data
+			log_kv, err := key_value.NewFromString(data_string)
+			if err != nil {
+				panic(err)
+			}
+			log_name, err := log_kv.GetString("log")
+			if err != nil {
+				panic(err)
+			}
+			log_outputs, err := log_kv.GetKeyValue("outputs")
+			if err != nil {
+				panic(err)
+			}
+			log := event.New(log_name, log_outputs)
+			log.AddMetadata(raw_log).AddSmartcontractData(sm)
+
+			new_logs[i] = log
+		}
 
 		smartcontracts := []*smartcontract.Smartcontract{sm}
 
