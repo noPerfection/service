@@ -31,7 +31,7 @@ func RemoteLogFilter(socket *remote.Socket, block_from uint64, addresses []strin
 	}
 	logs, err := NewLogs(raw_logs)
 	if err != nil {
-		return nil, 0, errors.New("failed to parse log when filtering it")
+		return nil, 0, fmt.Errorf("failed to parse log when filtering it: %w", err)
 	}
 
 	block_to, _ := params.GetUint64("block_to")
