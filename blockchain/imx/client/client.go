@@ -44,7 +44,6 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 	orderBy := "transaction_id"
 	direction := "asc"
 
-	cursor := ""
 	var resp *imx_api.ListTransfersResponse
 	var r *http.Response
 	var err error
@@ -52,10 +51,6 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 
 	for {
 		request := client.client.TransfersApi.ListTransfers(client.ctx).MinTimestamp(timestamp).PageSize(pageSize)
-
-		if cursor != "" {
-			request = request.Cursor(cursor)
-		}
 
 		resp, r, err = request.OrderBy(orderBy).Direction(direction).Status(status).TokenAddress(address).Execute()
 		if err != nil {
@@ -100,7 +95,6 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
 			}
 
-			// todo change the imx to store in the log
 			l := &event.Log{
 				NetworkId:      "imx",
 				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
@@ -119,8 +113,6 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 
 		if resp.Remaining == 0 {
 			break
-		} else if cursor != "" {
-			cursor = resp.Cursor
 		}
 	}
 	fmt.Println("return the parameters")
@@ -134,7 +126,6 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 	orderBy := "transaction_id"
 	direction := "asc"
 
-	cursor := ""
 	var resp *imx_api.ListMintsResponse
 	var r *http.Response
 	var err error
@@ -142,9 +133,6 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 
 	for {
 		request := client.client.MintsApi.ListMints(context.Background()).MinTimestamp(timestamp).PageSize(pageSize)
-		if cursor != "" {
-			request = request.Cursor(cursor)
-		}
 		resp, r, err = request.OrderBy(orderBy).Direction(direction).Status(status).TokenAddress(address).Execute()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error when calling `Imx.TransfersApi.ListTransfers``: %v\n", err)
@@ -189,7 +177,6 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
 			}
 			fmt.Printf("data: %s", data_string)
-			// todo change the imx to store in the log
 			l := &event.Log{
 				NetworkId:      "imx",
 				Txid:           strconv.Itoa(int(imxTx.TransactionId)),
@@ -203,14 +190,12 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 
 			logs = append(logs, l)
 		}
-		// time.Sleep(sleep * req_per_second)
+		time.Sleep(sleep)
 
 		fmt.Println("cursor", resp.Cursor)
 
 		if resp.Remaining == 0 {
 			break
-		} else if cursor != "" {
-			cursor = resp.Cursor
 		}
 	}
 
