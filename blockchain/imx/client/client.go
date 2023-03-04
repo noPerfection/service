@@ -85,7 +85,7 @@ func (client *Client) GetSmartcontractTransferLogs(req_per_second time.Duration,
 			} else {
 				value, err := util.Erc20Amount(&imxTx.Token.Data)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to decode erc20 value: %w", err)
 				}
 
 				arguments["value"] = value
