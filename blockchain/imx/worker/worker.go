@@ -17,21 +17,21 @@ import (
 
 // the global variables that we pass between functions in this worker.
 // the functions are recursive.
-type SpaghettiWorker struct {
+type Manager struct {
 	client *client.Client
 	logger log.Logger
 }
 
-// A new SpaghettiWorker
-func New(client *client.Client, logger log.Logger) *SpaghettiWorker {
-	return &SpaghettiWorker{
+// A new Manager
+func New(client *client.Client, logger log.Logger) *Manager {
+	return &Manager{
 		client: client,
 		logger: logger,
 	}
 }
 
 // Sets up the socket to interact with the clients
-func (worker *SpaghettiWorker) SetupSocket() {
+func (worker *Manager) SetupSocket() {
 	sock, err := zmq.NewSocket(zmq.REP)
 	if err != nil {
 		panic(err)
@@ -68,7 +68,7 @@ func (worker *SpaghettiWorker) SetupSocket() {
 	}
 }
 
-func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message.Reply {
+func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 	block_timestamp, _ := parameters.GetUint64("block_from")
 	timestamp := time.Unix(int64(block_timestamp), 0).Format(time.RFC3339)
 
@@ -110,6 +110,6 @@ func (worker *SpaghettiWorker) filter_log(parameters key_value.KeyValue) message
 	return reply
 }
 
-func (worker *SpaghettiWorker) get_transaction(_ key_value.KeyValue) message.Reply {
+func (worker *Manager) get_transaction(_ key_value.KeyValue) message.Reply {
 	return message.Fail("get-transaction is not supported by imx network")
 }
