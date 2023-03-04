@@ -6,8 +6,10 @@ import (
 
 	"github.com/charmbracelet/log"
 
+	"github.com/blocklords/gosds/blockchain/imx"
 	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
 
+	"github.com/blocklords/gosds/app/configuration"
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/blockchain/imx/client"
 	"github.com/blocklords/gosds/common/data_type/key_value"
@@ -18,15 +20,18 @@ import (
 // the global variables that we pass between functions in this worker.
 // the functions are recursive.
 type Manager struct {
-	client *client.Client
-	logger log.Logger
+	client             *client.Client
+	logger             log.Logger
+	request_per_second uint64
+	request_amount     uint64 // current amount of requests
 }
 
 // A new Manager
-func New(client *client.Client, logger log.Logger) *Manager {
+func New(app_config *configuration.Config, client *client.Client, logger log.Logger) *Manager {
 	return &Manager{
-		client: client,
-		logger: logger,
+		client:             client,
+		logger:             logger,
+		request_per_second: app_config.GetUint64(imx.REQUEST_PER_SECOND),
 	}
 }
 

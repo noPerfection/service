@@ -184,7 +184,7 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 
 			new_client := imx_client.New(new_network)
 
-			new_worker := imx_worker.New(new_client, worker_logger)
+			new_worker := imx_worker.New(app_config, new_client, worker_logger)
 			go new_worker.SetupSocket()
 
 			imx_manager := imx_categorizer.NewManager(app_config, new_network, pusher)
