@@ -340,20 +340,34 @@ func (manager *Manager) categorize_current_smartcontracts() {
 					}
 
 					decoded_logs = append(decoded_logs, decoded_log)
-					worker.Smartcontract.SetBlockParameter(decoded_log.BlockNumber, decoded_log.BlockTimestamp)
 				}
+			}
+
+			// update the categorization state for the smartcontract
+			smartcontracts := manager.current_workers.GetSmartcontracts()
+			for _, smartcontract := range smartcontracts {
+				new_block_number := block.BlockNumber
+				new_block_timestamp := block.BlockTimestamp
+
+				for _, decoded_log := range decoded_logs {
+					if strings.EqualFold(decoded_log.Address, smartcontract.Address) {
+						new_block_number = decoded_log.BlockNumber
+						new_block_timestamp = decoded_log.BlockTimestamp
+					}
+				}
+				smartcontract.SetBlockParameter(new_block_number, new_block_timestamp)
 			}
 
 			push := message.Request{
 				Command: "",
 				Parameters: map[string]interface{}{
-					"smartcontracts": manager.current_workers.GetSmartcontracts(),
+					"smartcontracts": smartcontracts,
 					"logs":           decoded_logs,
 				},
 			}
 			request_string, _ := push.ToString()
 
-			current_logger.Info("send a notification to SDS Categorizer")
+			current_logger.Info("send a notification to SDS Categorizer", "logs_amount", len(decoded_logs))
 
 			mu.Lock()
 			_, err := manager.pusher.SendMessage(request_string)
