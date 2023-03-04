@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/blocklords/gosds/blockchain/evm/transaction"
 	"github.com/blocklords/gosds/blockchain/network/provider"
@@ -27,8 +26,6 @@ const (
 	DEFAULT_RATING = 100.0
 	MAX_RATING_CAP = 1000.0
 	MIN_RATING_CAP = 0.0
-
-	ATTEMPT_DELAY = time.Duration(time.Second)
 )
 
 // todo any call should be with a context and repititon
@@ -123,45 +120,24 @@ func (c *Client) GetRecentBlockNumber() (uint64, error) {
 // TODO: add network id from the caller
 func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.Transaction, error) {
 	transaction_hash := eth_common.HexToHash(transaction_id)
-	var transaction_raw *eth_types.Transaction
-	var pending bool
-	var err error
 
-	attempt := 10
-	for {
-		transaction_raw, pending, err = c.client.TransactionByHash(c.ctx, transaction_hash)
-		if pending {
-			return nil, fmt.Errorf("the transaction is in the pending mode. please try again later fetching %s", transaction_hash)
-		}
-		if err == nil {
-			c.increase_rating()
-			break
-		}
-		c.decrease_rating()
-		if attempt == 0 {
-			return nil, fmt.Errorf("transaction by hash error after 10 attempts: " + err.Error())
-		}
-		fmt.Printf("client.TransactionByHash txid (%s) attempts left=%d: %s", transaction_hash, attempt, err.Error())
-		time.Sleep(ATTEMPT_DELAY)
-		attempt--
+	transaction_raw, pending, err := c.client.TransactionByHash(c.ctx, transaction_hash)
+	if pending {
+		c.increase_rating()
+		return nil, fmt.Errorf("the transaction is in the pending mode. please try again later fetching %s", transaction_hash)
 	}
+	if err != nil {
+		c.decrease_rating()
+		return nil, fmt.Errorf("client.TransactionByHash txid (%s): %w", transaction_hash, err)
+	}
+	c.increase_rating()
 
-	var receipt *eth_types.Receipt
-	attempt = 10
-	for {
-		receipt, err = c.client.TransactionReceipt(c.ctx, transaction_hash)
-		if err == nil {
-			c.increase_rating()
-			break
-		}
+	receipt, err := c.client.TransactionReceipt(c.ctx, transaction_hash)
+	if err != nil {
 		c.decrease_rating()
-		if attempt == 0 {
-			return nil, fmt.Errorf("transaction receipt error after 10 attempts: " + err.Error())
-		}
-		fmt.Printf("client.TransactionReceipt txid (%s) attempts left=%d: %s", transaction_hash, attempt, err.Error())
-		time.Sleep(ATTEMPT_DELAY)
-		attempt--
+		return nil, fmt.Errorf("client.TransactionReceipt txid(%s): %w", transaction_hash, err)
 	}
+	c.increase_rating()
 
 	tx, parse_err := transaction.New("", receipt.BlockNumber.Uint64(), receipt.TransactionIndex, transaction_raw)
 	if parse_err != nil {
@@ -216,22 +192,12 @@ func (c *Client) GetBlockRangeLogs(block_number_from uint64, block_number_to uin
 }
 
 func (c *Client) filter_logs(query ethereum.FilterQuery) ([]eth_types.Log, error) {
-	var raw_logs []eth_types.Log
-	var log_err error
-	attempt := 5
-	for {
-		raw_logs, log_err = c.client.FilterLogs(c.ctx, query)
-		if log_err == nil {
-			c.increase_rating()
-			break
-		}
+	raw_logs, log_err := c.client.FilterLogs(c.ctx, query)
+	if log_err != nil {
 		c.decrease_rating()
-		time.Sleep(ATTEMPT_DELAY)
-		attempt--
-		if attempt == 0 {
-			return nil, fmt.Errorf("failed to get the logs in 5 attempts. network id: %s, query %v: %w", c.provider.Url, query, log_err)
-		}
+		return nil, fmt.Errorf("FilterLogs query (%v): %w", query, log_err)
 	}
+	c.increase_rating()
 
 	return raw_logs, nil
 }

@@ -11,12 +11,19 @@ import (
 	evm_log "github.com/blocklords/gosds/blockchain/evm/event"
 	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
 	"github.com/blocklords/gosds/blockchain/network"
+	"github.com/blocklords/gosds/blockchain/transaction"
 
 	"github.com/blocklords/gosds/app/remote/message"
 
 	"github.com/blocklords/gosds/common/data_type/key_value"
+	eth_types "github.com/ethereum/go-ethereum/core/types"
 
 	zmq "github.com/pebbe/zmq4"
+)
+
+const (
+	ATTEMPT_AMOUNT = 10
+	ATTEMPT_DELAY  = time.Duration(time.Second)
 )
 
 // The manager of the client.
@@ -120,14 +127,32 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 	}
 	block_number_to := block_number_from + length
 
-	raw_logs, err := worker.client().GetBlockRangeLogs(block_number_from, block_number_to, addresses)
-	if err != nil {
-		return message.Fail("client.GetBlockRangeLogs: " + err.Error())
+	attempt := ATTEMPT_AMOUNT
+	var raw_logs []eth_types.Log
+	for {
+		raw_logs, err = worker.client().GetBlockRangeLogs(block_number_from, block_number_to, addresses)
+		if err == nil {
+			break
+		}
+		if attempt == 0 {
+			return message.Fail("multiple attempts were made unseccsfully: " + err.Error())
+		}
+		time.Sleep(ATTEMPT_DELAY)
+		attempt--
 	}
 
-	block_timestamp, err := worker.client().GetBlockTimestamp(block_number_from)
-	if err != nil {
-		return message.Fail("client.GetBlockTimestamp: " + err.Error())
+	attempt = ATTEMPT_AMOUNT
+	var block_timestamp uint64
+	for {
+		block_timestamp, err = worker.client().GetBlockTimestamp(block_number_from)
+		if err == nil {
+			break
+		}
+		if attempt == 0 {
+			return message.Fail("multiple attempts were made unseccsfully: " + err.Error())
+		}
+		time.Sleep(ATTEMPT_DELAY)
+		attempt--
 	}
 
 	logs := evm_log.NewSpaghettiLogs(network_id, block_timestamp, raw_logs)
@@ -149,9 +174,19 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 func (worker *Manager) get_transaction(parameters key_value.KeyValue) message.Reply {
 	transaction_id, _ := parameters.GetString("transaction_id")
 
-	tx, err := worker.client().GetTransaction(transaction_id)
-	if err != nil {
-		return message.Fail("failed to get the block range length for first provider of " + worker.network.Id)
+	var tx *transaction.Transaction
+	var err error
+	attempt := ATTEMPT_AMOUNT
+	for {
+		tx, err = worker.client().GetTransaction(transaction_id)
+		if err == nil {
+			break
+		}
+		if attempt == 0 {
+			return message.Fail("multiple attempts were made unseccsfully: " + err.Error())
+		}
+		time.Sleep(ATTEMPT_DELAY)
+		attempt--
 	}
 
 	reply := message.Reply{
@@ -172,14 +207,17 @@ func (worker *Manager) get_recent_block() message.Reply {
 
 	var block_number uint64
 	var err error
+	attempt := ATTEMPT_AMOUNT
 	for {
 		block_number, err = worker.client().GetRecentBlockNumber()
-		if err != nil {
-			time.Sleep(1 * time.Second)
-			continue
+		if err == nil {
+			break
 		}
-
-		break
+		if attempt == 0 {
+			return message.Fail("multiple attempts were made unseccsfully: " + err.Error())
+		}
+		time.Sleep(ATTEMPT_DELAY)
+		attempt--
 	}
 	if block_number < confirmations {
 		return message.Fail("the recent block number < confirmations")
@@ -190,14 +228,17 @@ func (worker *Manager) get_recent_block() message.Reply {
 	}
 
 	var block_timestamp uint64
+	attempt = ATTEMPT_AMOUNT
 	for {
 		block_timestamp, err = worker.client().GetBlockTimestamp(block_number)
-		if err != nil {
-			time.Sleep(1 * time.Second)
-			continue
+		if err == nil {
+			break
 		}
-
-		break
+		if attempt == 0 {
+			return message.Fail("multiple attempts were made unseccsfully: " + err.Error())
+		}
+		time.Sleep(ATTEMPT_DELAY)
+		attempt--
 	}
 
 	reply := message.Reply{
