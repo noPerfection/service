@@ -31,15 +31,15 @@ func DefaultConfiguration() string {
 			{
 				"url": "https://1rpc.io/glmr",
 				"length": 1000
+			},
+			{
+				"url": "https://rpc.ankr.com/moonbeam",
+				"length": 1000
 			}
 		], "type": "evm"},
 		{"id": "imx", "providers": [
 			{
 				"url": "https://api.sandbox.x.immutable.com/",
-				"length": 1000
-			},
-			{
-				"url": "https://rpc.ankr.com/moonbeam",
 				"length": 1000
 			}
 		], "type": "imx"}
