@@ -7,13 +7,13 @@ package categorizer
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/remote/message"
 	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
 	blockchain_process "github.com/blocklords/gosds/blockchain/inproc"
-	"github.com/blocklords/gosds/categorizer"
 	"github.com/blocklords/gosds/categorizer/smartcontract"
 )
 
@@ -23,15 +23,9 @@ const IMX_REQUEST_TYPE_AMOUNT = 2
 
 // Run the goroutine for each Imx smartcontract.
 func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
+	var mu sync.Mutex
 	url := blockchain_process.BlockchainManagerUrl(manager.network.Id)
 	sock := remote.InprocRequestSocket(url)
-
-	// if there are some logs, we should broadcast them to the SDS Categorizer
-	pusher, err := categorizer.NewCategorizerPusher()
-	if err != nil {
-		panic(err)
-	}
-	defer pusher.Close()
 
 	addresses := []string{sm.Address}
 
@@ -59,7 +53,12 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 		}
 		request_string, _ := push.ToString()
 
-		_, err = pusher.SendMessage(request_string)
+		// pusher is a single for all categorizers
+		// its defined in sds/blockchain package on a different goroutine
+		// Without mutexes, the socket behaviour is undefined
+		mu.Lock()
+		_, err = manager.pusher.SendMessage(request_string)
+		mu.Unlock()
 		if err != nil {
 			panic(err)
 		}

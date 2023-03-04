@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	app_log "github.com/blocklords/gosds/app/log"
-	"github.com/blocklords/gosds/categorizer"
 	"github.com/charmbracelet/log"
 
 	"time"
@@ -54,7 +53,7 @@ type Manager struct {
 
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
-func NewManager(logger log.Logger, network *network.Network) *Manager {
+func NewManager(logger log.Logger, network *network.Network, pusher *zmq.Socket) *Manager {
 	categorizer_logger := app_log.Child(logger, "categorizer")
 
 	manager := Manager{
@@ -68,6 +67,7 @@ func NewManager(logger log.Logger, network *network.Network) *Manager {
 		current_workers: make(smartcontract.EvmWorkers, 0),
 
 		logger: categorizer_logger,
+		pusher: pusher,
 	}
 
 	return &manager
@@ -113,13 +113,6 @@ func (manager *Manager) Start() {
 	if err := sock.Connect(url); err != nil {
 		log.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
 	}
-
-	// if there are some logs, we should broadcast them to the SDS Categorizer
-	pusher, err := categorizer.NewCategorizerPusher()
-	if err != nil {
-		manager.logger.Fatal("create a pusher to SDS Categorizer", "message", err)
-	}
-	manager.pusher = pusher
 
 	manager.logger.Info("waiting for the messages at", "url", url)
 
@@ -371,8 +364,8 @@ func (manager *Manager) categorize_current_smartcontracts() {
 
 			mu.Lock()
 			_, err := manager.pusher.SendMessage(request_string)
-
 			mu.Unlock()
+
 			if err != nil {
 				current_logger.Fatal("sending notification to SDS Categorizer", "message", err)
 			}

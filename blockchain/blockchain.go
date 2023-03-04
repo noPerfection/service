@@ -12,6 +12,7 @@ package blockchain
 import (
 	app_log "github.com/blocklords/gosds/app/log"
 	blockchain_process "github.com/blocklords/gosds/blockchain/inproc"
+	"github.com/blocklords/gosds/categorizer"
 	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/gosds/blockchain/transaction"
@@ -155,6 +156,12 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 	evm_network_found := false
 	imx_network_found := false
 
+	// if there are some logs, we should broadcast them to the SDS Categorizer
+	pusher, err := categorizer.NewCategorizerPusher()
+	if err != nil {
+		logger.Fatal("create a pusher to SDS Categorizer", "message", err)
+	}
+
 	for _, new_network := range networks {
 		worker_logger := app_log.Child(logger, new_network.Type.String()+"_network_id_"+new_network.Id)
 		worker_logger.SetReportCaller(false)
@@ -170,7 +177,7 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 
 			// Categorizer of the smartcontracts
 			// This categorizers are interacting with the SDS Categorizer
-			categorizer := evm_categorizer.NewManager(worker_logger, new_network)
+			categorizer := evm_categorizer.NewManager(worker_logger, new_network, pusher)
 			go categorizer.Start()
 		} else if new_network.Type == network.IMX {
 			imx_network_found = true
@@ -180,7 +187,7 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 			new_worker := imx_worker.New(new_client, nil, false)
 			go new_worker.SetupSocket()
 
-			imx_manager := imx_categorizer.NewManager(app_config, new_network)
+			imx_manager := imx_categorizer.NewManager(app_config, new_network, pusher)
 			go imx_manager.Start()
 		} else {
 			return fmt.Errorf("no blockchain handler for network_type %v", new_network.Type)

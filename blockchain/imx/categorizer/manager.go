@@ -21,14 +21,16 @@ type Manager struct {
 	request_per_second  uint64
 
 	smartcontracts []*smartcontract.Smartcontract
+	pusher         *zmq.Socket
 }
 
-func NewManager(app_config *configuration.Config, network *network.Network) *Manager {
+func NewManager(app_config *configuration.Config, network *network.Network, pusher *zmq.Socket) *Manager {
 	manager := &Manager{
 		network:             network,
 		SmartcontractAmount: 0,
 		request_per_second:  app_config.GetUint64(imx.REQUEST_PER_SECOND),
 		smartcontracts:      make([]*smartcontract.Smartcontract, 0),
+		pusher:              pusher,
 	}
 
 	manager.calculate_request_delay()
