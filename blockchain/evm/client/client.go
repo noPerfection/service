@@ -23,10 +23,9 @@ import (
 
 // todo any call should be with a context and repititon
 type Client struct {
-	network_id string
-	client     *ethclient.Client
-	ctx        context.Context
-	provider   provider.Provider
+	client   *ethclient.Client
+	ctx      context.Context
+	provider provider.Provider
 }
 
 // Create a network client connected to the blockchain based on a Static parameters
@@ -91,6 +90,9 @@ func (c *Client) GetRecentBlockNumber() (uint64, error) {
 
 // Returns the information about the specific transaction from the blockchain
 // The transaction is converted into the gosds/spaghetti/transaction.Transaction data type
+//
+// Spaghetti Transaction requires network_id, but client doesn't have it.
+// TODO: add network id from the caller
 func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.Transaction, error) {
 	transaction_hash := eth_common.HexToHash(transaction_id)
 	var transaction_raw *eth_types.Transaction
@@ -129,7 +131,7 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.T
 		attempt--
 	}
 
-	tx, parse_err := transaction.New(c.network_id, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, transaction_raw)
+	tx, parse_err := transaction.New("", receipt.BlockNumber.Uint64(), receipt.TransactionIndex, transaction_raw)
 	if parse_err != nil {
 		return nil, fmt.Errorf("transaction.New: %w", parse_err)
 	}
