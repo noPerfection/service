@@ -15,7 +15,7 @@ func Save(db *db.Database, t *Log) error {
 	}
 
 	_, err = db.Connection.Exec(`INSERT IGNORE INTO categorizer_logs 
-	(address, transaction_id, transaction_index, network_id, block_number, block_timestmap, log_index, log, output)
+	(address, transaction_id, transaction_index, network_id, block_number, block_timestamp, log_index, log, output)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, t.Address, t.TransactionId, t.TransactionIndex, t.NetworkId, t.BlockNumber, t.BlockTimestamp, t.LogIndex, t.Log, byt)
 
 	if err != nil {
