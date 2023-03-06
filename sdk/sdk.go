@@ -65,7 +65,6 @@ import (
 	"github.com/blocklords/gosds/app/remote"
 	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/common/topic"
-	"github.com/blocklords/gosds/sdk/db"
 	"github.com/blocklords/gosds/sdk/reader"
 	"github.com/blocklords/gosds/sdk/subscriber"
 	"github.com/blocklords/gosds/sdk/writer"
@@ -112,7 +111,7 @@ func NewWriter(address string) (*writer.Writer, error) {
 }
 
 // Returns a new subscriber
-func NewSubscriber(topicFilter *topic.TopicFilter) (*subscriber.Subscriber, error) {
+func NewSubscriber(topic_filter *topic.TopicFilter) (*subscriber.Subscriber, error) {
 	e, err := gatewayEnv(true)
 	if err != nil {
 		return nil, err
@@ -125,12 +124,7 @@ func NewSubscriber(topicFilter *topic.TopicFilter) (*subscriber.Subscriber, erro
 
 	gateway_socket := remote.TcpRequestSocketOrPanic(e, developer_env)
 
-	db, err := db.OpenKVM(topicFilter)
-	if err != nil {
-		return nil, err
-	}
-
-	return subscriber.NewSubscriber(gateway_socket, db)
+	return subscriber.NewSubscriber(topic_filter, gateway_socket)
 }
 
 // Returns the gateway environment variable

@@ -12,26 +12,25 @@ import (
 	"github.com/blocklords/gosds/app/service"
 	"github.com/blocklords/gosds/categorizer/event"
 	"github.com/blocklords/gosds/common/data_type"
+	"github.com/blocklords/gosds/common/topic"
 	"github.com/blocklords/gosds/static/smartcontract"
 	"github.com/blocklords/gosds/static/smartcontract/key"
-
-	"github.com/blocklords/gosds/sdk/db"
 )
 
 type Subscriber struct {
 	socket            *remote.Socket
-	db                *db.KVM    // it also keeps the topic filter
 	smartcontractKeys []*key.Key // list of smartcontract keys
+	topic_filter      *topic.TopicFilter
 
 	BroadcastChan   chan message.Broadcast
 	broadcastSocket *remote.Socket
 }
 
 // Create a new subscriber for a given user and his topic filter.
-func NewSubscriber(gateway_socket *remote.Socket, db *db.KVM) (*Subscriber, error) {
+func NewSubscriber(topic_filter *topic.TopicFilter, gateway_socket *remote.Socket) (*Subscriber, error) {
 	subscriber := Subscriber{
+		topic_filter:      topic_filter,
 		socket:            gateway_socket,
-		db:                db,
 		smartcontractKeys: make([]*key.Key, 0),
 	}
 
@@ -92,14 +91,6 @@ func (s *Subscriber) Start() error {
 // Returns the latest updated block timestamp in the cache
 func (s *Subscriber) recent_block_timestamp() uint64 {
 	var recent_block_timestamp uint64 = 0
-	for _, key := range s.smartcontractKeys {
-		block_timestamp := s.db.GetBlockTimestamp(*key)
-		fmt.Println("recent block timestamp: ", *key, block_timestamp)
-		if block_timestamp > recent_block_timestamp {
-			recent_block_timestamp = block_timestamp
-		}
-	}
-
 	return recent_block_timestamp
 }
 
@@ -195,33 +186,14 @@ func (s *Subscriber) get_data() {
 // This function is called at the subscriber initiation stage to get the list of
 // smartcontracts by topic filter.
 func (s *Subscriber) load_smartcontracts() error {
-	smartcontracts, topicStrings, err := smartcontract.RemoteSmartcontracts(s.socket, s.db.TopicFilter())
+	smartcontracts, _, err := smartcontract.RemoteSmartcontracts(s.socket, s.topic_filter)
 	if err != nil {
 		return err
 	}
 
 	// set the smartcontract keys
-	for i, sm := range smartcontracts {
+	for _, sm := range smartcontracts {
 		key := sm.Key()
-
-		// cache the smartcontract block timestamp
-		// block timestamp is used to subscribe for the events
-		blockTimestamp := s.db.GetBlockTimestamp(key)
-
-		if blockTimestamp == 0 {
-			blockTimestamp = uint64(sm.PreDeployBlockTimestamp)
-			err := s.db.SetBlockTimestamp(key, blockTimestamp)
-			if err != nil {
-				return err
-			}
-		}
-
-		// cache the topic string
-		topicString := topicStrings[i]
-		err = s.db.SetTopicString(key, topicString)
-		if err != nil {
-			return err
-		}
 
 		// finally track the smartcontract
 		s.smartcontractKeys = append(s.smartcontractKeys, &key)
@@ -344,11 +316,7 @@ func (s *Subscriber) read_from_publisher() error {
 		}
 
 		key := key.New(networkId, address)
-
-		// we skip the duplicate messages that were fetched by the Snapshot
-		if s.db.GetBlockTimestamp(key) > block_timestamp {
-			continue
-		}
+		fmt.Println(key)
 
 		logs := make([]*event.Log, len(raw_logs))
 		for i, raw := range raw_logs {
@@ -363,20 +331,11 @@ func (s *Subscriber) read_from_publisher() error {
 			logs[i] = log
 		}
 
-		// Update the timestamp in the cache only if the received data is valid.
-		err = s.db.SetBlockTimestamp(key, block_timestamp)
-		if err != nil {
-			if close_err := s.close(exit_channel); close_err != nil {
-				return errors.New("failed to update the local cache: " + err.Error() + ", . failed to close the subscriber loop. error " + close_err.Error())
-			}
-			return errors.New("the local cache saving error " + err.Error())
-		}
-
 		return_reply := message.Reply{
 			Status:  "OK",
 			Message: "",
 			Parameters: map[string]interface{}{
-				"topic_string":    s.db.GetTopicString(key),
+				"topic_string":    "",
 				"block_timestamp": block_timestamp,
 				"logs":            logs,
 			},
