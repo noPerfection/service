@@ -68,8 +68,7 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 	}
 
 	for {
-		// msg_raw, metadata, err := c.socket.RecvMessageWithMetadata(0, "pub_key")
-		msg_raw, err := c.socket.RecvMessage(0)
+		msg_raw, metadata, err := c.socket.RecvMessageWithMetadata(0, "pub_key")
 		if err != nil {
 			fail := message.Fail("socket error to receive message " + err.Error())
 			reply, _ := fail.ToString()
@@ -90,6 +89,7 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 			}
 			continue
 		}
+		request.SetPublicKey(metadata["pub_key"])
 
 		// Any request types is compatible with the Request.
 		if !commands.Exist(request.Command) {

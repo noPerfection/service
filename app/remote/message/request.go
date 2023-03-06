@@ -10,6 +10,7 @@ import (
 type Request struct {
 	Command    string             `json:"command"`
 	Parameters key_value.KeyValue `json:"parameters"`
+	public_key string
 }
 
 // Request message as a  sequence of bytes
@@ -25,6 +26,14 @@ func (request *Request) ToBytes() ([]byte, error) {
 	}
 
 	return bytes, nil
+}
+
+func (request *Request) SetPublicKey(public_key string) {
+	request.public_key = public_key
+}
+
+func (request *Request) GetPublicKey() string {
+	return request.public_key
 }
 
 // Convert Request message to the string
