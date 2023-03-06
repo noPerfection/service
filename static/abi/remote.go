@@ -6,10 +6,11 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // Sends the ABI information to the remote SDS Static.
-func Set(socket *remote.Socket, body interface{}) (map[string]interface{}, error) {
+func Set(socket *remote.Socket, body interface{}) (key_value.KeyValue, error) {
 	// Send hello.
 	request := message.Request{
 		Command: "abi_register",
