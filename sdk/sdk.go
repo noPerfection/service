@@ -122,9 +122,7 @@ func NewSubscriber(topic_filter *topic.TopicFilter) (*subscriber.Subscriber, err
 		return nil, err
 	}
 
-	gateway_socket := remote.TcpRequestSocketOrPanic(e, developer_env)
-
-	return subscriber.NewSubscriber(topic_filter, gateway_socket)
+	return subscriber.NewSubscriber(topic_filter, e, developer_env)
 }
 
 // Returns the gateway environment variable
