@@ -8,12 +8,13 @@ import (
 )
 
 // The SDS Service will accepts the SmartcontractDeveloperRequest message.
+// Its created from message.Request.
+// Therefore we don't serialize or deserialize it.
 type SmartcontractDeveloperRequest struct {
-	Address        string             `json:"address"`         // The whitelisted address of the user
-	NonceTimestamp uint64             `json:"nonce_timestamp"` // The timestamp           // Nonce as a unix timestamp in seconds
-	Signature      string             `json:"signature"`       // The signature           // Command, nonce, address and parameters signed together
-	Command        string             `json:"command"`         // The command           // Command type
-	Parameters     key_value.KeyValue `json:"parameters"`      // The parametersParameters of the request
+	Address        string
+	NonceTimestamp uint64
+	Signature      string
+	Request        Request
 }
 
 // SmartcontractDeveloperRequest message as a  sequence of bytes
@@ -46,8 +47,15 @@ func (request *SmartcontractDeveloperRequest) ToString() (string, error) {
 // Converted into the hash using Keccak32.
 //
 // The request parameters are oredered in an alphanumerical order.
-func (request *SmartcontractDeveloperRequest) message_hash() ([]byte, error) {
-	json_object, err := key_value.NewFromInterface(request)
+func (sm_req *SmartcontractDeveloperRequest) message_hash() ([]byte, error) {
+	req := Request{
+		Command:    sm_req.Request.Command,
+		Parameters: sm_req.Request.Parameters,
+	}
+	req.Parameters = req.Parameters.Set("_nonce_timestamp", sm_req.NonceTimestamp)
+	req.Parameters = req.Parameters.Set("_address", sm_req.Address)
+
+	json_object, err := key_value.NewFromInterface(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize %v", err)
 	}
@@ -75,46 +83,36 @@ func (request *SmartcontractDeveloperRequest) DigestedMessage() ([]byte, error) 
 	return digested_hash.Bytes(), nil
 }
 
-// Parse the messages from zeromq into the SmartcontractDeveloperRequest
-func ParseSmartcontractDeveloperRequest(msgs []string) (SmartcontractDeveloperRequest, error) {
-	msg := ToString(msgs)
-
-	data, err := key_value.NewFromString(msg)
-	if err != nil {
-		return SmartcontractDeveloperRequest{}, fmt.Errorf("key_value.NewFromString: %w", err)
-	}
-
-	command, err := data.GetString("command")
-	if err != nil {
-		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetString(`command`): %w", err)
-	}
-	parameters, err := data.GetKeyValue("parameters")
-	if err != nil {
-		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetKeyValue(`parameters`): %w", err)
-	}
-
-	address, err := data.GetString("address")
+// Extracts the smartcontract request parameters from the request
+// The request then cleaned up from the smartcontract request parameters
+func ToSmartcontractDeveloperRequest(request Request) (SmartcontractDeveloperRequest, error) {
+	address, err := request.Parameters.GetString("_address")
 	if err != nil {
 		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetString(`address`): %w", err)
+	} else {
+		delete(request.Parameters, "_address")
 	}
 
-	nonce_timestamp, err := data.GetUint64("nonce_timestamp")
+	nonce_timestamp, err := request.Parameters.GetUint64("_nonce_timestamp")
 	if err != nil {
-		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetUint64(`nonce_timestamp`): %w", err)
+		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetUint64(`_nonce_timestamp`): %w", err)
+	} else {
+		delete(request.Parameters, "_nonce_timestamp")
 	}
 
-	signature, err := data.GetString("signature")
+	signature, err := request.Parameters.GetString("_signature")
 	if err != nil {
-		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetString(`signature`): %w", err)
+		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetString(`_signature`): %w", err)
+	} else {
+		delete(request.Parameters, "_signature")
 	}
 
-	request := SmartcontractDeveloperRequest{
+	sm_request := SmartcontractDeveloperRequest{
 		Address:        address,
 		NonceTimestamp: nonce_timestamp,
 		Signature:      signature,
-		Command:        command,
-		Parameters:     parameters,
+		Request:        request,
 	}
 
-	return request, nil
+	return sm_request, nil
 }
