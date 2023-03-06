@@ -3,9 +3,9 @@ package event
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/gosds/static/smartcontract"
 )
 
 func Save(db *db.Database, t *Log) error {
@@ -26,33 +26,51 @@ func Save(db *db.Database, t *Log) error {
 }
 
 // returns list of logs by transaction keys
-func GetLogsFromDb(con *db.Database, txKeys []string) ([]*Log, error) {
+func GetLogsFromDb(con *db.Database, smartcontracts []*smartcontract.Smartcontract, block_timestamp uint64, limit uint64) ([]*Log, error) {
 	var logs []*Log = make([]*Log, 0)
+	sm_amount := len(smartcontracts)
 
-	return nil, fmt.Errorf("todo: change the transaction keys to the list of network_ids and transaction_ids")
-
-	if len(txKeys) == 0 {
+	if sm_amount == 0 {
 		return logs, nil
 	}
 
+	args := make([]interface{}, (sm_amount*2)+2)
+	offset := 0
+	args[offset] = block_timestamp
+	offset++
+
+	smartcontracts_clause := ""
+	for i, key := range smartcontracts {
+		network_id := key.NetworkId
+		address := key.Address
+
+		smartcontracts_clause += "(network_id = ? AND address = ?) "
+		if i < sm_amount-1 {
+			smartcontracts_clause += " OR "
+		}
+
+		args[offset] = network_id
+		offset++
+		args[offset] = address
+		offset++
+	}
+	args[offset] = limit
+
 	query := `
 	SELECT
-		logs.block_number, 
-		logs.block_timestamp,
-		logs.transaction_key,
-		logs.log_index,
-		logs.address,
-		logs.log,
-		logs.output
+		block_number, 
+		block_timestamp,
+		transaction_id,
+		transaction_index,
+		log_index,
+		address,
+		network_id,
+		log,
+		output
 	FROM 
-		categorizer_logs AS logs, categorizer_transactions AS txs
+		categorizer_logs
 	WHERE 
-		logs.transaction_key IN (?` + strings.Repeat(",?", len(txKeys)-1) + `) AND txs.transaction_key = logs.transaction_key`
-
-	args := make([]interface{}, len(txKeys))
-	for i, param := range txKeys {
-		args[i] = param
-	}
+		block_timestamp >= ? AND ` + smartcontracts_clause + " LIMIT ? "
 
 	rows, err := con.Connection.Query(query, args...)
 	if err != nil {
@@ -63,20 +81,15 @@ func GetLogsFromDb(con *db.Database, txKeys []string) ([]*Log, error) {
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for rows.Next() {
 		var s Log
-		var outputBytes []byte
-		var transaction_key string
-		if err := rows.Scan(s.BlockNumber, s.BlockTimestamp, &transaction_key, &s.LogIndex, &s.Address, &s.Log, &outputBytes); err != nil {
+		var output_bytes []byte
+		if err := rows.Scan(&s.BlockNumber, &s.BlockTimestamp, &s.TransactionId, &s.TransactionIndex, &s.LogIndex, &s.Address, &s.NetworkId, &s.Log, &output_bytes); err != nil {
 			return nil, fmt.Errorf("database row scan: %w", err)
 		}
 
-		jsonErr := json.Unmarshal(outputBytes, &s.Output)
+		jsonErr := json.Unmarshal(output_bytes, &s.Output)
 		if jsonErr != nil {
-			return nil, fmt.Errorf("json.deserialize %s: %w", string(outputBytes), err)
+			return nil, fmt.Errorf("json.deserialize %s: %w", string(output_bytes), err)
 		}
-
-		parts := strings.Split(transaction_key, ".")
-		s.NetworkId = parts[0]
-		s.TransactionId = parts[1]
 
 		logs = append(logs, &s)
 	}
