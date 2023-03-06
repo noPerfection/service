@@ -37,7 +37,9 @@ func SmartcontractFilter(dbCon *db.Database, request message.Request, logger log
 
 	smartcontracts, topics, err := smartcontract.GetFromDatabaseFilterBy(dbCon, query, parameters)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("failed to filter smartcontracts by the topic filter:" + err.Error())
+	} else if len(smartcontracts) == 0 {
+		return message.Fail("no matching smartcontracts for the topic filter " + topic_filter.ToString())
 	}
 
 	// list of smartcontracts (map)
