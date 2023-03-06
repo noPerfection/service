@@ -196,8 +196,6 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		"smartcontract_get_all": handler.GetSmartcontracts,
 		"smartcontract_get":     handler.GetSmartcontract,
 
-		"log_get_all": handler.GetLogs,
-
 		"snapshot_get": handler.GetSnapshot,
 
 		"smartcontract_set": smartcontract_set,
