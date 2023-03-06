@@ -101,38 +101,7 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 			continue
 		}
 
-		var reply message.Reply
-
-		// requester := account.New(metadata["pub_key"])
-
-		// The command might be from a smartcontract developer.
-		command_handler, ok := commands[request.Command]
-		if !ok {
-			// smartcontract_developer_request, err := message.ParseSmartcontractDeveloperRequest(msg_raw)
-			// if err != nil {
-			// 	fail := message.Fail("invalid smartcontract developer request " + err.Error())
-			// 	reply, _ := fail.ToString()
-			// 	if _, err := c.socket.SendMessage(reply); err != nil {
-			// 		return errors.New("failed to reply: %w" + err.Error())
-			// 	}
-			// 	continue
-			// }
-
-			// smartcontract_developer, err := account.NewSmartcontractDeveloper(&smartcontract_developer_request)
-			// if err != nil {
-			// 	println(smartcontract_developer_request.NonceTimestamp)
-			// 	fail := message.Fail("reply controller error as invalid smartcontract developer request: " + err.Error())
-			// 	reply, _ := fail.ToString()
-			// 	if _, err := c.socket.SendMessage(reply); err != nil {
-			// 		return errors.New("failed to reply: %w" + err.Error())
-			// 	}
-			// 	continue
-			// }
-
-			// reply = command_handler(db_connection, smartcontract_developer_request, smartcontract_developer)
-		} else {
-			reply = command_handler(db_connection, request, c.logger)
-		}
+		reply := commands[request.Command](db_connection, request, c.logger)
 
 		reply_string, err := reply.ToString()
 		if err != nil {
