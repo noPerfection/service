@@ -1,5 +1,11 @@
 // The subscriber package pushes to the SDK user the smartcontract event logs
 // From SDS Categorizer.
+//
+// How it works:
+//
+//		We call the get_snapshot() command from the gateway.
+//		We call it every one second.
+//	 	At the beginning we first verify the topic filter.
 package subscriber
 
 import (
@@ -46,7 +52,7 @@ func NewSubscriber(topic_filter *topic.TopicFilter, gateway_socket *remote.Socke
 // Then start to queue the incoming data from the broadcaster.
 // The queued messages will be read and cached by the Subscriber.read_from_publisher() after getting the snapshot.
 func (subscriber *Subscriber) connect_to_publisher() error {
-	gateway_env, err := service.New(service.DEVELOPER_GATEWAY, service.SUBSCRIBE)
+	gateway_env, err := service.New(service.DEVELOPER_GATEWAY, service.REMOTE)
 	if err != nil {
 		return err
 	}
