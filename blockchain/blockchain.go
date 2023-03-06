@@ -10,35 +10,35 @@
 package blockchain
 
 import (
-	app_log "github.com/blocklords/gosds/app/log"
-	blockchain_process "github.com/blocklords/gosds/blockchain/inproc"
-	"github.com/blocklords/gosds/categorizer"
+	app_log "github.com/blocklords/sds/app/log"
+	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
+	"github.com/blocklords/sds/categorizer"
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/blockchain/transaction"
+	"github.com/blocklords/sds/blockchain/transaction"
 
-	"github.com/blocklords/gosds/blockchain/network"
+	"github.com/blocklords/sds/blockchain/network"
 
-	"github.com/blocklords/gosds/app/configuration"
-	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/service"
 
-	"github.com/blocklords/gosds/app/controller"
-	"github.com/blocklords/gosds/app/remote"
-	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/data_type/key_value"
-	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/sds/app/controller"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/db"
 
 	"fmt"
 
-	evm_categorizer "github.com/blocklords/gosds/blockchain/evm/categorizer"
-	evm_log_parse "github.com/blocklords/gosds/blockchain/evm/categorizer/log_parse"
-	imx_categorizer "github.com/blocklords/gosds/blockchain/imx/categorizer"
+	evm_categorizer "github.com/blocklords/sds/blockchain/evm/categorizer"
+	evm_log_parse "github.com/blocklords/sds/blockchain/evm/categorizer/log_parse"
+	imx_categorizer "github.com/blocklords/sds/blockchain/imx/categorizer"
 
-	evm_client "github.com/blocklords/gosds/blockchain/evm/client"
-	imx_client "github.com/blocklords/gosds/blockchain/imx/client"
+	evm_client "github.com/blocklords/sds/blockchain/evm/client"
+	imx_client "github.com/blocklords/sds/blockchain/imx/client"
 
-	"github.com/blocklords/gosds/blockchain/imx"
-	imx_worker "github.com/blocklords/gosds/blockchain/imx/worker"
+	"github.com/blocklords/sds/blockchain/imx"
+	imx_worker "github.com/blocklords/sds/blockchain/imx/worker"
 )
 
 ////////////////////////////////////////////////////////////////////

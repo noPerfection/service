@@ -4,7 +4,7 @@ package network
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/blockchain/network/provider"
+	"github.com/blocklords/sds/blockchain/network/provider"
 )
 
 type Network struct {

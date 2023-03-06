@@ -20,8 +20,8 @@ The following commands are available in this SDK:
 example of reading smartcontract data
 
 	   import (
-		"github.com/blocklords/gosds/sdk"
-		"github.com/blocklords/gosds/common/topic"
+		"github.com/blocklords/sds/sdk"
+		"github.com/blocklords/sds/common/topic"
 	   )
 
 	   func test() {
@@ -62,12 +62,12 @@ package sdk
 import (
 	"errors"
 
-	"github.com/blocklords/gosds/app/remote"
-	"github.com/blocklords/gosds/app/service"
-	"github.com/blocklords/gosds/common/topic"
-	"github.com/blocklords/gosds/sdk/reader"
-	"github.com/blocklords/gosds/sdk/subscriber"
-	"github.com/blocklords/gosds/sdk/writer"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/common/topic"
+	"github.com/blocklords/sds/sdk/reader"
+	"github.com/blocklords/sds/sdk/subscriber"
+	"github.com/blocklords/sds/sdk/writer"
 )
 
 var Version string = "Seascape GoSDS version: 0.0.8"

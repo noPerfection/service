@@ -5,9 +5,9 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/app/account"
-	"github.com/blocklords/gosds/app/controller"
-	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/sds/app/account"
+	"github.com/blocklords/sds/app/controller"
+	"github.com/blocklords/sds/app/service"
 )
 
 func whitelist_access(logger log.Logger, spaghetti_env *service.Service) {

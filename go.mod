@@ -1,4 +1,4 @@
-module github.com/blocklords/gosds
+module github.com/blocklords/sds
 
 go 1.19
 

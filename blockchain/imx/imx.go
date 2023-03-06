@@ -4,7 +4,7 @@ package imx
 import (
 	"errors"
 
-	"github.com/blocklords/gosds/app/configuration"
+	"github.com/blocklords/sds/app/configuration"
 )
 
 const REQUEST_PER_SECOND = "SDS_IMX_REQUEST_PER_SECOND"

@@ -3,12 +3,12 @@ package handler
 import (
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/db"
 
-	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/data_type"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/common/data_type"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // return a categorizer block by network id and smartcontract address

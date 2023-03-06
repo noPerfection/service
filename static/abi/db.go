@@ -4,7 +4,7 @@ package abi
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/sds/db"
 )
 
 // Save the ABI in the Database

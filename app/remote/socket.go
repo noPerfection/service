@@ -15,11 +15,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/blocklords/gosds/app/argument"
-	"github.com/blocklords/gosds/app/env"
-	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/app/service"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/app/argument"
+	"github.com/blocklords/sds/app/env"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	zmq "github.com/pebbe/zmq4"
 )
 

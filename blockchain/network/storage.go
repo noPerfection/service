@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blocklords/gosds/app/configuration"
+	"github.com/blocklords/sds/app/configuration"
 )
 
 const (

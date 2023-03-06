@@ -9,11 +9,11 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/app/configuration"
-	app_log "github.com/blocklords/gosds/app/log"
-	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/data_type/key_value"
-	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/sds/app/configuration"
+	app_log "github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/db"
 	hashicorp "github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/api/auth/approle"
 

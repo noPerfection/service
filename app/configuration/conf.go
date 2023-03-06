@@ -5,9 +5,9 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/app/argument"
-	"github.com/blocklords/gosds/app/env"
-	app_log "github.com/blocklords/gosds/app/log"
+	"github.com/blocklords/sds/app/argument"
+	"github.com/blocklords/sds/app/env"
+	app_log "github.com/blocklords/sds/app/log"
 	"github.com/spf13/viper"
 )
 

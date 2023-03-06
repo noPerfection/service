@@ -3,7 +3,7 @@ package configuration
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // Creates a new static.Configuration class based on the given data

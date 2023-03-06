@@ -2,14 +2,14 @@
 package data_type
 
 import (
-	"github.com/blocklords/gosds/app/account"
-	categorizer_log "github.com/blocklords/gosds/categorizer/event"
-	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/app/account"
+	categorizer_log "github.com/blocklords/sds/categorizer/event"
+	categorizer_smartcontract "github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/data_type/key_value"
 
-	static_configuration "github.com/blocklords/gosds/static/configuration"
-	static_smartcontract "github.com/blocklords/gosds/static/smartcontract"
-	static_smartcontract_key "github.com/blocklords/gosds/static/smartcontract/key"
+	static_configuration "github.com/blocklords/sds/static/configuration"
+	static_smartcontract "github.com/blocklords/sds/static/smartcontract"
+	static_smartcontract_key "github.com/blocklords/sds/static/smartcontract/key"
 )
 
 type List interface {

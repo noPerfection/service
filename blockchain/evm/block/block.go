@@ -3,8 +3,8 @@ package block
 import (
 	"strings"
 
-	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
-	"github.com/blocklords/gosds/blockchain/evm/event"
+	spaghetti_log "github.com/blocklords/sds/blockchain/event"
+	"github.com/blocklords/sds/blockchain/evm/event"
 
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )

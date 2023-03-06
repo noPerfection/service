@@ -4,28 +4,28 @@ import (
 	"fmt"
 	"sync"
 
-	app_log "github.com/blocklords/gosds/app/log"
+	app_log "github.com/blocklords/sds/app/log"
 	"github.com/charmbracelet/log"
 
-	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
-	"github.com/blocklords/gosds/blockchain/network"
-	"github.com/blocklords/gosds/categorizer/handler"
-	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/common/data_type/key_value"
-	static_abi "github.com/blocklords/gosds/static/abi"
+	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
+	"github.com/blocklords/sds/blockchain/network"
+	"github.com/blocklords/sds/categorizer/handler"
+	"github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/data_type/key_value"
+	static_abi "github.com/blocklords/sds/static/abi"
 
-	"github.com/blocklords/gosds/app/account"
-	"github.com/blocklords/gosds/app/configuration"
+	"github.com/blocklords/sds/app/account"
+	"github.com/blocklords/sds/app/configuration"
 
-	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/sds/app/remote"
 
-	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/sds/app/remote/message"
 
-	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/sds/app/service"
 
-	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/sds/db"
 
-	"github.com/blocklords/gosds/app/controller"
+	"github.com/blocklords/sds/app/controller"
 )
 
 var static_socket *remote.Socket

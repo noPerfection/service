@@ -3,11 +3,11 @@ package categorizer
 import (
 	"log"
 
-	"github.com/blocklords/gosds/app/configuration"
-	"github.com/blocklords/gosds/app/remote/message"
-	blockchai_process "github.com/blocklords/gosds/blockchain/inproc"
-	"github.com/blocklords/gosds/blockchain/network"
-	"github.com/blocklords/gosds/categorizer/smartcontract"
+	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/remote/message"
+	blockchai_process "github.com/blocklords/sds/blockchain/inproc"
+	"github.com/blocklords/sds/blockchain/network"
+	"github.com/blocklords/sds/categorizer/smartcontract"
 
 	zmq "github.com/pebbe/zmq4"
 )

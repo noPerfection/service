@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blocklords/gosds/app/configuration"
-	"github.com/blocklords/gosds/security/vault"
+	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/security/vault"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 

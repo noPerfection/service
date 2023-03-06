@@ -1,16 +1,16 @@
 package static
 
 import (
-	"github.com/blocklords/gosds/static/handler"
+	"github.com/blocklords/sds/static/handler"
 
-	"github.com/blocklords/gosds/app/configuration"
-	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/service"
 
-	"github.com/blocklords/gosds/app/account"
-	app_log "github.com/blocklords/gosds/app/log"
+	"github.com/blocklords/sds/app/account"
+	app_log "github.com/blocklords/sds/app/log"
 
-	"github.com/blocklords/gosds/app/controller"
-	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/sds/app/controller"
+	"github.com/blocklords/sds/db"
 )
 
 func Run(app_config *configuration.Config, db_connection *db.Database) {

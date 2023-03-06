@@ -5,7 +5,7 @@ package smartcontract
 import (
 	"sort"
 
-	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
+	categorizer_smartcontract "github.com/blocklords/sds/categorizer/smartcontract"
 )
 
 type EvmWorkers []*EvmWorker

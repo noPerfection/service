@@ -3,7 +3,7 @@ package smartcontract
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/sds/db"
 )
 
 // Update the block number and block timestamp of the smartcontract

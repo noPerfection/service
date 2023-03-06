@@ -1,7 +1,7 @@
 package configuration
 
 import (
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // Default configurations for the given package

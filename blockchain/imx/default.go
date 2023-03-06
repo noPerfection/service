@@ -1,8 +1,8 @@
 package imx
 
 import (
-	"github.com/blocklords/gosds/app/configuration"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 var ImxConfiguration = configuration.DefaultConfig{

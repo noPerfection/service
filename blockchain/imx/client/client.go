@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blocklords/gosds/blockchain/event"
-	"github.com/blocklords/gosds/blockchain/imx"
-	"github.com/blocklords/gosds/blockchain/imx/util"
-	"github.com/blocklords/gosds/blockchain/network"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/blockchain/event"
+	"github.com/blocklords/sds/blockchain/imx"
+	"github.com/blocklords/sds/blockchain/imx/util"
+	"github.com/blocklords/sds/blockchain/network"
+	"github.com/blocklords/sds/common/data_type/key_value"
 
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
 )

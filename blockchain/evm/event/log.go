@@ -3,7 +3,7 @@ package event
 import (
 	"encoding/hex"
 
-	"github.com/blocklords/gosds/blockchain/event"
+	"github.com/blocklords/sds/blockchain/event"
 
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )

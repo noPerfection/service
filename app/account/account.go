@@ -4,8 +4,8 @@ package account
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/app/service"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // Requester to the SDS Service. It's either a developer or another SDS service.

@@ -2,8 +2,8 @@
 package event
 
 import (
-	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
-	"github.com/blocklords/gosds/categorizer/smartcontract"
+	spaghetti_log "github.com/blocklords/sds/blockchain/event"
+	"github.com/blocklords/sds/categorizer/smartcontract"
 )
 
 // The Smartcontract Event Log

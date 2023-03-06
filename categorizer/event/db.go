@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/blocklords/gosds/db"
-	"github.com/blocklords/gosds/static/smartcontract"
+	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/static/smartcontract"
 )
 
 func Save(db *db.Database, t *Log) error {

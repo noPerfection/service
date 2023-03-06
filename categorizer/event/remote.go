@@ -3,14 +3,14 @@ package event
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/app/remote"
-	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // Return list of logs for the transaction keys from the remote SDS Categorizer.
 // For the transaction keys see
-// github.com/blocklords/gosds/categorizer/transaction.go TransactionKey()
+// github.com/blocklords/sds/categorizer/transaction.go TransactionKey()
 func RemoteLogs(socket *remote.Socket, keys []string) ([]*Log, error) {
 	request := message.Request{
 		Command: "log_get_all",

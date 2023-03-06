@@ -3,9 +3,9 @@ package network
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/app/remote"
-	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // Returns list of support network IDs from SDS Static

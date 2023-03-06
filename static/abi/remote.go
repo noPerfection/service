@@ -4,8 +4,8 @@ package abi
 import (
 	"errors"
 
-	"github.com/blocklords/gosds/app/remote"
-	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/remote/message"
 )
 
 // Sends the ABI information to the remote SDS Static.
@@ -41,7 +41,6 @@ func Get(socket *remote.Socket, network_id string, address string) (*Abi, error)
 	if !ok {
 		return nil, errors.New("missing 'abi' parameter from the SDS Static 'abi_get' command")
 	}
-
 
 	new_abi, err := NewFromBytes([]byte(abi_bytes.(string)))
 	if err != nil {

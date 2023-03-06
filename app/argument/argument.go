@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	app_log "github.com/blocklords/gosds/app/log"
+	app_log "github.com/blocklords/sds/app/log"
 	"github.com/charmbracelet/log"
 )
 

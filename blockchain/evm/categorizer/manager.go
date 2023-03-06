@@ -10,28 +10,28 @@ import (
 	"strings"
 	"sync"
 
-	app_log "github.com/blocklords/gosds/app/log"
+	app_log "github.com/blocklords/sds/app/log"
 	"github.com/charmbracelet/log"
 
 	"time"
 
-	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
-	"github.com/blocklords/gosds/blockchain/network"
+	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
+	"github.com/blocklords/sds/blockchain/network"
 
-	"github.com/blocklords/gosds/blockchain/evm/abi"
-	"github.com/blocklords/gosds/blockchain/evm/categorizer/smartcontract"
-	categorizer_event "github.com/blocklords/gosds/categorizer/event"
-	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/common/data_type"
-	"github.com/blocklords/gosds/common/data_type/key_value"
-	static_abi "github.com/blocklords/gosds/static/abi"
+	"github.com/blocklords/sds/blockchain/evm/abi"
+	"github.com/blocklords/sds/blockchain/evm/categorizer/smartcontract"
+	categorizer_event "github.com/blocklords/sds/categorizer/event"
+	categorizer_smartcontract "github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/data_type"
+	"github.com/blocklords/sds/common/data_type/key_value"
+	static_abi "github.com/blocklords/sds/static/abi"
 
-	"github.com/blocklords/gosds/app/remote/message"
-	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
-	spaghetti_block "github.com/blocklords/gosds/blockchain/evm/block"
+	"github.com/blocklords/sds/app/remote/message"
+	spaghetti_log "github.com/blocklords/sds/blockchain/event"
+	spaghetti_block "github.com/blocklords/sds/blockchain/evm/block"
 	zmq "github.com/pebbe/zmq4"
 
-	"github.com/blocklords/gosds/app/remote"
+	"github.com/blocklords/sds/app/remote"
 )
 
 const IDLE = "idle"

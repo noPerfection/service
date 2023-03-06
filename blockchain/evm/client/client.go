@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/blocklords/gosds/blockchain/evm/transaction"
-	"github.com/blocklords/gosds/blockchain/network/provider"
-	spaghetti_transaction "github.com/blocklords/gosds/blockchain/transaction"
+	"github.com/blocklords/sds/blockchain/evm/transaction"
+	"github.com/blocklords/sds/blockchain/network/provider"
+	spaghetti_transaction "github.com/blocklords/sds/blockchain/transaction"
 
 	"github.com/ethereum/go-ethereum"
 

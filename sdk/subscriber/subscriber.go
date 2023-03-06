@@ -12,12 +12,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/blocklords/gosds/app/remote"
-	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/app/service"
-	"github.com/blocklords/gosds/categorizer/event"
-	"github.com/blocklords/gosds/common/data_type/key_value"
-	"github.com/blocklords/gosds/common/topic"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/categorizer/event"
+	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/topic"
 )
 
 type Subscriber struct {

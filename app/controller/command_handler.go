@@ -1,8 +1,8 @@
 package controller
 
 import (
-	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/db"
 	"github.com/charmbracelet/log"
 )
 

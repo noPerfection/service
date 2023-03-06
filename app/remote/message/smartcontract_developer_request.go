@@ -3,7 +3,7 @@ package message
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 

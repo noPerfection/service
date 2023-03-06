@@ -4,10 +4,10 @@ import (
 	"fmt"
 	debug_log "log"
 
-	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/categorizer/event"
-	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/categorizer/event"
+	"github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/db"
 
 	zmq "github.com/pebbe/zmq4"
 )

@@ -3,8 +3,8 @@ package network
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/blockchain/network/provider"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/blockchain/network/provider"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // parses JSON object into the Network Type

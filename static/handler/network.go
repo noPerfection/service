@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"github.com/blocklords/gosds/blockchain/network"
-	"github.com/blocklords/gosds/common/data_type/key_value"
-	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/sds/blockchain/network"
+	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/db"
 	"github.com/charmbracelet/log"
 
-	app_log "github.com/blocklords/gosds/app/log"
-	"github.com/blocklords/gosds/app/remote/message"
+	app_log "github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/remote/message"
 )
 
 // Returns Network

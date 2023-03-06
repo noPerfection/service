@@ -3,7 +3,7 @@ package transaction
 import (
 	"errors"
 
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // Parse the JSON into spaghetti.Transation

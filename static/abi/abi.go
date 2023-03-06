@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 
-	"github.com/blocklords/gosds/common/data_type"
+	"github.com/blocklords/sds/common/data_type"
 )
 
 type Abi struct {

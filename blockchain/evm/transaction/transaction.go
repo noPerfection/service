@@ -4,9 +4,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/blocklords/gosds/blockchain/evm/util"
+	"github.com/blocklords/sds/blockchain/evm/util"
 
-	"github.com/blocklords/gosds/blockchain/transaction"
+	"github.com/blocklords/sds/blockchain/transaction"
 
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )

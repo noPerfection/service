@@ -6,14 +6,14 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/blockchain/imx"
-	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
+	"github.com/blocklords/sds/blockchain/imx"
+	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
 
-	"github.com/blocklords/gosds/app/configuration"
-	"github.com/blocklords/gosds/app/remote/message"
-	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
-	"github.com/blocklords/gosds/blockchain/imx/client"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/remote/message"
+	spaghetti_log "github.com/blocklords/sds/blockchain/event"
+	"github.com/blocklords/sds/blockchain/imx/client"
+	"github.com/blocklords/sds/common/data_type/key_value"
 
 	zmq "github.com/pebbe/zmq4"
 )

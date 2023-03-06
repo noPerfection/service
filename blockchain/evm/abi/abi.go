@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	static_abi "github.com/blocklords/gosds/static/abi"
+	static_abi "github.com/blocklords/sds/static/abi"
 	eth_common "github.com/ethereum/go-ethereum/common"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"

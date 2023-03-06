@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/sds/app/remote/message"
 
 	zmq "github.com/pebbe/zmq4"
 )

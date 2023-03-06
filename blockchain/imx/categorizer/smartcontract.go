@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/blocklords/gosds/app/remote"
-	"github.com/blocklords/gosds/app/remote/message"
-	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
-	blockchain_process "github.com/blocklords/gosds/blockchain/inproc"
-	"github.com/blocklords/gosds/categorizer/event"
-	"github.com/blocklords/gosds/categorizer/smartcontract"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/remote/message"
+	spaghetti_log "github.com/blocklords/sds/blockchain/event"
+	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
+	"github.com/blocklords/sds/categorizer/event"
+	"github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // Run the goroutine for each Imx smartcontract.

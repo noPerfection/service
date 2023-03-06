@@ -3,7 +3,7 @@ package categorizer
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/sds/app/service"
 )
 
 // Return the whitelisted services that can access to this service

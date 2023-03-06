@@ -8,14 +8,14 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	evm_log "github.com/blocklords/gosds/blockchain/evm/event"
-	blockchain_proc "github.com/blocklords/gosds/blockchain/inproc"
-	"github.com/blocklords/gosds/blockchain/network"
-	"github.com/blocklords/gosds/blockchain/transaction"
+	evm_log "github.com/blocklords/sds/blockchain/evm/event"
+	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
+	"github.com/blocklords/sds/blockchain/network"
+	"github.com/blocklords/sds/blockchain/transaction"
 
-	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/sds/app/remote/message"
 
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 
 	zmq "github.com/pebbe/zmq4"

@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/blocklords/gosds/app/account"
-	"github.com/blocklords/gosds/app/service"
+	"github.com/blocklords/sds/app/account"
+	"github.com/blocklords/sds/app/service"
 
-	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/sds/app/remote/message"
 
-	app_log "github.com/blocklords/gosds/app/log"
+	app_log "github.com/blocklords/sds/app/log"
 	"github.com/charmbracelet/log"
 
 	zmq "github.com/pebbe/zmq4"

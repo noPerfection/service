@@ -4,13 +4,13 @@ package smartcontract
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/app/remote"
-	"github.com/blocklords/gosds/blockchain/evm/abi"
-	"github.com/blocklords/gosds/blockchain/evm/categorizer/log_parse"
-	"github.com/blocklords/gosds/categorizer/event"
-	categorizer_smartcontract "github.com/blocklords/gosds/categorizer/smartcontract"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/blockchain/evm/abi"
+	"github.com/blocklords/sds/blockchain/evm/categorizer/log_parse"
+	"github.com/blocklords/sds/categorizer/event"
+	categorizer_smartcontract "github.com/blocklords/sds/categorizer/smartcontract"
 
-	spaghetti_log "github.com/blocklords/gosds/blockchain/event"
+	spaghetti_log "github.com/blocklords/sds/blockchain/event"
 )
 
 // For EVM based smartcontracts

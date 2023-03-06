@@ -4,17 +4,17 @@ package main
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/app/log"
+	"github.com/blocklords/sds/app/log"
 
 	"sync"
 
-	"github.com/blocklords/gosds/app/configuration"
-	"github.com/blocklords/gosds/blockchain"
-	"github.com/blocklords/gosds/categorizer"
-	"github.com/blocklords/gosds/db"
-	"github.com/blocklords/gosds/security"
-	"github.com/blocklords/gosds/security/vault"
-	"github.com/blocklords/gosds/static"
+	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/blockchain"
+	"github.com/blocklords/sds/categorizer"
+	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/security"
+	"github.com/blocklords/sds/security/vault"
+	"github.com/blocklords/sds/static"
 )
 
 /** SeascapeSDS + its SDK to use it.*/

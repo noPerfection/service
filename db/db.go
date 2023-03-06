@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
-	app_log "github.com/blocklords/gosds/app/log"
+	app_log "github.com/blocklords/sds/app/log"
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/app/configuration"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	_ "github.com/go-sql-driver/mysql"
 )
 

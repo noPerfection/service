@@ -10,10 +10,10 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/app/account"
-	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/app/service"
-	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/sds/app/account"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/db"
 
 	zmq "github.com/pebbe/zmq4"
 )

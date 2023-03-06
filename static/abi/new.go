@@ -4,8 +4,8 @@ package abi
 import (
 	"fmt"
 
-	"github.com/blocklords/gosds/common/data_type"
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/data_type"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // Wraps the JSON abi interface to the internal data type.

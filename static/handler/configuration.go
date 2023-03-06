@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"github.com/blocklords/gosds/common/data_type/key_value"
-	"github.com/blocklords/gosds/db"
-	"github.com/blocklords/gosds/static/configuration"
-	"github.com/blocklords/gosds/static/smartcontract"
+	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/static/configuration"
+	"github.com/blocklords/sds/static/smartcontract"
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/sds/app/remote/message"
 )
 
 // Register a new smartcontract in the configuration.

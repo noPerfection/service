@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // The broadcasters sends to all subscribers this message.

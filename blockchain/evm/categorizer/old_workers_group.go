@@ -1,6 +1,6 @@
 package categorizer
 
-import "github.com/blocklords/gosds/blockchain/evm/categorizer/smartcontract"
+import "github.com/blocklords/sds/blockchain/evm/categorizer/smartcontract"
 
 // Worker Groups are list of smartcontracts
 // That are categorized together.

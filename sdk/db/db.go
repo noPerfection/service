@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/blocklords/gosds/app/env"
-	"github.com/blocklords/gosds/common/topic"
-	"github.com/blocklords/gosds/static/smartcontract/key"
+	"github.com/blocklords/sds/app/env"
+	"github.com/blocklords/sds/common/topic"
+	"github.com/blocklords/sds/static/smartcontract/key"
 	"github.com/cockroachdb/pebble"
 )
 

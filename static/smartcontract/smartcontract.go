@@ -1,7 +1,7 @@
 package smartcontract
 
 import (
-	"github.com/blocklords/gosds/static/smartcontract/key"
+	"github.com/blocklords/sds/static/smartcontract/key"
 )
 
 type Smartcontract struct {

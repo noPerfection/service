@@ -67,7 +67,7 @@ Create an empty project with go programming language:
 ```sh
 ?> mkdir scape_nft_example
 ?> go init mod
-?> go get github.com/blocklords/gosds
+?> go get github.com/blocklords/sds
 ```
 
 With the gosds package installed, let's create the `.env` file with the authentication parameters.
@@ -80,12 +80,12 @@ Here is the example of tracking transactions:
 package main
 
 import (
-	"github.com/blocklords/gosds/categorizer"
-	"github.com/blocklords/gosds/app/env"
-	"github.com/blocklords/gosds/app/remote/message"
-	"github.com/blocklords/gosds/sdk"
-	"github.com/blocklords/gosds/security"
-	"github.com/blocklords/gosds/common/topic"
+	"github.com/blocklords/sds/categorizer"
+	"github.com/blocklords/sds/app/env"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/sdk"
+	"github.com/blocklords/sds/security"
+	"github.com/blocklords/sds/common/topic"
 )
 
 func main() {

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/blocklords/gosds/app/remote"
-	"github.com/blocklords/gosds/app/remote/message"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/remote/message"
 )
 
 // Sends the command to the remote SDS Spaghetti to filter the logs
