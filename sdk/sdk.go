@@ -2,8 +2,8 @@
 The gosds/sdk package is the client package to interact with SDS.
 The following commands are available in this SDK:
 
-1. Subscribe - subscribe for events
-2. Sign - send a transaction to the blockchain
+1. Subscribe - subscribes for events
+2. Sign - sends a transaction to the blockchain
 3. AddToPool - send a transaction to the pool that will be broadcasted to the blockchain bundled.
 4. Read - read a smartcontract information
 
@@ -25,11 +25,8 @@ example of reading smartcontract data
 	   )
 
 	   func test() {
-		// returns sdk.Reader
-		reader := sdk.NewReader("address", "gateway repUrl")
-		// gosds.topic.Topic
-		importAddressTopic := topic.ParseString("metaking.blocklords.11155111.transfer.ImportExportManager.accountHodlerOf")
-		args := ["user address"]
+		topic := topic.NewTopicFilterFromString("")
+		reader := sdk.NewSubscriber("address", "gateway repUrl")
 
 		// returns gosds.message.Reply
 		reply := reader.Read(importAddressTopic, args)
@@ -47,7 +44,7 @@ example of using Subscribe
 
 	   func(test) {
 			topicFilter := topic.TopicFilter{}
-			subscriber := sdk.NewSubscriber("address", topicFilter)
+			subscriber := sdk.NewSubscriber(topicFilter)
 
 			// first it will get the snapshots
 			// then it will return the data
@@ -115,7 +112,7 @@ func NewWriter(address string) (*writer.Writer, error) {
 }
 
 // Returns a new subscriber
-func NewSubscriber(address string, topicFilter *topic.TopicFilter, clear_cache bool) (*subscriber.Subscriber, error) {
+func NewSubscriber(topicFilter *topic.TopicFilter, clear_cache bool) (*subscriber.Subscriber, error) {
 	e, err := gatewayEnv(true)
 	if err != nil {
 		return nil, err
@@ -133,7 +130,7 @@ func NewSubscriber(address string, topicFilter *topic.TopicFilter, clear_cache b
 		return nil, err
 	}
 
-	return subscriber.NewSubscriber(gatewaySocket, db, address, clear_cache)
+	return subscriber.NewSubscriber(gatewaySocket, db, clear_cache)
 }
 
 // Returns the gateway environment variable

@@ -1,4 +1,5 @@
-// The sdk/subscriber package is used to register for the smartcontracts
+// The subscriber package pushes to the SDK user the smartcontract event logs
+// From SDS Categorizer.
 package subscriber
 
 import (
@@ -18,7 +19,6 @@ import (
 )
 
 type Subscriber struct {
-	Address           string // Account address granted for reading
 	socket            *remote.Socket
 	db                *db.KVM    // it also keeps the topic filter
 	smartcontractKeys []*key.Key // list of smartcontract keys
@@ -28,9 +28,8 @@ type Subscriber struct {
 }
 
 // Create a new subscriber for a given user and his topic filter.
-func NewSubscriber(gatewaySocket *remote.Socket, db *db.KVM, address string, clear_cache bool) (*Subscriber, error) {
+func NewSubscriber(gatewaySocket *remote.Socket, db *db.KVM, clear_cache bool) (*Subscriber, error) {
 	subscriber := Subscriber{
-		Address:           address,
 		socket:            gatewaySocket,
 		db:                db,
 		smartcontractKeys: make([]*key.Key, 0),
