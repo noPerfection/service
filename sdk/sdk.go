@@ -112,7 +112,7 @@ func NewWriter(address string) (*writer.Writer, error) {
 }
 
 // Returns a new subscriber
-func NewSubscriber(topicFilter *topic.TopicFilter, clear_cache bool) (*subscriber.Subscriber, error) {
+func NewSubscriber(topicFilter *topic.TopicFilter) (*subscriber.Subscriber, error) {
 	e, err := gatewayEnv(true)
 	if err != nil {
 		return nil, err
@@ -123,14 +123,14 @@ func NewSubscriber(topicFilter *topic.TopicFilter, clear_cache bool) (*subscribe
 		return nil, err
 	}
 
-	gatewaySocket := remote.TcpRequestSocketOrPanic(e, developer_env)
+	gateway_socket := remote.TcpRequestSocketOrPanic(e, developer_env)
 
 	db, err := db.OpenKVM(topicFilter)
 	if err != nil {
 		return nil, err
 	}
 
-	return subscriber.NewSubscriber(gatewaySocket, db, clear_cache)
+	return subscriber.NewSubscriber(gateway_socket, db)
 }
 
 // Returns the gateway environment variable
