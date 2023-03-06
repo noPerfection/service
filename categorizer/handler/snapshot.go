@@ -5,92 +5,57 @@ import (
 
 	"github.com/blocklords/gosds/categorizer/event"
 	"github.com/blocklords/gosds/db"
+	"github.com/blocklords/gosds/static/configuration"
+	"github.com/blocklords/gosds/static/smartcontract"
 
 	"github.com/blocklords/gosds/app/remote/message"
 	"github.com/blocklords/gosds/common/data_type"
 	"github.com/blocklords/gosds/common/data_type/key_value"
+	"github.com/blocklords/gosds/common/topic"
 )
 
-// Get's the list of transactions and logs for a particular smartcontract
-// Within the range of the timestamp
+const SNAPSHOT_LIMIT = uint64(500)
+
+// Return the categorized logs of the SNAPSHOT_LIMIT amount since the block_timestamp_from
+// For the topic_filter
 //
-// Request parameters:
-// 1. "block_timestamp_from"
-// 2. "block_timestamp_to"
-// 3. "smartcontract_key"
-// 4. "page"
-// 5. "limit"
-//
-// Reply parameters:
-// 1. transactions
-// 2. logs
-// 3. network_id
-// 4. address
-// 5. block_timestamp
-func GetSnapshot(db *db.Database, request message.Request, logger log.Logger) message.Reply {
+// This function is called by the Gateway
+func GetSnapshot(db_con *db.Database, request message.Request, logger log.Logger) message.Reply {
 	/////////////////////////////////////////////////////////////////////////////
 	//
 	// Extract the parameters
 	//
 	/////////////////////////////////////////////////////////////////////////////
-	// block_timestamp_from, err := request.Parameters.GetUint64("block_timestamp_from")
-	// if err != nil {
-	// return message.Fail(err.Error())
-	// }
-	block_timestamp_to, err := request.Parameters.GetUint64("block_timestamp_to")
-	if err != nil {
-		return message.Fail("validation: " + err.Error())
-	}
-	// smartcontract_keys, err := request.Parameters.GetStringList("smartcontract_keys")
-	// if err != nil {
-	// return message.Fail(err.Error())
-	// }
-	page, err := request.Parameters.GetUint64("page")
-	if err != nil {
-		return message.Fail("validation: " + err.Error())
-	}
-	if page == 0 {
-		page = 1
-	}
-	limit, err := request.Parameters.GetUint64("limit")
-	if err != nil {
-		return message.Fail("validation: " + err.Error())
-	}
-	if limit > 500 {
-		return message.Fail("the limit exceeds 500. Please make it lower")
-	}
-	if limit == 0 {
-		limit = 500
-	}
-
-	// smartcontracts := worker.GetSmartcontracts(evm_managers)
-
-	// todo change the transaction
-	/*if block_timestamp_to == 0 {
-		block_timestamp_to, err = transaction.GetRecentBlockTimestamp(db, smartcontract_keys)
-		if err != nil {
-			return message.Fail("database error while trying to detect recent block timestamp: " + err.Error())
-		}
-	}*/
-
-	/*transactions, err := transaction.TransactionGetAll(db, block_timestamp_from, block_timestamp_to, smartcontract_keys, page, limit)
+	block_timestamp_from, err := request.Parameters.GetUint64("block_timestamp_from")
 	if err != nil {
 		return message.Fail(err.Error())
-	}*/
+	}
+	topic_filter_map, err := request.Parameters.GetKeyValue("topic_filter")
+	if err != nil {
+		return message.Fail(err.Error())
+	}
+	topic_filter := topic.ParseJSONToTopicFilter(topic_filter_map)
 
-	var logs []*event.Log = []*event.Log{}
-	/*
-		if len(transactions) > 0 {
-			txKeys := make([]string, len(transactions))
-			for i, tx := range transactions {
-				txKeys[i] = transaction.TransactionKey(tx.NetworkId, tx.Txid)
-			}
+	query, parameters := configuration.QueryFilterSmartcontract(topic_filter)
 
-			logs, err = log.GetLogsFromDb(db, txKeys)
-			if err != nil {
-				return message.Fail(err.Error())
-			}
-		}*/
+	smartcontracts, _, err := smartcontract.GetFromDatabaseFilterBy(db_con, query, parameters)
+	if err != nil {
+		return message.Fail("failed to filter smartcontracts by the topic filter:" + err.Error())
+	} else if len(smartcontracts) == 0 {
+		return message.Fail("no matching smartcontracts for the topic filter " + topic_filter.ToString())
+	}
+
+	logs, err := event.GetLogsFromDb(db_con, smartcontracts, block_timestamp_from, SNAPSHOT_LIMIT)
+	if err != nil {
+		return message.Fail("database error to filter logs: " + err.Error())
+	}
+
+	block_timestamp_to := block_timestamp_from
+	for _, log := range logs {
+		if log.BlockTimestamp > block_timestamp_to {
+			block_timestamp_to = log.BlockTimestamp
+		}
+	}
 
 	reply := message.Reply{
 		Status: "OK",
