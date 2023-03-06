@@ -40,11 +40,6 @@ func NewSubscriber(topic_filter *topic.TopicFilter, gateway_socket *remote.Socke
 		smartcontractKeys: make([]*key.Key, 0),
 	}
 
-	err := subscriber.load_smartcontracts()
-	if err != nil {
-		return nil, err
-	}
-
 	return &subscriber, nil
 }
 
@@ -187,25 +182,24 @@ func (s *Subscriber) get_data() {
 	}
 }
 
-// Get the list of the smartcontracts by smartcontract filter from SDS Categorizer via SDS Gateway
-// Then cache them out and list in the Subscriber data structure
-// This function is called at the subscriber initiation stage to get the list of
-// smartcontracts by topic filter.
-func (s *Subscriber) load_smartcontracts() error {
-	smartcontracts, _, err := smartcontract.RemoteSmartcontracts(s.socket, s.topic_filter)
+// Get the recent logs timestamp from where we should continue to fetch
+func (s *Subscriber) recent_subscriber_state(socket *remote.Socket) (uint64, error) {
+	request := message.Request{
+		Command:    "subscriber_state",
+		Parameters: key_value.Empty().Set("topic_filter", s.topic_filter),
+	}
+
+	parameters, err := socket.RequestRemoteService(&request)
 	if err != nil {
-		return err
+		return 0, fmt.Errorf("remote subsriber_state: %w", err)
 	}
 
-	// set the smartcontract keys
-	for _, sm := range smartcontracts {
-		key := sm.Key()
-
-		// finally track the smartcontract
-		s.smartcontractKeys = append(s.smartcontractKeys, &key)
+	block_timestamp, err := parameters.GetUint64("block_timestamp")
+	if err != nil {
+		return 0, fmt.Errorf("get block_timestamp from remote subsriber_state: %w", err)
 	}
 
-	return nil
+	return block_timestamp, nil
 }
 
 func (s *Subscriber) close(exit_channel chan int) error {
