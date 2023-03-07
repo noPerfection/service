@@ -96,6 +96,17 @@ func get_indexed(inputs abi.Arguments) abi.Arguments {
 	return ret
 }
 
+func (a *Abi) get_events(event_id string) []abi.Event {
+	events := make([]abi.Event, 0)
+	for _, event := range a.geth_abi.Events {
+		if strings.EqualFold(event_id, event.ID.String()) {
+			events = append(events, event)
+		}
+	}
+
+	return events
+}
+
 func (a *Abi) DecodeLog(topics []string, data string) (string, map[string]interface{}, error) {
 	if len(topics) == 0 {
 		return "", nil, fmt.Errorf("anonymous events are not supported")
@@ -114,8 +125,13 @@ func (a *Abi) DecodeLog(topics []string, data string) (string, map[string]interf
 	topic_outputs := make(map[string]interface{}, 0)
 
 	data_outputs := make(map[string]interface{}, 0)
-	for _, event := range a.geth_abi.Events {
-		if strings.EqualFold(event_id.String(), event.ID.String()) {
+	events := a.get_events(event_id.String())
+	if len(events) == 0 {
+		return "", nil, fmt.Errorf("no event in abi: %v", event_id)
+	}
+	for _, event := range events {
+		indexed := get_indexed(event.Inputs)
+		if len(indexed) == len(topic_hashes) {
 			if len(data) > 0 {
 				bytes, err := hex.DecodeString(data)
 				if err != nil {
@@ -123,11 +139,10 @@ func (a *Abi) DecodeLog(topics []string, data string) (string, map[string]interf
 				}
 				err = event.Inputs.NonIndexed().UnpackIntoMap(data_outputs, bytes)
 				if err != nil {
-					return "", nil, fmt.Errorf("parsing event %s for data %s error: %w", event.RawName, bytes, err)
+					return "", nil, fmt.Errorf("parsing event %s for data %s error: %w", event.RawName, data, err)
 				}
 			}
 
-			indexed := get_indexed(event.Inputs)
 			err := abi.ParseTopicsIntoMap(topic_outputs, indexed, topic_hashes)
 			if err != nil {
 				return "", nil, fmt.Errorf("event %s for %v topics parsing error: %w", event.RawName, topics, err)
@@ -142,5 +157,5 @@ func (a *Abi) DecodeLog(topics []string, data string) (string, map[string]interf
 		}
 	}
 
-	return "", nil, fmt.Errorf("failed to decode the event. No matching signature")
+	return "", nil, fmt.Errorf("failed to decode the event. No topic amount")
 }
