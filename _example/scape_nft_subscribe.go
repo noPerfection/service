@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/blocklords/sds/app/env"
-	"github.com/blocklords/sds/categorizer/event"
+	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/sdk"
 	"github.com/blocklords/sds/security"
@@ -27,25 +27,19 @@ func main() {
 	}
 
 	subscriber, _ := sdk.NewSubscriber(filter)
-
-	// Started Subscriber will start the fetch the data
-	// the data is avaiable at subscrber.BroadcastChan channel
 	subscriber.Start()
 
 	for {
-		response := <-subscriber.BroadcastChan
+		reply := <-subscriber.Channel
 
-		if !response.IsOK() {
-			fmt.Println("received an error %s", response.Reply.Message)
+		if reply.Status == message.FAIL {
+			fmt.Println("received an error %s", reply.Message)
 			break
 		}
 
-		parameters := response.Reply.Parameters
-		logs := parameters["logs"].([]*event.Log)
+		fmt.Printf("client recevied %d amount of logs from SDS\n", len(reply.Parameters.Logs))
 
-		fmt.Printf("client recevied %d amount of logs from SDS\n", len(logs))
-
-		for _, event := range logs {
+		for _, event := range reply.Parameters.Logs {
 			nft_id := event.Output["_nftId"]
 			from := event.Output["_from"]
 			to := event.Output["_to"]
@@ -53,7 +47,7 @@ func main() {
 			fmt.Println("NFT %d transferred from %s to %s", nft_id, from, to)
 			fmt.Println("on a network %s at %d", event.NetworkId, event.BlockTimestamp)
 
-			// Do something with the logs
+			// Do something with the event logs
 		}
 
 	}
