@@ -378,6 +378,21 @@ func (manager *Manager) categorize_current_smartcontracts() {
 	}
 }
 
+func recent_block_number(socket *remote.Socket) (uint64, error) {
+	request := message.Request{
+		Command:    "recent-block-number",
+		Parameters: key_value.Empty(),
+	}
+
+	recent_reply, err := socket.RequestRemoteService(&request)
+	if err != nil {
+		return 0, fmt.Errorf("RemoteRequest: %w", err)
+	}
+
+	block_number, _ := recent_reply.GetUint64("block_number")
+	return block_number, nil
+}
+
 // We start to consume the block information from SDS Spaghetti
 // And put it in the queue.
 // The worker will start to consume them one by one.
@@ -386,18 +401,11 @@ func (manager *Manager) queue_recent_blocks() {
 
 	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
 	blockchain_socket := remote.InprocRequestSocket(url)
-
-	request := message.Request{
-		Command:    "recent-block-number",
-		Parameters: key_value.Empty(),
-	}
-
-	recent_reply, err := blockchain_socket.RequestRemoteService(&request)
+	block_number, err := recent_block_number(blockchain_socket)
 	if err != nil {
-		sub_logger.Fatal("recent-block-number RemoteRequest", "message", err)
+		sub_logger.Fatal("recent-block-number", "message", err)
 	}
 
-	block_number, _ := recent_reply.GetUint64("block_number")
 	sub_logger.Info("recent-block-number", "block_number", block_number)
 	sub_logger.Info("pause 10 seconds before each log filter")
 
