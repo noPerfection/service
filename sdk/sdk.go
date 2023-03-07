@@ -111,7 +111,7 @@ func NewWriter(address string) (*writer.Writer, error) {
 }
 
 // Returns a new subscriber
-func NewSubscriber(topic_filter *topic.TopicFilter) (*subscriber.Subscriber, error) {
+func NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subscriber, error) {
 	e, err := gatewayEnv(true)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func NewSubscriber(topic_filter *topic.TopicFilter) (*subscriber.Subscriber, err
 		return nil, err
 	}
 
-	return subscriber.NewSubscriber(topic_filter, e, developer_env)
+	return subscriber.NewSubscriber(&topic_filter, e, developer_env)
 }
 
 // Returns the gateway environment variable

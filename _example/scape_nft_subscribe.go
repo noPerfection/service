@@ -17,12 +17,11 @@ func main() {
 	// ScapeNFT topic filter
 	filter := topic.TopicFilter{
 		Organizations:  []string{"seascape"},
-		Projects:       []string{"core"},
 		Smartcontracts: []string{"ScapeNFT"},
 		Methods:        []string{"transfer"},
 	}
 
-	subscriber, _ := sdk.NewSubscriber("sample", &filter, true)
+	subscriber, _ := sdk.NewSubscriber(filter)
 
 	// Started Subscriber will start the fetch the data
 	// the data is avaiable at subscrber.BroadcastChan channel
