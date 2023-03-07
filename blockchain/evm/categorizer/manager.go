@@ -232,8 +232,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 				decoded_log, err := worker.DecodeLog(raw_log)
 				if err != nil {
-					old_logger.Error("worker.DecodeLog", "smartcontract", worker.Smartcontract.Address, "message", err)
-					continue
+					old_logger.Fatal("worker.DecodeLog", "smartcontract", worker.Smartcontract.Address, "message", err)
 				}
 
 				decoded_logs = append(decoded_logs, decoded_log)
