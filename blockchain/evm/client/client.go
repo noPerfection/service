@@ -26,6 +26,7 @@ const (
 	DEFAULT_RATING = 100.0
 	MAX_RATING_CAP = 1000.0
 	MIN_RATING_CAP = 0.0
+	STABLE_RATING  = 50.0
 )
 
 // todo any call should be with a context and repititon

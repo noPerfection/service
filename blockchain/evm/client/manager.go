@@ -65,6 +65,25 @@ func (m *Manager) client() *Client {
 	return m.clients[index]
 }
 
+// Return the list of clients that has success rating more than 5 percent
+func (m *Manager) stable_clients() []*Client {
+	clients := make([]*Client, 0)
+
+	for _, c := range m.clients {
+		if c.Rating >= STABLE_RATING {
+			clients = append(clients, c)
+		}
+	}
+
+	return clients
+}
+
+func (m *Manager) client_info(title string) {
+	for i, c := range m.clients {
+		m.logger.Info("client info"+title, "id", i, "provider url", c.provider.Url, "rating", c.Rating)
+	}
+}
+
 // Sets up the socket to interact with other packages within SDS
 func (worker *Manager) SetupSocket() {
 	sock, err := zmq.NewSocket(zmq.REP)
