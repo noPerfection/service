@@ -142,32 +142,59 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 	}
 	block_number_to := block_number_from + length
 
-	attempt := ATTEMPT_AMOUNT
-	var raw_logs []eth_types.Log
-	for {
-		raw_logs, err = worker.client().GetBlockRangeLogs(block_number_from, block_number_to, addresses)
-		if err == nil {
-			break
+	raw_logs := make([]eth_types.Log, 0)
+	clients := worker.stable_clients()
+	if len(clients) == 0 {
+		return message.Fail("no stable clients found")
+	}
+	attempt_failed := 0
+	for _, client := range clients {
+		var fetched_raw_logs []eth_types.Log
+
+		attempt := ATTEMPT_AMOUNT
+		for {
+			fetched_raw_logs, err = client.GetBlockRangeLogs(block_number_from, block_number_to, addresses)
+			if err == nil {
+				break
+			}
+			if attempt == 0 {
+				attempt_failed++
+				break
+			}
+			time.Sleep(ATTEMPT_DELAY)
+			attempt--
 		}
-		if attempt == 0 {
-			return message.Fail("multiple attempts were made unseccsfully: " + err.Error())
+
+		if len(fetched_raw_logs) == 0 {
+			continue
 		}
-		time.Sleep(ATTEMPT_DELAY)
-		attempt--
+
+		for _, fetched_log := range fetched_raw_logs {
+			if fetched_log.Removed {
+				continue
+			}
+			found := false
+
+			for _, raw_log := range raw_logs {
+				if raw_log.TxHash.Hex() == fetched_log.TxHash.Hex() &&
+					raw_log.Index == fetched_log.Index {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				raw_logs = append(raw_logs, fetched_log)
+			}
+		}
+	}
+	if attempt_failed == len(clients) {
+		return message.Fail("multiple attempts were made : " + err.Error())
 	}
 
-	attempt = ATTEMPT_AMOUNT
-	var block_timestamp uint64
-	for {
-		block_timestamp, err = worker.client().GetBlockTimestamp(block_number_from)
-		if err == nil {
-			break
-		}
-		if attempt == 0 {
-			return message.Fail("multiple attempts were made unseccsfully: " + err.Error())
-		}
-		time.Sleep(ATTEMPT_DELAY)
-		attempt--
+	block_timestamp, err := worker.get_block_timestamp(block_number_from)
+	if err != nil {
+		return message.Fail("failed to get block timestamp from blockchain: " + err.Error())
 	}
 
 	logs := evm_log.NewSpaghettiLogs(network_id, block_timestamp, raw_logs)
@@ -184,24 +211,85 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 	return reply
 }
 
+func (worker *Manager) get_block_timestamp(block_number uint64) (uint64, error) {
+	clients := worker.stable_clients()
+	if len(clients) == 0 {
+		return 0, fmt.Errorf("no stable clients found")
+	}
+	attempt_failed := 0
+	var err error
+	var block_timestamp uint64 = 0
+	for _, client := range clients {
+		var fetched_block_timestamp uint64
+
+		attempt := ATTEMPT_AMOUNT
+		for {
+			fetched_block_timestamp, err = client.GetBlockTimestamp(block_number)
+			if err == nil {
+				break
+			}
+			if attempt == 0 {
+				attempt_failed++
+				break
+			}
+			time.Sleep(ATTEMPT_DELAY)
+			attempt--
+		}
+
+		if fetched_block_timestamp == 0 {
+			worker.logger.Warn("block timestamp is 0", "client", client.provider.Url, "block_number", block_number)
+			continue
+		}
+		if block_timestamp == 0 {
+			block_timestamp = fetched_block_timestamp
+		} else if block_timestamp != fetched_block_timestamp {
+			worker.logger.Warn("the clients returned unmatching block timetstamp", "client", client.provider.Url, "block_number", block_number, "current_block_timestamp", block_timestamp, "fetched_block_timestamp", fetched_block_timestamp)
+			continue
+		}
+	}
+	if attempt_failed == len(clients) {
+		return 0, fmt.Errorf("multiple attempts were made")
+	}
+
+	return block_timestamp, nil
+}
+
 // Handle the deployed-transaction command
 // Returns the transaction information from blockchain
 func (worker *Manager) get_transaction(parameters key_value.KeyValue) message.Reply {
 	transaction_id, _ := parameters.GetString("transaction_id")
 
-	var tx *transaction.Transaction
+	var tx *transaction.Transaction = nil
 	var err error
-	attempt := ATTEMPT_AMOUNT
-	for {
-		tx, err = worker.client().GetTransaction(transaction_id)
-		if err == nil {
+	clients := worker.stable_clients()
+	if len(clients) == 0 {
+		return message.Fail("no stable clients found")
+	}
+	attempt_failed := 0
+	for _, client := range clients {
+		var fetched_tx *transaction.Transaction
+
+		attempt := ATTEMPT_AMOUNT
+		for {
+			fetched_tx, err = client.GetTransaction(transaction_id)
+			if err == nil {
+				break
+			}
+			if attempt == 0 {
+				attempt_failed++
+				break
+			}
+			time.Sleep(ATTEMPT_DELAY)
+			attempt--
+		}
+
+		if tx == nil {
+			tx = fetched_tx
 			break
 		}
-		if attempt == 0 {
-			return message.Fail("multiple attempts were made unseccsfully: " + err.Error())
-		}
-		time.Sleep(ATTEMPT_DELAY)
-		attempt--
+	}
+	if attempt_failed == len(clients) {
+		return message.Fail("multiple attempts were made : " + err.Error())
 	}
 
 	reply := message.Reply{
@@ -220,19 +308,40 @@ func (worker *Manager) get_transaction(parameters key_value.KeyValue) message.Re
 func (worker *Manager) get_recent_block() message.Reply {
 	confirmations := uint64(12)
 
-	var block_number uint64
+	var block_number uint64 = 0
 	var err error
-	attempt := ATTEMPT_AMOUNT
-	for {
-		block_number, err = worker.client().GetRecentBlockNumber()
-		if err == nil {
-			break
+	clients := worker.stable_clients()
+	if len(clients) == 0 {
+		return message.Fail("no stable clients found")
+	}
+	attempt_failed := 0
+	for _, client := range clients {
+		var fetched_block_number uint64
+
+		attempt := ATTEMPT_AMOUNT
+		for {
+			fetched_block_number, err = client.GetRecentBlockNumber()
+			if err == nil {
+				break
+			}
+			if attempt == 0 {
+				attempt_failed++
+				break
+			}
+			time.Sleep(ATTEMPT_DELAY)
+			attempt--
 		}
-		if attempt == 0 {
-			return message.Fail("multiple attempts were made unseccsfully: " + err.Error())
+
+		if fetched_block_number == 0 {
+			worker.logger.Warn("block timestamp is 0", "client", client.provider.Url)
+			continue
 		}
-		time.Sleep(ATTEMPT_DELAY)
-		attempt--
+
+		block_number = fetched_block_number
+		break
+	}
+	if attempt_failed == len(clients) {
+		return message.Fail("multiple attempts were made : " + err.Error())
 	}
 	if block_number < confirmations {
 		return message.Fail("the recent block number < confirmations")
@@ -242,18 +351,9 @@ func (worker *Manager) get_recent_block() message.Reply {
 		return message.Fail("block number=confirmations")
 	}
 
-	var block_timestamp uint64
-	attempt = ATTEMPT_AMOUNT
-	for {
-		block_timestamp, err = worker.client().GetBlockTimestamp(block_number)
-		if err == nil {
-			break
-		}
-		if attempt == 0 {
-			return message.Fail("multiple attempts were made unseccsfully: " + err.Error())
-		}
-		time.Sleep(ATTEMPT_DELAY)
-		attempt--
+	block_timestamp, err := worker.get_block_timestamp(block_number)
+	if err != nil {
+		return message.Fail("failed to get block timestamp from blockchain: " + err.Error())
 	}
 
 	reply := message.Reply{
