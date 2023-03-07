@@ -84,8 +84,6 @@ func (worker *Manager) SetupSocket() {
 		msgs, _ := sock.RecvMessage(0)
 		request, _ := message.ParseRequest(msgs)
 
-		worker.logger.Info("received a request", "command", request.Command)
-
 		var reply message.Reply
 
 		if request.Command == "log-filter" {
@@ -97,8 +95,6 @@ func (worker *Manager) SetupSocket() {
 		} else {
 			reply = message.Fail("unsupported command")
 		}
-
-		worker.logger.Info("command handled", "reply_status", reply.Status)
 
 		reply_string, err := reply.ToString()
 		if err != nil {
