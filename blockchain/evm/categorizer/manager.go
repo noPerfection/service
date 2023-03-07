@@ -415,6 +415,7 @@ func (manager *Manager) queue_recent_blocks() {
 		}
 
 		if len(logs) == 0 {
+			sub_logger.Warn("no logs were found", "block_number", block_number)
 			continue
 		}
 
@@ -423,6 +424,7 @@ func (manager *Manager) queue_recent_blocks() {
 
 		// we already accumulated the logs
 		if block_number_to == block_number {
+			sub_logger.Warn("reached out to the most recent logs", "block_number", block_number)
 			continue
 		}
 
