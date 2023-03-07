@@ -51,20 +51,6 @@ func NewManager(network *network.Network, logger log.Logger) (*Manager, error) {
 	}, nil
 }
 
-// Returns the client with the best rating
-func (m *Manager) client() *Client {
-	rating := MIN_RATING_CAP
-	index := 0
-
-	for i, c := range m.clients {
-		if c.Rating > rating {
-			index = i
-		}
-	}
-
-	return m.clients[index]
-}
-
 // Return the list of clients that has success rating more than 5 percent
 func (m *Manager) stable_clients() []*Client {
 	clients := make([]*Client, 0)
@@ -78,6 +64,7 @@ func (m *Manager) stable_clients() []*Client {
 	return clients
 }
 
+// Print the client logs
 func (m *Manager) client_info(title string) {
 	for i, c := range m.clients {
 		m.logger.Info("client info"+title, "id", i, "provider url", c.provider.Url, "rating", c.Rating)
