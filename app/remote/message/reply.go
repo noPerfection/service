@@ -6,6 +6,11 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
+const (
+	OK   = "OK"
+	FAIL = "fail"
+)
+
 // SDS Service returns the reply. Anyone who sends a request to the SDS Service gets this message.
 type Reply struct {
 	Status     string             `json:"status"`
@@ -16,11 +21,11 @@ type Reply struct {
 // Create a new Reply as a failure
 // It accepts the error message that explains the reason of the failure.
 func Fail(message string) Reply {
-	return Reply{Status: "fail", Message: message, Parameters: key_value.Empty()}
+	return Reply{Status: FAIL, Message: message, Parameters: key_value.Empty()}
 }
 
 // Is SDS Service returned a successful reply
-func (r *Reply) IsOK() bool { return r.Status == "OK" }
+func (r *Reply) IsOK() bool { return r.Status == OK }
 
 // Convert the reply to the string format
 func (reply *Reply) ToString() (string, error) {
