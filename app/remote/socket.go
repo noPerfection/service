@@ -211,10 +211,8 @@ func (socket *Socket) RemoteEnv() *service.Service {
 	return socket.remoteService
 }
 
-// Send a command to the remote SDS service.
-// Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
-// In case of successful request, the function returns reply parameters.
-func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
+// Request timeout
+func RequestTimeout() time.Duration {
 	request_timeout := REQUEST_TIMEOUT
 	if env.Exists("SDS_REQUEST_TIMEOUT") {
 		env_timeout := env.GetNumeric("SDS_REQUEST_TIMEOUT")
@@ -222,6 +220,15 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 			request_timeout = time.Duration(env_timeout) * time.Second
 		}
 	}
+
+	return request_timeout
+}
+
+// Send a command to the remote SDS service.
+// Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
+// In case of successful request, the function returns reply parameters.
+func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
+	request_timeout := RequestTimeout()
 
 	request_string, err := request.ToString()
 	if err != nil {
@@ -295,13 +302,7 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 
 	command_name := request.CommandName()
 
-	request_timeout := REQUEST_TIMEOUT
-	if env.Exists("SDS_REQUEST_TIMEOUT") {
-		env_timeout := env.GetNumeric("SDS_REQUEST_TIMEOUT")
-		if env_timeout != 0 {
-			request_timeout = time.Duration(env_timeout) * time.Second
-		}
-	}
+	request_timeout := RequestTimeout()
 
 	request_string, err := request.ToString()
 	if err != nil {
