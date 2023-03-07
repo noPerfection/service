@@ -274,15 +274,17 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			old_logger.Fatal("send to SDS Categorizer", "message", err)
 		}
 
-		recent_block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).BlockNumber
-		left := recent_block_number - block_number_to
-		old_logger.Info("categorized certain blocks", "block_number_left", left, "block_number_to", block_number_to, "subscribed", recent_block_number)
-		group.block_number = block_number_to
+		if !manager.subscribed_blocks.IsEmpty() {
+			recent_block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).BlockNumber
+			left := recent_block_number - block_number_to
+			old_logger.Info("categorized certain blocks", "block_number_left", left, "block_number_to", block_number_to, "subscribed", recent_block_number)
+			group.block_number = block_number_to
 
-		if block_number_to >= manager.subscribed_blocks.First().(*spaghetti_block.Block).BlockNumber {
-			old_logger.Info("catched the current blocks")
-			manager.add_current_workers(group.workers)
-			break
+			if block_number_to >= recent_block_number {
+				old_logger.Info("catched the current blocks")
+				manager.add_current_workers(group.workers)
+				break
+			}
 		}
 
 		// do not pressure the backend
