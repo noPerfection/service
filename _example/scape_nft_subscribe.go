@@ -2,16 +2,21 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/blocklords/sds/app/env"
-	"github.com/blocklords/sds/categorizer"
+	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/sdk"
 	"github.com/blocklords/sds/security"
 )
 
 func main() {
-	security.EnableSecurity()
+	sec := security.New(false)
+	if err := sec.StartAuthentication(); err != nil {
+		log.Fatalf("security: %w", err)
+	}
+
 	env.LoadAnyEnv()
 
 	// ScapeNFT topic filter
@@ -31,24 +36,24 @@ func main() {
 		response := <-subscriber.BroadcastChan
 
 		if !response.IsOK() {
-			fmt.Println("received an error %s", response.Reply().Message)
+			fmt.Println("received an error %s", response.Reply.Message)
 			break
 		}
 
-		parameters := response.Reply().Params
-		transactions := parameters["transactions"].([]*categorizer.Transaction)
+		parameters := response.Reply.Parameters
+		logs := parameters["logs"].([]*event.Log)
 
-		fmt.Println("the transaction in the gosds/categorizer.Transaction struct", transactions)
+		fmt.Printf("client recevied %d amount of logs from SDS\n", len(logs))
 
-		for _, tx := range transactions {
-			nft_id := tx.Args["_nftId"]
-			from := tx.Args["_from"]
-			to := tx.Args["_to"]
+		for _, event := range logs {
+			nft_id := event.Output["_nftId"]
+			from := event.Output["_from"]
+			to := event.Output["_to"]
 
 			fmt.Println("NFT %d transferred from %s to %s", nft_id, from, to)
-			fmt.Println("on a network %s at %d", tx.NetworkId, tx.BlockTimestamp)
+			fmt.Println("on a network %s at %d", event.NetworkId, event.BlockTimestamp)
 
-			// Do something with the transactions
+			// Do something with the logs
 		}
 
 	}
