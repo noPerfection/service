@@ -25,7 +25,7 @@ type Subscriber struct {
 	developer    *service.Service
 	gateway      *service.Service
 
-	BroadcastChan chan message.Broadcast
+	Channel chan Message
 }
 
 // Create a new subscriber for a given user and his topic filter.
@@ -44,7 +44,7 @@ func NewSubscriber(topic_filter *topic.TopicFilter, developer *service.Service, 
 // Finally, it will receive the messages from SDS Publisher.
 func (s *Subscriber) Start() error {
 	// now create a broadcaster channel to send back to the developer the messages
-	s.BroadcastChan = make(chan message.Broadcast)
+	s.Channel = make(chan Message)
 
 	go s.start()
 	return nil
@@ -95,7 +95,7 @@ func (s *Subscriber) start() {
 
 	block_timestamp, err := s.recent_subscriber_state(socket)
 	if err != nil {
-		s.BroadcastChan <- message.NewBroadcast("error", message.Fail("recent_subscriber_state: "+err.Error()))
+		s.Channel <- NewErrorMessage("recent_subscriber_state: " + err.Error())
 	}
 
 	fmt.Println("Subscriber connected and queueing the messages while snapshot won't be ready")
@@ -103,20 +103,11 @@ func (s *Subscriber) start() {
 	for {
 		block_timestamp_to, logs, err := s.get_snapshot(socket, block_timestamp)
 		if err != nil {
-			s.BroadcastChan <- message.NewBroadcast("error", message.Fail("snapshot error: "+err.Error()))
+			s.Channel <- NewErrorMessage("snapshot error: " + err.Error())
 			return
 		}
 
-		reply := message.Reply{
-			Status:  "OK",
-			Message: "",
-			Parameters: map[string]interface{}{
-				"logs":                 logs,
-				"block_timestamp_from": block_timestamp,
-				"block_timestamp_to":   block_timestamp_to,
-			},
-		}
-		s.BroadcastChan <- message.NewBroadcast("OK", reply)
+		s.Channel <- NewMessage(logs, block_timestamp, block_timestamp_to)
 
 		block_timestamp = block_timestamp_to
 
