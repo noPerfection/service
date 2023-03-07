@@ -136,14 +136,15 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 
 	new_workers := make(smartcontract.EvmWorkers, len(raw_abis))
 
-	// wait until we receive the new block number
-	manager.logger.Info("wait for recent block queue to have atleast one block")
-	for {
-		if manager.subscribed_blocks.IsEmpty() {
-			time.Sleep(time.Second * 1)
-			continue
-		}
-		break
+	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
+	blockchain_socket := remote.InprocRequestSocket(url)
+	block_number, err := recent_block_number(blockchain_socket)
+	if err != nil {
+		manager.logger.Fatal("recent-block-number", "message", err)
+	}
+	err = blockchain_socket.Close()
+	if err != nil {
+		manager.logger.Fatal("close socket", "message", err)
 	}
 
 	manager.logger.Info("recent block determined, splitting smartcontracts to old and current")
@@ -159,8 +160,6 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 		manager.logger.Info("add a new worker", "number", i+1, "total", len(new_workers))
 		new_workers[i] = smartcontract.New(sm, cat_abi)
 	}
-
-	block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).BlockNumber
 
 	manager.logger.Info("information about workers", "block_number", block_number, "amount of workers", len(new_workers))
 
