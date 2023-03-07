@@ -79,56 +79,56 @@ var Version string = "Seascape GoSDS version: 0.0.8"
 //
 //	address is the whitelisted user's address.
 func NewReader(address string) (*reader.Reader, error) {
-	e, err := gatewayEnv(false)
+	e, err := gateway_service()
 	if err != nil {
 		return nil, err
 	}
 
-	developer_env, err := developer_env()
+	developer_service, err := developer_service()
 	if err != nil {
 		return nil, err
 	}
 
-	gatewaySocket := remote.TcpRequestSocketOrPanic(e, developer_env)
+	gatewaySocket := remote.TcpRequestSocketOrPanic(e, developer_service)
 
 	return reader.NewReader(gatewaySocket, address), nil
 }
 
 func NewWriter(address string) (*writer.Writer, error) {
-	e, err := gatewayEnv(false)
+	e, err := gateway_service()
 	if err != nil {
 		return nil, err
 	}
 
-	developer_env, err := developer_env()
+	developer_service, err := developer_service()
 	if err != nil {
 		return nil, err
 	}
 
-	gatewaySocket := remote.TcpRequestSocketOrPanic(e, developer_env)
+	gatewaySocket := remote.TcpRequestSocketOrPanic(e, developer_service)
 
 	return writer.NewWriter(gatewaySocket, address), nil
 }
 
 // Returns a new subscriber
 func NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subscriber, error) {
-	e, err := gatewayEnv(true)
+	e, err := gateway_service()
 	if err != nil {
 		return nil, err
 	}
 
-	developer_env, err := developer_env()
+	developer_service, err := developer_service()
 	if err != nil {
 		return nil, err
 	}
 
-	return subscriber.NewSubscriber(&topic_filter, e, developer_env)
+	return subscriber.NewSubscriber(&topic_filter, e, developer_service)
 }
 
 // Returns the gateway environment variable
 // If the broadcast argument set true, then Gateway will require the broadcast to be set as well.
-func gatewayEnv(broadcast bool) (*service.Service, error) {
-	e, err := service.New(service.GATEWAY, service.REMOTE, service.SUBSCRIBE)
+func gateway_service() (*service.Service, error) {
+	e, err := service.New(service.GATEWAY, service.REMOTE)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func gatewayEnv(broadcast bool) (*service.Service, error) {
 	return e, nil
 }
 
-func developer_env() (*service.Service, error) {
+func developer_service() (*service.Service, error) {
 	e, err := service.New(service.DEVELOPER_GATEWAY, service.REMOTE, service.SUBSCRIBE)
 	if err != nil {
 		return nil, err
