@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
+	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/blockchain/evm/transaction"
 	"github.com/blocklords/sds/blockchain/network/provider"
 	spaghetti_transaction "github.com/blocklords/sds/blockchain/transaction"
@@ -35,6 +37,17 @@ type Client struct {
 	ctx      context.Context
 	provider provider.Provider
 	Rating   float64
+}
+
+// Get Request timeout based on the configuration.
+// The minimum timeout is 1 second.
+func get_timeout() time.Duration {
+	request_timeout := remote.RequestTimeout()
+
+	if request_timeout/2 <= time.Second {
+		return time.Second
+	}
+	return request_timeout / 2
 }
 
 // Create a network client connected to the blockchain based on a Static parameters
@@ -92,7 +105,10 @@ func (c *Client) decrease_rating() {
 
 // Returns the block timestamp from the blockchain
 func (c *Client) GetBlockTimestamp(block_number uint64) (uint64, error) {
-	header, err := c.client.HeaderByNumber(c.ctx, big.NewInt(int64(block_number)))
+	ctx, cancel := context.WithTimeout(c.ctx, get_timeout())
+	defer cancel()
+
+	header, err := c.client.HeaderByNumber(ctx, big.NewInt(int64(block_number)))
 	if err != nil {
 		c.decrease_rating()
 		return 0, errors.New("failed to fetch block information from provider: " + err.Error())
@@ -104,7 +120,10 @@ func (c *Client) GetBlockTimestamp(block_number uint64) (uint64, error) {
 
 // Returns the most recent block number from blockchain
 func (c *Client) GetRecentBlockNumber() (uint64, error) {
-	block_number, err := c.client.BlockNumber(c.ctx)
+	ctx, cancel := context.WithTimeout(c.ctx, get_timeout())
+	defer cancel()
+
+	block_number, err := c.client.BlockNumber(ctx)
 	if err != nil {
 		c.decrease_rating()
 		return 0, fmt.Errorf("provider block number: %w", err)
@@ -120,9 +139,12 @@ func (c *Client) GetRecentBlockNumber() (uint64, error) {
 // Spaghetti Transaction requires network_id, but client doesn't have it.
 // TODO: add network id from the caller
 func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.Transaction, error) {
+	ctx, cancel := context.WithTimeout(c.ctx, get_timeout())
+	defer cancel()
+
 	transaction_hash := eth_common.HexToHash(transaction_id)
 
-	transaction_raw, pending, err := c.client.TransactionByHash(c.ctx, transaction_hash)
+	transaction_raw, pending, err := c.client.TransactionByHash(ctx, transaction_hash)
 	if pending {
 		c.increase_rating()
 		return nil, fmt.Errorf("the transaction is in the pending mode. please try again later fetching %s", transaction_hash)
@@ -133,7 +155,10 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.T
 	}
 	c.increase_rating()
 
-	receipt, err := c.client.TransactionReceipt(c.ctx, transaction_hash)
+	new_ctx, new_cancel := context.WithTimeout(c.ctx, get_timeout())
+	defer new_cancel()
+
+	receipt, err := c.client.TransactionReceipt(new_ctx, transaction_hash)
 	if err != nil {
 		c.decrease_rating()
 		return nil, fmt.Errorf("client.TransactionReceipt txid(%s): %w", transaction_hash, err)
@@ -193,7 +218,10 @@ func (c *Client) GetBlockRangeLogs(block_number_from uint64, block_number_to uin
 }
 
 func (c *Client) filter_logs(query ethereum.FilterQuery) ([]eth_types.Log, error) {
-	raw_logs, log_err := c.client.FilterLogs(c.ctx, query)
+	ctx, cancel := context.WithTimeout(c.ctx, get_timeout())
+	defer cancel()
+
+	raw_logs, log_err := c.client.FilterLogs(ctx, query)
 	if log_err != nil {
 		c.decrease_rating()
 		return nil, fmt.Errorf("FilterLogs query (%v): %w", query, log_err)
