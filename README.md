@@ -115,6 +115,11 @@ The `root` is the username, `tiger` is the password.
 > ```
 
 ---
+# Vault
+For setting up the Vault, visit the page:
+[Vault setup](./VAULT.md).
+
+---
 ---
 # Example
 Let's assume that the smartcontract developer deployed the smartcontract on a blockchain. He did it using SDS CLI. Now our smartcontract is registered on SeascapeSDS.
