@@ -1,3 +1,4 @@
 ﻿vendor
 bin/cache*
 bin
+_db/mysql
