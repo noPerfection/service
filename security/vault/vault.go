@@ -238,7 +238,7 @@ func (v *Vault) get_string(secret_name string, key string) (string, error) {
 
 // GetDatabaseCredentials retrieves a new set of temporary database credentials
 func (v *Vault) GetDatabaseCredentials() (db.DatabaseCredentials, error) {
-	log.Info("getting temporary database credentials from vault")
+	log.Info("getting temporary database credentials from vault: begin")
 
 	lease, err := v.client.Logical().ReadWithContext(v.context, v.database_path)
 	if err != nil {
