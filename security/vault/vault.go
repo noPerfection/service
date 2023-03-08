@@ -26,8 +26,8 @@ type Vault struct {
 	path    string // Key-Value credentials
 
 	// connection parameters
-	approle_role_id        string
-	approle_secret_id_file string
+	approle_role_id   string
+	approle_secret_id string
 
 	// the locations / field names of the database credentials
 	database_path string
@@ -45,14 +45,14 @@ type Vault struct {
 var VaultConfigurations = configuration.DefaultConfig{
 	Title: "Vault",
 	Parameters: key_value.New(map[string]interface{}{
-		"SDS_VAULT_HOST":                   "localhost",
-		"SDS_VAULT_PORT":                   8200,
-		"SDS_VAULT_SECURE":                 false,
-		"SDS_VAULT_PATH":                   "secret",
-		"SDS_VAULT_DATABASE_PATH":          "database/creds/sds-role",
-		"SDS_VAULT_TOKEN":                  nil,
-		"SDS_VAULT_APPROLE_ROLE_ID":        nil,
-		"SDS_VAULT_APPROLE_SECRET_ID_FILE": nil,
+		"SDS_VAULT_HOST":              "localhost",
+		"SDS_VAULT_PORT":              8200,
+		"SDS_VAULT_SECURE":            false,
+		"SDS_VAULT_PATH":              "secret",
+		"SDS_VAULT_DATABASE_PATH":     "database/creds/sds-role",
+		"SDS_VAULT_TOKEN":             nil,
+		"SDS_VAULT_APPROLE_ROLE_ID":   nil,
+		"SDS_VAULT_APPROLE_SECRET_ID": nil,
 	}),
 }
 
@@ -74,35 +74,28 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 	database_path := app_config.GetString("SDS_VAULT_DATABASE_PATH")
 
 	approle_role_id := ""
-	approle_secret_id_file := ""
+	approle_secret_id := ""
 
 	config := hashicorp.DefaultConfig()
 	if secure {
-		vault_logger.Info("Connecting to vault over SSL")
-
 		config.Address = fmt.Sprintf("https://%s:%s", host, port)
-
-		// AppRole RoleID to log in to Vault
-		if !app_config.Exist("SDS_VAULT_APPROLE_ROLE_ID") {
-			return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_ROLE_ID' environment variable")
-		}
-		approle_role_id = app_config.GetString("SDS_VAULT_APPROLE_ROLE_ID")
-
-		// AppRole SecretID file path to log in to Vault
-		if !app_config.Exist("SDS_VAULT_APPROLE_SECRET_ID_FILE") {
-			return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_SECRET_ID_FILE' environment variable")
-		}
-
-		approle_secret_id_file = app_config.GetString("SDS_VAULT_APPROLE_SECRET_ID_FILE")
 	} else {
-		vault_logger.Info("Connecting to vault without SSL")
-
 		config.Address = fmt.Sprintf("http://%s:%s", host, port)
-
-		if !app_config.Exist("SDS_VAULT_TOKEN") {
-			return nil, errors.New("without ssl, missing 'SDS_VAULT_TOKEN' environment variable")
-		}
 	}
+	vault_logger.Info("Connecting to vault over SSL")
+
+	// AppRole RoleID to log in to Vault
+	if !app_config.Exist("SDS_VAULT_APPROLE_ROLE_ID") {
+		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_ROLE_ID' environment variable")
+	}
+	approle_role_id = app_config.GetString("SDS_VAULT_APPROLE_ROLE_ID")
+
+	// AppRole SecretID file path to log in to Vault
+	if !app_config.Exist("SDS_VAULT_APPROLE_SECRET_ID") {
+		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_SECRET_ID' environment variable")
+	}
+
+	approle_secret_id = app_config.GetString("SDS_VAULT_APPROLE_SECRET_ID")
 
 	client, err := hashicorp.NewClient(config)
 	if err != nil {
@@ -112,29 +105,23 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 	ctx := context.TODO()
 
 	vault := Vault{
-		client:                 client,
-		context:                ctx,
-		path:                   path,
-		database_path:          database_path,
-		approle_role_id:        approle_role_id,
-		approle_secret_id_file: approle_secret_id_file,
+		client:            client,
+		context:           ctx,
+		path:              path,
+		database_path:     database_path,
+		approle_role_id:   approle_role_id,
+		approle_secret_id: approle_secret_id,
 	}
 
-	if secure {
-		token, err := vault.login(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("vault login error: %w", err)
-		}
-
-		log.Info("connecting to vault: success!")
-
-		vault.auth_token = token
-		return &vault, nil
-	} else {
-		client.SetToken(app_config.GetString("SDS_VAULT_TOKEN"))
-
-		return &vault, nil
+	token, err := vault.login(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("vault login error: %w", err)
 	}
+
+	log.Info("connecting to vault: success!")
+
+	vault.auth_token = token
+	return &vault, nil
 }
 
 // Run in the background to start to receive the messages
@@ -202,7 +189,7 @@ func (v *Vault) login(ctx context.Context) (*hashicorp.Secret, error) {
 	log.Info("logging in to vault with approle auth; role id: %s", v.approle_role_id)
 
 	approleSecretID := &approle.SecretID{
-		FromFile: v.approle_secret_id_file,
+		FromFile: v.approle_secret_id,
 	}
 
 	appRoleAuth, err := approle.NewAppRoleAuth(
