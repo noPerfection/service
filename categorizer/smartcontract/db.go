@@ -9,7 +9,7 @@ import (
 // Update the block number and block timestamp of the smartcontract
 func SetSyncing(db *db.Database, b *Smartcontract, n uint64, t uint64) error {
 	b.SetBlockParameter(n, t)
-	_, err := db.Connection.Exec(`UPDATE categorizer_smartcontracts SET categorized_block_number = ?, categorized_block_timestamp = ? WHERE network_id = ? AND address = ? `,
+	_, err := db.Connection.Exec(`UPDATE categorizer_smartcontract SET block_number = ?, block_timestamp = ? WHERE network_id = ? AND address = ? `,
 		n, t, b.NetworkId, b.Address)
 	if err != nil {
 		return fmt.Errorf("failed to update the categorized block data in the database %s %s: %w ", b.NetworkId, b.Address, err)
@@ -20,7 +20,7 @@ func SetSyncing(db *db.Database, b *Smartcontract, n uint64, t uint64) error {
 
 func Exists(db *db.Database, network_id string, address string) bool {
 	var exists bool
-	err := db.Connection.QueryRow("SELECT IF(COUNT(address),'true','false') FROM categorizer_smartcontracts WHERE network_id = ? AND address = ? ", network_id, address).Scan(&exists)
+	err := db.Connection.QueryRow("SELECT IF(COUNT(address),'true','false') FROM categorizer_smartcontract WHERE network_id = ? AND address = ? ", network_id, address).Scan(&exists)
 	if err != nil {
 		fmt.Println("Categorizer checking error: ", err.Error())
 		return false
@@ -30,8 +30,8 @@ func Exists(db *db.Database, network_id string, address string) bool {
 }
 
 func Save(db *db.Database, b *Smartcontract) error {
-	_, err := db.Connection.Exec(`INSERT IGNORE INTO categorizer_smartcontracts (network_id, address, categorized_block_number, categorized_block_timestamp) VALUES (?, ?, ?, ?) `,
-		b.NetworkId, b.Address, b.CategorizedBlockNumber, b.CategorizedBlockTimestamp)
+	_, err := db.Connection.Exec(`INSERT IGNORE INTO categorizer_smartcontract (network_id, address, block_number, block_timestamp) VALUES (?, ?, ?, ?) `,
+		b.NetworkId, b.Address, b.BlockNumber, b.BlockTimestamp)
 	if err != nil {
 		return fmt.Errorf("failed to set smartcontract in database %s %s: %w ", b.NetworkId, b.Address, err)
 	}
@@ -40,19 +40,19 @@ func Save(db *db.Database, b *Smartcontract) error {
 
 // Return the single smartcontract from database
 func Get(db *db.Database, network_id string, address string) (*Smartcontract, error) {
-	row := db.Connection.QueryRow("SELECT categorized_block_number, categorized_block_timestamp FROM categorizer_smartcontracts WHERE network_id = ? AND address = ? ", network_id, address)
+	row := db.Connection.QueryRow("SELECT block_number, block_timestamp FROM categorizer_smartcontract WHERE network_id = ? AND address = ? ", network_id, address)
 
 	// Loop through rows, using Scan to assign column data to struct fields.
-	var categorized_block_number uint64
-	var categorized_block_timestamp uint64
-	if err := row.Scan(&categorized_block_number, &categorized_block_timestamp); err != nil {
+	var block_number uint64
+	var block_timestamp uint64
+	if err := row.Scan(&block_number, &block_timestamp); err != nil {
 		return nil, fmt.Errorf("row.Scan from the database: %w ", err)
 	}
 	sm := Smartcontract{
-		NetworkId:                 network_id,
-		Address:                   address,
-		CategorizedBlockNumber:    categorized_block_number,
-		CategorizedBlockTimestamp: categorized_block_timestamp,
+		NetworkId:      network_id,
+		Address:        address,
+		BlockNumber:    block_number,
+		BlockTimestamp: block_timestamp,
 	}
 
 	return &sm, nil
@@ -61,7 +61,7 @@ func Get(db *db.Database, network_id string, address string) (*Smartcontract, er
 func GetAll(db *db.Database) ([]*Smartcontract, error) {
 	smartcontracts := make([]*Smartcontract, 0)
 
-	rows, err := db.Connection.Query("SELECT network_id, address, categorized_block_number, categorized_block_timestamp FROM categorizer_smartcontracts ")
+	rows, err := db.Connection.Query("SELECT network_id, address, block_number, block_timestamp FROM categorizer_smartcontract ")
 	if err != nil {
 		return smartcontracts, fmt.Errorf("database.Query: %w", err)
 	}
@@ -71,16 +71,16 @@ func GetAll(db *db.Database) ([]*Smartcontract, error) {
 	for rows.Next() {
 		var network_id string
 		var address string
-		var categorized_block_number uint64
-		var categorized_block_timestamp uint64
-		if err := rows.Scan(&network_id, &address, &categorized_block_number, &categorized_block_timestamp); err != nil {
+		var block_number uint64
+		var block_timestamp uint64
+		if err := rows.Scan(&network_id, &address, &block_number, &block_timestamp); err != nil {
 			return smartcontracts, fmt.Errorf("row.Scan: %w", err)
 		}
 		sm := Smartcontract{
-			NetworkId:                 network_id,
-			Address:                   address,
-			CategorizedBlockNumber:    categorized_block_number,
-			CategorizedBlockTimestamp: categorized_block_timestamp,
+			NetworkId:      network_id,
+			Address:        address,
+			BlockNumber:    block_number,
+			BlockTimestamp: block_timestamp,
 		}
 
 		smartcontracts = append(smartcontracts, &sm)
@@ -96,7 +96,7 @@ func GetAll(db *db.Database) ([]*Smartcontract, error) {
 func GetAllByNetworkId(db *db.Database, network_id string) ([]*Smartcontract, error) {
 	var smartcontracts []*Smartcontract
 
-	rows, err := db.Connection.Query("SELECT network_id, address, categorized_block_number, categorized_block_timestamp FROM categorizer_smartcontracts WHERE network_id = ?", network_id)
+	rows, err := db.Connection.Query("SELECT network_id, address, block_number, block_timestamp FROM categorizer_smartcontract WHERE network_id = ?", network_id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query all categorizer smartcontracts for %s network_id: %w", network_id, err)
 	}
@@ -107,16 +107,16 @@ func GetAllByNetworkId(db *db.Database, network_id string) ([]*Smartcontract, er
 	for rows.Next() {
 		var network_id string
 		var address string
-		var categorized_block_number uint64
-		var categorized_block_timestamp uint64
-		if err := rows.Scan(&network_id, &address, &categorized_block_number, &categorized_block_timestamp); err != nil {
+		var block_number uint64
+		var block_timestamp uint64
+		if err := rows.Scan(&network_id, &address, &block_number, &block_timestamp); err != nil {
 			return nil, fmt.Errorf("row.Scan: %w", err)
 		}
 		sm := Smartcontract{
-			NetworkId:                 network_id,
-			Address:                   address,
-			CategorizedBlockNumber:    categorized_block_number,
-			CategorizedBlockTimestamp: categorized_block_timestamp,
+			NetworkId:      network_id,
+			Address:        address,
+			BlockNumber:    block_number,
+			BlockTimestamp: block_timestamp,
 		}
 
 		smartcontracts = append(smartcontracts, &sm)

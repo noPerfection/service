@@ -16,7 +16,7 @@ func (workers EvmWorkers) Split(block_number uint64) (EvmWorkers, EvmWorkers) {
 	new_workers := make(EvmWorkers, 0)
 
 	for _, worker := range workers {
-		if worker.Smartcontract.CategorizedBlockNumber < block_number {
+		if worker.Smartcontract.BlockNumber < block_number {
 			old_workers = append(old_workers, worker)
 		} else {
 			new_workers = append(new_workers, worker)
@@ -29,7 +29,7 @@ func (workers EvmWorkers) Split(block_number uint64) (EvmWorkers, EvmWorkers) {
 // Sort the workers from old to the newest
 func (workers EvmWorkers) Sort() EvmWorkers {
 	sort.SliceStable(workers, func(i, j int) bool {
-		return workers[i].Smartcontract.CategorizedBlockNumber < workers[j].Smartcontract.CategorizedBlockNumber
+		return workers[i].Smartcontract.BlockNumber < workers[j].Smartcontract.BlockNumber
 	})
 
 	return workers
@@ -42,7 +42,7 @@ func (workers EvmWorkers) EarliestBlockNumber() uint64 {
 		return 0
 	}
 
-	return sorted_workers[0].Smartcontract.CategorizedBlockNumber
+	return sorted_workers[0].Smartcontract.BlockNumber
 }
 
 func (workers EvmWorkers) RecentBlockNumber() uint64 {
@@ -52,7 +52,7 @@ func (workers EvmWorkers) RecentBlockNumber() uint64 {
 	}
 
 	latest := len(sorted_workers) - 1
-	return sorted_workers[latest].Smartcontract.CategorizedBlockNumber
+	return sorted_workers[latest].Smartcontract.BlockNumber
 }
 
 // Returns the smartcontract information that should be categorized

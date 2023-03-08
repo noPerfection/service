@@ -61,7 +61,7 @@ func SetupSocket(database *db.Database) {
 		}
 
 		for _, sm := range smartcontracts {
-			err := smartcontract.SetSyncing(database, sm, sm.CategorizedBlockNumber, sm.CategorizedBlockTimestamp)
+			err := smartcontract.SetSyncing(database, sm, sm.BlockNumber, sm.BlockTimestamp)
 			if err != nil {
 				panic(err)
 			}

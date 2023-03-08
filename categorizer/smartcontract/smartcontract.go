@@ -7,10 +7,10 @@ import (
 )
 
 type Smartcontract struct {
-	NetworkId                 string `json:"network_id"`
-	Address                   string `json:"address"`
-	CategorizedBlockNumber    uint64 `json:"categorized_block_number"`
-	CategorizedBlockTimestamp uint64 `json:"categorized_block_timestamp"`
+	NetworkId      string `json:"network_id"`
+	Address        string `json:"address"`
+	BlockNumber    uint64 `json:"block_number"`
+	BlockTimestamp uint64 `json:"block_timestamp"`
 }
 
 // Updates the categorized block parameter of the smartcontract.
@@ -18,8 +18,8 @@ type Smartcontract struct {
 //
 // The first is the block number, second is the block timestamp.
 func (s *Smartcontract) SetBlockParameter(b uint64, t uint64) {
-	s.CategorizedBlockNumber = b
-	s.CategorizedBlockTimestamp = t
+	s.BlockNumber = b
+	s.BlockTimestamp = t
 }
 
 // Returns a JSON representation of this smartcontract in a string format
