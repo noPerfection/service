@@ -48,16 +48,15 @@ var VaultConfigurations = configuration.DefaultConfig{
 		"SDS_VAULT_HOST":              "localhost",
 		"SDS_VAULT_PORT":              8200,
 		"SDS_VAULT_SECURE":            false,
-		"SDS_VAULT_PATH":              "secret",
-		"SDS_VAULT_DATABASE_PATH":     "database/creds/sds-role",
-		"SDS_VAULT_TOKEN":             nil,
+		"SDS_VAULT_PATH":              "sds-auth-kv",
+		"SDS_VAULT_DATABASE_PATH":     "sds-mysql/creds/sds-mysql-role",
 		"SDS_VAULT_APPROLE_ROLE_ID":   nil,
 		"SDS_VAULT_APPROLE_SECRET_ID": nil,
 	}),
 }
 
 // Sets up the connection to the Hashicorp Vault
-// If you run the Vault in the dev mode, then path should be "secret/"
+// If you run the Vault in the dev mode, then path should be "sds-auth-kv/"
 //
 // Optionally the app configuration could be nil, in that case it creates a new vault
 func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
