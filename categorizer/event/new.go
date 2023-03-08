@@ -8,10 +8,10 @@ import (
 
 // Call categorizer.NewLog().AddMetadata().AddSmartcontractData()
 // DON'T call it as a single function
-func New(log string, output map[string]interface{}) *Log {
+func New(event_name string, parameters key_value.KeyValue) *Log {
 	return &Log{
-		Log:    log,
-		Output: output,
+		Name:       event_name,
+		Parameters: parameters,
 	}
 }
 

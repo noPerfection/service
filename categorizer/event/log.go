@@ -4,19 +4,20 @@ package event
 import (
 	spaghetti_log "github.com/blocklords/sds/blockchain/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // The Smartcontract Event Log
 type Log struct {
-	NetworkId        string                 `json:"network_id"`        // Network ID
-	TransactionId    string                 `json:"transaction_id"`    // Transaction ID where it occured
-	TransactionIndex uint                   `json:"transaction_index"` // Transaction index
-	BlockNumber      uint64                 `json:"block_number"`
-	BlockTimestamp   uint64                 `json:"block_timestamp"`
-	LogIndex         uint                   `json:"log_index"` // Log index in the block
-	Address          string                 `json:"address"`   // Address                 // Smartcontract address
-	Log              string                 `json:"log"`       // Log                 // Event log name
-	Output           map[string]interface{} `json:"output"`    // Event log parameters
+	NetworkId        string             `json:"network_id"`        // Network ID
+	TransactionId    string             `json:"transaction_id"`    // Transaction ID where it occured
+	TransactionIndex uint               `json:"transaction_index"` // Transaction index
+	BlockNumber      uint64             `json:"block_number"`
+	BlockTimestamp   uint64             `json:"block_timestamp"`
+	LogIndex         uint               `json:"log_index"`        // Log index in the block
+	Address          string             `json:"address"`          // Address                 // Smartcontract address
+	Name             string             `json:"event_name"`       // Log                 // Event log name
+	Parameters       key_value.KeyValue `json:"event_parameters"` // Event log parameters
 }
 
 // Add the metadata such as transaction id and log index from spaghetti data

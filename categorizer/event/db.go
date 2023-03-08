@@ -9,14 +9,14 @@ import (
 )
 
 func Save(db *db.Database, t *Log) error {
-	byt, err := json.Marshal(t.Output)
+	byt, err := t.Parameters.ToBytes()
 	if err != nil {
-		return fmt.Errorf("json.serialize event outputs %v: %w", t.Output, err)
+		return fmt.Errorf("event.Parameters.ToBytes %v: %w", t.Parameters, err)
 	}
 
-	_, err = db.Connection.Exec(`INSERT IGNORE INTO categorizer_logs 
-	(address, transaction_id, transaction_index, network_id, block_number, block_timestamp, log_index, log, output)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, t.Address, t.TransactionId, t.TransactionIndex, t.NetworkId, t.BlockNumber, t.BlockTimestamp, t.LogIndex, t.Log, byt)
+	_, err = db.Connection.Exec(`INSERT IGNORE INTO categorizer_event 
+	(address, transaction_id, transaction_index, network_id, block_number, block_timestamp, log_index, event_name, event_parameters)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, t.Address, t.TransactionId, t.TransactionIndex, t.NetworkId, t.BlockNumber, t.BlockTimestamp, t.LogIndex, t.Name, byt)
 
 	if err != nil {
 		return fmt.Errorf("database exec: %w", err)
@@ -65,10 +65,10 @@ func GetLogsFromDb(con *db.Database, smartcontracts []*smartcontract.Smartcontra
 		log_index,
 		address,
 		network_id,
-		log,
-		output
+		event_name,
+		event_parameters
 	FROM 
-		categorizer_logs
+		categorizer_event
 	WHERE 
 		block_timestamp >= ? AND ` + smartcontracts_clause + " LIMIT ? "
 
@@ -82,11 +82,11 @@ func GetLogsFromDb(con *db.Database, smartcontracts []*smartcontract.Smartcontra
 	for rows.Next() {
 		var s Log
 		var output_bytes []byte
-		if err := rows.Scan(&s.BlockNumber, &s.BlockTimestamp, &s.TransactionId, &s.TransactionIndex, &s.LogIndex, &s.Address, &s.NetworkId, &s.Log, &output_bytes); err != nil {
+		if err := rows.Scan(&s.BlockNumber, &s.BlockTimestamp, &s.TransactionId, &s.TransactionIndex, &s.LogIndex, &s.Address, &s.NetworkId, &s.Name, &output_bytes); err != nil {
 			return nil, fmt.Errorf("database row scan: %w", err)
 		}
 
-		jsonErr := json.Unmarshal(output_bytes, &s.Output)
+		jsonErr := json.Unmarshal(output_bytes, &s.Parameters)
 		if jsonErr != nil {
 			return nil, fmt.Errorf("json.deserialize %s: %w", string(output_bytes), err)
 		}
