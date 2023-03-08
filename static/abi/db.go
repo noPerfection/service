@@ -16,12 +16,12 @@ func SetInDatabase(db *db.Database, a *Abi) error {
 	return nil
 }
 
-// Returns the Abi from database by its abi_hash
-func GetFromDatabaseByAbiHash(db *db.Database, abi_hash string) (*Abi, error) {
+// Returns the Abi from database by its abi_id
+func GetFromDatabaseByAbiId(db *db.Database, abi_id string) (*Abi, error) {
 	var bytes []byte
 	abi := Abi{}
-	abi.Id = abi_hash
-	err := db.Connection.QueryRow("SELECT body FROM static_abi WHERE abi_id = ? ", abi_hash).Scan(&bytes)
+	abi.Id = abi_id
+	err := db.Connection.QueryRow("SELECT body FROM static_abi WHERE abi_id = ? ", abi_id).Scan(&bytes)
 	if err != nil {
 		return nil, fmt.Errorf("db: %w", err)
 	}
@@ -33,7 +33,7 @@ func GetFromDatabaseByAbiHash(db *db.Database, abi_hash string) (*Abi, error) {
 // Returns the Abi by the smartcontract key (network id . address)
 func GetFromDatabase(db *db.Database, network_id string, address string) (*Abi, error) {
 	var bytes []byte
-	var abi_hash string
+	var abi_id string
 
 	err := db.Connection.QueryRow(`
 		SELECT 
@@ -45,7 +45,7 @@ func GetFromDatabase(db *db.Database, network_id string, address string) (*Abi, 
 			static_abi.abi_id = static_smartcontract.abi_id AND
 			static_smartcontract.network_id = ? AND
 			static_smartcontract.address = ?
-		`, network_id, address).Scan(&bytes, &abi_hash)
+		`, network_id, address).Scan(&bytes, &abi_id)
 	if err != nil {
 		fmt.Println("Static Abi loading abi returned db error: ", err.Error())
 		return nil, err
@@ -53,16 +53,16 @@ func GetFromDatabase(db *db.Database, network_id string, address string) (*Abi, 
 
 	built, err := NewFromBytes(bytes)
 	if err == nil {
-		built.Id = abi_hash
+		built.Id = abi_id
 	}
 
 	return built, err
 }
 
 // Checks whether the Abi exists in the database or not
-func ExistInDatabase(db *db.Database, abi_hash string) bool {
+func ExistInDatabase(db *db.Database, abi_id string) bool {
 	var exists bool
-	err := db.Connection.QueryRow("SELECT IF(COUNT(abi_id),'true','false') FROM static_abi WHERE abi_id = ? ", abi_hash).Scan(&exists)
+	err := db.Connection.QueryRow("SELECT IF(COUNT(abi_id),'true','false') FROM static_abi WHERE abi_id = ? ", abi_id).Scan(&exists)
 	if err != nil {
 		fmt.Println("Static Abi exists returned db error: ", err.Error())
 		return false

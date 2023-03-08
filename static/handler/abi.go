@@ -36,7 +36,7 @@ func AbiGet(con *db.Database, request message.Request, logger log.Logger) messag
 	reply := message.Reply{
 		Status:     "OK",
 		Message:    "",
-		Parameters: key_value.Empty().Set("abi", abi.ToString()).Set("abi_hash", abi.Id),
+		Parameters: key_value.Empty().Set("body", abi.ToString()).Set("abi_id", abi.Id),
 	}
 
 	return reply
@@ -62,7 +62,7 @@ func AbiGetBySmartcontractKey(db *db.Database, request message.Request, logger l
 		return message.Fail("failed to get smartcontract from database: " + err.Error())
 	}
 
-	abi, err := abi.GetFromDatabaseByAbiHash(db, smartcontract.AbiHash)
+	abi, err := abi.GetFromDatabaseByAbiId(db, smartcontract.AbiId)
 	if err != nil {
 		return message.Fail("failed to get abi from database: " + err.Error())
 	}
@@ -70,7 +70,7 @@ func AbiGetBySmartcontractKey(db *db.Database, request message.Request, logger l
 	return message.Reply{
 		Status:     "OK",
 		Message:    "",
-		Parameters: key_value.Empty().Set("abi", abi.ToString()).Set("abi_hash", abi.Id),
+		Parameters: key_value.Empty().Set("body", abi.ToString()).Set("abi_id", abi.Id),
 	}
 }
 
@@ -78,14 +78,14 @@ func AbiGetBySmartcontractKey(db *db.Database, request message.Request, logger l
 //
 //	Returning message.Reply {
 //			params: {
-//	     	"abi": [],
-//	     	"abi_hash": "0x012345"
+//	     	"body": [],
+//	     	"abi_id": "0x012345"
 //	     }
 //	}
 func AbiRegister(dbCon *db.Database, request message.Request, logger log.Logger) message.Reply {
-	abi_body, ok := request.Parameters["abi"]
+	abi_body, ok := request.Parameters["body"]
 	if !ok {
-		return message.Fail("missing 'abi' parameter")
+		return message.Fail("missing 'body' parameter")
 	}
 	new_abi, err := abi.NewFromInterface(abi_body)
 	if err != nil {
@@ -95,7 +95,7 @@ func AbiRegister(dbCon *db.Database, request message.Request, logger log.Logger)
 	reply := message.Reply{
 		Status:     "OK",
 		Message:    "",
-		Parameters: key_value.Empty().Set("abi", new_abi.ToString()).Set("abi_hash", new_abi.Id),
+		Parameters: key_value.Empty().Set("body", new_abi.ToString()).Set("abi_id", new_abi.Id),
 	}
 
 	if abi.ExistInDatabase(dbCon, new_abi.Id) {

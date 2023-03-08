@@ -7,7 +7,7 @@ import (
 type Smartcontract struct {
 	NetworkId        string `json:"network_id"`
 	Address          string `json:"address"`
-	AbiHash          string `json:"abi_hash"`
+	AbiId            string `json:"abi_id"`
 	TransactionId    string `json:"transaction_id"`
 	TransactionIndex uint   `json:"transaction_index"`
 	Deployer         string `json:"deployer"`

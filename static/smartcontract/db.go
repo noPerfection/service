@@ -35,7 +35,7 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?) `,
 		a.NetworkId,
 		a.Address,
-		a.AbiHash,
+		a.AbiId,
 		a.TransactionId,
 		a.TransactionIndex,
 		a.BlockNumber,
@@ -56,7 +56,7 @@ func GetFromDatabase(db *db.Database, network_id string, address string) (*Smart
 	var s Smartcontract
 
 	row := db.Connection.QueryRow(query, network_id, address)
-	if err := row.Scan(&s.NetworkId, &s.Address, &s.AbiHash, &s.TransactionId, &s.TransactionIndex, &s.BlockNumber, &s.BlockTimestamp, &s.Deployer); err != nil {
+	if err := row.Scan(&s.NetworkId, &s.Address, &s.AbiId, &s.TransactionId, &s.TransactionIndex, &s.BlockNumber, &s.BlockTimestamp, &s.Deployer); err != nil {
 		return nil, err
 	}
 
@@ -89,7 +89,7 @@ func GetFromDatabaseFilterBy(con *db.Database, filter_query string, filter_param
 	for rows.Next() {
 		var s Smartcontract
 		var t topic.Topic
-		if err := rows.Scan(&s.NetworkId, &s.Address, &s.AbiHash, &s.TransactionId, &s.TransactionIndex, &s.BlockNumber, &s.BlockTimestamp, &s.Deployer,
+		if err := rows.Scan(&s.NetworkId, &s.Address, &s.AbiId, &s.TransactionId, &s.TransactionIndex, &s.BlockNumber, &s.BlockTimestamp, &s.Deployer,
 			&t.Organization, &t.Project, &t.Group, &t.Smartcontract); err != nil {
 			return nil, nil, err
 		}

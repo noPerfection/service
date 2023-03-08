@@ -38,7 +38,7 @@ func Get(socket *remote.Socket, network_id string, address string) (*Abi, error)
 		return nil, err
 	}
 
-	abi_bytes, ok := raw_params["abi"]
+	abi_bytes, ok := raw_params["body"]
 	if !ok {
 		return nil, errors.New("missing 'abi' parameter from the SDS Static 'abi_get' command")
 	}

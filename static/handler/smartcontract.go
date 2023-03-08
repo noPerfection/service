@@ -97,7 +97,7 @@ func SmartcontractKeyFilter(dbCon *db.Database, request message.Request, logger 
 
 // Register a new smartcontract. It means we are adding smartcontract parameters into
 // static_smartcontract.
-// Requires abi_hash parameter. First call abi_register method first.
+// Requires abi_id parameter. First call abi_register method first.
 func SmartcontractRegister(dbCon *db.Database, request message.Request, logger log.Logger) message.Reply {
 	sm, err := smartcontract.New(request.Parameters)
 	if err != nil {
