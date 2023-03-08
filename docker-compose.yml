@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  sds-db:
+    image: mysql:8
+    container_name: 'sds-db'
+    command: --default-authentication-plugin=mysql_native_password
+    restart: 'always'
+    volumes:
+      - type: bind
+        source: ./../seascape-api/db/mysql
+        target: /var/lib/mysql
+      - type: bind
+        source: ./../seascape-api/db/mysql_logs
+        target: /var/log/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: tiger
+    networks:
+      - net
+    ports:
+      - '3306:3306'
+  sds-db-ui:
+    image: phpmyadmin/phpmyadmin
+    container_name: 'sds-db-ui'
+    links:
+      - sds-db
+    environment:
+      PMA_HOST: sds-db
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 256M
+    ports:
+      - '8088:80'
+    volumes:
+      - /sessions
+    networks:
+      - net
+  sds-vault:
+    image: vault:latest
+    container_name: sds-vault
+    ports:
+      - "8201:8201"
+      - "8200:8200"
+    environment:
+      VAULT_API_ADDR: "http://0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./_vault/file:/vault/file
+      - ./_vault/logs:/vault/logs
+      - ./_vault/config:/vault/config
+      - ./_vault/plugins:/vault/plugins
+    links:
+      - sds-db
+    healthcheck:
+      retries: 5
+    entrypoint: vault server -config=/vault/config/vault-config.hcl
+    networks:
+      - net
+networks:
+  net:
