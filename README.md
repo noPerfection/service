@@ -39,7 +39,83 @@ For big innovations, working as a single team, trying to earn money on your cryp
 
 Right, let the cryptocurrency of each project "go to the moon" because of its popularity and its users, not because of the underlying technology.
 
+---
+---
+# Installation
+This is the go module that includes the core of the SDS and SDK to interact with SDS.
 
+**Go**
+Setup [go](https://go.dev/). Then in your project folder get this package:
+
+```sh
+go get github.com/blocklords/sds
+```
+
+---
+**ZeroMQ**
+
+The SDS is built using [pebbe/zmq4](https://github.com/pebbe/zmq4). The package is the bindings to the `Zeromq` C library. But package itself doesn't come with `Zeromq`. Therefore, we would need to install C library on your OS, then configure `go` to call `C` functions.
+
+> Check here [zmq4/requirements](https://github.com/pebbe/zmq4#requirements)
+
+---
+**Docker**
+For local production you would need `docker` and `docker-compose`.
+Installation of [Docker Desktop](https://www.docker.com/products/docker-desktop/) will install `docker-compose` file as well.
+
+---
+**Run database and vault**
+
+```shell
+docker-compose up -d
+```
+
+It will setup mysql database, UI for database, the vault and vault dashboard.
+
+* database web UI: http://localhost:8088/
+  username: `root`
+  password: `tiger`
+* vault web UI: http://localhost:8200/ui/
+  *Login into vault web UI will require key part and root token. Both are stored in `./_vault/tokens/root.json`. The key part=`"keys_base64"`. The root token=`"root_token"`*
+
+**Initial database setup**
+Create a new database.
+![Create a new database](_assets/create_database.png "Creating a database in the database admin UI")
+* Go to http://localhost:8080/
+* Login with *username* `root` and *password* `tiger`.
+* On the panel, click the *New* button to create the database.
+* Name of the database. For example: *sds_dev*
+* Encoding format should be **utf8_general_ci**.
+
+**Install migration tool**
+We use [*goose*](https://github.com/pressly/goose).
+Follow the [Installation](https://pressly.github.io/goose/installation/) page to setup on your machine.
+
+> For better performance store them in `/_db/bin/` folder. The documentation will assume that goose binary is stored there.*
+
+**Migrate**
+At the root folder of gosds, run the following:
+
+```powershell
+./_db/bin/goose `
+-dir ./_db/migrations `
+mysql "root:tiger@/sds_dev" `
+up
+```
+The `root` is the username, `tiger` is the password.
+`sds_dev` is the database name that we created during **initial database setup** step.
+
+
+> **Creating a new migration**
+> ```powershell
+> ./_db/bin/goose `
+> -dir ./_db/migrations `
+> mysql "root:tiger@/sds_dev" `
+> create <action_name> sql
+> ```
+
+---
+---
 # Example
 Let's assume that the smartcontract developer deployed the smartcontract on a blockchain. He did it using SDS CLI. Now our smartcontract is registered on SeascapeSDS.
 
