@@ -26,8 +26,9 @@ type Vault struct {
 	path    string // Key-Value credentials
 
 	// connection parameters
-	approle_role_id   string
-	approle_secret_id string
+	approle_role_id    string
+	approle_secret_id  string
+	approle_mount_path string
 
 	// the locations / field names of the database credentials
 	database_path string
@@ -45,13 +46,14 @@ type Vault struct {
 var VaultConfigurations = configuration.DefaultConfig{
 	Title: "Vault",
 	Parameters: key_value.New(map[string]interface{}{
-		"SDS_VAULT_HOST":              "localhost",
-		"SDS_VAULT_PORT":              8200,
-		"SDS_VAULT_SECURE":            false,
-		"SDS_VAULT_PATH":              "sds-auth-kv",
-		"SDS_VAULT_DATABASE_PATH":     "sds-mysql/creds/sds-mysql-role",
-		"SDS_VAULT_APPROLE_ROLE_ID":   nil,
-		"SDS_VAULT_APPROLE_SECRET_ID": nil,
+		"SDS_VAULT_HOST":               "localhost",
+		"SDS_VAULT_PORT":               8200,
+		"SDS_VAULT_SECURE":             false,
+		"SDS_VAULT_APPROLE_MOUNT_PATH": "sds-approle",
+		"SDS_VAULT_PATH":               "sds-auth-kv",
+		"SDS_VAULT_DATABASE_PATH":      "sds-mysql/creds/sds-mysql-role",
+		"SDS_VAULT_APPROLE_ROLE_ID":    nil,
+		"SDS_VAULT_APPROLE_SECRET_ID":  nil,
 	}),
 }
 
@@ -93,8 +95,12 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 	if !app_config.Exist("SDS_VAULT_APPROLE_SECRET_ID") {
 		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_SECRET_ID' environment variable")
 	}
-
 	approle_secret_id = app_config.GetString("SDS_VAULT_APPROLE_SECRET_ID")
+
+	if !app_config.Exist("SDS_VAULT_APPROLE_MOUNT_PATH") {
+		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_MOUNT_PATH' environment variable")
+	}
+	approle_mount_path := app_config.GetString("SDS_VAULT_APPROLE_MOUNT_PATH")
 
 	client, err := hashicorp.NewClient(config)
 	if err != nil {
@@ -104,12 +110,13 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 	ctx := context.TODO()
 
 	vault := Vault{
-		client:            client,
-		context:           ctx,
-		path:              path,
-		database_path:     database_path,
-		approle_role_id:   approle_role_id,
-		approle_secret_id: approle_secret_id,
+		client:             client,
+		context:            ctx,
+		path:               path,
+		database_path:      database_path,
+		approle_mount_path: approle_mount_path,
+		approle_role_id:    approle_role_id,
+		approle_secret_id:  approle_secret_id,
 	}
 
 	token, err := vault.login(ctx)
@@ -188,13 +195,13 @@ func (v *Vault) login(ctx context.Context) (*hashicorp.Secret, error) {
 	log.Info("logging in to vault with approle auth; role id: %s", v.approle_role_id)
 
 	approleSecretID := &approle.SecretID{
-		FromFile: v.approle_secret_id,
+		FromString: v.approle_secret_id,
 	}
 
 	appRoleAuth, err := approle.NewAppRoleAuth(
 		v.approle_role_id,
 		approleSecretID,
-		approle.WithWrappingToken(), // only required if the SecretID is response-wrapped
+		approle.WithMountPath(v.approle_mount_path),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize approle authentication method: %w", err)
