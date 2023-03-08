@@ -10,20 +10,14 @@ import (
 
 // Inserts the configuration into the database
 func SetInDatabase(db *db.Database, conf *Configuration) error {
-	res, err := db.Connection.Exec(`INSERT IGNORE INTO static_configuration (organization, project, network_id, group_name, smartcontract_name, smartcontract_address) VALUES (?, ?, ?, ?, ?, ?) `,
+	_, err := db.Connection.Exec(`INSERT IGNORE INTO static_configuration (organization, project, network_id, group_name, smartcontract_name, address) VALUES (?, ?, ?, ?, ?, ?) `,
 		conf.Organization, conf.Project, conf.NetworkId, conf.Group, conf.Name, conf.Address)
 	if err != nil {
 		fmt.Println("Failed to insert static configuration")
 		return err
 	}
 
-	id, err := res.LastInsertId()
-	if err != nil {
-		fmt.Println("Failed to get configuration's id")
-		return err
-	}
-
-	conf.SetId(uint64(id))
+	conf.SetId()
 	return nil
 
 }
@@ -31,18 +25,17 @@ func SetInDatabase(db *db.Database, conf *Configuration) error {
 // Fills the static configuration parameters from database
 func LoadDatabaseParts(db *db.Database, conf *Configuration) error {
 	var address string
-	var id uint64
 
-	err := db.Connection.QueryRow(`SELECT smartcontract_address, id FROM static_configuration WHERE 
+	err := db.Connection.QueryRow(`SELECT address FROM static_configuration WHERE 
 	organization = ? AND project = ? AND network_id = ? AND group_name = ? AND 
 	smartcontract_name = ? `, conf.Organization, conf.Project,
-		conf.NetworkId, conf.Group, conf.Name).Scan(&address, &id)
+		conf.NetworkId, conf.Group, conf.Name).Scan(&address)
 	if err != nil {
 		fmt.Println("Loading static configuration parts returned db error: ", err.Error())
 		return err
 	}
 
-	conf.SetId(id)
+	conf.SetId()
 	conf.SetAddress(address)
 
 	return nil
@@ -51,7 +44,7 @@ func LoadDatabaseParts(db *db.Database, conf *Configuration) error {
 // Whether the configuration exist in the database or not
 func ExistInDatabase(db *db.Database, conf *Configuration) bool {
 	var exists bool
-	err := db.Connection.QueryRow(`SELECT IF(COUNT(id),'true','false') FROM static_configuration WHERE 
+	err := db.Connection.QueryRow(`SELECT IF(COUNT(address),'true','false') FROM static_configuration WHERE 
 	organization = ? AND project = ? AND network_id = ? AND group_name = ? AND 
 	smartcontract_name = ? `, conf.Organization, conf.Project,
 		conf.NetworkId, conf.Group, conf.Name).Scan(&exists)

@@ -5,14 +5,14 @@ import (
 )
 
 type Smartcontract struct {
-	NetworkId               string `json:"network_id"`
-	Address                 string `json:"address"`
-	AbiHash                 string `json:"abi_hash"`
-	Txid                    string `json:"transaction_id"`
-	Deployer                string `json:"deployer"`
-	PreDeployBlockNumber    uint64 `json:"pre_deploy_block_number"`
-	PreDeployBlockTimestamp uint64 `json:"pre_deploy_block_timestamp"`
-	exists                  bool
+	NetworkId        string `json:"network_id"`
+	Address          string `json:"address"`
+	AbiHash          string `json:"abi_hash"`
+	TransactionId    string `json:"transaction_id"`
+	TransactionIndex uint   `json:"transaction_index"`
+	Deployer         string `json:"deployer"`
+	BlockNumber      uint64 `json:"pre_deploy_block_number"`
+	BlockTimestamp   uint64 `json:"pre_deploy_block_timestamp"`
 }
 
 // Get the unique smartcontract key within the SeascapeSDS.

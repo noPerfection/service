@@ -30,10 +30,6 @@ func New(parameters key_value.KeyValue) (*Configuration, error) {
 	if err == nil {
 		conf.SetAddress(address)
 	}
-	id, err := parameters.GetUint64("id")
-	if err == nil {
-		conf.SetId(id)
-	}
 
 	return &conf, nil
 }

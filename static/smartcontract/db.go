@@ -25,19 +25,21 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 			static_smartcontract (
 				network_id, 
 				address, 
-				abi_hash, 
+				abi_id, 
 				transaction_id, 
-				pre_deploy_block_number, 
-				pre_deploy_block_timestamp, 
+				transaction_index,
+				block_number, 
+				block_timestamp, 
 				deployer
 			) 
-		VALUES (?, ?, ?, ?, ?, ?, ?) `,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?) `,
 		a.NetworkId,
 		a.Address,
 		a.AbiHash,
-		a.Txid,
-		a.PreDeployBlockNumber,
-		a.PreDeployBlockTimestamp,
+		a.TransactionId,
+		a.TransactionIndex,
+		a.BlockNumber,
+		a.BlockTimestamp,
 		a.Deployer,
 	)
 	if err != nil {
@@ -49,12 +51,12 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 
 // Returns the smartcontract by address on network_id from database
 func GetFromDatabase(db *db.Database, network_id string, address string) (*Smartcontract, error) {
-	query := `SELECT network_id, address, abi_hash, transaction_id, pre_deploy_block_number, pre_deploy_block_timestamp, deployer FROM static_smartcontract WHERE network_id = ? AND address = ?`
+	query := `SELECT network_id, address, abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract WHERE network_id = ? AND address = ?`
 
 	var s Smartcontract
 
 	row := db.Connection.QueryRow(query, network_id, address)
-	if err := row.Scan(&s.NetworkId, &s.Address, &s.AbiHash, &s.Txid, &s.PreDeployBlockNumber, &s.PreDeployBlockTimestamp, &s.Deployer); err != nil {
+	if err := row.Scan(&s.NetworkId, &s.Address, &s.AbiHash, &s.TransactionId, &s.TransactionIndex, &s.BlockNumber, &s.BlockTimestamp, &s.Deployer); err != nil {
 		return nil, err
 	}
 
@@ -63,7 +65,7 @@ func GetFromDatabase(db *db.Database, network_id string, address string) (*Smart
 
 // Returns the static smartcontracts by filter_parameters from database
 func GetFromDatabaseFilterBy(con *db.Database, filter_query string, filter_parameters []string) ([]*Smartcontract, []*topic.Topic, error) {
-	query := `SELECT s.network_id, s.address, s.abi_hash, s.transaction_id, s.pre_deploy_block_number, s.pre_deploy_block_timestamp, s.deployer,
+	query := `SELECT s.network_id, s.address, s.abi_id, s.transaction_id, s.transaction_index, s.block_number, s.block_timestamp, s.deployer,
 	static_configuration.organization, static_configuration.project, static_configuration.group_name, static_configuration.smartcontract_name
 	FROM static_smartcontract AS s, static_configuration WHERE
 	s.network_id = static_configuration.network_id AND s.address = static_configuration.smartcontract_address
@@ -87,7 +89,7 @@ func GetFromDatabaseFilterBy(con *db.Database, filter_query string, filter_param
 	for rows.Next() {
 		var s Smartcontract
 		var t topic.Topic
-		if err := rows.Scan(&s.NetworkId, &s.Address, &s.AbiHash, &s.Txid, &s.PreDeployBlockNumber, &s.PreDeployBlockTimestamp, &s.Deployer,
+		if err := rows.Scan(&s.NetworkId, &s.Address, &s.AbiHash, &s.TransactionId, &s.TransactionIndex, &s.BlockNumber, &s.BlockTimestamp, &s.Deployer,
 			&t.Organization, &t.Project, &t.Group, &t.Smartcontract); err != nil {
 			return nil, nil, err
 		}

@@ -9,7 +9,7 @@ import (
 
 // Save the ABI in the Database
 func SetInDatabase(db *db.Database, a *Abi) error {
-	_, err := db.Connection.Exec(`INSERT IGNORE INTO static_abi (abi_hash, abi) VALUES (?, ?) `, a.Id, a.Bytes)
+	_, err := db.Connection.Exec(`INSERT IGNORE INTO static_abi (abi_id, body) VALUES (?, ?) `, a.Id, a.Bytes)
 	if err != nil {
 		return fmt.Errorf("abi setting db error: %v", err)
 	}
@@ -21,9 +21,9 @@ func GetFromDatabaseByAbiHash(db *db.Database, abi_hash string) (*Abi, error) {
 	var bytes []byte
 	abi := Abi{}
 	abi.Id = abi_hash
-	err := db.Connection.QueryRow("SELECT abi FROM static_abi WHERE abi_hash = ? ", abi_hash).Scan(&bytes)
+	err := db.Connection.QueryRow("SELECT body FROM static_abi WHERE abi_id = ? ", abi_hash).Scan(&bytes)
 	if err != nil {
-		return nil, fmt.Errorf("Static Abi loading abi returned db error %v ", err.Error())
+		return nil, fmt.Errorf("db: %w", err)
 	}
 
 	built, err := NewFromBytes(bytes)
@@ -37,12 +37,12 @@ func GetFromDatabase(db *db.Database, network_id string, address string) (*Abi, 
 
 	err := db.Connection.QueryRow(`
 		SELECT 
-			static_abi.abi,
-			static_abi.abi_hash
+			static_abi.body,
+			static_abi.abi_id
 		FROM 
 			static_abi, static_smartcontract 
 		WHERE 
-			static_abi.abi_hash = static_smartcontract.abi_hash AND
+			static_abi.abi_id = static_smartcontract.abi_id AND
 			static_smartcontract.network_id = ? AND
 			static_smartcontract.address = ?
 		`, network_id, address).Scan(&bytes, &abi_hash)
@@ -62,7 +62,7 @@ func GetFromDatabase(db *db.Database, network_id string, address string) (*Abi, 
 // Checks whether the Abi exists in the database or not
 func ExistInDatabase(db *db.Database, abi_hash string) bool {
 	var exists bool
-	err := db.Connection.QueryRow("SELECT IF(COUNT(abi_hash),'true','false') FROM static_abi WHERE abi_hash = ? ", abi_hash).Scan(&exists)
+	err := db.Connection.QueryRow("SELECT IF(COUNT(abi_id),'true','false') FROM static_abi WHERE abi_id = ? ", abi_hash).Scan(&exists)
 	if err != nil {
 		fmt.Println("Static Abi exists returned db error: ", err.Error())
 		return false
