@@ -8,10 +8,10 @@ services:
     restart: 'always'
     volumes:
       - type: bind
-        source: ./../seascape-api/db/mysql
+        source: ./_db/mysql
         target: /var/lib/mysql
       - type: bind
-        source: ./../seascape-api/db/mysql_logs
+        source: ./_db/mysql_logs
         target: /var/log/mysql
     environment:
       MYSQL_ROOT_PASSWORD: tiger
