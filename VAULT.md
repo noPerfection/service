@@ -216,3 +216,12 @@ SDS_VAULT_APPROLE_MOUNT_PATH=sds-approle
 SDS_VAULT_PATH=sds-auth-kv
 SDS_VAULT_DATABASE_PATH=sds-mysql/creds/sds-mysql-role
 ```
+
+----
+----
+
+# Useful links
+
+Example on how to setup docker-compose correctly.
+
+https://github.com/hashicorp/vault-guides/blob/master/operations/onboarding/docker-compose/docker-compose.yml
