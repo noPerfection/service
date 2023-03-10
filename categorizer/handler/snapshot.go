@@ -5,14 +5,12 @@ import (
 
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/db"
-	"github.com/blocklords/sds/static/configuration"
-	"github.com/blocklords/sds/static/smartcontract"
 
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/common/topic"
+	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
 const SNAPSHOT_LIMIT = uint64(500)
@@ -28,17 +26,21 @@ func GetSnapshot(request message.Request, logger log.Logger, parameters ...inter
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	topic_filter, err := topic.NewFromKeyValueParameter(request.Parameters)
+	raw_smartcontract_keys, err := request.Parameters.GetKeyValueList("smartcontract_keys")
 	if err != nil {
-		return message.Fail("topic.NewFromKeyValueParameter: " + err.Error())
+		return message.Fail("GetKeyValueList: " + err.Error())
 	}
-
-	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
-	smartcontract_keys, _, err := smartcontract.FilterKeysFromDatabase(db_con, query, query_parameters)
-	if err != nil {
-		return message.Fail("failed to filter smartcontracts by the topic filter:" + err.Error())
-	} else if len(smartcontract_keys) == 0 {
-		return message.Fail("no matching smartcontracts for the topic filter " + topic_filter.ToString())
+	if len(raw_smartcontract_keys) == 0 {
+		return message.Fail("no smartcontract_keys")
+	}
+	smartcontract_keys := make([]smartcontract_key.Key, len(raw_smartcontract_keys))
+	for i, raw_key := range raw_smartcontract_keys {
+		var key smartcontract_key.Key
+		err := raw_key.ToInterface(&key)
+		if err != nil {
+			return message.Fail("failed to decode smartcontract key: " + err.Error())
+		}
+		smartcontract_keys[i] = key
 	}
 
 	logs, err := event.GetLogsFromDb(db_con, smartcontract_keys, block_timestamp_from, SNAPSHOT_LIMIT)
