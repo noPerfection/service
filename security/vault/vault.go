@@ -86,7 +86,6 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 	} else {
 		config.Address = fmt.Sprintf("http://%s:%s", host, port)
 	}
-	vault_logger.Info("Connecting to vault over SSL")
 
 	client, err := hashicorp.NewClient(config)
 	if err != nil {
@@ -97,7 +96,7 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 
 	vault := Vault{
 		client:             client,
-		logger:             logger,
+		logger:             vault_logger,
 		context:            ctx,
 		path:               app_config.GetString("SDS_VAULT_PATH"),
 		approle_mount_path: app_config.GetString("SDS_VAULT_APPROLE_MOUNT_PATH"),
@@ -110,8 +109,6 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 		return nil, fmt.Errorf("vault login error: %w", err)
 	}
 
-	log.Info("connecting to vault: success!")
-
 	vault.auth_token = token
 	return &vault, nil
 }
@@ -121,15 +118,14 @@ func (v *Vault) RunController() {
 	// Socket to talk to clients
 	socket, err := zmq.NewSocket(zmq.REP)
 	if err != nil {
-		panic(err)
+		v.logger.Fatal("failed to create a new socket", "error", err.Error())
 	}
 
 	if err := socket.Bind("inproc://sds_vault"); err != nil {
-		panic("error to bind socket for: " + err.Error())
+		v.logger.Fatal("failed to bind to socket", "error", err.Error())
 	}
 
 	for {
-		// msg_raw, metadata, err := socket.RecvMessageWithMetadata(0, "pub_key")
 		msgs, _ := socket.RecvMessage(0)
 
 		// All request types derive from the basic request.
@@ -146,7 +142,7 @@ func (v *Vault) RunController() {
 				fail := message.Fail("invalid smartcontract developer request " + err.Error())
 				reply_string, _ := fail.ToString()
 				if _, err := socket.SendMessage(reply_string); err != nil {
-					panic(errors.New("failed to reply: %w" + err.Error()))
+					v.logger.Fatal("failed send", "error", err.Error())
 				}
 			} else {
 				reply := message.Reply{
@@ -159,11 +155,13 @@ func (v *Vault) RunController() {
 
 				reply_string, _ := reply.ToString()
 				if _, err := socket.SendMessage(reply_string); err != nil {
-					panic(errors.New("failed to reply: %w" + err.Error()))
+					v.logger.Fatal("failed send", "error", err.Error())
 				}
 			}
 		} else {
-			panic("vault doesnt support this kind of command")
+			if _, err := socket.SendMessage("vault doesnt support this kind of command"); err != nil {
+				v.logger.Fatal("failed send", "error", err.Error())
+			}
 		}
 	}
 }
@@ -178,7 +176,7 @@ func (v *Vault) RunController() {
 // ref: https://learn.hashicorp.com/tutorials/vault/secure-introduction?in=vault/app-integration#trusted-orchestrator
 // ref: https://learn.hashicorp.com/tutorials/vault/approle-best-practices?in=vault/auth-methods#secretid-delivery-best-practices
 func (v *Vault) login(ctx context.Context) (*hashicorp.Secret, error) {
-	log.Info("logging in to vault with approle auth; role id: %s", v.approle_role_id)
+	v.logger.Info("Vault login: begin")
 
 	approleSecretID := &approle.SecretID{
 		FromString: v.approle_secret_id,
@@ -201,7 +199,7 @@ func (v *Vault) login(ctx context.Context) (*hashicorp.Secret, error) {
 		return nil, fmt.Errorf("no approle info was returned after login")
 	}
 
-	log.Info("logging in to vault with approle auth: success!")
+	v.logger.Info("Vault login: success!")
 
 	return authInfo, nil
 }
