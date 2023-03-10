@@ -110,7 +110,7 @@ func (socket *Socket) reconnect() error {
 		url = socket.remoteService.Url()
 	}
 
-	if err := socket.socket.Connect("tcp://" + url); err != nil {
+	if err := socket.socket.Connect(url); err != nil {
 		return fmt.Errorf("error '"+socket.remoteService.ServiceName()+"' connect: %w", err)
 	}
 
@@ -375,7 +375,7 @@ func TcpSubscriberOrPanic(e *service.Service, client_env *service.Service, secur
 		}
 	}
 
-	conErr := socket.Connect("tcp://" + e.BroadcastUrl())
+	conErr := socket.Connect(e.BroadcastUrl())
 	if conErr != nil {
 		panic(conErr)
 	}
