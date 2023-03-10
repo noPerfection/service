@@ -31,7 +31,6 @@ import (
 	"fmt"
 
 	evm_categorizer "github.com/blocklords/sds/blockchain/evm/categorizer"
-	evm_log_parse "github.com/blocklords/sds/blockchain/evm/categorizer/log_parse"
 	imx_categorizer "github.com/blocklords/sds/blockchain/imx/categorizer"
 
 	evm_client "github.com/blocklords/sds/blockchain/evm/client"
@@ -153,7 +152,6 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 		return fmt.Errorf("gosds/blockchain: failed to get networks: %v", err)
 	}
 
-	evm_network_found := false
 	imx_network_found := false
 
 	// if there are some logs, we should broadcast them to the SDS Categorizer
@@ -167,8 +165,6 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 		worker_logger.SetReportCaller(false)
 
 		if new_network.Type == network.EVM {
-			evm_network_found = true
-
 			blockchain_manager, err := evm_client.NewManager(new_network, worker_logger)
 			if err != nil {
 				return fmt.Errorf("gosds/blockchain: failed to create EVM client: %v", err)
@@ -194,9 +190,6 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 		}
 	}
 
-	if evm_network_found {
-		go evm_log_parse.RunLogParse()
-	}
 	if imx_network_found {
 		err = imx.ValidateEnv(app_config)
 		if err != nil {
