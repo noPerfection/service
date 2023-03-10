@@ -1,3 +1,6 @@
+// The app configuration package is the wrapper around Viper.
+// It's the way to work with environment variables.
+// It also provides the default parameters.
 package configuration
 
 import (

@@ -9,6 +9,11 @@ import (
 	"github.com/blocklords/sds/static/handler"
 )
 
+// Start the SDS Static core service.
+// It keeps the static data:
+// - smartcontract abi
+// - smartcontract information
+// - configuration (a relationship between common/topic.Topic and static.Smartcontract).
 func Run(app_config *configuration.Config, db_connection *db.Database) {
 	var commands = controller.CommandHandlers{
 		"abi_get": handler.AbiGetBySmartcontractKey,
