@@ -4,6 +4,7 @@ import (
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/configuration"
 	"github.com/blocklords/sds/static/smartcontract"
+	"github.com/blocklords/sds/static/smartcontract/key"
 	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/sds/common/data_type"
@@ -119,7 +120,7 @@ func SmartcontractRegister(request message.Request, logger log.Logger, parameter
 		}),
 	}
 
-	if smartcontract.ExistInDatabase(db_con, sm.NetworkId, sm.Address) {
+	if smartcontract.ExistInDatabase(db_con, sm.Key()) {
 		return reply
 	}
 
@@ -143,11 +144,11 @@ func SmartcontractGet(request message.Request, logger log.Logger, parameters ...
 		return message.Fail(err.Error())
 	}
 
-	if smartcontract.ExistInDatabase(db_con, network_id, address) {
+	if smartcontract.ExistInDatabase(db_con, key.New(network_id, address)) {
 		return message.Fail("Smartcontract not registered in the database")
 	}
 
-	s, err := smartcontract.GetFromDatabase(db_con, network_id, address)
+	s, err := smartcontract.GetFromDatabase(db_con, key.New(network_id, address))
 	if err != nil {
 		return message.Fail("Failed to get smartcontract from database: " + err.Error())
 	}

@@ -5,6 +5,7 @@ import (
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/configuration"
 	"github.com/blocklords/sds/static/smartcontract"
+	"github.com/blocklords/sds/static/smartcontract/key"
 	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/sds/app/remote/message"
@@ -62,7 +63,7 @@ func ConfigurationGet(request message.Request, logger log.Logger, parameters ...
 		return message.Fail("Configuration loading in the database failed: " + err.Error())
 	}
 
-	s, getErr := smartcontract.GetFromDatabase(db_con, conf.NetworkId, conf.Address())
+	s, getErr := smartcontract.GetFromDatabase(db_con, key.New(conf.NetworkId, conf.Address()))
 	if getErr != nil {
 		return message.Fail("Failed to get smartcontract from database: " + getErr.Error())
 	}

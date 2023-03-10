@@ -5,6 +5,7 @@ import (
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/abi"
 	"github.com/blocklords/sds/static/smartcontract"
+	"github.com/blocklords/sds/static/smartcontract/key"
 	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/sds/app/remote/message"
@@ -20,17 +21,12 @@ import (
 func AbiGet(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
-	network_id, err := request.Parameters.GetString("network_id")
+	key, err := key.NewFromKeyValue(request.Parameters)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("smartcontract_key from parameter: " + err.Error())
 	}
 
-	address, err := request.Parameters.GetString("address")
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-
-	abi, err := abi.GetFromDatabase(db_con, network_id, address)
+	abi, err := abi.GetFromDatabase(db_con, key.NetworkId(), key.Address())
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -47,21 +43,16 @@ func AbiGet(request message.Request, logger log.Logger, parameters ...interface{
 // Returns an abi by the smartcontract key.
 func AbiGetBySmartcontractKey(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
-
-	network_id, err := request.Parameters.GetString("network_id")
+	key, err := key.NewFromKeyValue(request.Parameters)
 	if err != nil {
-		return message.Fail(err.Error())
-	}
-	address, err := request.Parameters.GetString("address")
-	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("smartcontract_key from parameter: " + err.Error())
 	}
 
-	if !smartcontract.ExistInDatabase(db_con, network_id, address) {
-		return message.Fail(`'` + network_id + `.` + address + `' smartcontract not registered in the SDS Static`)
+	if !smartcontract.ExistInDatabase(db_con, key) {
+		return message.Fail(`'` + key.ToString() + `' smartcontract not registered in the SDS Static`)
 	}
 
-	smartcontract, err := smartcontract.GetFromDatabase(db_con, network_id, address)
+	smartcontract, err := smartcontract.GetFromDatabase(db_con, key)
 	if err != nil {
 		return message.Fail("failed to get smartcontract from database: " + err.Error())
 	}
