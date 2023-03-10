@@ -18,21 +18,22 @@ import (
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
+	"github.com/blocklords/sds/security/credentials"
 )
 
 type Subscriber struct {
 	topic_filter *topic.TopicFilter
-	developer    *service.Service
+	credentials  *credentials.Credentials
 	gateway      *service.Service
 
 	Channel chan Message
 }
 
 // Create a new subscriber for a given user and his topic filter.
-func NewSubscriber(topic_filter *topic.TopicFilter, developer *service.Service, gateway *service.Service) (*Subscriber, error) {
+func NewSubscriber(topic_filter *topic.TopicFilter, creds *credentials.Credentials, gateway *service.Service) (*Subscriber, error) {
 	subscriber := Subscriber{
 		topic_filter: topic_filter,
-		developer:    developer,
+		credentials:  creds,
 		gateway:      gateway,
 	}
 
@@ -91,7 +92,7 @@ func (s *Subscriber) get_snapshot(socket *remote.Socket, block_timestamp_from ui
 
 // calls the snapshot then incoming data in real-time from SDS Publisher
 func (s *Subscriber) start() {
-	socket, err := remote.NewTcpSocket(s.gateway, s.developer, true)
+	socket, err := remote.NewTcpSocket(s.gateway, s.credentials)
 	if err != nil {
 		s.Channel <- NewErrorMessage("socket_init: " + err.Error())
 		return

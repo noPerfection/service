@@ -60,14 +60,13 @@ example of using Subscribe
 package sdk
 
 import (
-	"errors"
-
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/sdk/reader"
 	"github.com/blocklords/sds/sdk/subscriber"
 	"github.com/blocklords/sds/sdk/writer"
+	"github.com/blocklords/sds/security/credentials"
 )
 
 var Version string = "Seascape GoSDS version: 0.0.8"
@@ -84,12 +83,12 @@ func NewReader(address string) (*reader.Reader, error) {
 		return nil, err
 	}
 
-	developer_service, err := developer_service()
+	creds, err := developer_credentials()
 	if err != nil {
 		return nil, err
 	}
 
-	gatewaySocket, err := remote.NewTcpSocket(e, developer_service, true)
+	gatewaySocket, err := remote.NewTcpSocket(e, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -103,12 +102,12 @@ func NewWriter(address string) (*writer.Writer, error) {
 		return nil, err
 	}
 
-	developer_service, err := developer_service()
+	creds, err := developer_credentials()
 	if err != nil {
 		return nil, err
 	}
 
-	gatewaySocket, err := remote.NewTcpSocket(e, developer_service, true)
+	gatewaySocket, err := remote.NewTcpSocket(e, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -123,12 +122,12 @@ func NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subscriber, erro
 		return nil, err
 	}
 
-	developer_service, err := developer_service()
+	creds, err := developer_credentials()
 	if err != nil {
 		return nil, err
 	}
 
-	return subscriber.NewSubscriber(&topic_filter, e, developer_service)
+	return subscriber.NewSubscriber(&topic_filter, creds, e)
 }
 
 // Returns the gateway environment variable
@@ -142,14 +141,11 @@ func gateway_service() (*service.Service, error) {
 	return e, nil
 }
 
-func developer_service() (*service.Service, error) {
-	e, err := service.NewSecure(service.DEVELOPER_GATEWAY, service.REMOTE)
+func developer_credentials() (*credentials.Credentials, error) {
+	creds, err := credentials.NewFromVault("curves", "DEVELOPER_SECRET_KEY")
 	if err != nil {
 		return nil, err
 	}
-	if len(e.SecretKey) == 0 || len(e.PublicKey) == 0 {
-		return nil, errors.New("missing 'DEVELOPER_SECRET_KEY' and/or 'DEVELOPER_PUBLIC_KEY' environment variables")
-	}
 
-	return e, nil
+	return creds, nil
 }
