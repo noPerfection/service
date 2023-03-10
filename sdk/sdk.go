@@ -89,7 +89,10 @@ func NewReader(address string) (*reader.Reader, error) {
 		return nil, err
 	}
 
-	gatewaySocket := remote.TcpRequestSocketOrPanic(e, developer_service, true)
+	gatewaySocket, err := remote.NewTcpSocket(e, developer_service, true)
+	if err != nil {
+		return nil, err
+	}
 
 	return reader.NewReader(gatewaySocket, address), nil
 }
@@ -105,7 +108,10 @@ func NewWriter(address string) (*writer.Writer, error) {
 		return nil, err
 	}
 
-	gatewaySocket := remote.TcpRequestSocketOrPanic(e, developer_service, true)
+	gatewaySocket, err := remote.NewTcpSocket(e, developer_service, true)
+	if err != nil {
+		return nil, err
+	}
 
 	return writer.NewWriter(gatewaySocket, address), nil
 }

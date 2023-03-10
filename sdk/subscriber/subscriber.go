@@ -91,11 +91,16 @@ func (s *Subscriber) get_snapshot(socket *remote.Socket, block_timestamp_from ui
 
 // calls the snapshot then incoming data in real-time from SDS Publisher
 func (s *Subscriber) start() {
-	socket := remote.TcpRequestSocketOrPanic(s.gateway, s.developer, true)
+	socket, err := remote.NewTcpSocket(s.gateway, s.developer, true)
+	if err != nil {
+		s.Channel <- NewErrorMessage("socket_init: " + err.Error())
+		return
+	}
 
 	block_timestamp, err := s.recent_subscriber_state(socket)
 	if err != nil {
 		s.Channel <- NewErrorMessage("recent_subscriber_state: " + err.Error())
+		return
 	}
 
 	fmt.Println("Subscriber connected and queueing the messages while snapshot won't be ready")

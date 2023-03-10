@@ -25,13 +25,13 @@ import (
 type Socket struct {
 	// The name of remote SDS service and its URL
 	// its used as a clarification
-	remoteService *service.Service
-	thisService   *service.Service
-	poller        *zmq.Poller
-	socket        *zmq.Socket
-	protocol      string
-	inproc_url    string
-	secure        bool
+	remote_service *service.Service
+	thisService    *service.Service
+	poller         *zmq.Poller
+	socket         *zmq.Socket
+	protocol       string
+	inproc_url     string
+	secure         bool
 }
 
 type SDS_Message interface {
@@ -88,11 +88,11 @@ func (socket *Socket) reconnect() error {
 		client_public_key := ""
 		client_secret_key := ""
 		if socket_type == zmq.SUB {
-			public_key = socket.remoteService.BroadcastPublicKey
+			public_key = socket.remote_service.BroadcastPublicKey
 			client_public_key = socket.thisService.BroadcastPublicKey
 			client_secret_key = socket.thisService.BroadcastSecretKey
 		} else {
-			public_key = socket.remoteService.PublicKey
+			public_key = socket.remote_service.PublicKey
 			client_public_key = socket.thisService.PublicKey
 			client_secret_key = socket.thisService.SecretKey
 		}
@@ -105,13 +105,13 @@ func (socket *Socket) reconnect() error {
 
 	url := ""
 	if socket_type == zmq.SUB {
-		url = socket.remoteService.BroadcastUrl()
+		url = socket.remote_service.BroadcastUrl()
 	} else {
-		url = socket.remoteService.Url()
+		url = socket.remote_service.Url()
 	}
 
 	if err := socket.socket.Connect(url); err != nil {
-		return fmt.Errorf("error '"+socket.remoteService.ServiceName()+"' connect: %w", err)
+		return fmt.Errorf("error '"+socket.remote_service.ServiceName()+"' connect: %w", err)
 	}
 
 	socket.poller = zmq.NewPoller()
@@ -179,14 +179,14 @@ func (socket *Socket) Close() error {
 
 // Broadcaster URL of the SDS Service
 func (socket *Socket) RemoteBroadcastUrl() string {
-	return socket.remoteService.BroadcastUrl()
+	return socket.remote_service.BroadcastUrl()
 }
 
 // Returns the HOST envrionment parameters of the socket.
 //
 // Use it if you want to create another socket from this socket.
 func (socket *Socket) RemoteEnv() *service.Service {
-	return socket.remoteService
+	return socket.remote_service
 }
 
 // Send a command to the remote SDS service.
@@ -204,13 +204,13 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 	for {
 		//  We send a request, then we work to get a reply
 		if _, err := socket.socket.SendMessage(request_string); err != nil {
-			return nil, fmt.Errorf("failed to send the command '%s' to '%s'. socket error: %w", request.Command, socket.remoteService.ServiceName(), err)
+			return nil, fmt.Errorf("failed to send the command '%s' to '%s'. socket error: %w", request.Command, socket.remote_service.ServiceName(), err)
 		}
 
 		//  Poll socket for a reply, with timeout
 		sockets, err := socket.poller.Poll(request_timeout)
 		if err != nil {
-			return nil, fmt.Errorf("failed to to send the command '%s' to '%s'. poll error: %w", request.Command, socket.remoteService.ServiceName(), err)
+			return nil, fmt.Errorf("failed to to send the command '%s' to '%s'. poll error: %w", request.Command, socket.remote_service.ServiceName(), err)
 		}
 
 		//  Here we process a server reply and exit our loop if the
@@ -278,13 +278,13 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 	for {
 		//  We send a request, then we work to get a reply
 		if _, err := socket.socket.SendMessage(request_string); err != nil {
-			return nil, fmt.Errorf("failed to send the command '%s' to '%s'. socket error: %w", command_name, socket.remoteService.ServiceName(), err)
+			return nil, fmt.Errorf("failed to send the command '%s' to '%s'. socket error: %w", command_name, socket.remote_service.ServiceName(), err)
 		}
 
 		//  Poll socket for a reply, with timeout
 		sockets, err := socket.poller.Poll(request_timeout)
 		if err != nil {
-			return nil, fmt.Errorf("failed to to send the command '%s' to '%s'. poll error: %w", command_name, socket.remoteService.ServiceName(), err)
+			return nil, fmt.Errorf("failed to to send the command '%s' to '%s'. poll error: %w", command_name, socket.remote_service.ServiceName(), err)
 		}
 
 		//  Here we process a server reply and exit our loop if the
@@ -296,21 +296,21 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 			// Wait for reply.
 			r, err := socket.socket.RecvMessage(0)
 			if err != nil {
-				return nil, fmt.Errorf("failed to receive the command '%s' message from '%s'. socket error: %w", command_name, socket.remoteService.ServiceName(), err)
+				return nil, fmt.Errorf("failed to receive the command '%s' message from '%s'. socket error: %w", command_name, socket.remote_service.ServiceName(), err)
 			}
 
 			reply, err := message.ParseReply(r)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse the command '%s' reply from '%s'. gosds error %w", command_name, socket.remoteService.ServiceName(), err)
+				return nil, fmt.Errorf("failed to parse the command '%s' reply from '%s'. gosds error %w", command_name, socket.remote_service.ServiceName(), err)
 			}
 
 			if !reply.IsOK() {
-				return nil, fmt.Errorf("the command '%s' replied with a failure by '%s'. the reply error message: %s", command_name, socket.remoteService.ServiceName(), reply.Message)
+				return nil, fmt.Errorf("the command '%s' replied with a failure by '%s'. the reply error message: %s", command_name, socket.remote_service.ServiceName(), reply.Message)
 			}
 
 			return reply.Parameters, nil
 		} else {
-			fmt.Println("command '", command_name, "' wasn't replied by '", socket.remoteService.ServiceName(), "' in ", request_timeout, ", retrying...")
+			fmt.Println("command '", command_name, "' wasn't replied by '", socket.remote_service.ServiceName(), "' in ", request_timeout, ", retrying...")
 			err := socket.reconnect()
 			if err != nil {
 				return nil, fmt.Errorf("socket.reconnect: %w", err)
@@ -321,24 +321,24 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.REQ
-func TcpRequestSocketOrPanic(e *service.Service, client *service.Service, secure bool) *Socket {
+func NewTcpSocket(remote_service *service.Service, client *service.Service, secure bool) (*Socket, error) {
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 	new_socket := Socket{
-		remoteService: e,
-		thisService:   client,
-		socket:        sock,
-		protocol:      "tcp",
-		secure:        secure,
+		remote_service: remote_service,
+		thisService:    client,
+		socket:         sock,
+		protocol:       "tcp",
+		secure:         secure,
 	}
 	err = new_socket.reconnect()
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("connect: %w", err)
 	}
 
-	return &new_socket
+	return &new_socket, nil
 }
 
 func InprocRequestSocket(url string) *Socket {
@@ -381,9 +381,9 @@ func TcpSubscriberOrPanic(e *service.Service, client_env *service.Service, secur
 	}
 
 	return &Socket{
-		remoteService: e,
-		socket:        socket,
-		secure:        secure,
-		protocol:      "tcp",
+		remote_service: e,
+		socket:         socket,
+		secure:         secure,
+		protocol:       "tcp",
 	}
 }
