@@ -45,7 +45,7 @@ var VaultConfigurations = configuration.DefaultConfig{
 	Parameters: key_value.New(map[string]interface{}{
 		"SDS_VAULT_HOST":               "localhost",
 		"SDS_VAULT_PORT":               8200,
-		"SDS_VAULT_SECURE":             false,
+		"SDS_VAULT_HTTPS":              false,
 		"SDS_VAULT_APPROLE_MOUNT_PATH": "sds-approle",
 		"SDS_VAULT_PATH":               "sds-auth-kv",
 		"SDS_VAULT_APPROLE_ROLE_ID":    nil,
@@ -76,7 +76,7 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 	vault_logger := app_log.Child(logger, "vault")
 	vault_logger.SetReportCaller(false)
 
-	secure := app_config.GetBool("SDS_VAULT_SECURE")
+	secure := app_config.GetBool("SDS_VAULT_HTTPS")
 	host := app_config.GetString("SDS_VAULT_HOST")
 	port := app_config.GetString("SDS_VAULT_PORT")
 
