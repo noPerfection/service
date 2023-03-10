@@ -33,17 +33,12 @@ func main() {
 		logger.Fatal("db.GetParameters", "error", err)
 	}
 
-	var v *vault.Vault = nil
-	var database *db.Database = nil
-
 	logger.Info("Setting up Vault connection and authentication layer...")
 	app_config.SetDefaults(vault.VaultConfigurations)
 
-	new_vault, err := vault.New(logger, app_config)
+	v, err := vault.New(logger, app_config)
 	if err != nil {
 		logger.Fatal("vault error", "message", err)
-	} else {
-		v = new_vault
 	}
 
 	go v.PeriodicallyRenewLeases()
@@ -55,17 +50,17 @@ func main() {
 	if err != nil {
 		logger.Fatal("reading database credentials from vault: %v", err)
 	}
-	go vault_database.PeriodicallyRenewLeases(database.Reconnect)
 
-	s := security.New(app_config.DebugSecurity)
-	if err := s.StartAuthentication(); err != nil {
+	if err := security.New(app_config.DebugSecurity).StartAuthentication(); err != nil {
 		logger.Fatal("security: %v", err)
 	}
 
-	database, err = db.Open(logger, database_parameters, database_credentials)
+	database, err := db.Open(logger, database_parameters, database_credentials)
 	if err != nil {
 		logger.Fatal("database error", "message", err)
 	}
+	go vault_database.PeriodicallyRenewLeases(database.Reconnect)
+
 	defer func() {
 		_ = database.Close()
 	}()
