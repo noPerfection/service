@@ -232,12 +232,11 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 		logger.Fatal("create a pusher to SDS Categorizer", "message", err)
 	}
 
-	categorizer_env, _ := service.Inprocess(service.SPAGHETTI)
 	static_env, err := service.Inprocess(service.STATIC)
 	if err != nil {
 		logger.Fatal("new static service config", "message", err)
 	}
-	static_socket := remote.TcpRequestSocketOrPanic(static_env, categorizer_env)
+	static_socket := remote.InprocRequestSocket(static_env.Url())
 
 	for _, new_network := range networks {
 		worker_logger := app_log.Child(logger, new_network.Type.String()+"_network_id_"+new_network.Id)
