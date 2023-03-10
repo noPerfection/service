@@ -11,8 +11,8 @@ import (
 
 // The Smartcontract Event Log
 type Log struct {
-	SmartcontractKey smartcontract_key.Key     `json:"smartcontract_key`
-	TransactionKey   blockchain.TransactionKey `json:"transaction_key`
+	SmartcontractKey smartcontract_key.Key     `json:"smartcontract_key"`
+	TransactionKey   blockchain.TransactionKey `json:"transaction_key"`
 	Block            blockchain.Block          `json:"block"`
 	LogIndex         uint                      `json:"log_index"`        // Log index in the block
 	Name             string                    `json:"event_name"`       // Log                 // Event log name
