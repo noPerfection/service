@@ -8,8 +8,8 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/sds/app/argument"
-	"github.com/blocklords/sds/app/env"
+	"github.com/blocklords/sds/app/configuration/argument"
+	"github.com/blocklords/sds/app/configuration/env"
 	app_log "github.com/blocklords/sds/app/log"
 	"github.com/spf13/viper"
 )
