@@ -143,7 +143,7 @@ func gateway_service() (*service.Service, error) {
 }
 
 func developer_service() (*service.Service, error) {
-	e, err := service.NewSecure(service.DEVELOPER_GATEWAY, service.REMOTE, service.SUBSCRIBE)
+	e, err := service.NewSecure(service.DEVELOPER_GATEWAY, service.REMOTE)
 	if err != nil {
 		return nil, err
 	}
