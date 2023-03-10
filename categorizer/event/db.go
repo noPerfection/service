@@ -41,9 +41,9 @@ func GetLogsFromDb(con *db.Database, smartcontracts []*smartcontract.Smartcontra
 	offset++
 
 	smartcontracts_clause := ""
-	for i, key := range smartcontracts {
-		network_id := key.NetworkId
-		address := key.Address
+	for i, sm := range smartcontracts {
+		network_id := sm.Key.NetworkId
+		address := sm.Key.Address
 
 		smartcontracts_clause += "(network_id = ? AND address = ?) "
 		if i < sm_amount-1 {

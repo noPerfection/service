@@ -3,6 +3,7 @@ package smartcontract
 import (
 	"fmt"
 
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/db"
@@ -34,17 +35,17 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 				deployer
 			) 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?) `,
-		a.NetworkId,
-		a.Address,
+		a.Key.NetworkId,
+		a.Key.Address,
 		a.AbiId,
-		a.TransactionId,
-		a.TransactionIndex,
-		a.BlockNumber,
-		a.BlockTimestamp,
+		a.TransactionKey.Id,
+		a.TransactionKey.Index,
+		a.Block.Number,
+		a.Block.Timestamp,
 		a.Deployer,
 	)
 	if err != nil {
-		fmt.Println("Failed to insert static smartcontract at network id as address", a.NetworkId, a.Address)
+		fmt.Println("Failed to insert static smartcontract at network id as address", a.Key.NetworkId, a.Key.Address)
 		return err
 	}
 	return nil
@@ -52,12 +53,16 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 
 // Returns the smartcontract by address on network_id from database
 func GetFromDatabase(db *db.Database, key smartcontract_key.Key) (*Smartcontract, error) {
-	query := `SELECT network_id, address, abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract WHERE network_id = ? AND address = ?`
+	query := `SELECT abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract WHERE network_id = ? AND address = ?`
 
-	var s Smartcontract
+	var s Smartcontract = Smartcontract{
+		Key:            key,
+		TransactionKey: blockchain.TransactionKey{},
+		Block:          blockchain.Block{},
+	}
 
 	row := db.Connection.QueryRow(query, key.NetworkId, key.Address)
-	if err := row.Scan(&s.NetworkId, &s.Address, &s.AbiId, &s.TransactionId, &s.TransactionIndex, &s.BlockNumber, &s.BlockTimestamp, &s.Deployer); err != nil {
+	if err := row.Scan(&s.AbiId, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.Block.Number, &s.Block.Timestamp, &s.Deployer); err != nil {
 		return nil, err
 	}
 
@@ -88,13 +93,18 @@ func GetFromDatabaseFilterBy(con *db.Database, filter_query string, filter_param
 
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for rows.Next() {
-		var s Smartcontract
+		var s Smartcontract = Smartcontract{
+			Key:            smartcontract_key.Key{},
+			TransactionKey: blockchain.TransactionKey{},
+			Block:          blockchain.Block{},
+		}
+
 		var t topic.Topic
-		if err := rows.Scan(&s.NetworkId, &s.Address, &s.AbiId, &s.TransactionId, &s.TransactionIndex, &s.BlockNumber, &s.BlockTimestamp, &s.Deployer,
+		if err := rows.Scan(&s.Key.NetworkId, &s.Key.Address, &s.AbiId, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.Block.Number, &s.Block.Timestamp, &s.Deployer,
 			&t.Organization, &t.Project, &t.Group, &t.Smartcontract); err != nil {
 			return nil, nil, err
 		}
-		t.NetworkId = s.NetworkId
+		t.NetworkId = s.Key.NetworkId
 		smartcontracts = append(smartcontracts, &s)
 		topics = append(topics, &t)
 	}

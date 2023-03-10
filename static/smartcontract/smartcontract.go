@@ -1,25 +1,14 @@
 package smartcontract
 
 import (
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
 type Smartcontract struct {
-	NetworkId        string `json:"network_id"`
-	Address          string `json:"address"`
-	AbiId            string `json:"abi_id"`
-	TransactionId    string `json:"transaction_id"`
-	TransactionIndex uint   `json:"transaction_index"`
-	Deployer         string `json:"deployer"`
-	BlockNumber      uint64 `json:"pre_deploy_block_number"`
-	BlockTimestamp   uint64 `json:"pre_deploy_block_timestamp"`
-}
-
-// Get the unique smartcontract key within the SeascapeSDS.
-//
-// For more information about smartonctract keys check:
-//
-// “gosds/static/smartcontract/key“
-func (c *Smartcontract) Key() smartcontract_key.Key {
-	return smartcontract_key.New(c.NetworkId, c.Address)
+	Key            smartcontract_key.Key     `json:"key"`
+	AbiId          string                    `json:"abi_id"`
+	TransactionKey blockchain.TransactionKey `json:"transaction_key"`
+	Block          blockchain.Block          `json:"block"`
+	Deployer       string                    `json:"deployer"`
 }

@@ -85,8 +85,7 @@ func SmartcontractKeyFilter(request message.Request, logger log.Logger, paramete
 
 	blob := make(map[string]string, len(smartcontracts))
 	for i, s := range smartcontracts {
-		key := s.Key()
-		blob[key.ToString()] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
+		blob[s.Key.ToString()] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
 	}
 
 	reply := message.Reply{
@@ -109,17 +108,15 @@ func SmartcontractRegister(request message.Request, logger log.Logger, parameter
 	if err != nil {
 		return message.Fail(err.Error())
 	}
+	sm_kv, _ := key_value.NewFromInterface(sm)
 
 	reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"network_id": sm.NetworkId,
-			"address":    sm.Address,
-		}),
+		Status:     "OK",
+		Message:    "",
+		Parameters: sm_kv,
 	}
 
-	if smartcontract.ExistInDatabase(db_con, sm.Key()) {
+	if smartcontract.ExistInDatabase(db_con, sm.Key) {
 		return reply
 	}
 
