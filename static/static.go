@@ -14,17 +14,16 @@ import (
 
 func Run(app_config *configuration.Config, db_connection *db.Database) {
 	var commands = controller.CommandHandlers{
-		"abi_get":                      handler.AbiGet,
-		"abi_get_by_smartcontract_key": handler.AbiGetBySmartcontractKey,
-		"abi_register":                 handler.AbiRegister,
+		"abi_get": handler.AbiGetBySmartcontractKey,
+		"abi_set": handler.AbiRegister,
 
 		"smartcontract_get":        handler.SmartcontractGet,
-		"smartcontract_register":   handler.SmartcontractRegister,
+		"smartcontract_set":        handler.SmartcontractRegister,
 		"smartcontract_filter":     handler.SmartcontractFilter,
 		"smartcontract_key_filter": handler.SmartcontractKeyFilter,
 
-		"configuration_get":      handler.ConfigurationGet,
-		"configuration_register": handler.ConfigurationRegister,
+		"configuration_get": handler.ConfigurationGet,
+		"configuration_set": handler.ConfigurationRegister,
 
 		"network_id_get_all": handler.NetworkGetIds,
 		"network_get_all":    handler.NetworkGetAll,

@@ -11,45 +11,13 @@ import (
 	"github.com/blocklords/sds/app/remote/message"
 )
 
-// This function returns the ABI for the given smartcontract
-//
-//	Returning message.Reply {
-//			params: {
-//	     	"abi": []
-//	     }
-//	}
-func AbiGet(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
-	db_con := parameters[0].(*db.Database)
-
-	key, err := key.NewFromKeyValue(request.Parameters)
-	if err != nil {
-		return message.Fail("smartcontract_key from parameter: " + err.Error())
-	}
-
-	abi, err := abi.GetFromDatabase(db_con, key.NetworkId, key.Address)
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-
-	reply := message.Reply{
-		Status:     "OK",
-		Message:    "",
-		Parameters: key_value.Empty().Set("body", abi.ToString()).Set("abi_id", abi.Id),
-	}
-
-	return reply
-}
-
 // Returns an abi by the smartcontract key.
 func AbiGetBySmartcontractKey(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
+
 	key, err := key.NewFromKeyValue(request.Parameters)
 	if err != nil {
 		return message.Fail("smartcontract_key from parameter: " + err.Error())
-	}
-
-	if !smartcontract.ExistInDatabase(db_con, key) {
-		return message.Fail(`'` + key.ToString() + `' smartcontract not registered in the SDS Static`)
 	}
 
 	smartcontract, err := smartcontract.GetFromDatabase(db_con, key)

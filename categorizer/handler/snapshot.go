@@ -32,11 +32,10 @@ func GetSnapshot(request message.Request, logger log.Logger, parameters ...inter
 	if err != nil {
 		return message.Fail(err.Error())
 	}
-	topic_filter_map, err := request.Parameters.GetKeyValue("topic_filter")
+	topic_filter, err := topic.NewFromKeyValueParameter(request.Parameters)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("topic.NewFromKeyValueParameter: " + err.Error())
 	}
-	topic_filter := topic.ParseJSONToTopicFilter(topic_filter_map)
 
 	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
 

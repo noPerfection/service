@@ -1,6 +1,10 @@
 package topic
 
-import "github.com/blocklords/sds/common/data_type/key_value"
+import (
+	"fmt"
+
+	"github.com/blocklords/sds/common/data_type/key_value"
+)
 
 type TopicFilter struct {
 	Organizations  []string `json:"o,omitempty"`
@@ -86,8 +90,17 @@ func (t *TopicFilter) ToString() string {
 	return str
 }
 
+func NewFromKeyValueParameter(parameters key_value.KeyValue) (*TopicFilter, error) {
+	topic_filter_map, err := parameters.GetKeyValue("topic_filter")
+	if err != nil {
+		return nil, fmt.Errorf("missing `topic_filter` parameter")
+	}
+
+	return NewFromKeyValue(topic_filter_map), nil
+}
+
 // Converts the JSON object to the topic.TopicFilter
-func ParseJSONToTopicFilter(parameters key_value.KeyValue) *TopicFilter {
+func NewFromKeyValue(parameters key_value.KeyValue) *TopicFilter {
 	topic_filter := TopicFilter{
 		Organizations:  []string{},
 		Projects:       []string{},
