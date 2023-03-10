@@ -32,7 +32,6 @@ type Socket struct {
 	socket             *zmq.Socket
 	protocol           string
 	inproc_url         string
-	secure             bool
 }
 
 type SDS_Message interface {
@@ -315,17 +314,11 @@ func NewTcpSocket(remote_service *service.Service, client *credentials.Credentia
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
-	secure := false
-	if client != nil {
-		secure = true
-	}
-
 	new_socket := Socket{
 		remote_service:     remote_service,
 		client_credentials: client,
 		socket:             sock,
 		protocol:           "tcp",
-		secure:             secure,
 	}
 	err = new_socket.reconnect()
 	if err != nil {
@@ -341,10 +334,10 @@ func InprocRequestSocket(url string) *Socket {
 		panic(err)
 	}
 	new_socket := Socket{
-		socket:     sock,
-		protocol:   "inproc",
-		inproc_url: url,
-		secure:     false,
+		socket:             sock,
+		protocol:           "inproc",
+		inproc_url:         url,
+		client_credentials: nil,
 	}
 	err = new_socket.inproc_reconnect()
 	if err != nil {
