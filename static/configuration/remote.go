@@ -21,11 +21,10 @@ func RemoteConfiguration(socket *remote.Socket, t *topic.Topic) (*Configuration,
 		Command:    "configuration_get",
 		Parameters: kv,
 	}
-	raw_parameters, err := socket.RequestRemoteService(&request)
+	parameters, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return nil, nil, err
 	}
-	parameters := key_value.New(raw_parameters)
 
 	raw_configuration, err := parameters.GetKeyValue("configuration")
 	if err != nil {
