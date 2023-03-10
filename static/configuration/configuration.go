@@ -1,13 +1,11 @@
 package configuration
 
+import "github.com/blocklords/sds/common/topic"
+
 // The Configuration sets the relationship between the organization and the smartcontract.
 type Configuration struct {
-	Organization string `json:"o"`
-	Project      string `json:"p"`
-	NetworkId    string `json:"n"`
-	Group        string `json:"g"`
-	Name         string `json:"s"`
-	address      string
+	Topic   topic.Topic `json:"topic"`
+	address string
 }
 
 // The smartcontract address to which the configuration belongs too.

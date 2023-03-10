@@ -10,11 +10,7 @@ import (
 // Converts the Topic to the Configuration
 func NewFromTopic(t topic.Topic) (*Configuration, error) {
 	return &Configuration{
-		Organization: t.Organization,
-		Project:      t.Project,
-		NetworkId:    t.NetworkId,
-		Group:        t.Group,
-		Name:         t.Smartcontract,
+		Topic: t,
 	}, nil
 }
 

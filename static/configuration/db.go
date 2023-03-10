@@ -11,7 +11,7 @@ import (
 // Inserts the configuration into the database
 func SetInDatabase(db *db.Database, conf *Configuration) error {
 	_, err := db.Connection.Exec(`INSERT IGNORE INTO static_configuration (organization, project, network_id, group_name, smartcontract_name, address) VALUES (?, ?, ?, ?, ?, ?) `,
-		conf.Organization, conf.Project, conf.NetworkId, conf.Group, conf.Name, conf.Address)
+		conf.Topic.Organization, conf.Topic.Project, conf.Topic.NetworkId, conf.Topic.Group, conf.Topic.Smartcontract, conf.Address)
 	if err != nil {
 		fmt.Println("Failed to insert static configuration")
 		return err
@@ -27,8 +27,8 @@ func LoadDatabaseParts(db *db.Database, conf *Configuration) error {
 
 	err := db.Connection.QueryRow(`SELECT address FROM static_configuration WHERE 
 	organization = ? AND project = ? AND network_id = ? AND group_name = ? AND 
-	smartcontract_name = ? `, conf.Organization, conf.Project,
-		conf.NetworkId, conf.Group, conf.Name).Scan(&address)
+	smartcontract_name = ? `, conf.Topic.Organization, conf.Topic.Project,
+		conf.Topic.NetworkId, conf.Topic.Group, conf.Topic.Smartcontract).Scan(&address)
 	if err != nil {
 		fmt.Println("Loading static configuration parts returned db error: ", err.Error())
 		return err
@@ -44,8 +44,8 @@ func ExistInDatabase(db *db.Database, conf *Configuration) bool {
 	var exists bool
 	err := db.Connection.QueryRow(`SELECT IF(COUNT(address),'true','false') FROM static_configuration WHERE 
 	organization = ? AND project = ? AND network_id = ? AND group_name = ? AND 
-	smartcontract_name = ? `, conf.Organization, conf.Project,
-		conf.NetworkId, conf.Group, conf.Name).Scan(&exists)
+	smartcontract_name = ? `, conf.Topic.Organization, conf.Topic.Project,
+		conf.Topic.NetworkId, conf.Topic.Group, conf.Topic.Smartcontract).Scan(&exists)
 	if err != nil {
 		fmt.Println("Static Configuration exists returned db error: ", err.Error())
 		return false

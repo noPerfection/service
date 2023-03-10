@@ -54,7 +54,7 @@ func ConfigurationGet(request message.Request, logger log.Logger, parameters ...
 		return message.Fail("Configuration loading in the database failed: " + err.Error())
 	}
 
-	s, getErr := smartcontract.GetFromDatabase(db_con, smartcontract_key.New(conf.NetworkId, conf.Address()))
+	s, getErr := smartcontract.GetFromDatabase(db_con, smartcontract_key.New(conf.Topic.NetworkId, conf.Address()))
 	if getErr != nil {
 		return message.Fail("Failed to get smartcontract from database: " + getErr.Error())
 	}
