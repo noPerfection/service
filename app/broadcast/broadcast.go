@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/blocklords/sds/app/account"
 	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/security/credentials"
 
 	"github.com/blocklords/sds/app/remote/message"
 
@@ -47,8 +47,13 @@ func New(s *service.Service, logger log.Logger) (*Broadcast, error) {
 }
 
 // We set the whitelisted accounts that has access to this controller
-func AddWhitelistedAccounts(s *service.Service, accounts account.Accounts) {
-	zmq.AuthCurveAdd(broadcast_domain(s), accounts.BroadcastPublicKeys()...)
+func AddWhitelistedAccounts(s *service.Service, credentials []*credentials.Credentials) {
+	public_keys := make([]string, len(credentials))
+	for i, k := range credentials {
+		public_keys[i] = k.PublicKey
+	}
+
+	zmq.AuthCurveAdd(broadcast_domain(s), public_keys...)
 }
 
 // Set the private key, so connected clients can identify this controller
