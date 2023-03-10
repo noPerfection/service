@@ -3,6 +3,7 @@ package service
 type ServiceType string
 
 const (
+	CORE              ServiceType = "CORE"
 	SPAGHETTI         ServiceType = "SPAGHETTI"
 	CATEGORIZER       ServiceType = "CATEGORIZER"
 	STATIC            ServiceType = "STATIC"
@@ -20,6 +21,7 @@ func (s ServiceType) ToString() string {
 
 func service_types() []ServiceType {
 	return []ServiceType{
+		CORE,
 		SPAGHETTI,
 		CATEGORIZER,
 		STATIC,

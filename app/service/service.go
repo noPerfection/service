@@ -51,7 +51,6 @@ func (p *Service) set_broadcast_curve_key(secret_key string) error {
 	return nil
 }
 
-// for example service.NewInternal(service.SPAGHETTI, service.REMOTE, service.SUBSCRIBE)
 // Creates the service with the parameters but without any information
 func Inprocess(service_type ServiceType) (*Service, error) {
 	name := string(service_type)
@@ -70,7 +69,6 @@ func Inprocess(service_type ServiceType) (*Service, error) {
 	return &s, nil
 }
 
-// for example service.NewInternal(service.SPAGHETTI, service.REMOTE, service.SUBSCRIBE)
 // Creates the service with the parameters but without any information
 func NewExternal(service_type ServiceType, limits ...Limit) (*Service, error) {
 	default_configuration := DefaultConfiguration(service_type)
