@@ -5,7 +5,7 @@ import (
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/abi"
 	"github.com/blocklords/sds/static/smartcontract"
-	"github.com/blocklords/sds/static/smartcontract/key"
+	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/sds/app/remote/message"
@@ -15,7 +15,7 @@ import (
 func AbiGetBySmartcontractKey(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
-	key, err := key.NewFromKeyValue(request.Parameters)
+	key, err := smartcontract_key.NewFromKeyValue(request.Parameters)
 	if err != nil {
 		return message.Fail("smartcontract_key from parameter: " + err.Error())
 	}

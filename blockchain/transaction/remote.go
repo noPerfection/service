@@ -31,5 +31,5 @@ func RemoteTransactionDeployed(socket *remote.Socket, network_id string, Txid st
 		return "", "", blockchain.Block{}, fmt.Errorf("key-value to interface: %w", err)
 	}
 
-	return transaction.Key.Address, transaction.From, transaction.Block, nil
+	return transaction.SmartcontractKey.Address, transaction.From, transaction.Block, nil
 }

@@ -226,7 +226,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		// decode the logs
 		for _, raw_log := range all_logs {
 			for _, worker := range group.workers {
-				if worker.Smartcontract.Address != raw_log.Transaction.Key.Address {
+				if worker.Smartcontract.Address != raw_log.Transaction.SmartcontractKey.Address {
 					continue
 				}
 
@@ -324,7 +324,7 @@ func (manager *Manager) categorize_current_smartcontracts() {
 			// decode the logs
 			for _, raw_log := range raw_block.RawLogs {
 				for _, worker := range manager.current_workers {
-					if worker.Smartcontract.Address != raw_log.Transaction.Key.Address {
+					if worker.Smartcontract.Address != raw_log.Transaction.SmartcontractKey.Address {
 						continue
 					}
 

@@ -1,6 +1,6 @@
 // Smartcontract key is the unique identifier within the SeascapeSDS
 // Its composed as network_id + "." + address
-package key
+package smartcontract_key
 
 import (
 	"fmt"

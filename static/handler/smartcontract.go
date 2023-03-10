@@ -4,11 +4,11 @@ import (
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/configuration"
 	"github.com/blocklords/sds/static/smartcontract"
-	"github.com/blocklords/sds/static/smartcontract/key"
 	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
 
 	"github.com/blocklords/sds/app/remote/message"
@@ -134,7 +134,7 @@ func SmartcontractRegister(request message.Request, logger log.Logger, parameter
 func SmartcontractGet(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
-	key, err := key.NewFromKeyValue(request.Parameters)
+	key, err := smartcontract_key.NewFromKeyValue(request.Parameters)
 	if err != nil {
 		return message.Fail("key.NewFromKeyValue: " + err.Error())
 	}

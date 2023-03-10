@@ -169,8 +169,8 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.R
 	if parse_err != nil {
 		return nil, fmt.Errorf("transaction.New: %w", parse_err)
 	}
-	if tx.Key.Address == "" {
-		tx.Key.Address = receipt.ContractAddress.Hex()
+	if tx.SmartcontractKey.Address == "" {
+		tx.SmartcontractKey.Address = receipt.ContractAddress.Hex()
 	}
 
 	return tx, nil

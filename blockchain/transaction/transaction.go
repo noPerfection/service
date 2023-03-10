@@ -6,16 +6,17 @@ import (
 
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/static/smartcontract/key"
+	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
+// Blockchain agnostic transaction
 type RawTransaction struct {
-	Key            key.Key                   `json:"key"`
-	Block          blockchain.Block          `json:"block"`
-	TransactionKey blockchain.TransactionKey `json:"transaction_key"`
-	From           string                    `json:"transaction_from"`            // txFrom column
-	Data           string                    `json:"transaction_data,omitempty"`  // data columntext Data type
-	Value          float64                   `json:"transaction_value,omitempty"` // valueValue attached with transaction
+	SmartcontractKey smartcontract_key.Key     `json:"key"`
+	Block            blockchain.Block          `json:"block"`
+	TransactionKey   blockchain.TransactionKey `json:"transaction_key"`
+	From             string                    `json:"transaction_from"`            // txFrom column
+	Data             string                    `json:"transaction_data,omitempty"`  // data columntext Data type
+	Value            float64                   `json:"transaction_value,omitempty"` // valueValue attached with transaction
 }
 
 // JSON string representation of the spaghetti.Transaction

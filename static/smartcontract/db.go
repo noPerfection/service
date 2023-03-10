@@ -3,13 +3,13 @@ package smartcontract
 import (
 	"fmt"
 
+	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/db"
-	"github.com/blocklords/sds/static/smartcontract/key"
 )
 
 // Whether the smartcontract address on network_id exist in database or not
-func ExistInDatabase(db *db.Database, key key.Key) bool {
+func ExistInDatabase(db *db.Database, key smartcontract_key.Key) bool {
 	var exists bool
 	err := db.Connection.QueryRow("SELECT IF(COUNT(address),'true','false') FROM static_smartcontract WHERE network_id = ? AND address = ?", key.NetworkId, key.Address).Scan(&exists)
 	if err != nil {
@@ -51,7 +51,7 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 }
 
 // Returns the smartcontract by address on network_id from database
-func GetFromDatabase(db *db.Database, key key.Key) (*Smartcontract, error) {
+func GetFromDatabase(db *db.Database, key smartcontract_key.Key) (*Smartcontract, error) {
 	query := `SELECT network_id, address, abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract WHERE network_id = ? AND address = ?`
 
 	var s Smartcontract

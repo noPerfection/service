@@ -16,7 +16,7 @@ import (
 	"github.com/blocklords/sds/blockchain/transaction"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/static/smartcontract/key"
+	"github.com/blocklords/sds/common/smartcontract_key"
 
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
 )
@@ -109,7 +109,7 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
 			}
 
-			key := key.New(imx.NETWORK_ID, address)
+			key := smartcontract_key.New(imx.NETWORK_ID, address)
 			block := blockchain.NewBlock(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
 			tx_key := blockchain.TransactionKey{
 				Id:    strconv.Itoa(int(imxTx.TransactionId)),
@@ -117,11 +117,11 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 			}
 
 			transaction := transaction.RawTransaction{
-				Key:            key,
-				Block:          block,
-				TransactionKey: tx_key,
-				Value:          0,
-				Data:           "",
+				SmartcontractKey: key,
+				Block:            block,
+				TransactionKey:   tx_key,
+				Value:            0,
+				Data:             "",
 			}
 
 			l := &event.RawLog{
@@ -216,7 +216,7 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
 			}
 
-			key := key.New(imx.NETWORK_ID, address)
+			key := smartcontract_key.New(imx.NETWORK_ID, address)
 			block := blockchain.NewBlock(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
 			tx_key := blockchain.TransactionKey{
 				Id:    strconv.Itoa(int(imxTx.TransactionId)),
@@ -224,11 +224,11 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 			}
 
 			transaction := transaction.RawTransaction{
-				Key:            key,
-				Block:          block,
-				TransactionKey: tx_key,
-				Value:          0,
-				Data:           "",
+				SmartcontractKey: key,
+				Block:            block,
+				TransactionKey:   tx_key,
+				Value:            0,
+				Data:             "",
 			}
 
 			l := &event.RawLog{

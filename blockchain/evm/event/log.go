@@ -6,7 +6,7 @@ import (
 	"github.com/blocklords/sds/blockchain/event"
 	"github.com/blocklords/sds/blockchain/transaction"
 	"github.com/blocklords/sds/common/blockchain"
-	"github.com/blocklords/sds/static/smartcontract/key"
+	"github.com/blocklords/sds/common/smartcontract_key"
 
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
@@ -18,7 +18,7 @@ func NewSpaghettiLog(network_id string, block_timestamp blockchain.Timestamp, ra
 		topics[i] = topic.Hex()
 	}
 
-	key := key.New(network_id, raw_log.Address.Hex())
+	key := smartcontract_key.New(network_id, raw_log.Address.Hex())
 	block := blockchain.NewBlock(raw_log.BlockNumber, uint64(block_timestamp))
 	tx_key := blockchain.TransactionKey{
 		Id:    raw_log.TxHash.Hex(),
@@ -26,11 +26,11 @@ func NewSpaghettiLog(network_id string, block_timestamp blockchain.Timestamp, ra
 	}
 
 	transaction := transaction.RawTransaction{
-		Key:            key,
-		Block:          block,
-		TransactionKey: tx_key,
-		Data:           "",
-		Value:          0,
+		SmartcontractKey: key,
+		Block:            block,
+		TransactionKey:   tx_key,
+		Data:             "",
+		Value:            0,
 	}
 
 	return &event.RawLog{

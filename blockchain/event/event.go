@@ -61,7 +61,7 @@ func FilterByAddress(all_logs []*RawLog, address string) []*RawLog {
 	logs := make([]*RawLog, 0)
 
 	for _, log := range all_logs {
-		if strings.EqualFold(address, log.Transaction.Key.Address) {
+		if strings.EqualFold(address, log.Transaction.SmartcontractKey.Address) {
 			logs = append(logs, log)
 		}
 	}

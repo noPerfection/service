@@ -6,7 +6,7 @@ import (
 
 	"github.com/blocklords/sds/blockchain/evm/util"
 	"github.com/blocklords/sds/common/blockchain"
-	"github.com/blocklords/sds/static/smartcontract/key"
+	"github.com/blocklords/sds/common/smartcontract_key"
 
 	"github.com/blocklords/sds/blockchain/transaction"
 
@@ -27,7 +27,7 @@ func New(network_id string, block_number uint64, transaction_index uint, tx *eth
 		to = toAddr.Hex()
 	}
 
-	key := key.New(network_id, to)
+	key := smartcontract_key.New(network_id, to)
 	block := blockchain.NewBlock(block_number, 0)
 	tx_key := blockchain.TransactionKey{
 		Id:    tx.Hash().String(),
@@ -35,11 +35,11 @@ func New(network_id string, block_number uint64, transaction_index uint, tx *eth
 	}
 
 	return &transaction.RawTransaction{
-		Key:            key,
-		Block:          block,
-		TransactionKey: tx_key,
-		From:           msg.From().Hex(),
-		Data:           hex.EncodeToString(tx.Data()),
-		Value:          value,
+		SmartcontractKey: key,
+		Block:            block,
+		TransactionKey:   tx_key,
+		From:             msg.From().Hex(),
+		Data:             hex.EncodeToString(tx.Data()),
+		Value:            value,
 	}, nil
 }

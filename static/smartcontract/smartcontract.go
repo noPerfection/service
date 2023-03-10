@@ -1,7 +1,7 @@
 package smartcontract
 
 import (
-	"github.com/blocklords/sds/static/smartcontract/key"
+	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
 type Smartcontract struct {
@@ -20,6 +20,6 @@ type Smartcontract struct {
 // For more information about smartonctract keys check:
 //
 // “gosds/static/smartcontract/key“
-func (c *Smartcontract) Key() key.Key {
-	return key.New(c.NetworkId, c.Address)
+func (c *Smartcontract) Key() smartcontract_key.Key {
+	return smartcontract_key.New(c.NetworkId, c.Address)
 }

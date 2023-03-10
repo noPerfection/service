@@ -7,8 +7,8 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
-	"github.com/blocklords/sds/static/smartcontract/key"
 )
 
 // Returns list of smartcontracts by topic filter in remote Static service
@@ -54,7 +54,7 @@ func RemoteSmartcontracts(socket *remote.Socket, tf *topic.TopicFilter) ([]*Smar
 }
 
 // returns list of smartcontract keys by topic filter
-func RemoteSmartcontractKeys(socket *remote.Socket, tf *topic.TopicFilter) (key.KeyToTopicString, error) {
+func RemoteSmartcontractKeys(socket *remote.Socket, tf *topic.TopicFilter) (smartcontract_key.KeyToTopicString, error) {
 	kv, err := key_value.NewFromInterface(tf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize topic filter: %v", err)
@@ -75,13 +75,13 @@ func RemoteSmartcontractKeys(socket *remote.Socket, tf *topic.TopicFilter) (key.
 	if err != nil {
 		return nil, err
 	}
-	var keys key.KeyToTopicString = make(key.KeyToTopicString, len(raw_keys))
+	var keys smartcontract_key.KeyToTopicString = make(smartcontract_key.KeyToTopicString, len(raw_keys))
 	for raw_key, raw_value := range raw_keys {
 		topic_string, ok := raw_value.(string)
 		if !ok {
 			return nil, errors.New("one of the topic strings is not in the string format")
 		}
-		new_key, err := key.NewFromString(raw_key)
+		new_key, err := smartcontract_key.NewFromString(raw_key)
 		if err != nil {
 			return nil, errors.New("key.NewFromString: " + err.Error())
 		}
