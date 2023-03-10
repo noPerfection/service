@@ -14,9 +14,9 @@ type Log struct {
 	SmartcontractKey smartcontract_key.Key     `json:"smartcontract_key"`
 	TransactionKey   blockchain.TransactionKey `json:"transaction_key"`
 	BlockHeader      blockchain.BlockHeader    `json:"block_header"`
-	LogIndex         uint                      `json:"log_index"`        // Log index in the block
-	Name             string                    `json:"event_name"`       // Log                 // Event log name
-	Parameters       key_value.KeyValue        `json:"event_parameters"` // Event log parameters
+	LogIndex         uint                      `json:"log_index"`      // Log index in the block
+	Name             string                    `json:"log_name"`       // Log                 // Event log name
+	Parameters       key_value.KeyValue        `json:"log_parameters"` // Event log parameters
 }
 
 // Add the metadata such as transaction id and log index from spaghetti data
