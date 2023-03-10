@@ -28,7 +28,7 @@ func New(network_id string, block_number uint64, transaction_index uint, tx *eth
 	}
 
 	key := smartcontract_key.New(network_id, to)
-	block := blockchain.NewBlock(block_number, 0)
+	block := blockchain.NewHeader(block_number, 0)
 	tx_key := blockchain.TransactionKey{
 		Id:    tx.Hash().String(),
 		Index: transaction_index,
@@ -36,7 +36,7 @@ func New(network_id string, block_number uint64, transaction_index uint, tx *eth
 
 	return &transaction.RawTransaction{
 		SmartcontractKey: key,
-		Block:            block,
+		BlockHeader:      block,
 		TransactionKey:   tx_key,
 		From:             msg.From().Hex(),
 		Data:             hex.EncodeToString(tx.Data()),

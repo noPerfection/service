@@ -9,7 +9,9 @@ import (
 type Number uint64
 type Timestamp uint64
 
-type Block struct {
+// Header includes only block number and block timestamp
+// We don't keep the proof or merkle tree.
+type BlockHeader struct {
 	Number    Number    `json:"block_number"`
 	Timestamp Timestamp `json:"block_timestamp"`
 }
@@ -27,8 +29,8 @@ func (t Timestamp) Value() uint64 {
 }
 
 // Extracts the block parameters from the given key value map
-func NewFromKeyValueParameter(parameters key_value.KeyValue) (Block, error) {
-	var block Block
+func NewHeaderFromKeyValueParameter(parameters key_value.KeyValue) (BlockHeader, error) {
+	var block BlockHeader
 	err := parameters.ToInterface(&block)
 	if err != nil {
 		return block, fmt.Errorf("failed to convert key-value of Configuration to interface %v", err)
@@ -57,8 +59,8 @@ func NewTimestampFromKeyValueParameter(parameters key_value.KeyValue) (Timestamp
 	return Timestamp(block_timestamp), nil
 }
 
-func NewBlock(number uint64, timestmap uint64) Block {
-	return Block{
+func NewHeader(number uint64, timestmap uint64) BlockHeader {
+	return BlockHeader{
 		Number:    Number(number),
 		Timestamp: Timestamp(timestmap),
 	}

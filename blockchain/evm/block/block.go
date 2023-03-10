@@ -11,9 +11,9 @@ import (
 )
 
 type Block struct {
-	NetworkId  string
-	Parameters blockchain.Block
-	RawLogs    []*spaghetti_log.RawLog
+	NetworkId string
+	Header    blockchain.BlockHeader
+	RawLogs   []*spaghetti_log.RawLog
 }
 
 func SetLogs(block *Block, raw_logs []eth_types.Log) error {
@@ -23,7 +23,7 @@ func SetLogs(block *Block, raw_logs []eth_types.Log) error {
 			continue
 		}
 
-		log := event.NewSpaghettiLog(block.NetworkId, block.Parameters.Timestamp, &rawLog)
+		log := event.NewSpaghettiLog(block.NetworkId, block.Header.Timestamp, &rawLog)
 		logs = append(logs, log)
 	}
 

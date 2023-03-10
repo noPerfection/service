@@ -215,7 +215,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			continue
 		}
 
-		block_to := blockchain.NewBlock(0, 0)
+		block_to := blockchain.NewHeader(0, 0)
 		if len(all_logs) > 0 {
 			block_to = spaghetti_log.RecentBlock(all_logs)
 		}
@@ -242,11 +242,11 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		// update the categorization state for the smartcontract
 		smartcontracts := group.workers.GetSmartcontracts()
 		for _, smartcontract := range smartcontracts {
-			new_block := blockchain.NewBlock(uint64(block_to.Number), uint64(block_to.Timestamp))
+			new_block := blockchain.NewHeader(uint64(block_to.Number), uint64(block_to.Timestamp))
 
 			for _, decoded_log := range decoded_logs {
 				if strings.EqualFold(decoded_log.SmartcontractKey.Address, smartcontract.Key.Address) {
-					new_block = decoded_log.Block
+					new_block = decoded_log.BlockHeader
 				}
 			}
 			smartcontract.SetBlockParameter(new_block)
@@ -274,7 +274,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		}
 
 		if !manager.subscribed_blocks.IsEmpty() {
-			recent_block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).Parameters.Number
+			recent_block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).Header.Number
 			left := recent_block_number.Value() - block_number_to
 			old_logger.Info("categorized certain blocks", "block_number_left", left, "block_number_to", block_number_to, "subscribed", recent_block_number)
 			group.block_number = block_to.Number
@@ -340,11 +340,11 @@ func (manager *Manager) categorize_current_smartcontracts() {
 			// update the categorization state for the smartcontract
 			smartcontracts := manager.current_workers.GetSmartcontracts()
 			for _, smartcontract := range smartcontracts {
-				new_block := raw_block.Parameters
+				new_block := raw_block.Header
 
 				for _, decoded_log := range decoded_logs {
 					if strings.EqualFold(decoded_log.SmartcontractKey.Address, smartcontract.Key.Address) {
-						new_block = decoded_log.Block
+						new_block = decoded_log.BlockHeader
 					}
 				}
 				smartcontract.SetBlockParameter(new_block)

@@ -5,10 +5,10 @@ import (
 	"github.com/blocklords/sds/common/blockchain"
 )
 
-func NewBlock(network_id string, parameters blockchain.Block, logs []*event.RawLog) *Block {
+func NewBlock(network_id string, header blockchain.BlockHeader, logs []*event.RawLog) *Block {
 	return &Block{
-		NetworkId:  network_id,
-		Parameters: parameters,
-		RawLogs:    logs,
+		NetworkId: network_id,
+		Header:    header,
+		RawLogs:   logs,
 	}
 }

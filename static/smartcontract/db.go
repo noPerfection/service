@@ -40,8 +40,8 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 		a.AbiId,
 		a.TransactionKey.Id,
 		a.TransactionKey.Index,
-		a.Block.Number,
-		a.Block.Timestamp,
+		a.BlockHeader.Number,
+		a.BlockHeader.Timestamp,
 		a.Deployer,
 	)
 	if err != nil {
@@ -58,11 +58,11 @@ func GetFromDatabase(db *db.Database, key smartcontract_key.Key) (*Smartcontract
 	var s Smartcontract = Smartcontract{
 		Key:            key,
 		TransactionKey: blockchain.TransactionKey{},
-		Block:          blockchain.Block{},
+		BlockHeader:    blockchain.BlockHeader{},
 	}
 
 	row := db.Connection.QueryRow(query, key.NetworkId, key.Address)
-	if err := row.Scan(&s.AbiId, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.Block.Number, &s.Block.Timestamp, &s.Deployer); err != nil {
+	if err := row.Scan(&s.AbiId, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.BlockHeader.Number, &s.BlockHeader.Timestamp, &s.Deployer); err != nil {
 		return nil, err
 	}
 
@@ -96,11 +96,11 @@ func GetFromDatabaseFilterBy(con *db.Database, filter_query string, filter_param
 		var s Smartcontract = Smartcontract{
 			Key:            smartcontract_key.Key{},
 			TransactionKey: blockchain.TransactionKey{},
-			Block:          blockchain.Block{},
+			BlockHeader:    blockchain.BlockHeader{},
 		}
 
 		var t topic.Topic
-		if err := rows.Scan(&s.Key.NetworkId, &s.Key.Address, &s.AbiId, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.Block.Number, &s.Block.Timestamp, &s.Deployer,
+		if err := rows.Scan(&s.Key.NetworkId, &s.Key.Address, &s.AbiId, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.BlockHeader.Number, &s.BlockHeader.Timestamp, &s.Deployer,
 			&t.Organization, &t.Project, &t.Group, &t.Smartcontract); err != nil {
 			return nil, nil, err
 		}

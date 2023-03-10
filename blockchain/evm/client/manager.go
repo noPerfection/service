@@ -339,7 +339,7 @@ func (worker *Manager) get_recent_block() message.Reply {
 		return message.Fail("block number=confirmations")
 	}
 
-	recent_block := blockchain.NewBlock(0, 0)
+	recent_block := blockchain.NewHeader(0, 0)
 	recent_block.Number = blockchain.NewNumber(block_number)
 
 	block_timestamp, err := worker.get_block_timestamp(recent_block.Number)

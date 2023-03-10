@@ -9,7 +9,7 @@ import (
 )
 
 // Update the block number and block timestamp of the smartcontract
-func SetSyncing(db *db.Database, sm *Smartcontract, b blockchain.Block) error {
+func SetSyncing(db *db.Database, sm *Smartcontract, b blockchain.BlockHeader) error {
 	sm.SetBlockParameter(b)
 	_, err := db.Connection.Exec(`UPDATE categorizer_smartcontract SET block_number = ?, block_timestamp = ? WHERE network_id = ? AND address = ? `,
 		b.Number, b.Timestamp, sm.Key.NetworkId, sm.Key.Address)
@@ -45,7 +45,7 @@ func Get(db *db.Database, key smartcontract_key.Key) (*Smartcontract, error) {
 	row := db.Connection.QueryRow("SELECT block_number, block_timestamp FROM categorizer_smartcontract WHERE network_id = ? AND address = ? ", key.NetworkId, key.Address)
 
 	// Loop through rows, using Scan to assign column data to struct fields.
-	var block blockchain.Block
+	var block blockchain.BlockHeader
 	if err := row.Scan(&block.Number, &block.Timestamp); err != nil {
 		return nil, fmt.Errorf("row.Scan from the database: %w ", err)
 	}
@@ -70,7 +70,7 @@ func GetAll(db *db.Database) ([]*Smartcontract, error) {
 	for rows.Next() {
 		sm := Smartcontract{
 			Key:   smartcontract_key.Key{},
-			Block: blockchain.Block{},
+			Block: blockchain.BlockHeader{},
 		}
 		if err := rows.Scan(&sm.Key.NetworkId, &sm.Key.Address, &sm.Block.Number, &sm.Block.Timestamp); err != nil {
 			return smartcontracts, fmt.Errorf("row.Scan: %w", err)
@@ -100,7 +100,7 @@ func GetAllByNetworkId(db *db.Database, network_id string) ([]*Smartcontract, er
 	for rows.Next() {
 		sm := Smartcontract{
 			Key:   smartcontract_key.Key{},
-			Block: blockchain.Block{},
+			Block: blockchain.BlockHeader{},
 		}
 
 		if err := rows.Scan(&sm.Key.NetworkId, &sm.Key.Address, &sm.Block.Number, &sm.Block.Timestamp); err != nil {

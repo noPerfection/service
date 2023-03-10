@@ -9,15 +9,15 @@ import (
 )
 
 type Smartcontract struct {
-	Key   smartcontract_key.Key `json:"smartcontract_key"`
-	Block blockchain.Block      `json:"block"`
+	Key   smartcontract_key.Key  `json:"smartcontract_key"`
+	Block blockchain.BlockHeader `json:"block_header"`
 }
 
 // Updates the categorized block parameter of the smartcontract.
 // It means, this smartcontract 's' data was categorized till the given block numbers.
 //
 // The first is the block number, second is the block timestamp.
-func (s *Smartcontract) SetBlockParameter(b blockchain.Block) {
+func (s *Smartcontract) SetBlockParameter(b blockchain.BlockHeader) {
 	s.Block = b
 }
 

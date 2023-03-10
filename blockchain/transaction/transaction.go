@@ -11,8 +11,8 @@ import (
 
 // Blockchain agnostic transaction
 type RawTransaction struct {
-	SmartcontractKey smartcontract_key.Key     `json:"key"`
-	Block            blockchain.Block          `json:"block"`
+	SmartcontractKey smartcontract_key.Key     `json:"smartcontract_key"`
+	BlockHeader      blockchain.BlockHeader    `json:"block_header"`
 	TransactionKey   blockchain.TransactionKey `json:"transaction_key"`
 	From             string                    `json:"transaction_from"`            // txFrom column
 	Data             string                    `json:"transaction_data,omitempty"`  // data columntext Data type

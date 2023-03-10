@@ -13,7 +13,7 @@ import (
 type Log struct {
 	SmartcontractKey smartcontract_key.Key     `json:"smartcontract_key"`
 	TransactionKey   blockchain.TransactionKey `json:"transaction_key"`
-	Block            blockchain.Block          `json:"block"`
+	BlockHeader      blockchain.BlockHeader    `json:"block_header"`
 	LogIndex         uint                      `json:"log_index"`        // Log index in the block
 	Name             string                    `json:"event_name"`       // Log                 // Event log name
 	Parameters       key_value.KeyValue        `json:"event_parameters"` // Event log parameters
@@ -22,7 +22,7 @@ type Log struct {
 // Add the metadata such as transaction id and log index from spaghetti data
 func (log *Log) AddMetadata(spaghetti_log *spaghetti_log.RawLog) *Log {
 	log.TransactionKey = spaghetti_log.Transaction.TransactionKey
-	log.Block = spaghetti_log.Transaction.Block
+	log.BlockHeader = spaghetti_log.Transaction.BlockHeader
 	log.LogIndex = spaghetti_log.LogIndex
 	return log
 }

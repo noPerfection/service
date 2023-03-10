@@ -19,7 +19,7 @@ func NewSpaghettiLog(network_id string, block_timestamp blockchain.Timestamp, ra
 	}
 
 	key := smartcontract_key.New(network_id, raw_log.Address.Hex())
-	block := blockchain.NewBlock(raw_log.BlockNumber, uint64(block_timestamp))
+	block := blockchain.NewHeader(raw_log.BlockNumber, uint64(block_timestamp))
 	tx_key := blockchain.TransactionKey{
 		Id:    raw_log.TxHash.Hex(),
 		Index: raw_log.TxIndex,
@@ -27,7 +27,7 @@ func NewSpaghettiLog(network_id string, block_timestamp blockchain.Timestamp, ra
 
 	transaction := transaction.RawTransaction{
 		SmartcontractKey: key,
-		Block:            block,
+		BlockHeader:      block,
 		TransactionKey:   tx_key,
 		Data:             "",
 		Value:            0,
