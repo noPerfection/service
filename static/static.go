@@ -6,7 +6,6 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/service"
 
-	"github.com/blocklords/sds/app/account"
 	app_log "github.com/blocklords/sds/app/log"
 
 	"github.com/blocklords/sds/app/controller"
@@ -40,21 +39,9 @@ func Run(app_config *configuration.Config, db_connection *db.Database) {
 	logger.Info("starting")
 
 	// Getting the services which has access to the SDS Static
-	static_env, err := service.New(service.STATIC, service.THIS)
+	static_env, err := service.Inprocess(service.STATIC)
 	if err != nil {
 		logger.Fatal("service configuration", "message", err)
-	}
-
-	// we whitelist before we initiate the reply controller
-	if !app_config.Plain {
-		logger.Info("getting whitelisted services")
-		whitelisted_services, err := get_whitelisted_services()
-		if err != nil {
-			logger.Fatal("whitelist service", "message", err)
-		}
-		accounts := account.NewServices(whitelisted_services)
-		controller.AddWhitelistedAccounts(static_env, accounts)
-		logger.Info("add whitelisted users", "whitelisted", accounts.Names())
 	}
 
 	reply, err := controller.NewReply(static_env)
@@ -62,14 +49,6 @@ func Run(app_config *configuration.Config, db_connection *db.Database) {
 		logger.Fatal("reply controller", "message", err)
 	} else {
 		reply.SetLogger(logger)
-	}
-
-	if !app_config.Plain {
-		logger.Info("set the private key")
-		err := reply.SetControllerPrivateKey()
-		if err != nil {
-			logger.Fatal("controller security", "message", err)
-		}
 	}
 
 	err = reply.Run(db_connection, commands)

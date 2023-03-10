@@ -110,14 +110,9 @@ func Run(app_config *configuration.Config) {
 
 	logger.Info("starting")
 
-	spaghetti_env, err := service.New(service.SPAGHETTI, service.THIS)
+	spaghetti_env, err := service.Inprocess(service.SPAGHETTI)
 	if err != nil {
 		logger.Fatal("spaghetti service configuration", "message", err)
-	}
-
-	// we whitelist before we initiate the reply controller
-	if !app_config.Plain {
-		whitelist_access(logger, spaghetti_env)
 	}
 
 	reply, err := controller.NewReply(spaghetti_env)
@@ -125,10 +120,6 @@ func Run(app_config *configuration.Config) {
 		logger.Fatal("controller new", "message", err)
 	} else {
 		reply.SetLogger(logger)
-	}
-
-	if !app_config.Plain {
-		set_curve_key(logger, reply)
 	}
 
 	err = start_clients(logger, app_config)

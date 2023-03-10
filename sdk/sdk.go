@@ -128,7 +128,7 @@ func NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subscriber, erro
 // Returns the gateway environment variable
 // If the broadcast argument set true, then Gateway will require the broadcast to be set as well.
 func gateway_service() (*service.Service, error) {
-	e, err := service.New(service.GATEWAY, service.REMOTE)
+	e, err := service.NewSecure(service.GATEWAY, service.REMOTE)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func gateway_service() (*service.Service, error) {
 }
 
 func developer_service() (*service.Service, error) {
-	e, err := service.New(service.DEVELOPER_GATEWAY, service.REMOTE, service.SUBSCRIBE)
+	e, err := service.NewSecure(service.DEVELOPER_GATEWAY, service.REMOTE, service.SUBSCRIBE)
 	if err != nil {
 		return nil, err
 	}

@@ -12,7 +12,6 @@ package remote
 import (
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/blocklords/sds/app/argument"
 	"github.com/blocklords/sds/app/remote/message"
@@ -185,16 +184,6 @@ func (socket *Socket) Close() error {
 // Broadcaster URL of the SDS Service
 func (socket *Socket) RemoteBroadcastUrl() string {
 	return socket.remoteService.BroadcastUrl()
-}
-
-// Broadcaster Port of the SDS Service
-func (socket *Socket) RemoteBroadcastPort() (uint, error) {
-	broadcast_port := socket.remoteService.BroadcastPort()
-	port, err := strconv.Atoi(broadcast_port)
-	if err != nil {
-		return 0, fmt.Errorf("convert %s string to number: %w", broadcast_port, err)
-	}
-	return uint(port), nil
 }
 
 // Returns the HOST envrionment parameters of the socket.

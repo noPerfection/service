@@ -14,7 +14,6 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 	static_abi "github.com/blocklords/sds/static/abi"
 
-	"github.com/blocklords/sds/app/account"
 	"github.com/blocklords/sds/app/configuration"
 
 	"github.com/blocklords/sds/app/remote"
@@ -159,17 +158,12 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	logger.Info("starting")
 
-	// check for missing environment variable otherwise exit.
-	if _, err := service.New(service.SPAGHETTI, service.SUBSCRIBE, service.REMOTE); err != nil {
-		logger.Fatal("new spaghetti service config", "message", err)
-	}
-
-	categorizer_env, err := service.New(service.CATEGORIZER, service.THIS)
+	categorizer_env, err := service.Inprocess(service.CATEGORIZER)
 	if err != nil {
 		logger.Fatal("new categorizer service config", "message", err)
 	}
 
-	static_env, err := service.New(service.STATIC, service.REMOTE)
+	static_env, err := service.Inprocess(service.STATIC)
 	if err != nil {
 		logger.Fatal("new static service config", "message", err)
 	}
@@ -201,30 +195,11 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		"smartcontract_set": smartcontract_set,
 	}
 
-	// we whitelist before we initiate the reply controller
-	if !app_config.Plain {
-		logger.Info("whitelisting accounts")
-		whitelisted_services, err := get_whitelisted_services()
-		if err != nil {
-			panic(err)
-		}
-		accounts := account.NewServices(whitelisted_services)
-		controller.AddWhitelistedAccounts(static_env, accounts)
-	}
-
 	reply, err := controller.NewReply(categorizer_env)
 	if err != nil {
 		logger.Fatal("controller.NewReply", "service", categorizer_env)
 	} else {
 		reply.SetLogger(logger)
-	}
-
-	if !app_config.Plain {
-		logger.Info("set privatekey")
-		err := reply.SetControllerPrivateKey()
-		if err != nil {
-			logger.Fatal("controller.SetControllerPrivateKey", "message", err)
-		}
 	}
 
 	go SetupSocket(db_con)

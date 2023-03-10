@@ -59,12 +59,12 @@ func (c *Controller) SetControllerPrivateKey() error {
 
 // Controllers started to receive messages
 func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) error {
-	if err := c.socket.Bind("tcp://*:" + c.service.Port()); err != nil {
-		return fmt.Errorf("socket.bind on tcp protocol for %s on port %s: %w", c.service.Name, c.service.Port(), err)
+	if err := c.socket.Bind(c.service.Url()); err != nil {
+		return fmt.Errorf("socket.bind on tcp protocol for %s at url %s: %w", c.service.Name, c.service.Url(), err)
 	}
 
 	if c.logger != nil {
-		c.logger.Info("reply controller runs successfully", "port", c.service.Port())
+		c.logger.Info("reply controller runs successfully", "url", c.service.Url())
 	}
 
 	for {

@@ -77,9 +77,9 @@ func (b *Broadcast) Run() {
 	}
 	b.socket = broadcast_socket
 
-	err = b.socket.Bind("tcp://*:" + b.service.BroadcastPort())
+	err = b.socket.Bind(b.service.BroadcastUrl())
 	if err != nil {
-		b.logger.Fatal("could not listen to publisher", "broadcast_port", b.service.BroadcastPort(), "message", err)
+		b.logger.Fatal("could not listen to publisher", "broadcast_url", b.service.BroadcastUrl(), "message", err)
 	}
 
 	sock, err := zmq.NewSocket(zmq.PULL)
