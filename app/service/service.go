@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -201,28 +200,4 @@ func (e *Service) BroadcastUrl() string {
 	return e.broadcast_url
 }
 
-func NewDeveloper(public_key string, secret_key string) *Service {
-	return &Service{
-		Name:               "developer",
-		url:                "",
-		broadcast_url:      "",
-		inproc:             false,
-		PublicKey:          public_key,
-		SecretKey:          secret_key,
-		BroadcastPublicKey: public_key,
-		BroadcastSecretKey: secret_key,
-	}
-}
 
-func Developer(app_config *configuration.Config) (*Service, error) {
-	if app_config.Plain {
-		return NewDeveloper("", ""), nil
-	}
-	if !app_config.Exist("DEVELOPER_PUBLIC_KEY") || !app_config.Exist("DEVELOPER_SECRET_KEY") {
-		return nil, errors.New("missing 'DEVELOPER_PUBLIC_KEY' or 'DEVELOPER_SECRET_KEY'")
-	}
-	public_key := app_config.GetString("DEVELOPER_PUBLIC_KEY")
-	secret_key := app_config.GetString("DEVELOPER_SECRET_KEY")
-
-	return NewDeveloper(public_key, secret_key), nil
-}
