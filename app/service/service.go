@@ -42,8 +42,9 @@ func NewExternal(service_type ServiceType, limit Limit) (*Service, error) {
 	broadcast_port_env := name + "_BROADCAST_PORT"
 
 	s := Service{
-		Name:   name,
-		inproc: false,
+		Name:        name,
+		inproc:      false,
+		Credentials: nil,
 	}
 
 	switch limit {
