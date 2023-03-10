@@ -90,14 +90,7 @@ func (socket *Socket) reconnect() error {
 		}
 	}
 
-	url := ""
-	if socket_type == zmq.SUB {
-		url = socket.remote_service.BroadcastUrl()
-	} else {
-		url = socket.remote_service.Url()
-	}
-
-	if err := socket.socket.Connect(url); err != nil {
+	if err := socket.socket.Connect(socket.remote_service.Url()); err != nil {
 		return fmt.Errorf("socket connect: %w", err)
 	}
 
@@ -164,10 +157,6 @@ func (socket *Socket) Close() error {
 	return nil
 }
 
-// Broadcaster URL of the SDS Service
-func (socket *Socket) RemoteBroadcastUrl() string {
-	return socket.remote_service.BroadcastUrl()
-}
 
 // Returns the HOST envrionment parameters of the socket.
 //
@@ -362,7 +351,7 @@ func NewTcpSubscriber(e *service.Service, client *credentials.Credentials) (*Soc
 		}
 	}
 
-	conErr := socket.Connect(e.BroadcastUrl())
+	conErr := socket.Connect(e.Url())
 	if conErr != nil {
 		return nil, fmt.Errorf("connect to broadcast: %w", conErr)
 	}

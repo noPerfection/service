@@ -9,11 +9,10 @@ import (
 
 // Environment variables for each SDS Service
 type Service struct {
-	Name          string // Service name
-	Credentials   *credentials.Credentials
-	inproc        bool
-	url           string
-	broadcast_url string
+	Name        string // Service name
+	Credentials *credentials.Credentials
+	inproc      bool
+	url         string
 }
 
 // Creates the service with the parameters but without any information
@@ -21,10 +20,9 @@ func Inprocess(service_type ServiceType) (*Service, error) {
 	name := string(service_type)
 
 	s := Service{
-		Name:          name,
-		inproc:        true,
-		url:           "inproc://reply_" + name,
-		broadcast_url: "inproc://pub_" + name,
+		Name:   name,
+		inproc: true,
+		url:    "inproc://reply_" + name,
 	}
 
 	return &s, nil
@@ -53,9 +51,9 @@ func NewExternal(service_type ServiceType, limit Limit) (*Service, error) {
 	case THIS:
 		s.url = fmt.Sprintf("tcp://*:%s", app_config.GetString(port_env))
 	case SUBSCRIBE:
-		s.broadcast_url = fmt.Sprintf("tcp://%s:%s", app_config.GetString(broadcast_host_env), app_config.GetString(broadcast_port_env))
+		s.url = fmt.Sprintf("tcp://%s:%s", app_config.GetString(broadcast_host_env), app_config.GetString(broadcast_port_env))
 	case BROADCAST:
-		s.broadcast_url = fmt.Sprintf("tcp://*:%s", app_config.GetString(broadcast_port_env))
+		s.url = fmt.Sprintf("tcp://*:%s", app_config.GetString(broadcast_port_env))
 	}
 
 	return &s, nil
@@ -114,9 +112,4 @@ func NewSecure(service_type ServiceType, limit Limit) (*Service, error) {
 // Returns the request-reply url as a host:port
 func (e *Service) Url() string {
 	return e.url
-}
-
-// Returns the broadcast url as a host:port
-func (e *Service) BroadcastUrl() string {
-	return e.broadcast_url
 }
