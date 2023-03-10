@@ -81,7 +81,12 @@ func RemoteSmartcontractKeys(socket *remote.Socket, tf *topic.TopicFilter) (key.
 		if !ok {
 			return nil, errors.New("one of the topic strings is not in the string format")
 		}
-		keys[key.NewFromString(raw_key)] = topic_string
+		new_key, err := key.NewFromString(raw_key)
+		if err != nil {
+			return nil, errors.New("key.NewFromString: " + err.Error())
+		}
+
+		keys[new_key] = topic_string
 	}
 
 	return keys, nil

@@ -10,53 +10,41 @@ import (
 )
 
 // network id + "." + address
-type Key string
+type Key struct {
+	NetworkId string `json:"network_id"`
+	Address   string `json:"address"`
+}
 
 // map(smartcontract_key => topic_string)
 type KeyToTopicString map[Key]string
 
 // Creates a new smartcontract key
 func New(network_id string, address string) Key {
-	return Key(network_id + "." + address)
+	return Key{NetworkId: network_id, Address: address}
 }
 
 // Creates a new smartcontract key from the map
-func NewFromKeyValue(kv key_value.KeyValue) (Key, error) {
-	network_id, err := kv.GetString("network_id")
+func NewFromKeyValue(parameters key_value.KeyValue) (Key, error) {
+	var key Key
+	err := parameters.ToInterface(&key)
 	if err != nil {
-		return "", fmt.Errorf("missing 'network_id' parameter")
-	}
-	address, err := kv.GetString("address")
-	if err != nil {
-		return "", fmt.Errorf("missing 'network_id' parameter")
+		return Key{}, fmt.Errorf("failed to convert key-value to interface %v", err)
 	}
 
-	return New(network_id, address), nil
+	return key, nil
 }
 
 // converts the string to Key
-func NewFromString(s string) Key {
-	return Key(s)
-}
-
-// The smartcontract parameters that composes the smartcontract key
-// its the network id and the address are returns
-func (k *Key) Decompose() (string, string) {
-	str := strings.Split(string(*k), ".")
-	return str[0], str[1]
-}
-
-func (k *Key) NetworkId() string {
-	str := strings.Split(string(*k), ".")
-	return str[0]
-}
-
-func (k *Key) Address() string {
-	str := strings.Split(string(*k), ".")
-	return str[1]
+func NewFromString(s string) (Key, error) {
+	str := strings.Split(s, ".")
+	if len(str) != 2 {
+		return Key{}, fmt.Errorf("string '%s' doesn't have two parts", s)
+	}
+	return Key{NetworkId: str[0], Address: str[1]}, nil
 }
 
 // Returns the key as a string
+// `<network_id>.<address>`
 func (k *Key) ToString() string {
-	return string(*k)
+	return k.NetworkId + "." + k.Address
 }

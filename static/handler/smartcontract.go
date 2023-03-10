@@ -87,7 +87,8 @@ func SmartcontractKeyFilter(request message.Request, logger log.Logger, paramete
 
 	blob := make(map[string]string, len(smartcontracts))
 	for i, s := range smartcontracts {
-		blob[string(s.Key())] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
+		key := s.Key()
+		blob[key.ToString()] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
 	}
 
 	reply := message.Reply{

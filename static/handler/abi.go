@@ -26,7 +26,7 @@ func AbiGet(request message.Request, logger log.Logger, parameters ...interface{
 		return message.Fail("smartcontract_key from parameter: " + err.Error())
 	}
 
-	abi, err := abi.GetFromDatabase(db_con, key.NetworkId(), key.Address())
+	abi, err := abi.GetFromDatabase(db_con, key.NetworkId, key.Address)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
