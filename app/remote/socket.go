@@ -84,23 +84,10 @@ func (socket *Socket) reconnect() error {
 		}
 	}
 
-	if socket.secure {
-		public_key := ""
-		client_public_key := ""
-		client_secret_key := ""
-		if socket_type == zmq.SUB {
-			public_key = socket.remote_service.BroadcastPublicKey
-			client_public_key = socket.thisService.BroadcastPublicKey
-			client_secret_key = socket.thisService.BroadcastSecretKey
-		} else {
-			public_key = socket.remote_service.PublicKey
-			client_public_key = socket.thisService.PublicKey
-			client_secret_key = socket.thisService.SecretKey
-		}
-
-		err = socket.socket.ClientAuthCurve(public_key, client_public_key, client_secret_key)
+	if socket.client_credentials != nil {
+		socket.client_credentials.SetClientAuthCurve(socket.socket, socket.remote_service.Credentials.PublicKey)
 		if err != nil {
-			return fmt.Errorf("socket.ClientAuthCurve: %w", err)
+			return fmt.Errorf("credentials.SetClientAuthCurve: %w", err)
 		}
 	}
 
