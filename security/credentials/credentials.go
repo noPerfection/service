@@ -9,7 +9,7 @@ import (
 )
 
 type Credentials struct {
-	public_key  string
+	PublicKey   string
 	private_key string
 }
 
@@ -29,14 +29,14 @@ func NewFromVault(bucket string, key string) (*Credentials, error) {
 
 	return &Credentials{
 		private_key: private_key,
-		public_key:  pub_key,
+		PublicKey:   pub_key,
 	}, nil
 }
 
 // Returns the credentials but with public key only
 func New(public_key string) *Credentials {
 	return &Credentials{
-		public_key:  public_key,
+		PublicKey:   public_key,
 		private_key: "",
 	}
 }
