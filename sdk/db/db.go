@@ -8,8 +8,8 @@ import (
 	"log"
 
 	"github.com/blocklords/sds/app/env"
+	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
-	"github.com/blocklords/sds/static/smartcontract/key"
 	"github.com/cockroachdb/pebble"
 )
 
@@ -47,15 +47,15 @@ func (kvm *KVM) Close() {
 func (kvm *KVM) TopicFilter() *topic.TopicFilter { return kvm.topicFilter }
 
 // Block Timestamp of the smartcontract on the client side.
-func (kvm *KVM) KeyBlockTimestamp(key key.Key) []byte {
+func (kvm *KVM) KeyBlockTimestamp(key smartcontract_key.Key) []byte {
 	return nil
 }
 
 // Topic string of the smartcontract on the client side.
-func (kvm *KVM) KeyTopicString(key key.Key) []byte {
+func (kvm *KVM) KeyTopicString(key smartcontract_key.Key) []byte {
 	return nil
 }
-func (kvm *KVM) DeleteBlockTimestamp(key key.Key) error {
+func (kvm *KVM) DeleteBlockTimestamp(key smartcontract_key.Key) error {
 	dbKey := kvm.KeyBlockTimestamp(key)
 
 	err := kvm.db.Delete(dbKey, pebble.Sync)
@@ -65,7 +65,7 @@ func (kvm *KVM) DeleteBlockTimestamp(key key.Key) error {
 
 // Returns the cached block timestamp of the smartcontract.
 // If the smartcontract doesn't exist in the database, then it returns 0
-func (kvm *KVM) GetBlockTimestamp(key key.Key) uint64 {
+func (kvm *KVM) GetBlockTimestamp(key smartcontract_key.Key) uint64 {
 	dbKey := kvm.KeyBlockTimestamp(key)
 
 	bytes, closer, err := kvm.db.Get(dbKey)
@@ -86,7 +86,7 @@ func (kvm *KVM) GetBlockTimestamp(key key.Key) uint64 {
 
 // Returns the cached topics string of the smartcontract.
 // If the smartcontract doesn't exist in the database, then it returns the empty string.
-func (kvm *KVM) GetTopicString(key key.Key) string {
+func (kvm *KVM) GetTopicString(key smartcontract_key.Key) string {
 	dbKey := kvm.KeyTopicString(key)
 
 	bytes, closer, err := kvm.db.Get(dbKey)
@@ -107,7 +107,7 @@ func (kvm *KVM) GetTopicString(key key.Key) string {
 
 // Sets the block timestamp for the given smartcontract.
 // If it fails to set it, then returns an error.
-func (kvm *KVM) SetBlockTimestamp(key key.Key, blockTimestamp uint64) error {
+func (kvm *KVM) SetBlockTimestamp(key smartcontract_key.Key, blockTimestamp uint64) error {
 	// prepare the value
 	bytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(bytes, blockTimestamp)
@@ -122,7 +122,7 @@ func (kvm *KVM) SetBlockTimestamp(key key.Key, blockTimestamp uint64) error {
 
 // Sets the block timestamp for the given smartcontract.
 // If it fails to set it, then returns an error.
-func (kvm *KVM) SetTopicString(key key.Key, topicString string) error {
+func (kvm *KVM) SetTopicString(key smartcontract_key.Key, topicString string) error {
 	dbKey := kvm.KeyTopicString(key)
 
 	// store the data
