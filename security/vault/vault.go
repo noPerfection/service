@@ -3,7 +3,6 @@ package vault
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -13,7 +12,6 @@ import (
 	app_log "github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/db"
 	hashicorp "github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/api/auth/approle"
 
@@ -21,6 +19,7 @@ import (
 )
 
 type Vault struct {
+	logger  log.Logger
 	client  *hashicorp.Client
 	context context.Context
 	path    string // Key-Value credentials
@@ -30,14 +29,12 @@ type Vault struct {
 	approle_secret_id  string
 	approle_mount_path string
 
-	// the locations / field names of the database credentials
-	database_path string
+	app_config *configuration.Config
 
 	// when vault is launched in the security
 	// we call the app role parameters
 	// the app role parameters should be renewed later
-	auth_token          *hashicorp.Secret
-	database_auth_token *hashicorp.Secret
+	auth_token *hashicorp.Secret
 }
 
 // The configuration parameters
@@ -51,7 +48,6 @@ var VaultConfigurations = configuration.DefaultConfig{
 		"SDS_VAULT_SECURE":             false,
 		"SDS_VAULT_APPROLE_MOUNT_PATH": "sds-approle",
 		"SDS_VAULT_PATH":               "sds-auth-kv",
-		"SDS_VAULT_DATABASE_PATH":      "sds-mysql/creds/sds-mysql-role",
 		"SDS_VAULT_APPROLE_ROLE_ID":    nil,
 		"SDS_VAULT_APPROLE_SECRET_ID":  nil,
 	}),
@@ -65,17 +61,24 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 	if app_config == nil {
 		return nil, errors.New("missing configuration file")
 	}
+	// AppRole RoleID to log in to Vault
+	if !app_config.Exist("SDS_VAULT_APPROLE_ROLE_ID") {
+		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_ROLE_ID' environment variable")
+	}
+	// AppRole SecretID file path to log in to Vault
+	if !app_config.Exist("SDS_VAULT_APPROLE_SECRET_ID") {
+		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_SECRET_ID' environment variable")
+	}
+	if !app_config.Exist("SDS_VAULT_APPROLE_MOUNT_PATH") {
+		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_MOUNT_PATH' environment variable")
+	}
+
 	vault_logger := app_log.Child(logger, "vault")
 	vault_logger.SetReportCaller(false)
 
 	secure := app_config.GetBool("SDS_VAULT_SECURE")
 	host := app_config.GetString("SDS_VAULT_HOST")
 	port := app_config.GetString("SDS_VAULT_PORT")
-	path := app_config.GetString("SDS_VAULT_PATH")
-	database_path := app_config.GetString("SDS_VAULT_DATABASE_PATH")
-
-	approle_role_id := ""
-	approle_secret_id := ""
 
 	config := hashicorp.DefaultConfig()
 	if secure {
@@ -84,23 +87,6 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 		config.Address = fmt.Sprintf("http://%s:%s", host, port)
 	}
 	vault_logger.Info("Connecting to vault over SSL")
-
-	// AppRole RoleID to log in to Vault
-	if !app_config.Exist("SDS_VAULT_APPROLE_ROLE_ID") {
-		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_ROLE_ID' environment variable")
-	}
-	approle_role_id = app_config.GetString("SDS_VAULT_APPROLE_ROLE_ID")
-
-	// AppRole SecretID file path to log in to Vault
-	if !app_config.Exist("SDS_VAULT_APPROLE_SECRET_ID") {
-		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_SECRET_ID' environment variable")
-	}
-	approle_secret_id = app_config.GetString("SDS_VAULT_APPROLE_SECRET_ID")
-
-	if !app_config.Exist("SDS_VAULT_APPROLE_MOUNT_PATH") {
-		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_MOUNT_PATH' environment variable")
-	}
-	approle_mount_path := app_config.GetString("SDS_VAULT_APPROLE_MOUNT_PATH")
 
 	client, err := hashicorp.NewClient(config)
 	if err != nil {
@@ -111,12 +97,12 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 
 	vault := Vault{
 		client:             client,
+		logger:             logger,
 		context:            ctx,
-		path:               path,
-		database_path:      database_path,
-		approle_mount_path: approle_mount_path,
-		approle_role_id:    approle_role_id,
-		approle_secret_id:  approle_secret_id,
+		path:               app_config.GetString("SDS_VAULT_PATH"),
+		approle_mount_path: app_config.GetString("SDS_VAULT_APPROLE_MOUNT_PATH"),
+		approle_role_id:    app_config.GetString("SDS_VAULT_APPROLE_ROLE_ID"),
+		approle_secret_id:  app_config.GetString("SDS_VAULT_APPROLE_SECRET_ID"),
 	}
 
 	token, err := vault.login(ctx)
@@ -234,36 +220,4 @@ func (v *Vault) get_string(secret_name string, key string) (string, error) {
 	}
 
 	return value, nil
-}
-
-// GetDatabaseCredentials retrieves a new set of temporary database credentials
-func (v *Vault) GetDatabaseCredentials() (db.DatabaseCredentials, error) {
-	log.Info("getting temporary database credentials from vault: begin")
-
-	lease, err := v.client.Logical().ReadWithContext(v.context, v.database_path)
-	if err != nil {
-		return db.DatabaseCredentials{}, fmt.Errorf("unable to read secret: %w", err)
-	}
-
-	fmt.Println(v.database_path)
-	fmt.Println(lease)
-	fmt.Println(lease.Data)
-
-	b, err := json.Marshal(lease.Data)
-	if err != nil {
-		return db.DatabaseCredentials{}, fmt.Errorf("malformed credentials returned: %w", err)
-	}
-
-	var credentials db.DatabaseCredentials
-
-	if err := json.Unmarshal(b, &credentials); err != nil {
-		return db.DatabaseCredentials{}, fmt.Errorf("unable to unmarshal credentials: %w", err)
-	}
-
-	log.Info("getting temporary database credentials from vault: success!")
-
-	v.database_auth_token = lease
-
-	// raw secret is included to renew database credentials
-	return credentials, nil
 }

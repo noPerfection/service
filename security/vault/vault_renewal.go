@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/blocklords/sds/app/env"
 	"github.com/blocklords/sds/db"
 	hashicorp "github.com/hashicorp/vault/api"
 )
@@ -25,12 +24,12 @@ import (
 // this which are outside the scope of this code sample.
 //
 // ref: https://www.vaultproject.io/docs/enterprise/consistency#vault-1-7-mitigations
-func (v *Vault) PeriodicallyRenewLeases(db_reconnect func(ctx context.Context, credentials db.DatabaseCredentials) error) {
+func (v *Vault) PeriodicallyRenewLeases() {
 	/* */ log.Println("renew / recreate secrets loop: begin")
 	defer log.Println("renew / recreate secrets loop: end")
 
 	for {
-		renewed, err := v.renewLeases(v.context, v.auth_token, v.database_auth_token)
+		renewed, err := v.renewLeases(v.context, v.auth_token)
 		if err != nil {
 			log.Fatalf("renew error: %v", err) // simplified error handling
 		}
@@ -49,6 +48,22 @@ func (v *Vault) PeriodicallyRenewLeases(db_reconnect func(ctx context.Context, c
 
 			v.auth_token = auth_token
 		}
+	}
+}
+
+func (v *DatabaseVault) PeriodicallyRenewLeases(db_reconnect func(ctx context.Context, credentials db.DatabaseCredentials) error) {
+	/* */ log.Println("renew / recreate secrets loop: begin")
+	defer log.Println("renew / recreate secrets loop: end")
+
+	for {
+		renewed, err := v.renewLeases(v.vault.context, v.database_auth_token)
+		if err != nil {
+			log.Fatalf("renew error: %v", err) // simplified error handling
+		}
+
+		if renewed&exitRequested != 0 {
+			return
+		}
 
 		if renewed&expiringDatabaseCredentialsLease != 0 {
 			log.Printf("database credentials: can no longer be renewed; will fetch new credentials & reconnect")
@@ -58,7 +73,7 @@ func (v *Vault) PeriodicallyRenewLeases(db_reconnect func(ctx context.Context, c
 				log.Fatalf("database credentials error: %v", err) // simplified error handling
 			}
 
-			if err := db_reconnect(v.context, databaseCredentials); err != nil {
+			if err := db_reconnect(v.vault.context, databaseCredentials); err != nil {
 				log.Fatalf("database connection error: %v", err) // simplified error handling
 			}
 		}
@@ -79,28 +94,50 @@ const (
 // instances to periodically renew the given secrets when they are close to
 // their 'token_ttl' expiration times until one of the secrets is close to its
 // 'token_max_ttl' lease expiration time.
-func (v *Vault) renewLeases(ctx context.Context, authToken, databaseCredentialsLease *hashicorp.Secret) (renewResult, error) {
-	/* */ log.Println("renew cycle: begin")
-	defer log.Println("renew cycle: end")
+func (v *Vault) renewLeases(ctx context.Context, authToken *hashicorp.Secret) (renewResult, error) {
+	/* */ v.logger.Info("renew cycle: begin")
+	defer v.logger.Info("renew cycle: end")
 
 	var authTokenWatcher *hashicorp.LifetimeWatcher
 
 	// auth token
-	secure := env.GetString("SDS_VAULT_SECURE")
-	if secure == "true" {
-		authTokenWatcher, err := v.client.NewLifetimeWatcher(&hashicorp.LifetimeWatcherInput{
-			Secret: authToken,
-		})
-		if err != nil {
-			return renewError, fmt.Errorf("unable to initialize auth token lifetime watcher: %w", err)
-		}
-
-		go authTokenWatcher.Start()
-		defer authTokenWatcher.Stop()
+	authTokenWatcher, err := v.client.NewLifetimeWatcher(&hashicorp.LifetimeWatcherInput{
+		Secret: authToken,
+	})
+	if err != nil {
+		return renewError, fmt.Errorf("unable to initialize auth token lifetime watcher: %w", err)
 	}
 
+	go authTokenWatcher.Start()
+	defer authTokenWatcher.Stop()
+
+	// monitor events from both watchers
+	for {
+		select {
+		case <-ctx.Done():
+			return exitRequested, nil
+
+			// DoneCh will return if renewal fails, or if the remaining lease
+			// duration is under a built-in threshold and either renewing is not
+			// extending it or renewing is disabled.  In both cases, the caller
+			// should attempt a re-read of the secret. Clients should check the
+			// return value of the channel to see if renewal was successful.
+		case err := <-authTokenWatcher.DoneCh():
+			// Leases created by a token get revoked when the token is revoked.
+			return expiringAuthToken | expiringDatabaseCredentialsLease, err
+
+		case info := <-authTokenWatcher.RenewCh():
+			log.Printf("auth token: successfully renewed; remaining duration: %ds", info.Secret.Auth.LeaseDuration)
+		}
+	}
+}
+
+func (v *DatabaseVault) renewLeases(ctx context.Context, databaseCredentialsLease *hashicorp.Secret) (renewResult, error) {
+	/* */ v.logger.Info("renew cycle: begin")
+	defer v.logger.Info("renew cycle: end")
+
 	// database credentials
-	databaseCredentialsWatcher, err := v.client.NewLifetimeWatcher(&hashicorp.LifetimeWatcherInput{
+	databaseCredentialsWatcher, err := v.vault.client.NewLifetimeWatcher(&hashicorp.LifetimeWatcherInput{
 		Secret: databaseCredentialsLease,
 	})
 	if err != nil {
@@ -112,40 +149,13 @@ func (v *Vault) renewLeases(ctx context.Context, authToken, databaseCredentialsL
 
 	// monitor events from both watchers
 	for {
-		if secure == "true" {
-			select {
-			case <-ctx.Done():
-				return exitRequested, nil
-
-				// DoneCh will return if renewal fails, or if the remaining lease
-				// duration is under a built-in threshold and either renewing is not
-				// extending it or renewing is disabled.  In both cases, the caller
-				// should attempt a re-read of the secret. Clients should check the
-				// return value of the channel to see if renewal was successful.
-			case err := <-authTokenWatcher.DoneCh():
-				// Leases created by a token get revoked when the token is revoked.
-				return expiringAuthToken | expiringDatabaseCredentialsLease, err
-
-			case err := <-databaseCredentialsWatcher.DoneCh():
-				return expiringDatabaseCredentialsLease, err
-
-			// RenewCh is a channel that receives a message when a successful
-			// renewal takes place and includes metadata about the renewal.
-			case info := <-authTokenWatcher.RenewCh():
-				log.Printf("auth token: successfully renewed; remaining duration: %ds", info.Secret.Auth.LeaseDuration)
-
-			case info := <-databaseCredentialsWatcher.RenewCh():
-				log.Printf("database credentials: successfully renewed; remaining lease duration: %ds", info.Secret.LeaseDuration)
-			}
-		} else {
-			select {
-			case <-ctx.Done():
-				return exitRequested, nil
-			case err := <-databaseCredentialsWatcher.DoneCh():
-				return expiringDatabaseCredentialsLease, err
-			case info := <-databaseCredentialsWatcher.RenewCh():
-				log.Printf("database credentials: successfully renewed; remaining lease duration: %ds", info.Secret.LeaseDuration)
-			}
+		select {
+		case <-ctx.Done():
+			return exitRequested, nil
+		case err := <-databaseCredentialsWatcher.DoneCh():
+			return expiringDatabaseCredentialsLease, err
+		case info := <-databaseCredentialsWatcher.RenewCh():
+			log.Printf("database credentials: successfully renewed; remaining lease duration: %ds", info.Secret.LeaseDuration)
 		}
 	}
 }
