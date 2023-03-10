@@ -1,12 +1,6 @@
 // Handles the user's authentication
 package account
 
-import (
-	"fmt"
-
-	"github.com/blocklords/sds/common/data_type/key_value"
-)
-
 // Requester to the SDS Service. It's either a developer or another SDS service.
 type Account struct {
 	Id             uint64 `json:"id,omitempty"`    // Auto incremented for every new developer
@@ -36,34 +30,6 @@ func New(id uint64, public_key string, nonce_timestamp uint64, organization stri
 	}
 }
 
-
-func ParseJson(raw key_value.KeyValue) (*Account, error) {
-	public_key, err := raw.GetString("public_key")
-	if err != nil {
-		return nil, fmt.Errorf("map.GetString(`public_key`): %w", err)
-	}
-	service, err := service.GetByPublicKey(public_key)
-	if err != nil {
-		id, err := raw.GetUint64("id")
-		if err != nil {
-			return nil, fmt.Errorf("map.GetUint64(`id`): %w", err)
-		}
-		nonce_timestamp, err := raw.GetUint64("nonce_timestamp")
-		if err != nil {
-			return nil, fmt.Errorf("map.GetUint64(`nonce_timestamp`): %w", err)
-		}
-
-		organization, err := raw.GetString("organization")
-		if err != nil {
-			return nil, fmt.Errorf("map.GetString(`organization`): %w", err)
-
-		}
-		return NewDeveloper(id, public_key, nonce_timestamp, organization), nil
-	} else {
-		return NewService(service), nil
-	}
-}
-
 ///////////////////////////////////////////////////////////
 //
 // Group operations
@@ -75,21 +41,6 @@ func NewAccounts(new_accounts ...*Account) Accounts {
 	copy(accounts, new_accounts)
 
 	return accounts
-}
-
-func NewAccountsFromJson(raw_accounts []key_value.KeyValue) (Accounts, error) {
-	accounts := make(Accounts, len(raw_accounts))
-
-	for i, raw := range raw_accounts {
-		account, err := ParseJson(raw)
-		if err != nil {
-			return nil, fmt.Errorf("raw_account[%d] ParseJson(): %w", i, err)
-		}
-
-		accounts[i] = account
-	}
-
-	return accounts, nil
 }
 
 func (accounts Accounts) PublicKeys() []string {
