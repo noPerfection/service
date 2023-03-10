@@ -2,12 +2,9 @@ package service
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/security/vault"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 
 	zmq "github.com/pebbe/zmq4"
 )
@@ -184,12 +181,6 @@ func GetByPublicKey(PublicKey string) (*Service, error) {
 	return nil, fmt.Errorf("public key '%s' not matches to any service", PublicKey)
 }
 
-// Returns the Service Name
-func (e *Service) ServiceName() string {
-	caser := cases.Title(language.AmericanEnglish)
-	return "SDS " + caser.String(strings.ToLower(e.Name))
-}
-
 // Returns the request-reply url as a host:port
 func (e *Service) Url() string {
 	return e.url
@@ -199,5 +190,3 @@ func (e *Service) Url() string {
 func (e *Service) BroadcastUrl() string {
 	return e.broadcast_url
 }
-
-
