@@ -3,14 +3,14 @@ package handler
 import (
 	"github.com/charmbracelet/log"
 
+	"github.com/blocklords/sds/app/remote/message"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/categorizer/smartcontract"
-	"github.com/blocklords/sds/db"
-
-	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
+
+	"github.com/blocklords/sds/db"
 )
 
 // return a categorized smartcontract parameters by network id and smartcontract address

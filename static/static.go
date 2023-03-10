@@ -24,10 +24,6 @@ func Run(app_config *configuration.Config, db_connection *db.Database) {
 
 		"configuration_get": handler.ConfigurationGet,
 		"configuration_set": handler.ConfigurationRegister,
-
-		"network_id_get_all": handler.NetworkGetIds,
-		"network_get_all":    handler.NetworkGetAll,
-		"network_get":        handler.NetworkGet,
 	}
 
 	logger := app_log.New()
