@@ -14,7 +14,7 @@ type RawTransaction struct {
 	SmartcontractKey smartcontract_key.Key     `json:"smartcontract_key"`
 	BlockHeader      blockchain.BlockHeader    `json:"block_header"`
 	TransactionKey   blockchain.TransactionKey `json:"transaction_key"`
-	From             string                    `json:"transaction_from"`            // txFrom column
+	From             string                    `json:"transaction_from,omitempty"`  // txFrom column
 	Data             string                    `json:"transaction_data,omitempty"`  // data columntext Data type
 	Value            float64                   `json:"transaction_value,omitempty"` // valueValue attached with transaction
 }
