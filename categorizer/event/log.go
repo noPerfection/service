@@ -9,7 +9,7 @@ import (
 	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
-// The Smartcontract Event Log
+// The Decoded smartcontract event log
 type Log struct {
 	SmartcontractKey smartcontract_key.Key     `json:"smartcontract_key"`
 	TransactionKey   blockchain.TransactionKey `json:"transaction_key"`
@@ -19,7 +19,7 @@ type Log struct {
 	Parameters       key_value.KeyValue        `json:"log_parameters"` // Event log parameters
 }
 
-// Add the metadata such as transaction id and log index from spaghetti data
+// Add the metadata such as transaction id, block header and log index from raw event log
 func (log *Log) AddMetadata(spaghetti_log *spaghetti_log.RawLog) *Log {
 	log.TransactionKey = spaghetti_log.Transaction.TransactionKey
 	log.BlockHeader = spaghetti_log.Transaction.BlockHeader
@@ -27,7 +27,7 @@ func (log *Log) AddMetadata(spaghetti_log *spaghetti_log.RawLog) *Log {
 	return log
 }
 
-// add the smartcontract to which this log belongs too using categorizer.Smartcontract
+// Add the smartcontract that's associated with this event log
 func (log *Log) AddSmartcontractData(smartcontract *smartcontract.Smartcontract) *Log {
 	log.SmartcontractKey = smartcontract.Key
 	return log
