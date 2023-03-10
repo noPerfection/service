@@ -2,12 +2,13 @@ package categorizer
 
 import (
 	"fmt"
-	debug_log "log"
 
+	app_log "github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/db"
+	"github.com/charmbracelet/log"
 
 	zmq "github.com/pebbe/zmq4"
 )
@@ -26,18 +27,23 @@ func NewCategorizerPusher() (*zmq.Socket, error) {
 	return sock, nil
 }
 
-// Sets up the socket that will be connected by the blockchain/categorizers
-// The blockchain categorizers will set up the smartcontract informations on the database
-func SetupSocket(database *db.Database) {
+// Opens up the socket to receive decoded event logs.
+// The received data stored in the database.
+// This socket receives messages from blockchain/categorizers.
+func RunPuller(cat_logger log.Logger, database *db.Database) {
+	logger := app_log.Child(cat_logger, "puller")
+
 	sock, err := zmq.NewSocket(zmq.PULL)
 	if err != nil {
-		panic(err)
+		logger.Fatal("zmq.NewSocket", "error", err)
 	}
 
-	url := "cat"
-	if err := sock.Connect("inproc://" + url); err != nil {
-		debug_log.Fatalf("trying to create categorizer socket: %v", err)
+	url := "inproc://cat"
+	if err := sock.Connect(url); err != nil {
+		logger.Fatal("trying to create categorizer socket: %v", "url", url, "error", err)
 	}
+
+	logger.Info("Puller waits for the messages", "url", url)
 
 	for {
 		// Wait for reply.
@@ -61,17 +67,16 @@ func SetupSocket(database *db.Database) {
 		}
 
 		for _, sm := range smartcontracts {
-			sm_block := sm.Block
-			err := smartcontract.SetSyncing(database, sm, sm_block)
+			err := smartcontract.SaveBlockParameters(database, sm)
 			if err != nil {
-				panic(err)
+				logger.Fatal("smartcontract.SaveBlockParameters", "error", err)
 			}
 		}
 
 		for _, l := range logs {
 			err := event.Save(database, l)
 			if err != nil {
-				panic(err)
+				logger.Fatal("event.Save", "error", err)
 			}
 		}
 	}

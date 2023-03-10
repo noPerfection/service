@@ -8,11 +8,10 @@ import (
 	"github.com/blocklords/sds/db"
 )
 
-// Update the block number and block timestamp of the smartcontract
-func SetSyncing(db *db.Database, sm *Smartcontract, b blockchain.BlockHeader) error {
-	sm.SetBlockParameter(b)
+// Set the block parameters in the database
+func SaveBlockParameters(db *db.Database, sm *Smartcontract) error {
 	_, err := db.Connection.Exec(`UPDATE categorizer_smartcontract SET block_number = ?, block_timestamp = ? WHERE network_id = ? AND address = ? `,
-		b.Number, b.Timestamp, sm.Key.NetworkId, sm.Key.Address)
+		sm.Block.Number, sm.Block.Timestamp, sm.Key.NetworkId, sm.Key.Address)
 	if err != nil {
 		return fmt.Errorf("failed to update the categorized block data in the database %s %s: %w ", sm.Key.NetworkId, sm.Key.Address, err)
 	}

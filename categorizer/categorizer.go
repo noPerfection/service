@@ -151,7 +151,11 @@ func smartcontract_set(request message.Request, logger log.Logger, parameters ..
 	return reply
 }
 
-// Smartcontract data are parsed and stored in the database
+// This core service decodes the smartcontract event logs.
+// The event data stored in the database.
+// Provides commands to fetch the decoded logs from SDK.
+//
+// dep: SDS Static core service
 func Run(app_config *configuration.Config, db_con *db.Database) {
 	logger := app_log.New()
 	logger.SetPrefix("categorizer")
@@ -169,16 +173,13 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 	if err != nil {
 		logger.Fatal("new static service config", "message", err)
 	}
-
 	static_socket = remote.TcpRequestSocketOrPanic(static_env, categorizer_env)
 
 	logger.Info("retreive networks", "network-type", network.ALL)
-
 	networks, err := network.GetRemoteNetworks(static_socket, network.ALL)
 	if err != nil {
 		logger.Fatal("newwork.GetRemoteNetworks", "message", err)
 	}
-
 	logger.Info("networks retreived")
 
 	for _, the_network := range networks {
@@ -204,10 +205,10 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		reply.SetLogger(logger)
 	}
 
-	go SetupSocket(db_con)
+	go RunPuller(logger, db_con)
 
 	err = reply.Run(commands, db_con)
 	if err != nil {
-		logger.Fatal("controller.Run", "message", err)
+		logger.Fatal("controller.Run", "error", err)
 	}
 }
