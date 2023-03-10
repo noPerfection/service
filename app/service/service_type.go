@@ -8,11 +8,9 @@ const (
 	STATIC            ServiceType = "STATIC"
 	GATEWAY           ServiceType = "GATEWAY"
 	DEVELOPER_GATEWAY ServiceType = "DEVELOPER_GATEWAY"
-	PUBLISHER         ServiceType = "PUBLISHER"
 	READER            ServiceType = "READER"
 	WRITER            ServiceType = "WRITER"
 	BUNDLE            ServiceType = "BUNDLE"
-	LOG               ServiceType = "LOG"
 )
 
 // Returns the string represantion of the service type
@@ -27,10 +25,8 @@ func service_types() []ServiceType {
 		STATIC,
 		GATEWAY,
 		DEVELOPER_GATEWAY,
-		PUBLISHER,
 		READER,
 		WRITER,
 		BUNDLE,
-		LOG,
 	}
 }
