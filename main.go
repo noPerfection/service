@@ -32,39 +32,34 @@ func main() {
 	if err != nil {
 		logger.Fatal("db.GetParameters", "error", err)
 	}
-	database_credentials := db.GetDefaultCredentials(app_config)
 
 	var v *vault.Vault = nil
 	var database *db.Database = nil
 
-	if !app_config.Plain {
-		logger.Info("Setting up Vault connection and authentication layer...")
-		app_config.SetDefaults(vault.VaultConfigurations)
+	logger.Info("Setting up Vault connection and authentication layer...")
+	app_config.SetDefaults(vault.VaultConfigurations)
 
-		new_vault, err := vault.New(logger, app_config)
-		if err != nil {
-			logger.Fatal("vault error", "message", err)
-		} else {
-			v = new_vault
-		}
+	new_vault, err := vault.New(logger, app_config)
+	if err != nil {
+		logger.Fatal("vault error", "message", err)
+	} else {
+		v = new_vault
+	}
 
-		go v.PeriodicallyRenewLeases()
-		go v.RunController()
+	go v.PeriodicallyRenewLeases()
+	go v.RunController()
 
-		// database credentials from the vault
-		vault_database, _ := vault.NewDatabase(v)
-		new_credentials, err := vault_database.GetDatabaseCredentials()
-		if err != nil {
-			logger.Fatal("reading database credentials from vault: %v", err)
-		} else {
-			database_credentials = new_credentials
-		}
-		go vault_database.PeriodicallyRenewLeases(database.Reconnect)
+	// database credentials from the vault
+	vault_database, _ := vault.NewDatabase(v)
+	database_credentials, err := vault_database.GetDatabaseCredentials()
+	if err != nil {
+		logger.Fatal("reading database credentials from vault: %v", err)
+	}
+	go vault_database.PeriodicallyRenewLeases(database.Reconnect)
 
-		s := security.New(app_config.DebugSecurity)
-		if err := s.StartAuthentication(); err != nil {
-			logger.Fatal("security: %v", err)
-		}
+	s := security.New(app_config.DebugSecurity)
+	if err := s.StartAuthentication(); err != nil {
+		logger.Fatal("security: %v", err)
 	}
 
 	database, err = db.Open(logger, database_parameters, database_credentials)
