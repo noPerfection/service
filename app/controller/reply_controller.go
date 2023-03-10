@@ -13,7 +13,6 @@ import (
 	"github.com/blocklords/sds/app/account"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
-	"github.com/blocklords/sds/db"
 
 	zmq "github.com/pebbe/zmq4"
 )
@@ -58,7 +57,8 @@ func (c *Controller) SetControllerPrivateKey() error {
 }
 
 // Controllers started to receive messages
-func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) error {
+// The parameters are the list of parameters that are passed to the command handlers
+func (c *Controller) Run(commands CommandHandlers, parameters ...interface{}) error {
 	if err := c.socket.Bind(c.service.Url()); err != nil {
 		return fmt.Errorf("socket.bind on tcp protocol for %s at url %s: %w", c.service.Name, c.service.Url(), err)
 	}
@@ -101,7 +101,7 @@ func (c *Controller) Run(db_connection *db.Database, commands CommandHandlers) e
 			continue
 		}
 
-		reply := commands[request.Command](db_connection, request, c.logger)
+		reply := commands[request.Command](request, c.logger, parameters...)
 
 		reply_string, err := reply.ToString()
 		if err != nil {

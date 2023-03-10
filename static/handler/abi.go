@@ -17,7 +17,9 @@ import (
 //	     	"abi": []
 //	     }
 //	}
-func AbiGet(con *db.Database, request message.Request, logger log.Logger) message.Reply {
+func AbiGet(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	db_con := parameters[0].(*db.Database)
+
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -28,7 +30,7 @@ func AbiGet(con *db.Database, request message.Request, logger log.Logger) messag
 		return message.Fail(err.Error())
 	}
 
-	abi, err := abi.GetFromDatabase(con, network_id, address)
+	abi, err := abi.GetFromDatabase(db_con, network_id, address)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -43,7 +45,9 @@ func AbiGet(con *db.Database, request message.Request, logger log.Logger) messag
 }
 
 // Returns an abi by the smartcontract key.
-func AbiGetBySmartcontractKey(db *db.Database, request message.Request, logger log.Logger) message.Reply {
+func AbiGetBySmartcontractKey(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	db_con := parameters[0].(*db.Database)
+
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -53,16 +57,16 @@ func AbiGetBySmartcontractKey(db *db.Database, request message.Request, logger l
 		return message.Fail(err.Error())
 	}
 
-	if !smartcontract.ExistInDatabase(db, network_id, address) {
+	if !smartcontract.ExistInDatabase(db_con, network_id, address) {
 		return message.Fail(`'` + network_id + `.` + address + `' smartcontract not registered in the SDS Static`)
 	}
 
-	smartcontract, err := smartcontract.GetFromDatabase(db, network_id, address)
+	smartcontract, err := smartcontract.GetFromDatabase(db_con, network_id, address)
 	if err != nil {
 		return message.Fail("failed to get smartcontract from database: " + err.Error())
 	}
 
-	abi, err := abi.GetFromDatabaseByAbiId(db, smartcontract.AbiId)
+	abi, err := abi.GetFromDatabaseByAbiId(db_con, smartcontract.AbiId)
 	if err != nil {
 		return message.Fail("failed to get abi from database: " + err.Error())
 	}
@@ -82,7 +86,9 @@ func AbiGetBySmartcontractKey(db *db.Database, request message.Request, logger l
 //	     	"abi_id": "0x012345"
 //	     }
 //	}
-func AbiRegister(dbCon *db.Database, request message.Request, logger log.Logger) message.Reply {
+func AbiRegister(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	db_con := parameters[0].(*db.Database)
+
 	abi_body, ok := request.Parameters["body"]
 	if !ok {
 		return message.Fail("missing 'body' parameter")
@@ -98,11 +104,11 @@ func AbiRegister(dbCon *db.Database, request message.Request, logger log.Logger)
 		Parameters: key_value.Empty().Set("body", new_abi.ToString()).Set("abi_id", new_abi.Id),
 	}
 
-	if abi.ExistInDatabase(dbCon, new_abi.Id) {
+	if abi.ExistInDatabase(db_con, new_abi.Id) {
 		return reply
 	}
 
-	save_err := abi.SetInDatabase(dbCon, new_abi)
+	save_err := abi.SetInDatabase(db_con, new_abi)
 	if save_err != nil {
 		return message.Fail(err.Error())
 	}

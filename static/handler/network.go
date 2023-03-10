@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/db"
 	"github.com/charmbracelet/log"
 
 	app_log "github.com/blocklords/sds/app/log"
@@ -11,7 +10,7 @@ import (
 )
 
 // Returns Network
-func NetworkGet(_ *db.Database, request message.Request, logger log.Logger) message.Reply {
+func NetworkGet(request message.Request, logger log.Logger, _parameters ...interface{}) message.Reply {
 	command_logger := app_log.Child(logger, "network-get-command")
 	command_logger.Info("incoming request", "parameters", request.Parameters)
 
@@ -49,7 +48,7 @@ func NetworkGet(_ *db.Database, request message.Request, logger log.Logger) mess
 }
 
 // Returns an abi by the smartcontract key.
-func NetworkGetIds(_ *db.Database, request message.Request, logger log.Logger) message.Reply {
+func NetworkGetIds(request message.Request, logger log.Logger, _parameters ...interface{}) message.Reply {
 	raw_network_type, err := request.Parameters.GetString("network_type")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -74,7 +73,7 @@ func NetworkGetIds(_ *db.Database, request message.Request, logger log.Logger) m
 }
 
 // Returns an abi by the smartcontract key.
-func NetworkGetAll(_ *db.Database, request message.Request, logger log.Logger) message.Reply {
+func NetworkGetAll(request message.Request, logger log.Logger, _parameters ...interface{}) message.Reply {
 	command_logger := app_log.Child(logger, "network-get-all-command")
 	command_logger.Info("incoming request", "parameters", request.Parameters)
 

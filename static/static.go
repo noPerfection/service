@@ -51,7 +51,7 @@ func Run(app_config *configuration.Config, db_connection *db.Database) {
 		reply.SetLogger(logger)
 	}
 
-	err = reply.Run(db_connection, commands)
+	err = reply.Run(commands, db_connection)
 	if err != nil {
 		logger.Fatal("reply controller", "message", err)
 	}

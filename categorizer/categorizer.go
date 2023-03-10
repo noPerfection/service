@@ -92,7 +92,9 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 
 // Saves the smartcontract in the database.
 // then start a worker.
-func smartcontract_set(db_con *db.Database, request message.Request, logger log.Logger) message.Reply {
+func smartcontract_set(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	db_con := parameters[0].(*db.Database)
+
 	kv, err := request.Parameters.GetKeyValue("smartcontract")
 	if err != nil {
 		return message.Fail("missing 'smartcontract' parameter")
@@ -204,7 +206,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	go SetupSocket(db_con)
 
-	err = reply.Run(db_con, commands)
+	err = reply.Run(commands, db_con)
 	if err != nil {
 		logger.Fatal("controller.Run", "message", err)
 	}

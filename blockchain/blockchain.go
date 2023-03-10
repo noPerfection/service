@@ -26,7 +26,6 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/db"
 
 	"fmt"
 
@@ -48,7 +47,7 @@ import (
 
 // this function returns the smartcontract deployer, deployed block number
 // and block timestamp by a transaction hash of the smartcontract deployment.
-func transaction_deployed_get(_ *db.Database, request message.Request, logger log.Logger) message.Reply {
+func transaction_deployed_get(request message.Request, logger log.Logger, _parameters ...interface{}) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail("validation: " + err.Error())
@@ -130,7 +129,7 @@ func Run(app_config *configuration.Config) {
 	var commands = controller.CommandHandlers{
 		"transaction_deployed_get": transaction_deployed_get,
 	}
-	err = reply.Run(nil, commands)
+	err = reply.Run(commands)
 	if err != nil {
 		logger.Fatal("controller error", "message", err)
 	}

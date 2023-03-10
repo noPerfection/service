@@ -26,16 +26,18 @@ Algorithm
     The smartcontract package accepts the db_query from configuration config.
  4. return list of smartcontracts back
 */
-func SmartcontractFilter(dbCon *db.Database, request message.Request, logger log.Logger) message.Reply {
+func SmartcontractFilter(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	db_con := parameters[0].(*db.Database)
+
 	topic_filter_map, err := request.Parameters.GetKeyValue("topic_filter")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 	topic_filter := topic.ParseJSONToTopicFilter(topic_filter_map)
 
-	query, parameters := configuration.QueryFilterSmartcontract(topic_filter)
+	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
 
-	smartcontracts, topics, err := smartcontract.GetFromDatabaseFilterBy(dbCon, query, parameters)
+	smartcontracts, topics, err := smartcontract.GetFromDatabaseFilterBy(db_con, query, query_parameters)
 	if err != nil {
 		return message.Fail("failed to filter smartcontracts by the topic filter:" + err.Error())
 	} else if len(smartcontracts) == 0 {
@@ -66,16 +68,18 @@ func SmartcontractFilter(dbCon *db.Database, request message.Request, logger log
 //	returns {
 //			"smartcontract_keys" (where key is smartcontract key, value is a topic string)
 //	}
-func SmartcontractKeyFilter(dbCon *db.Database, request message.Request, logger log.Logger) message.Reply {
+func SmartcontractKeyFilter(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	db_con := parameters[0].(*db.Database)
+
 	topic_filter_map, err := request.Parameters.GetKeyValue("topic_filter")
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 	topic_filter := topic.ParseJSONToTopicFilter(topic_filter_map)
 
-	query, parameters := configuration.QueryFilterSmartcontract(topic_filter)
+	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
 
-	smartcontracts, topics, err := smartcontract.GetFromDatabaseFilterBy(dbCon, query, parameters)
+	smartcontracts, topics, err := smartcontract.GetFromDatabaseFilterBy(db_con, query, query_parameters)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -98,7 +102,9 @@ func SmartcontractKeyFilter(dbCon *db.Database, request message.Request, logger 
 // Register a new smartcontract. It means we are adding smartcontract parameters into
 // static_smartcontract.
 // Requires abi_id parameter. First call abi_register method first.
-func SmartcontractRegister(dbCon *db.Database, request message.Request, logger log.Logger) message.Reply {
+func SmartcontractRegister(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	db_con := parameters[0].(*db.Database)
+
 	sm, err := smartcontract.New(request.Parameters)
 	if err != nil {
 		return message.Fail(err.Error())
@@ -113,11 +119,11 @@ func SmartcontractRegister(dbCon *db.Database, request message.Request, logger l
 		}),
 	}
 
-	if smartcontract.ExistInDatabase(dbCon, sm.NetworkId, sm.Address) {
+	if smartcontract.ExistInDatabase(db_con, sm.NetworkId, sm.Address) {
 		return reply
 	}
 
-	if err = smartcontract.SetInDatabase(dbCon, sm); err != nil {
+	if err = smartcontract.SetInDatabase(db_con, sm); err != nil {
 		return message.Fail("Smartcontract saving in the database failed: " + err.Error())
 	}
 
@@ -125,7 +131,9 @@ func SmartcontractRegister(dbCon *db.Database, request message.Request, logger l
 }
 
 // Returns configuration and smartcontract information related to the configuration
-func SmartcontractGet(db *db.Database, request message.Request, logger log.Logger) message.Reply {
+func SmartcontractGet(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	db_con := parameters[0].(*db.Database)
+
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -135,11 +143,11 @@ func SmartcontractGet(db *db.Database, request message.Request, logger log.Logge
 		return message.Fail(err.Error())
 	}
 
-	if smartcontract.ExistInDatabase(db, network_id, address) {
+	if smartcontract.ExistInDatabase(db_con, network_id, address) {
 		return message.Fail("Smartcontract not registered in the database")
 	}
 
-	s, err := smartcontract.GetFromDatabase(db, network_id, address)
+	s, err := smartcontract.GetFromDatabase(db_con, network_id, address)
 	if err != nil {
 		return message.Fail("Failed to get smartcontract from database: " + err.Error())
 	}

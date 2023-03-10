@@ -20,7 +20,9 @@ const SNAPSHOT_LIMIT = uint64(500)
 // For the topic_filter
 //
 // This function is called by the Gateway
-func GetSnapshot(db_con *db.Database, request message.Request, logger log.Logger) message.Reply {
+func GetSnapshot(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	db_con := parameters[0].(*db.Database)
+
 	/////////////////////////////////////////////////////////////////////////////
 	//
 	// Extract the parameters
@@ -36,9 +38,9 @@ func GetSnapshot(db_con *db.Database, request message.Request, logger log.Logger
 	}
 	topic_filter := topic.ParseJSONToTopicFilter(topic_filter_map)
 
-	query, parameters := configuration.QueryFilterSmartcontract(topic_filter)
+	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
 
-	smartcontracts, _, err := smartcontract.GetFromDatabaseFilterBy(db_con, query, parameters)
+	smartcontracts, _, err := smartcontract.GetFromDatabaseFilterBy(db_con, query, query_parameters)
 	if err != nil {
 		return message.Fail("failed to filter smartcontracts by the topic filter:" + err.Error())
 	} else if len(smartcontracts) == 0 {

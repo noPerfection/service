@@ -12,7 +12,9 @@ import (
 )
 
 // return a categorizer block by network id and smartcontract address
-func GetSmartcontract(db *db.Database, request message.Request, logger log.Logger) message.Reply {
+func GetSmartcontract(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	db := parameters[0].(*db.Database)
+
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail("validation: " + err.Error())
@@ -38,7 +40,8 @@ func GetSmartcontract(db *db.Database, request message.Request, logger log.Logge
 }
 
 // returns all smartcontract categorized smartcontracts
-func GetSmartcontracts(db *db.Database, _ message.Request, logger log.Logger) message.Reply {
+func GetSmartcontracts(_ message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	db := parameters[0].(*db.Database)
 	smartcontracts, err := smartcontract.GetAll(db)
 	if err != nil {
 		return message.Fail("the database error " + err.Error())
