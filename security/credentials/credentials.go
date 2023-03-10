@@ -52,3 +52,16 @@ func (c *Credentials) SetSocketAuthCurve(socket *zmq.Socket, domain string) erro
 	}
 	return nil
 }
+
+// Sets the authentication to the target machine
+// Considering that this is the client
+func (c *Credentials) SetClientAuthCurve(socket *zmq.Socket, server_public_key string) error {
+	if len(c.private_key) == 0 {
+		return fmt.Errorf("no client private key")
+	}
+	err := socket.ClientAuthCurve(server_public_key, c.PublicKey, c.private_key)
+	if err != nil {
+		return fmt.Errorf("socket.ClientAuthCurve: %w", err)
+	}
+	return nil
+}
