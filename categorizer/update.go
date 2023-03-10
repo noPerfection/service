@@ -7,7 +7,6 @@ import (
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
-	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/db"
 
 	zmq "github.com/pebbe/zmq4"
@@ -62,10 +61,7 @@ func SetupSocket(database *db.Database) {
 		}
 
 		for _, sm := range smartcontracts {
-			sm_block := blockchain.Block{
-				Number:    sm.BlockNumber,
-				Timestamp: sm.BlockTimestamp,
-			}
+			sm_block := sm.Block
 			err := smartcontract.SetSyncing(database, sm, sm_block)
 			if err != nil {
 				panic(err)

@@ -7,6 +7,7 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
 // Sends the ABI information to the remote SDS Static.
@@ -23,13 +24,13 @@ func Set(socket *remote.Socket, body interface{}) (key_value.KeyValue, error) {
 }
 
 // Returns the abi from the remote server
-func Get(socket *remote.Socket, network_id string, address string) (*Abi, error) {
+func Get(socket *remote.Socket, key smartcontract_key.Key) (*Abi, error) {
 	// Send hello.
 	request := message.Request{
 		Command: "abi_get",
 		Parameters: map[string]interface{}{
-			"network_id": network_id,
-			"address":    address,
+			"network_id": key.NetworkId,
+			"address":    key.Address,
 		},
 	}
 

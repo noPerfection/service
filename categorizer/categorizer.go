@@ -45,10 +45,10 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 	static_abis := make([]*static_abi.Abi, len(smartcontracts))
 
 	for i, smartcontract := range smartcontracts {
-		logger.Info("get abi from static", "network_id", smartcontract.NetworkId, "address", smartcontract.Address)
+		logger.Info("get abi from static", "network_id", smartcontract.Key.NetworkId, "address", smartcontract.Key.Address)
 
 		mu.Lock()
-		remote_abi, err := static_abi.Get(static_socket, smartcontract.NetworkId, smartcontract.Address)
+		remote_abi, err := static_abi.Get(static_socket, smartcontract.Key)
 		mu.Unlock()
 		if err != nil {
 			return fmt.Errorf("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
@@ -105,7 +105,7 @@ func smartcontract_set(request message.Request, logger log.Logger, parameters ..
 		return message.Fail("request parameter -> smartcontract.New: " + err.Error())
 	}
 
-	if smartcontract.Exists(db_con, sm.NetworkId, sm.Address) {
+	if smartcontract.Exists(db_con, sm.Key) {
 		return message.Fail("the smartcontract already in SDS Categorizer")
 	}
 
@@ -114,13 +114,13 @@ func smartcontract_set(request message.Request, logger log.Logger, parameters ..
 		return message.Fail("database: " + saveErr.Error())
 	}
 
-	pusher, err := blockchain_proc.CategorizerManagerSocket(sm.NetworkId)
+	pusher, err := blockchain_proc.CategorizerManagerSocket(sm.Key.NetworkId)
 	if err != nil {
 		return message.Fail("inproc: " + err.Error())
 	}
 	defer pusher.Close()
 
-	remote_abi, err := static_abi.Get(static_socket, sm.NetworkId, sm.Address)
+	remote_abi, err := static_abi.Get(static_socket, sm.Key)
 	if err != nil {
 		return message.Fail("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
 	}

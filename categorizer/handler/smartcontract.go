@@ -9,22 +9,19 @@ import (
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
 // return a categorizer block by network id and smartcontract address
 func GetSmartcontract(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
 	db := parameters[0].(*db.Database)
 
-	network_id, err := request.Parameters.GetString("network_id")
+	key, err := smartcontract_key.NewFromKeyValue(request.Parameters)
 	if err != nil {
-		return message.Fail("validation: " + err.Error())
-	}
-	address, err := request.Parameters.GetString("address")
-	if err != nil {
-		return message.Fail("validation: " + err.Error())
+		return message.Fail("smartcontract_key.NewFromKeyValue: " + err.Error())
 	}
 
-	sm, err := smartcontract.Get(db, network_id, address)
+	sm, err := smartcontract.Get(db, key)
 
 	if err != nil {
 		return message.Fail("smartcontract.Get: " + err.Error())

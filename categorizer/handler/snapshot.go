@@ -54,8 +54,8 @@ func GetSnapshot(request message.Request, logger log.Logger, parameters ...inter
 
 	block_timestamp_to := block_timestamp_from
 	for _, log := range logs {
-		if log.BlockTimestamp > block_timestamp_to {
-			block_timestamp_to = log.BlockTimestamp
+		if log.Block.Timestamp > block_timestamp_to {
+			block_timestamp_to = log.Block.Timestamp
 		}
 	}
 

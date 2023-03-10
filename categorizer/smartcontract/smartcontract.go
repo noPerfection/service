@@ -5,13 +5,12 @@ import (
 
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
 type Smartcontract struct {
-	NetworkId      string               `json:"network_id"`
-	Address        string               `json:"address"`
-	BlockNumber    blockchain.Number    `json:"block_number"`
-	BlockTimestamp blockchain.Timestamp `json:"block_timestamp"`
+	Key   smartcontract_key.Key `json:"smartcontract_key"`
+	Block blockchain.Block      `json:"block"`
 }
 
 // Updates the categorized block parameter of the smartcontract.
@@ -19,8 +18,7 @@ type Smartcontract struct {
 //
 // The first is the block number, second is the block timestamp.
 func (s *Smartcontract) SetBlockParameter(b blockchain.Block) {
-	s.BlockNumber = b.Number
-	s.BlockTimestamp = b.Timestamp
+	s.Block = b
 }
 
 // Returns a JSON representation of this smartcontract in a string format

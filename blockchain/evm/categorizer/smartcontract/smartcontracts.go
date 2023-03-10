@@ -17,7 +17,7 @@ func (workers EvmWorkers) Split(block_number blockchain.Number) (EvmWorkers, Evm
 	new_workers := make(EvmWorkers, 0)
 
 	for _, worker := range workers {
-		if worker.Smartcontract.BlockNumber < block_number {
+		if worker.Smartcontract.Block.Number < block_number {
 			old_workers = append(old_workers, worker)
 		} else {
 			new_workers = append(new_workers, worker)
@@ -30,7 +30,7 @@ func (workers EvmWorkers) Split(block_number blockchain.Number) (EvmWorkers, Evm
 // Sort the workers from old to the newest
 func (workers EvmWorkers) Sort() EvmWorkers {
 	sort.SliceStable(workers, func(i, j int) bool {
-		return workers[i].Smartcontract.BlockNumber < workers[j].Smartcontract.BlockNumber
+		return workers[i].Smartcontract.Block.Number < workers[j].Smartcontract.Block.Number
 	})
 
 	return workers
@@ -43,7 +43,7 @@ func (workers EvmWorkers) EarliestBlockNumber() blockchain.Number {
 		return 0
 	}
 
-	return sorted_workers[0].Smartcontract.BlockNumber
+	return sorted_workers[0].Smartcontract.Block.Number
 }
 
 func (workers EvmWorkers) RecentBlockNumber() blockchain.Number {
@@ -53,7 +53,7 @@ func (workers EvmWorkers) RecentBlockNumber() blockchain.Number {
 	}
 
 	latest := len(sorted_workers) - 1
-	return sorted_workers[latest].Smartcontract.BlockNumber
+	return sorted_workers[latest].Smartcontract.Block.Number
 }
 
 // Returns the smartcontract information that should be categorized
@@ -72,7 +72,7 @@ func (workers EvmWorkers) GetSmartcontractAddresses() []string {
 	addresses := make([]string, 0)
 
 	for _, worker := range workers {
-		addresses = append(addresses, worker.Smartcontract.Address)
+		addresses = append(addresses, worker.Smartcontract.Key.Address)
 	}
 
 	return addresses
