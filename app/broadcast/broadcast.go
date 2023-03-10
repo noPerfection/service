@@ -54,7 +54,7 @@ func AddWhitelistedAccounts(s *service.Service, accounts account.Accounts) {
 // Set the private key, so connected clients can identify this controller
 // You call it before running the controller
 func (c *Broadcast) SetPrivateKey() error {
-	err := c.socket.ServerAuthCurve(broadcast_domain(c.service), c.service.BroadcastSecretKey)
+	err := c.service.Credentials.SetSocketAuthCurve(c.socket, broadcast_domain(c.service))
 	if err != nil {
 		return fmt.Errorf("socket.ServerAuthCurve: %w", err)
 	}

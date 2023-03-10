@@ -24,7 +24,7 @@ func WhitelistAccess(logger log.Logger, spaghetti_env *service.Service, accounts
 // Set the private key, so connected clients can identify this controller
 // You call it before running the controller
 func (c *Controller) SetControllerPrivateKey() error {
-	err := c.socket.ServerAuthCurve(c.service.Name, c.service.SecretKey)
+	err := c.service.Credentials.SetSocketAuthCurve(c.socket, c.service.Name)
 	if err == nil {
 		return nil
 	}
