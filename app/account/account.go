@@ -90,6 +90,16 @@ func NewAccountsFromJson(raw_accounts []key_value.KeyValue) (Accounts, error) {
 	return accounts, nil
 }
 
+func (accounts Accounts) PublicKeys() []string {
+	public_keys := make([]string, len(accounts))
+
+	for i, account := range accounts {
+		public_keys[i] = account.PublicKey
+	}
+
+	return public_keys
+}
+
 func (accounts Accounts) Add(new_accounts ...*Account) Accounts {
 	for _, account := range new_accounts {
 		accounts = append(accounts, account)
