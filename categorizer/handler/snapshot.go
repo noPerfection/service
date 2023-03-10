@@ -17,18 +17,13 @@ import (
 
 const SNAPSHOT_LIMIT = uint64(500)
 
-// Return the categorized logs of the SNAPSHOT_LIMIT amount since the block_timestamp_from
-// For the topic_filter
+// Return the SNAPSHOT_LIMIT categorized logs since the block_timestamp
+// that matches topic_filter
 //
-// This function is called by the Gateway
+// This function is called by the SDK through SDS Gateway
 func GetSnapshot(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
-	/////////////////////////////////////////////////////////////////////////////
-	//
-	// Extract the parameters
-	//
-	/////////////////////////////////////////////////////////////////////////////
 	block_timestamp_from, err := blockchain.NewTimestampFromKeyValueParameter(request.Parameters)
 	if err != nil {
 		return message.Fail(err.Error())
@@ -39,7 +34,6 @@ func GetSnapshot(request message.Request, logger log.Logger, parameters ...inter
 	}
 
 	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
-
 	smartcontract_keys, _, err := smartcontract.FilterKeysFromDatabase(db_con, query, query_parameters)
 	if err != nil {
 		return message.Fail("failed to filter smartcontracts by the topic filter:" + err.Error())

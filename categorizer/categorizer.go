@@ -127,8 +127,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		"smartcontract_get_all": handler.GetSmartcontracts,
 		"smartcontract_get":     handler.GetSmartcontract,
 		"smartcontract_set":     handler.SetSmartcontract,
-
-		"snapshot_get": handler.GetSnapshot,
+		"snapshot_get":          handler.GetSnapshot,
 	}
 
 	reply, err := controller.NewReply(categorizer_env)
