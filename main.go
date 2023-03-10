@@ -2,8 +2,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/blocklords/sds/app/log"
 
 	"sync"
@@ -20,24 +18,21 @@ import (
 /** SeascapeSDS + its SDK to use it.*/
 func main() {
 	logger := log.New()
-
 	logger.SetPrefix("main")
 	logger.SetReportCaller(true)
 	logger.SetReportTimestamp(true)
 
 	app_config, err := configuration.NewAppConfig(logger)
 	if err != nil {
-		new_err := fmt.Errorf("configuration: %v", err)
-		logger.Fatal(new_err)
+		logger.Fatal("new app config", "error", err)
 	}
 
 	app_config.SetDefaults(db.DatabaseConfigurations)
 	database_parameters, err := db.GetParameters(app_config)
 	if err != nil {
-		logger.Fatal("database parameter fetching: %v", err)
-		panic(1)
+		logger.Fatal("db.GetParameters", "error", err)
 	}
-	database_credetnails := db.GetDefaultCredentials(app_config)
+	database_credentials := db.GetDefaultCredentials(app_config)
 
 	var v *vault.Vault = nil
 	var database *db.Database = nil
@@ -62,7 +57,7 @@ func main() {
 		if err != nil {
 			logger.Fatal("reading database credentials from vault: %v", err)
 		} else {
-			database_credetnails = new_credentials
+			database_credentials = new_credentials
 		}
 		go vault_database.PeriodicallyRenewLeases(database.Reconnect)
 
@@ -72,7 +67,7 @@ func main() {
 		}
 	}
 
-	database, err = db.Open(logger, database_parameters, database_credetnails)
+	database, err = db.Open(logger, database_parameters, database_credentials)
 	if err != nil {
 		logger.Fatal("database error", "message", err)
 	}
