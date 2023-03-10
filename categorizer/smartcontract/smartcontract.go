@@ -8,6 +8,7 @@ import (
 	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
+// This data type is used to track categorization state per smartcontract
 type Smartcontract struct {
 	Key   smartcontract_key.Key  `json:"smartcontract_key"`
 	Block blockchain.BlockHeader `json:"block_header"`

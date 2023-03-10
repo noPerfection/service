@@ -17,7 +17,7 @@ func Save(db *db.Database, t *Log) error {
 
 	_, err = db.Connection.Exec(`INSERT IGNORE INTO categorizer_event 
 	(address, transaction_id, transaction_index, network_id, block_number, block_timestamp, log_index, event_name, event_parameters)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, t.SmartcontractKey.Address, t.TransactionKey.Id, t.TransactionKey.Index, t.SmartcontractKey.NetworkId, t.BlockHeader.Number, t.BlockHeader.Timestamp, t.LogIndex, t.Name, byt)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, t.SmartcontractKey.Address, t.TransactionKey.Id, t.TransactionKey.Index, t.SmartcontractKey.NetworkId, t.BlockHeader.Number, t.BlockHeader.Timestamp, t.Index, t.Name, byt)
 
 	if err != nil {
 		return fmt.Errorf("database exec: %w", err)
@@ -83,7 +83,7 @@ func GetLogsFromDb(con *db.Database, smartcontracts []*smartcontract.Smartcontra
 	for rows.Next() {
 		var s Log
 		var output_bytes []byte
-		if err := rows.Scan(&s.BlockHeader.Number, &s.BlockHeader.Timestamp, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.LogIndex, &s.SmartcontractKey.Address, &s.SmartcontractKey.NetworkId, &s.Name, &output_bytes); err != nil {
+		if err := rows.Scan(&s.BlockHeader.Number, &s.BlockHeader.Timestamp, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.Index, &s.SmartcontractKey.Address, &s.SmartcontractKey.NetworkId, &s.Name, &output_bytes); err != nil {
 			return nil, fmt.Errorf("database row scan: %w", err)
 		}
 

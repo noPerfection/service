@@ -35,7 +35,7 @@ func NewSpaghettiLog(network_id string, block_timestamp blockchain.Timestamp, ra
 
 	return &event.RawLog{
 		Transaction: transaction,
-		LogIndex:    raw_log.Index,
+		Index:       raw_log.Index,
 		Data:        hex.EncodeToString(raw_log.Data),
 		Topics:      topics,
 	}

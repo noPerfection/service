@@ -14,7 +14,7 @@ import (
 // Blockchain agnostic Event Log for smartcontract
 type RawLog struct {
 	Transaction transaction.RawTransaction `json:"transaction"`
-	LogIndex    uint                       `json:"log_index"`            // index
+	Index       uint                       `json:"log_index"`            // index
 	Data        string                     `json:"log_data"`             // datatext data type
 	Topics      []string                   `json:"log_topics,omitempty"` // topics
 }

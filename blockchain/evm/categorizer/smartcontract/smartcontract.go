@@ -30,7 +30,7 @@ func New(sm *categorizer_smartcontract.Smartcontract, abi *abi.Abi) *EvmWorker {
 func (worker *EvmWorker) DecodeLog(raw_log *spaghetti_log.RawLog) (*event.Log, error) {
 	log_name, outputs, err := worker.abi.DecodeLog(raw_log.Topics, raw_log.Data)
 	if err != nil {
-		return nil, fmt.Errorf("abi.DecodeLog (event %d in transaction %s): %w", raw_log.LogIndex, raw_log.Transaction.TransactionKey.Id, err)
+		return nil, fmt.Errorf("abi.DecodeLog (event %d in transaction %s): %w", raw_log.Index, raw_log.Transaction.TransactionKey.Id, err)
 	}
 
 	l := event.New(log_name, outputs).AddMetadata(raw_log).AddSmartcontractData(worker.Smartcontract)

@@ -126,7 +126,7 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 
 			l := &event.RawLog{
 				Transaction: transaction,
-				LogIndex:    uint(i),
+				Index:       uint(i),
 				Data:        data_string,
 				Topics:      []string{},
 			}
@@ -233,7 +233,7 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 
 			l := &event.RawLog{
 				Transaction: transaction,
-				LogIndex:    uint(i),
+				Index:       uint(i),
 				Data:        data_string,
 				Topics:      []string{},
 			}
