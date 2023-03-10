@@ -53,15 +53,18 @@ func main() {
 			v = new_vault
 		}
 
+		go v.PeriodicallyRenewLeases()
+		go v.RunController()
+
 		// database credentials from the vault
-		new_credentials, err := v.GetDatabaseCredentials()
+		vault_database, _ := vault.NewDatabase(v)
+		new_credentials, err := vault_database.GetDatabaseCredentials()
 		if err != nil {
 			logger.Fatal("reading database credentials from vault: %v", err)
 		} else {
 			database_credetnails = new_credentials
 		}
-		go v.PeriodicallyRenewLeases(database.Reconnect)
-		go v.RunController()
+		go vault_database.PeriodicallyRenewLeases(database.Reconnect)
 
 		s := security.New(app_config.DebugSecurity)
 		if err := s.StartAuthentication(); err != nil {
