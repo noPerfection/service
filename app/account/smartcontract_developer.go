@@ -82,6 +82,20 @@ func VerifySignature(request *message.SmartcontractDeveloperRequest) error {
 	return nil
 }
 
+// Returns the account with the public key.
+// The public key derived from the signature.
+//
+// Call this function after VerifySignature()
+// Because it doesn't check for errors
+func GetPublicKeyAccount(request *message.SmartcontractDeveloperRequest) *SmartcontractDeveloper {
+	// without 0x prefix
+	signature, _ := hexutil.Decode(request.Signature)
+	digested_hash, _ := request.DigestedMessage()
+	signature[64] -= 27 // Transform yellow paper V from 27/28 to 0/1
+	ecdsa_public_key, _ := crypto.SigToPub(digested_hash, signature)
+	return NewEcdsaPublicKey(ecdsa_public_key)
+}
+
 // Encrypts the given data with a public key
 // The result could be decrypted by the private key
 //
