@@ -58,7 +58,9 @@ var DatabaseConfigurations = configuration.DefaultConfig{
 	}),
 }
 
-// Database parameters fetched from the environment variables
+// Database parameters fetched from the environment variables.
+//
+// The `app_config` keeps the default variables if the parameters were not set.
 func GetParameters(app_config *configuration.Config) (*DatabaseParameters, error) {
 	timeout := app_config.GetUint64("SDS_DATABASE_TIMEOUT")
 	if timeout > TIMEOUT_CAP {

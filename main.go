@@ -18,13 +18,13 @@ import (
 /** SeascapeSDS + its SDK to use it.*/
 func main() {
 	logger := log.New()
-	logger.SetPrefix("main")
+	logger.SetPrefix("sds-core")
 	logger.SetReportCaller(true)
 	logger.SetReportTimestamp(true)
 
 	app_config, err := configuration.NewAppConfig(logger)
 	if err != nil {
-		logger.Fatal("new app config", "error", err)
+		logger.Fatal("configuration.NewAppConfig", "error", err)
 	}
 
 	app_config.SetDefaults(db.DatabaseConfigurations)
@@ -34,8 +34,8 @@ func main() {
 	}
 
 	logger.Info("Setting up Vault connection and authentication layer...")
-	app_config.SetDefaults(vault.VaultConfigurations)
 
+	app_config.SetDefaults(vault.VaultConfigurations)
 	v, err := vault.New(logger, app_config)
 	if err != nil {
 		logger.Fatal("vault error", "message", err)
@@ -45,16 +45,21 @@ func main() {
 	go v.RunController()
 
 	// database credentials from the vault
+
+	app_config.SetDefaults(vault.DatabaseVaultConfigurations)
 	vault_database, _ := vault.NewDatabase(v)
 	database_credentials, err := vault_database.GetDatabaseCredentials()
 	if err != nil {
 		logger.Fatal("reading database credentials from vault: %v", err)
 	}
 
+	// Setup the Security layer. Any outside services that wants to connect
+	// All incoming messages are encrypted and authenticated.
 	if err := security.New(app_config.DebugSecurity).StartAuthentication(); err != nil {
 		logger.Fatal("security: %v", err)
 	}
 
+	// Set the database connection
 	database, err := db.Open(logger, database_parameters, database_credentials)
 	if err != nil {
 		logger.Fatal("database error", "message", err)
@@ -65,19 +70,18 @@ func main() {
 		_ = database.Close()
 	}()
 
+	// Start the core services
+	// We wait for their execution to exit from blockchain
 	var wg sync.WaitGroup
-
 	wg.Add(1)
 	go func() {
 		static.Run(app_config, database)
 		wg.Done()
 	}()
-	wg.Add(1)
 	go func() {
 		categorizer.Run(app_config, database)
 		wg.Done()
 	}()
-	wg.Add(1)
 	go func() {
 		blockchain.Run(app_config)
 		wg.Done()
