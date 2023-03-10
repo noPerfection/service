@@ -1,15 +1,12 @@
 package static
 
 import (
-	"github.com/blocklords/sds/static/handler"
-
 	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/service"
-
-	app_log "github.com/blocklords/sds/app/log"
-
 	"github.com/blocklords/sds/app/controller"
+	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/static/handler"
 )
 
 func Run(app_config *configuration.Config, db_connection *db.Database) {
@@ -26,7 +23,7 @@ func Run(app_config *configuration.Config, db_connection *db.Database) {
 		"configuration_set": handler.ConfigurationRegister,
 	}
 
-	logger := app_log.New()
+	logger := log.New()
 	logger.SetPrefix("static")
 	logger.SetReportCaller(true)
 	logger.SetReportTimestamp(true)

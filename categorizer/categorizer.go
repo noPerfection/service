@@ -7,22 +7,16 @@ import (
 	app_log "github.com/blocklords/sds/app/log"
 	"github.com/charmbracelet/log"
 
-	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
+	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/controller"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
+	categorizer_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/categorizer/handler"
 	"github.com/blocklords/sds/categorizer/smartcontract"
-
-	"github.com/blocklords/sds/app/configuration"
-
-	"github.com/blocklords/sds/app/remote"
-
-	"github.com/blocklords/sds/app/remote/message"
-
-	"github.com/blocklords/sds/app/service"
-
 	"github.com/blocklords/sds/db"
-
-	"github.com/blocklords/sds/app/controller"
 )
 
 // Sends the smartcontracts to the blockchain package.
@@ -40,7 +34,7 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 
 	logger.Info("all smartcontracts returned", "network_id", network.Id, "smartcontract amount", len(smartcontracts))
 
-	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id, "url", blockchain_proc.CategorizerManagerUrl(network.Id))
+	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id, "url", categorizer_process.CategorizerManagerUrl(network.Id))
 
 	request := message.Request{
 		Command: "new-smartcontracts",
@@ -50,9 +44,9 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 	}
 	request_string, _ := request.ToString()
 
-	pusher, err := blockchain_proc.CategorizerManagerSocket(network.Id)
+	pusher, err := categorizer_process.CategorizerManagerSocket(network.Id)
 	if err != nil {
-		return fmt.Errorf("blockchain_proc.CategorizerManagerSocket: %w", err)
+		return fmt.Errorf("categorizer_process.CategorizerManagerSocket: %w", err)
 	}
 	defer pusher.Close()
 
