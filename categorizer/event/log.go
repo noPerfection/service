@@ -29,6 +29,6 @@ func (log *Log) AddMetadata(spaghetti_log *spaghetti_log.RawLog) *Log {
 
 // Add the smartcontract that's associated with this event log
 func (log *Log) AddSmartcontractData(smartcontract *smartcontract.Smartcontract) *Log {
-	log.SmartcontractKey = smartcontract.Key
+	log.SmartcontractKey = smartcontract.SmartcontractKey
 	return log
 }

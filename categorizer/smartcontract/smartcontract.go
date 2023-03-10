@@ -10,16 +10,16 @@ import (
 
 // This data type is used to track categorization state per smartcontract
 type Smartcontract struct {
-	Key   smartcontract_key.Key  `json:"smartcontract_key"`
-	Block blockchain.BlockHeader `json:"block_header"`
+	SmartcontractKey smartcontract_key.Key  `json:"smartcontract_key"`
+	BlockHeader      blockchain.BlockHeader `json:"block_header"`
 }
 
 // Updates the categorized block parameter of the smartcontract.
 // It means, this smartcontract 's' data was categorized till the given block numbers.
 //
 // The first is the block number, second is the block timestamp.
-func (s *Smartcontract) SetBlockParameter(b blockchain.BlockHeader) {
-	s.Block = b
+func (s *Smartcontract) SetBlockHeader(b blockchain.BlockHeader) {
+	s.BlockHeader = b
 }
 
 // Returns a JSON representation of this smartcontract in a string format

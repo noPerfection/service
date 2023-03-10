@@ -10,6 +10,7 @@ import (
 
 // Sends the command to the remote SDS Spaghetti to get the smartcontract deploy metaData by
 // its transaction id
+// todo return transaction index
 func RemoteTransactionDeployed(socket *remote.Socket, network_id string, Txid string) (string, string, blockchain.BlockHeader, error) {
 	// Send hello.
 	request := message.Request{

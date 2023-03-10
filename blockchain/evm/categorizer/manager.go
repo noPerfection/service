@@ -155,7 +155,7 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 		sm, _ := categorizer_smartcontract.New(raw_sm)
 
 		mu.Lock()
-		abi_data, err := static_abi.Get(manager.static, sm.Key)
+		abi_data, err := static_abi.Get(manager.static, sm.SmartcontractKey)
 		mu.Unlock()
 		if err != nil {
 			manager.logger.Fatal("remote static abi get", "error", err)
@@ -163,7 +163,7 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 
 		cat_abi, err := abi.NewAbi(abi_data)
 		if err != nil {
-			manager.logger.Fatal("failed to decode", "index", i, "smartcontract", sm.Key.Address, "errr", err)
+			manager.logger.Fatal("failed to decode", "index", i, "smartcontract", sm.SmartcontractKey.Address, "errr", err)
 		}
 		manager.logger.Info("add a new worker", "number", i+1, "total", len(new_workers))
 		new_workers[i] = smartcontract.New(sm, cat_abi)
@@ -233,13 +233,13 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		// decode the logs
 		for _, raw_log := range all_logs {
 			for _, worker := range group.workers {
-				if worker.Smartcontract.Key.Address != raw_log.Transaction.SmartcontractKey.Address {
+				if worker.Smartcontract.SmartcontractKey.Address != raw_log.Transaction.SmartcontractKey.Address {
 					continue
 				}
 
 				decoded_log, err := worker.DecodeLog(raw_log)
 				if err != nil {
-					old_logger.Fatal("worker.DecodeLog", "smartcontract", worker.Smartcontract.Key.Address, "message", err)
+					old_logger.Fatal("worker.DecodeLog", "smartcontract", worker.Smartcontract.SmartcontractKey.Address, "message", err)
 				}
 
 				decoded_logs = append(decoded_logs, decoded_log)
@@ -252,11 +252,11 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			new_block := blockchain.NewHeader(uint64(block_to.Number), uint64(block_to.Timestamp))
 
 			for _, decoded_log := range decoded_logs {
-				if strings.EqualFold(decoded_log.SmartcontractKey.Address, smartcontract.Key.Address) {
+				if strings.EqualFold(decoded_log.SmartcontractKey.Address, smartcontract.SmartcontractKey.Address) {
 					new_block = decoded_log.BlockHeader
 				}
 			}
-			smartcontract.SetBlockParameter(new_block)
+			smartcontract.SetBlockHeader(new_block)
 		}
 
 		old_logger.Info("notify SDS Categorizer about update", "block_number_from", block_number_from, "block_number_to", block_number_to)
@@ -330,13 +330,13 @@ func (manager *Manager) categorize_current_smartcontracts() {
 			// decode the logs
 			for _, raw_log := range raw_block.RawLogs {
 				for _, worker := range manager.current_workers {
-					if worker.Smartcontract.Key.Address != raw_log.Transaction.SmartcontractKey.Address {
+					if worker.Smartcontract.SmartcontractKey.Address != raw_log.Transaction.SmartcontractKey.Address {
 						continue
 					}
 
 					decoded_log, err := worker.DecodeLog(raw_log)
 					if err != nil {
-						current_logger.Error("worker.DecodeLog", "smartcontract", worker.Smartcontract.Key.Address, "message", err)
+						current_logger.Error("worker.DecodeLog", "smartcontract", worker.Smartcontract.SmartcontractKey.Address, "message", err)
 						continue
 					}
 
@@ -350,11 +350,11 @@ func (manager *Manager) categorize_current_smartcontracts() {
 				new_block := raw_block.Header
 
 				for _, decoded_log := range decoded_logs {
-					if strings.EqualFold(decoded_log.SmartcontractKey.Address, smartcontract.Key.Address) {
+					if strings.EqualFold(decoded_log.SmartcontractKey.Address, smartcontract.SmartcontractKey.Address) {
 						new_block = decoded_log.BlockHeader
 					}
 				}
-				smartcontract.SetBlockParameter(new_block)
+				smartcontract.SetBlockHeader(new_block)
 			}
 
 			push := message.Request{

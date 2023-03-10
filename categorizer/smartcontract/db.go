@@ -11,9 +11,9 @@ import (
 // Set the block parameters in the database
 func SaveBlockParameters(db *db.Database, sm *Smartcontract) error {
 	_, err := db.Connection.Exec(`UPDATE categorizer_smartcontract SET block_number = ?, block_timestamp = ? WHERE network_id = ? AND address = ? `,
-		sm.Block.Number, sm.Block.Timestamp, sm.Key.NetworkId, sm.Key.Address)
+		sm.BlockHeader.Number, sm.BlockHeader.Timestamp, sm.SmartcontractKey.NetworkId, sm.SmartcontractKey.Address)
 	if err != nil {
-		return fmt.Errorf("failed to update the categorized block data in the database %s %s: %w ", sm.Key.NetworkId, sm.Key.Address, err)
+		return fmt.Errorf("failed to update the categorized block data in the database %s %s: %w ", sm.SmartcontractKey.NetworkId, sm.SmartcontractKey.Address, err)
 	}
 
 	return nil
@@ -32,9 +32,9 @@ func Exists(db *db.Database, key smartcontract_key.Key) bool {
 
 func Save(db *db.Database, b *Smartcontract) error {
 	_, err := db.Connection.Exec(`INSERT IGNORE INTO categorizer_smartcontract (network_id, address, block_number, block_timestamp) VALUES (?, ?, ?, ?) `,
-		b.Key.NetworkId, b.Key.Address, b.Block.Number, b.Block.Timestamp)
+		b.SmartcontractKey.NetworkId, b.SmartcontractKey.Address, b.BlockHeader.Number, b.BlockHeader.Timestamp)
 	if err != nil {
-		return fmt.Errorf("failed to set smartcontract in database %s %s: %w ", b.Key.NetworkId, b.Key.Address, err)
+		return fmt.Errorf("failed to set smartcontract in database %s %s: %w ", b.SmartcontractKey.NetworkId, b.SmartcontractKey.Address, err)
 	}
 	return nil
 }
@@ -49,8 +49,8 @@ func Get(db *db.Database, key smartcontract_key.Key) (*Smartcontract, error) {
 		return nil, fmt.Errorf("row.Scan from the database: %w ", err)
 	}
 	sm := Smartcontract{
-		Key:   key,
-		Block: block,
+		SmartcontractKey: key,
+		BlockHeader:      block,
 	}
 
 	return &sm, nil
@@ -68,10 +68,10 @@ func GetAll(db *db.Database) ([]*Smartcontract, error) {
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for rows.Next() {
 		sm := Smartcontract{
-			Key:   smartcontract_key.Key{},
-			Block: blockchain.BlockHeader{},
+			SmartcontractKey: smartcontract_key.Key{},
+			BlockHeader:      blockchain.BlockHeader{},
 		}
-		if err := rows.Scan(&sm.Key.NetworkId, &sm.Key.Address, &sm.Block.Number, &sm.Block.Timestamp); err != nil {
+		if err := rows.Scan(&sm.SmartcontractKey.NetworkId, &sm.SmartcontractKey.Address, &sm.BlockHeader.Number, &sm.BlockHeader.Timestamp); err != nil {
 			return smartcontracts, fmt.Errorf("row.Scan: %w", err)
 		}
 
@@ -98,11 +98,11 @@ func GetAllByNetworkId(db *db.Database, network_id string) ([]*Smartcontract, er
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for rows.Next() {
 		sm := Smartcontract{
-			Key:   smartcontract_key.Key{},
-			Block: blockchain.BlockHeader{},
+			SmartcontractKey: smartcontract_key.Key{},
+			BlockHeader:      blockchain.BlockHeader{},
 		}
 
-		if err := rows.Scan(&sm.Key.NetworkId, &sm.Key.Address, &sm.Block.Number, &sm.Block.Timestamp); err != nil {
+		if err := rows.Scan(&sm.SmartcontractKey.NetworkId, &sm.SmartcontractKey.Address, &sm.BlockHeader.Number, &sm.BlockHeader.Timestamp); err != nil {
 			return nil, fmt.Errorf("row.Scan: %w", err)
 		}
 

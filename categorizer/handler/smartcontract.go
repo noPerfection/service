@@ -68,7 +68,7 @@ func SetSmartcontract(request message.Request, logger log.Logger, parameters ...
 		return message.Fail("request parameter -> smartcontract.New: " + err.Error())
 	}
 
-	if smartcontract.Exists(db_con, sm.Key) {
+	if smartcontract.Exists(db_con, sm.SmartcontractKey) {
 		return message.Fail("the smartcontract already in SDS Categorizer")
 	}
 
@@ -77,7 +77,7 @@ func SetSmartcontract(request message.Request, logger log.Logger, parameters ...
 		return message.Fail("database: " + saveErr.Error())
 	}
 
-	pusher, err := blockchain_process.CategorizerManagerSocket(sm.Key.NetworkId)
+	pusher, err := blockchain_process.CategorizerManagerSocket(sm.SmartcontractKey.NetworkId)
 	if err != nil {
 		return message.Fail("inproc: " + err.Error())
 	}

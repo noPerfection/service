@@ -26,12 +26,12 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 	url := blockchain_process.BlockchainManagerUrl(manager.network.Id)
 	sock := remote.InprocRequestSocket(url)
 
-	addresses := []string{sm.Key.Address}
+	addresses := []string{sm.SmartcontractKey.Address}
 
 	for {
-		raw_logs, _, err := spaghetti_log.RemoteLogFilter(sock, blockchain.Number(sm.Block.Timestamp.Value())+1, addresses)
+		raw_logs, _, err := spaghetti_log.RemoteLogFilter(sock, blockchain.Number(sm.BlockHeader.Timestamp.Value())+1, addresses)
 		if err != nil {
-			fmt.Println("failed to get the remote block number for network: " + sm.Key.NetworkId + " error: " + err.Error())
+			fmt.Println("failed to get the remote block number for network: " + sm.SmartcontractKey.NetworkId + " error: " + err.Error())
 			fmt.Fprintf(os.Stderr, "Error when imx client for logs`: %v\n", err)
 			fmt.Println("trying to request again in 10 seconds...")
 			time.Sleep(10 * time.Second)
@@ -43,7 +43,7 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 		}
 
 		recent_block := spaghetti_log.RecentBlock(raw_logs)
-		sm.SetBlockParameter(recent_block)
+		sm.SetBlockHeader(recent_block)
 
 		new_logs := make([]*event.Log, len(raw_logs))
 		for i, raw_log := range raw_logs {
