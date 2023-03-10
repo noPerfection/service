@@ -11,16 +11,12 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// We set the whitelisted accounts that has access to this controller
-func add_whitelisted_access(s *service.Service, accounts account.Accounts) {
-	zmq.AuthCurveAdd(s.Name, accounts.PublicKeys()...)
-}
-
 // Add whitelisted services
 func WhitelistAccess(logger log.Logger, spaghetti_env *service.Service, accounts account.Accounts) {
 	logger.Info("get the whitelisted services")
 
-	add_whitelisted_access(spaghetti_env, accounts)
+	// We set the whitelisted accounts that has access to this controller
+	zmq.AuthCurveAdd(spaghetti_env.Name, accounts.PublicKeys()...)
 
 	logger.Info("get the whitelisted subscribers")
 }
