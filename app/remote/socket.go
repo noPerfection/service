@@ -349,28 +349,28 @@ func InprocRequestSocket(url string) *Socket {
 
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.SUB
-func TcpSubscriberOrPanic(e *service.Service, client_env *service.Service, secure bool) *Socket {
+func NewTcpSubscriber(e *service.Service, client *credentials.Credentials) (*Socket, error) {
 	socket, sockErr := zmq.NewSocket(zmq.SUB)
 	if sockErr != nil {
-		panic(sockErr)
+		return nil, fmt.Errorf("new sub socket: %w", sockErr)
 	}
 
-	if secure {
-		err := socket.ClientAuthCurve(e.BroadcastPublicKey, client_env.BroadcastPublicKey, client_env.BroadcastSecretKey)
+	if client != nil {
+		err := client.SetClientAuthCurve(socket, e.Credentials.PublicKey)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("credentials.SetClientAuthCurve: %w", err)
 		}
 	}
 
 	conErr := socket.Connect(e.BroadcastUrl())
 	if conErr != nil {
-		panic(conErr)
+		return nil, fmt.Errorf("connect to broadcast: %w", conErr)
 	}
 
 	return &Socket{
-		remote_service: e,
-		socket:         socket,
-		secure:         secure,
-		protocol:       "tcp",
-	}
+		remote_service:     e,
+		socket:             socket,
+		client_credentials: client,
+		protocol:           "tcp",
+	}, nil
 }
