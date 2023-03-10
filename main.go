@@ -32,31 +32,34 @@ func main() {
 	if err != nil {
 		logger.Fatal("db.GetParameters", "error", err)
 	}
+	database_credentials := db.GetDefaultCredentials(app_config)
 
 	logger.Info("Setting up Vault connection and authentication layer...")
 
-	app_config.SetDefaults(vault.VaultConfigurations)
-	v, err := vault.New(logger, app_config)
-	if err != nil {
-		logger.Fatal("vault error", "message", err)
-	}
+	var vault_database *vault.DatabaseVault
+	if !app_config.Plain {
+		app_config.SetDefaults(vault.VaultConfigurations)
+		v, err := vault.New(logger, app_config)
+		if err != nil {
+			logger.Fatal("vault error", "message", err)
+		}
 
-	go v.PeriodicallyRenewLeases()
-	go v.RunController()
+		go v.PeriodicallyRenewLeases()
+		go v.RunController()
 
-	// database credentials from the vault
+		// database credentials from the vault
+		app_config.SetDefaults(vault.DatabaseVaultConfigurations)
+		vault_database, _ := vault.NewDatabase(v)
+		database_credentials, err = vault_database.GetDatabaseCredentials()
+		if err != nil {
+			logger.Fatal("reading database credentials from vault: %v", err)
+		}
 
-	app_config.SetDefaults(vault.DatabaseVaultConfigurations)
-	vault_database, _ := vault.NewDatabase(v)
-	database_credentials, err := vault_database.GetDatabaseCredentials()
-	if err != nil {
-		logger.Fatal("reading database credentials from vault: %v", err)
-	}
-
-	// Setup the Security layer. Any outside services that wants to connect
-	// All incoming messages are encrypted and authenticated.
-	if err := security.New(app_config.DebugSecurity).StartAuthentication(); err != nil {
-		logger.Fatal("security: %v", err)
+		// Setup the Security layer. Any outside services that wants to connect
+		// All incoming messages are encrypted and authenticated.
+		if err := security.New(app_config.DebugSecurity).StartAuthentication(); err != nil {
+			logger.Fatal("security: %v", err)
+		}
 	}
 
 	// Set the database connection
@@ -64,7 +67,10 @@ func main() {
 	if err != nil {
 		logger.Fatal("database error", "message", err)
 	}
-	go vault_database.PeriodicallyRenewLeases(database.Reconnect)
+
+	if !app_config.Plain {
+		go vault_database.PeriodicallyRenewLeases(database.Reconnect)
+	}
 
 	defer func() {
 		_ = database.Close()
