@@ -41,6 +41,7 @@ const RUNNING = "running"
 // Categorization of the smartcontracts on the specific EVM blockchain
 type Manager struct {
 	pusher  *zmq.Socket
+	static  *remote.Socket
 	Network *network.Network
 
 	logger log.Logger
@@ -54,7 +55,7 @@ type Manager struct {
 
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
-func NewManager(logger log.Logger, network *network.Network, pusher *zmq.Socket) *Manager {
+func NewManager(logger log.Logger, network *network.Network, pusher *zmq.Socket, static *remote.Socket) *Manager {
 	categorizer_logger := app_log.Child(logger, "categorizer")
 
 	manager := Manager{
@@ -69,6 +70,7 @@ func NewManager(logger log.Logger, network *network.Network, pusher *zmq.Socket)
 
 		logger: categorizer_logger,
 		pusher: pusher,
+		static: static,
 	}
 
 	return &manager
@@ -130,12 +132,10 @@ func (manager *Manager) Start() {
 
 // Categorizer manager received new smartcontracts along with their ABI
 func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
+	var mu sync.Mutex
 	manager.logger.Info("add new smartcontracts to the manager")
 
 	raw_smartcontracts, _ := parameters.GetKeyValueList("smartcontracts")
-	raw_abis, _ := parameters["abis"].([]interface{})
-
-	new_workers := make(smartcontract.EvmWorkers, len(raw_abis))
 
 	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
 	blockchain_socket := remote.InprocRequestSocket(url)
@@ -150,13 +150,20 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 
 	manager.logger.Info("recent block determined, splitting smartcontracts to old and current")
 
-	for i, raw_abi := range raw_abis {
-		sm, _ := categorizer_smartcontract.New(raw_smartcontracts[i])
+	new_workers := make(smartcontract.EvmWorkers, len(raw_smartcontracts))
+	for i, raw_sm := range raw_smartcontracts {
+		sm, _ := categorizer_smartcontract.New(raw_sm)
 
-		abi_data, _ := static_abi.New(raw_abi.(map[string]interface{}))
+		mu.Lock()
+		abi_data, err := static_abi.Get(manager.static, sm.Key)
+		mu.Unlock()
+		if err != nil {
+			manager.logger.Fatal("remote static abi get", "error", err)
+		}
+
 		cat_abi, err := abi.NewAbi(abi_data)
 		if err != nil {
-			manager.logger.Fatal("failed to decode", "type", fmt.Sprintf("%T", raw_abi), "index", i, "smartcontract", sm.Key.Address, "errr", err)
+			manager.logger.Fatal("failed to decode", "index", i, "smartcontract", sm.Key.Address, "errr", err)
 		}
 		manager.logger.Info("add a new worker", "number", i+1, "total", len(new_workers))
 		new_workers[i] = smartcontract.New(sm, cat_abi)

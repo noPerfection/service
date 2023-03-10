@@ -6,11 +6,8 @@ import (
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/db"
-	static_abi "github.com/blocklords/sds/static/abi"
 
-	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
-	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
@@ -86,27 +83,12 @@ func SetSmartcontract(request message.Request, logger log.Logger, parameters ...
 	}
 	defer pusher.Close()
 
-	categorizer_env, _ := service.Inprocess(service.CATEGORIZER)
-	static_env, err := service.Inprocess(service.STATIC)
-	if err != nil {
-		logger.Fatal("new static service config", "message", err)
-	}
-	static_socket := remote.TcpRequestSocketOrPanic(static_env, categorizer_env)
-	defer static_socket.Close()
-
-	remote_abi, err := static_abi.Get(static_socket, sm.Key)
-	if err != nil {
-		return message.Fail("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
-	}
-
 	smartcontracts := []*smartcontract.Smartcontract{sm}
-	static_abis := []*static_abi.Abi{remote_abi}
 
 	push := message.Request{
 		Command: "new-smartcontracts",
 		Parameters: map[string]interface{}{
 			"smartcontracts": smartcontracts,
-			"abis":           static_abis,
 		},
 	}
 	request_string, _ := push.ToString()

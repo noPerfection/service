@@ -11,7 +11,6 @@ import (
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/categorizer/handler"
 	"github.com/blocklords/sds/categorizer/smartcontract"
-	static_abi "github.com/blocklords/sds/static/abi"
 
 	"github.com/blocklords/sds/app/configuration"
 
@@ -43,28 +42,12 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 
 	logger.Info("all smartcontracts returned", "network_id", network.Id, "smartcontract amount", len(smartcontracts))
 
-	static_abis := make([]*static_abi.Abi, len(smartcontracts))
-
-	for i, smartcontract := range smartcontracts {
-		logger.Info("get abi from static", "network_id", smartcontract.Key.NetworkId, "address", smartcontract.Key.Address)
-
-		mu.Lock()
-		remote_abi, err := static_abi.Get(static_socket, smartcontract.Key)
-		mu.Unlock()
-		if err != nil {
-			return fmt.Errorf("failed to set the ABI from SDS Static. This is an exception. It should not happen. error: " + err.Error())
-		}
-
-		static_abis[i] = remote_abi
-	}
-
 	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id, "url", blockchain_proc.CategorizerManagerUrl(network.Id))
 
 	request := message.Request{
 		Command: "new-smartcontracts",
 		Parameters: map[string]interface{}{
 			"smartcontracts": smartcontracts,
-			"abis":           static_abis,
 		},
 	}
 	request_string, _ := request.ToString()

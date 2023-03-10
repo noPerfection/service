@@ -139,6 +139,13 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 		logger.Fatal("create a pusher to SDS Categorizer", "message", err)
 	}
 
+	categorizer_env, _ := service.Inprocess(service.SPAGHETTI)
+	static_env, err := service.Inprocess(service.STATIC)
+	if err != nil {
+		logger.Fatal("new static service config", "message", err)
+	}
+	static_socket := remote.TcpRequestSocketOrPanic(static_env, categorizer_env)
+
 	for _, new_network := range networks {
 		worker_logger := app_log.Child(logger, new_network.Type.String()+"_network_id_"+new_network.Id)
 		worker_logger.SetReportCaller(false)
@@ -152,7 +159,7 @@ func start_clients(logger log.Logger, app_config *configuration.Config) error {
 
 			// Categorizer of the smartcontracts
 			// This categorizers are interacting with the SDS Categorizer
-			categorizer := evm_categorizer.NewManager(worker_logger, new_network, pusher)
+			categorizer := evm_categorizer.NewManager(worker_logger, new_network, pusher, static_socket)
 			go categorizer.Start()
 		} else if new_network.Type == network.IMX {
 			imx_network_found = true
