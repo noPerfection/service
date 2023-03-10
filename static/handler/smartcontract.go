@@ -85,7 +85,7 @@ func SmartcontractKeyFilter(request message.Request, logger log.Logger, paramete
 
 	blob := make(map[string]string, len(smartcontracts))
 	for i, s := range smartcontracts {
-		blob[s.Key.ToString()] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
+		blob[s.SmartcontractKey.ToString()] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
 	}
 
 	reply := message.Reply{
@@ -116,7 +116,7 @@ func SmartcontractRegister(request message.Request, logger log.Logger, parameter
 		Parameters: sm_kv,
 	}
 
-	if smartcontract.ExistInDatabase(db_con, sm.Key) {
+	if smartcontract.ExistInDatabase(db_con, sm.SmartcontractKey) {
 		return reply
 	}
 

@@ -6,9 +6,9 @@ import (
 )
 
 type Smartcontract struct {
-	Key            smartcontract_key.Key     `json:"key"`
-	AbiId          string                    `json:"abi_id"`
-	TransactionKey blockchain.TransactionKey `json:"transaction_key"`
-	BlockHeader    blockchain.BlockHeader    `json:"block_header"`
-	Deployer       string                    `json:"deployer"`
+	SmartcontractKey smartcontract_key.Key     `json:"key"`
+	AbiId            string                    `json:"abi_id"`
+	TransactionKey   blockchain.TransactionKey `json:"transaction_key"`
+	BlockHeader      blockchain.BlockHeader    `json:"block_header"`
+	Deployer         string                    `json:"deployer"`
 }

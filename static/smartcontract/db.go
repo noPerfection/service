@@ -35,8 +35,8 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 				deployer
 			) 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?) `,
-		a.Key.NetworkId,
-		a.Key.Address,
+		a.SmartcontractKey.NetworkId,
+		a.SmartcontractKey.Address,
 		a.AbiId,
 		a.TransactionKey.Id,
 		a.TransactionKey.Index,
@@ -45,7 +45,7 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 		a.Deployer,
 	)
 	if err != nil {
-		fmt.Println("Failed to insert static smartcontract at network id as address", a.Key.NetworkId, a.Key.Address)
+		fmt.Println("Failed to insert static smartcontract at network id as address", a.SmartcontractKey.NetworkId, a.SmartcontractKey.Address)
 		return err
 	}
 	return nil
@@ -56,9 +56,9 @@ func GetFromDatabase(db *db.Database, key smartcontract_key.Key) (*Smartcontract
 	query := `SELECT abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract WHERE network_id = ? AND address = ?`
 
 	var s Smartcontract = Smartcontract{
-		Key:            key,
-		TransactionKey: blockchain.TransactionKey{},
-		BlockHeader:    blockchain.BlockHeader{},
+		SmartcontractKey: key,
+		TransactionKey:   blockchain.TransactionKey{},
+		BlockHeader:      blockchain.BlockHeader{},
 	}
 
 	row := db.Connection.QueryRow(query, key.NetworkId, key.Address)
@@ -94,17 +94,17 @@ func GetFromDatabaseFilterBy(con *db.Database, filter_query string, filter_param
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for rows.Next() {
 		var s Smartcontract = Smartcontract{
-			Key:            smartcontract_key.Key{},
-			TransactionKey: blockchain.TransactionKey{},
-			BlockHeader:    blockchain.BlockHeader{},
+			SmartcontractKey: smartcontract_key.Key{},
+			TransactionKey:   blockchain.TransactionKey{},
+			BlockHeader:      blockchain.BlockHeader{},
 		}
 
 		var t topic.Topic
-		if err := rows.Scan(&s.Key.NetworkId, &s.Key.Address, &s.AbiId, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.BlockHeader.Number, &s.BlockHeader.Timestamp, &s.Deployer,
+		if err := rows.Scan(&s.SmartcontractKey.NetworkId, &s.SmartcontractKey.Address, &s.AbiId, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.BlockHeader.Number, &s.BlockHeader.Timestamp, &s.Deployer,
 			&t.Organization, &t.Project, &t.Group, &t.Smartcontract); err != nil {
 			return nil, nil, err
 		}
-		t.NetworkId = s.Key.NetworkId
+		t.NetworkId = s.SmartcontractKey.NetworkId
 		smartcontracts = append(smartcontracts, &s)
 		topics = append(topics, &t)
 	}
