@@ -110,7 +110,7 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 			}
 
 			key := key.New(imx.NETWORK_ID, address)
-			block := blockchain.New(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
+			block := blockchain.NewBlock(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
 			tx_key := blockchain.TransactionKey{
 				Id:    strconv.Itoa(int(imxTx.TransactionId)),
 				Index: uint(i),
@@ -217,7 +217,7 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 			}
 
 			key := key.New(imx.NETWORK_ID, address)
-			block := blockchain.New(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
+			block := blockchain.NewBlock(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
 			tx_key := blockchain.TransactionKey{
 				Id:    strconv.Itoa(int(imxTx.TransactionId)),
 				Index: uint(i),

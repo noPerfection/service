@@ -215,7 +215,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			continue
 		}
 
-		block_to := blockchain.New(0, 0)
+		block_to := blockchain.NewBlock(0, 0)
 		if len(all_logs) > 0 {
 			block_to = spaghetti_log.RecentBlock(all_logs)
 		}
@@ -242,7 +242,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		// update the categorization state for the smartcontract
 		smartcontracts := group.workers.GetSmartcontracts()
 		for _, smartcontract := range smartcontracts {
-			new_block := blockchain.New(uint64(block_to.Number), uint64(block_to.Timestamp))
+			new_block := blockchain.NewBlock(uint64(block_to.Number), uint64(block_to.Timestamp))
 
 			for _, decoded_log := range decoded_logs {
 				if strings.EqualFold(decoded_log.Address, smartcontract.Address) {

@@ -28,7 +28,7 @@ func New(network_id string, block_number uint64, transaction_index uint, tx *eth
 	}
 
 	key := key.New(network_id, to)
-	block := blockchain.New(block_number, 0)
+	block := blockchain.NewBlock(block_number, 0)
 	tx_key := blockchain.TransactionKey{
 		Id:    tx.Hash().String(),
 		Index: transaction_index,

@@ -19,7 +19,7 @@ func NewSpaghettiLog(network_id string, block_timestamp blockchain.Timestamp, ra
 	}
 
 	key := key.New(network_id, raw_log.Address.Hex())
-	block := blockchain.New(raw_log.BlockNumber, uint64(block_timestamp))
+	block := blockchain.NewBlock(raw_log.BlockNumber, uint64(block_timestamp))
 	tx_key := blockchain.TransactionKey{
 		Id:    raw_log.TxHash.Hex(),
 		Index: raw_log.TxIndex,

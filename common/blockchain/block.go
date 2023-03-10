@@ -57,7 +57,7 @@ func NewTimestampFromKeyValueParameter(parameters key_value.KeyValue) (Timestamp
 	return Timestamp(block_timestamp), nil
 }
 
-func New(number uint64, timestmap uint64) Block {
+func NewBlock(number uint64, timestmap uint64) Block {
 	return Block{
 		Number:    Number(number),
 		Timestamp: Timestamp(timestmap),
