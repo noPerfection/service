@@ -40,3 +40,15 @@ func New(public_key string) *Credentials {
 		private_key: "",
 	}
 }
+
+// Sets the private key to the socket on a given domain
+func (c *Credentials) SetSocketAuthCurve(socket *zmq.Socket, domain string) error {
+	if len(c.private_key) == 0 {
+		return fmt.Errorf("no private key")
+	}
+	err := socket.ServerAuthCurve(domain, c.private_key)
+	if err != nil {
+		return fmt.Errorf("socket.ServerAuthCurve: %w", err)
+	}
+	return nil
+}
