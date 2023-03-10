@@ -66,7 +66,7 @@ func Inprocess(service_type ServiceType) (*Service, error) {
 }
 
 // Creates the service with the parameters but without any information
-func NewExternal(service_type ServiceType, limits ...Limit) (*Service, error) {
+func NewExternal(service_type ServiceType, limit Limit) (*Service, error) {
 	default_configuration := DefaultConfiguration(service_type)
 	app_config := configuration.NewService(default_configuration)
 
@@ -85,17 +85,15 @@ func NewExternal(service_type ServiceType, limits ...Limit) (*Service, error) {
 		BroadcastSecretKey: "",
 	}
 
-	for _, limit := range limits {
-		switch limit {
-		case REMOTE:
-			s.url = fmt.Sprintf("tcp://%s:%s", app_config.GetString(host_env), app_config.GetString(port_env))
-		case THIS:
-			s.url = fmt.Sprintf("tcp://*:%s", app_config.GetString(port_env))
-		case SUBSCRIBE:
-			s.broadcast_url = fmt.Sprintf("tcp://%s:%s", app_config.GetString(broadcast_host_env), app_config.GetString(broadcast_port_env))
-		case BROADCAST:
-			s.broadcast_url = fmt.Sprintf("tcp://*:%s", app_config.GetString(broadcast_port_env))
-		}
+	switch limit {
+	case REMOTE:
+		s.url = fmt.Sprintf("tcp://%s:%s", app_config.GetString(host_env), app_config.GetString(port_env))
+	case THIS:
+		s.url = fmt.Sprintf("tcp://*:%s", app_config.GetString(port_env))
+	case SUBSCRIBE:
+		s.broadcast_url = fmt.Sprintf("tcp://%s:%s", app_config.GetString(broadcast_host_env), app_config.GetString(broadcast_port_env))
+	case BROADCAST:
+		s.broadcast_url = fmt.Sprintf("tcp://*:%s", app_config.GetString(broadcast_port_env))
 	}
 
 	return &s, nil
@@ -103,7 +101,7 @@ func NewExternal(service_type ServiceType, limits ...Limit) (*Service, error) {
 
 // Creates the service with the parameters that includes
 // private and private key
-func NewSecure(service_type ServiceType, limits ...Limit) (*Service, error) {
+func NewSecure(service_type ServiceType, limit Limit) (*Service, error) {
 	default_configuration := DefaultConfiguration(service_type)
 	app_config := configuration.NewService(default_configuration)
 
@@ -111,13 +109,11 @@ func NewSecure(service_type ServiceType, limits ...Limit) (*Service, error) {
 	public_key := name + "_PUBLIC_KEY"
 	broadcast_public_key := name + "_BROADCAST_PUBLIC_KEY"
 
-	s, err := NewExternal(service_type, limits...)
+	s, err := NewExternal(service_type, limit)
 	if err != nil {
 		return nil, fmt.Errorf("service.New: %w", err)
 	}
 
-	for _, limit := range limits {
-		switch limit {
 		case REMOTE:
 			if !app_config.Exist(public_key) {
 				return nil, fmt.Errorf("security enabled, but missing %s", s.Name)
@@ -150,8 +146,8 @@ func NewSecure(service_type ServiceType, limits ...Limit) (*Service, error) {
 			if err := s.set_broadcast_curve_key(SecretKey); err != nil {
 				return nil, fmt.Errorf("socket.set_broadcast_curve_key %s: %w", s.Name, err)
 			}
+	switch limit {
 		}
-	}
 
 	return s, nil
 }
