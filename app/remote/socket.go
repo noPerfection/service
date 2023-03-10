@@ -17,6 +17,7 @@ import (
 	"github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/security/credentials"
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -25,13 +26,13 @@ import (
 type Socket struct {
 	// The name of remote SDS service and its URL
 	// its used as a clarification
-	remote_service *service.Service
-	thisService    *service.Service
-	poller         *zmq.Poller
-	socket         *zmq.Socket
-	protocol       string
-	inproc_url     string
-	secure         bool
+	remote_service     *service.Service
+	client_credentials *credentials.Credentials
+	poller             *zmq.Poller
+	socket             *zmq.Socket
+	protocol           string
+	inproc_url         string
+	secure             bool
 }
 
 type SDS_Message interface {
@@ -321,17 +322,23 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.REQ
-func NewTcpSocket(remote_service *service.Service, client *service.Service, secure bool) (*Socket, error) {
+func NewTcpSocket(remote_service *service.Service, client *credentials.Credentials) (*Socket, error) {
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
+
+	secure := false
+	if client != nil {
+		secure = true
+	}
+
 	new_socket := Socket{
-		remote_service: remote_service,
-		thisService:    client,
-		socket:         sock,
-		protocol:       "tcp",
-		secure:         secure,
+		remote_service:     remote_service,
+		client_credentials: client,
+		socket:             sock,
+		protocol:           "tcp",
+		secure:             secure,
 	}
 	err = new_socket.reconnect()
 	if err != nil {
