@@ -13,11 +13,10 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/blocklords/sds/app/argument"
-	"github.com/blocklords/sds/app/env"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	zmq "github.com/pebbe/zmq4"
@@ -42,12 +41,6 @@ type SDS_Message interface {
 	CommandName() string
 	ToString() (string, error)
 }
-
-// Request-Reply checks the internet connection after this amount of time.
-// This is the default time if argument wasn't given that changes the REQUEST_TIMEOUT
-const (
-	REQUEST_TIMEOUT = 30 * time.Second //  msecs, (> 1000!)
-)
 
 // Initiates the socket with a timeout.
 // If the socket is already given, then reconnect() closes it.
@@ -211,24 +204,11 @@ func (socket *Socket) RemoteEnv() *service.Service {
 	return socket.remoteService
 }
 
-// Request timeout
-func RequestTimeout() time.Duration {
-	request_timeout := REQUEST_TIMEOUT
-	if env.Exists("SDS_REQUEST_TIMEOUT") {
-		env_timeout := env.GetNumeric("SDS_REQUEST_TIMEOUT")
-		if env_timeout != 0 {
-			request_timeout = time.Duration(env_timeout) * time.Second
-		}
-	}
-
-	return request_timeout
-}
-
 // Send a command to the remote SDS service.
 // Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
 // In case of successful request, the function returns reply parameters.
 func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
-	request_timeout := RequestTimeout()
+	request_timeout := parameter.RequestTimeout()
 
 	request_string, err := request.ToString()
 	if err != nil {
@@ -302,7 +282,7 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 
 	command_name := request.CommandName()
 
-	request_timeout := RequestTimeout()
+	request_timeout := parameter.RequestTimeout()
 
 	request_string, err := request.ToString()
 	if err != nil {

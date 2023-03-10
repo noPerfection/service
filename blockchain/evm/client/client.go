@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/blockchain/evm/transaction"
 	"github.com/blocklords/sds/blockchain/network/provider"
 	spaghetti_transaction "github.com/blocklords/sds/blockchain/transaction"
@@ -42,7 +42,7 @@ type Client struct {
 // Get Request timeout based on the configuration.
 // The minimum timeout is 1 second.
 func get_timeout() time.Duration {
-	request_timeout := remote.RequestTimeout()
+	request_timeout := parameter.RequestTimeout()
 
 	if request_timeout/2 <= time.Second {
 		return time.Second
