@@ -17,7 +17,6 @@ func SetInDatabase(db *db.Database, conf *Configuration) error {
 		return err
 	}
 
-	conf.SetId()
 	return nil
 
 }
@@ -35,7 +34,6 @@ func LoadDatabaseParts(db *db.Database, conf *Configuration) error {
 		return err
 	}
 
-	conf.SetId()
 	conf.SetAddress(address)
 
 	return nil
