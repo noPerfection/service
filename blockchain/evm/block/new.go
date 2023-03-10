@@ -2,13 +2,13 @@ package block
 
 import (
 	"github.com/blocklords/sds/blockchain/event"
+	"github.com/blocklords/sds/common/blockchain"
 )
 
-func NewBlock(network_id string, block_number uint64, block_timestamp uint64, logs []*event.Log) *Block {
+func NewBlock(network_id string, parameters blockchain.Block, logs []*event.RawLog) *Block {
 	return &Block{
-		NetworkId:      network_id,
-		BlockNumber:    block_number,
-		BlockTimestamp: block_timestamp,
-		Logs:           logs,
+		NetworkId:  network_id,
+		Parameters: parameters,
+		RawLogs:    logs,
 	}
 }

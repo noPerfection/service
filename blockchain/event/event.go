@@ -6,24 +6,21 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/blocklords/sds/blockchain/transaction"
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // Blockchain agnostic Event Log for smartcontract
-type Log struct {
-	NetworkId        string   `json:"network_id"`
-	TransactionId    string   `json:"transaction_id"`    // txId column
-	TransactionIndex uint     `json:"transaction_index"` // transaction index column
-	BlockNumber      uint64   `json:"block_number"`      // block
-	BlockTimestamp   uint64   `json:"block_timestamp"`   // block
-	LogIndex         uint     `json:"log_index"`         // index
-	Data             string   `json:"data"`              // datatext data type
-	Topics           []string `json:"topics,omitempty"`  // topics
-	Address          string   `json:"address"`           // address
+type RawLog struct {
+	Transaction transaction.RawTransaction `json:"transaction"`
+	LogIndex    uint                       `json:"log_index"`            // index
+	Data        string                     `json:"log_data"`             // datatext data type
+	Topics      []string                   `json:"log_topics,omitempty"` // topics
 }
 
 // JSON string representation of the spaghetti.Log
-func (l *Log) ToString() (string, error) {
+func (l *RawLog) ToString() (string, error) {
 	kv, err := key_value.NewFromInterface(l)
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize spaghetti log to intermediate key-value %v: %v", l, err)
@@ -38,7 +35,7 @@ func (l *Log) ToString() (string, error) {
 }
 
 // Serielizes the Log.Topics into the byte array
-func (b *Log) TopicRaw() []byte {
+func (b *RawLog) TopicRaw() []byte {
 	byt, err := json.Marshal(b.Topics)
 	if err != nil {
 		return []byte{}
@@ -48,7 +45,7 @@ func (b *Log) TopicRaw() []byte {
 }
 
 // Converts the byte series into the topic list
-func (b *Log) ParseTopics(raw []byte) error {
+func (b *RawLog) ParseTopics(raw []byte) error {
 	var topics []string
 	err := json.Unmarshal(raw, &topics)
 	if err != nil {
@@ -60,11 +57,11 @@ func (b *Log) ParseTopics(raw []byte) error {
 }
 
 // Get the slice of logs filtered by the smartcontract address
-func FilterByAddress(all_logs []*Log, address string) []*Log {
-	logs := make([]*Log, 0)
+func FilterByAddress(all_logs []*RawLog, address string) []*RawLog {
+	logs := make([]*RawLog, 0)
 
 	for _, log := range all_logs {
-		if strings.EqualFold(address, log.Address) {
+		if strings.EqualFold(address, log.Transaction.Key.Address) {
 			logs = append(logs, log)
 		}
 	}
@@ -74,16 +71,14 @@ func FilterByAddress(all_logs []*Log, address string) []*Log {
 
 // Get the most recent block parameters
 // returns block_number and block_timestamp
-func RecentBlock(all_logs []*Log) (uint64, uint64) {
-	block_number := uint64(0)
-	block_timestamp := uint64(0)
+func RecentBlock(all_logs []*RawLog) blockchain.Block {
+	block := blockchain.New(0, 0)
 
 	for _, log := range all_logs {
-		if log.BlockNumber > block_number {
-			block_number = log.BlockNumber
-			block_timestamp = log.BlockTimestamp
+		if log.Transaction.Block.Number > block.Number {
+			block = log.Transaction.Block
 		}
 	}
 
-	return block_number, block_timestamp
+	return block
 }

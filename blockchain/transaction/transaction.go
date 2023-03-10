@@ -4,23 +4,22 @@ package transaction
 import (
 	"fmt"
 
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/static/smartcontract/key"
 )
 
-type Transaction struct {
-	NetworkId      string  `json:"network_id"`
-	BlockNumber    uint64  `json:"block_number"`
-	BlockTimestamp uint64  `json:"block_timestamp"`
-	Txid           string  `json:"txid"`     // txId column
-	TxFrom         string  `json:"tx_from"`  // txFrom column
-	TxTo           string  `json:"tx_to"`    // txTo column
-	TxIndex        uint    `json:"tx_index"` // txIndex column
-	Data           string  `json:"tx_data"`  // data columntext Data type
-	Value          float64 `json:"tx_value"` // valueValue attached with transaction
+type RawTransaction struct {
+	Key            key.Key                   `json:"key"`
+	Block          blockchain.Block          `json:"block"`
+	TransactionKey blockchain.TransactionKey `json:"transaction_key"`
+	From           string                    `json:"transaction_from"`            // txFrom column
+	Data           string                    `json:"transaction_data,omitempty"`  // data columntext Data type
+	Value          float64                   `json:"transaction_value,omitempty"` // valueValue attached with transaction
 }
 
 // JSON string representation of the spaghetti.Transaction
-func (t *Transaction) ToString() (string, error) {
+func (t *RawTransaction) ToString() (string, error) {
 	kv, err := key_value.NewFromInterface(t)
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize spaghetti transaction to intermediate key-value %v: %v", t, err)

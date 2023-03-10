@@ -48,20 +48,13 @@ func (kvm *KVM) TopicFilter() *topic.TopicFilter { return kvm.topicFilter }
 
 // Block Timestamp of the smartcontract on the client side.
 func (kvm *KVM) KeyBlockTimestamp(key key.Key) []byte {
-	topicString := kvm.topicFilter.ToString()
-	keyString := string(key)
-
-	return []byte(fmt.Sprintf("%s_%s_subcriber_block_timestamp", topicString, keyString))
+	return nil
 }
 
 // Topic string of the smartcontract on the client side.
 func (kvm *KVM) KeyTopicString(key key.Key) []byte {
-	topicString := kvm.topicFilter.ToString()
-	keyString := string(key)
-
-	return []byte(fmt.Sprintf("%s_%s_subcriber_topic_string", topicString, keyString))
+	return nil
 }
-
 func (kvm *KVM) DeleteBlockTimestamp(key key.Key) error {
 	dbKey := kvm.KeyBlockTimestamp(key)
 

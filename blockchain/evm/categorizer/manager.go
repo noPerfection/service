@@ -22,6 +22,7 @@ import (
 	"github.com/blocklords/sds/blockchain/evm/categorizer/smartcontract"
 	categorizer_event "github.com/blocklords/sds/categorizer/event"
 	categorizer_smartcontract "github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	static_abi "github.com/blocklords/sds/static/abi"
@@ -202,7 +203,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 	old_logger.Info("starting categorization of old smartcontracts.", "blockchain client manager", url)
 
 	for {
-		block_number_from := group.block_number + uint64(1)
+		block_number_from := group.block_number.Increment()
 		addresses := group.workers.GetSmartcontractAddresses()
 
 		old_logger.Info("fetch from blockchain client manager logs", "block_number", block_number_from, "addresses", addresses)
@@ -214,18 +215,18 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			continue
 		}
 
-		block_timestamp_to := uint64(0)
+		block_to := blockchain.New(0, 0)
 		if len(all_logs) > 0 {
-			block_number_to, block_timestamp_to = spaghetti_log.RecentBlock(all_logs)
+			block_to = spaghetti_log.RecentBlock(all_logs)
 		}
-		old_logger.Info("fetched from blockchain client manager", "logs amount", len(all_logs), "smartcontract address", addresses, "block_number_to", block_number_to)
+		old_logger.Info("fetched from blockchain client manager", "logs amount", len(all_logs), "smartcontract address", addresses, "block_to", block_to)
 
 		decoded_logs := make([]*categorizer_event.Log, 0)
 
 		// decode the logs
 		for _, raw_log := range all_logs {
 			for _, worker := range group.workers {
-				if worker.Smartcontract.Address != raw_log.Address {
+				if worker.Smartcontract.Address != raw_log.Transaction.Key.Address {
 					continue
 				}
 
@@ -241,16 +242,15 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		// update the categorization state for the smartcontract
 		smartcontracts := group.workers.GetSmartcontracts()
 		for _, smartcontract := range smartcontracts {
-			new_block_number := block_number_to
-			new_block_timestamp := block_timestamp_to
+			new_block := blockchain.New(uint64(block_to.Number), uint64(block_to.Timestamp))
 
 			for _, decoded_log := range decoded_logs {
 				if strings.EqualFold(decoded_log.Address, smartcontract.Address) {
-					new_block_number = decoded_log.BlockNumber
-					new_block_timestamp = decoded_log.BlockTimestamp
+					new_block.Number = decoded_log.BlockNumber
+					new_block.Timestamp = decoded_log.BlockTimestamp
 				}
 			}
-			smartcontract.SetBlockParameter(new_block_number, new_block_timestamp)
+			smartcontract.SetBlockParameter(new_block)
 		}
 
 		old_logger.Info("notify SDS Categorizer about update", "block_number_from", block_number_from, "block_number_to", block_number_to)
@@ -275,12 +275,12 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		}
 
 		if !manager.subscribed_blocks.IsEmpty() {
-			recent_block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).BlockNumber
-			left := recent_block_number - block_number_to
+			recent_block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).Parameters.Number
+			left := recent_block_number.Value() - block_number_to
 			old_logger.Info("categorized certain blocks", "block_number_left", left, "block_number_to", block_number_to, "subscribed", recent_block_number)
-			group.block_number = block_number_to
+			group.block_number = block_to.Number
 
-			if block_number_to >= recent_block_number {
+			if block_number_to >= recent_block_number.Value() {
 				old_logger.Info("catched the current blocks")
 				manager.add_current_workers(group.workers)
 				break
@@ -317,14 +317,14 @@ func (manager *Manager) categorize_current_smartcontracts() {
 
 		// consume each block by workers
 		for {
-			block := manager.subscribed_blocks.Pop().(*spaghetti_block.Block)
+			raw_block := manager.subscribed_blocks.Pop().(*spaghetti_block.Block)
 
 			decoded_logs := make([]*categorizer_event.Log, 0)
 
 			// decode the logs
-			for _, raw_log := range block.Logs {
+			for _, raw_log := range raw_block.RawLogs {
 				for _, worker := range manager.current_workers {
-					if worker.Smartcontract.Address != raw_log.Address {
+					if worker.Smartcontract.Address != raw_log.Transaction.Key.Address {
 						continue
 					}
 
@@ -341,16 +341,15 @@ func (manager *Manager) categorize_current_smartcontracts() {
 			// update the categorization state for the smartcontract
 			smartcontracts := manager.current_workers.GetSmartcontracts()
 			for _, smartcontract := range smartcontracts {
-				new_block_number := block.BlockNumber
-				new_block_timestamp := block.BlockTimestamp
+				new_block := raw_block.Parameters
 
 				for _, decoded_log := range decoded_logs {
 					if strings.EqualFold(decoded_log.Address, smartcontract.Address) {
-						new_block_number = decoded_log.BlockNumber
-						new_block_timestamp = decoded_log.BlockTimestamp
+						new_block.Number = decoded_log.BlockNumber
+						new_block.Timestamp = decoded_log.BlockTimestamp
 					}
 				}
-				smartcontract.SetBlockParameter(new_block_number, new_block_timestamp)
+				smartcontract.SetBlockParameter(new_block)
 			}
 
 			push := message.Request{
@@ -379,7 +378,7 @@ func (manager *Manager) categorize_current_smartcontracts() {
 	}
 }
 
-func recent_block_number(socket *remote.Socket) (uint64, error) {
+func recent_block_number(socket *remote.Socket) (blockchain.Number, error) {
 	request := message.Request{
 		Command:    "recent-block-number",
 		Parameters: key_value.Empty(),
@@ -390,7 +389,7 @@ func recent_block_number(socket *remote.Socket) (uint64, error) {
 		return 0, fmt.Errorf("RemoteRequest: %w", err)
 	}
 
-	block_number, _ := recent_reply.GetUint64("block_number")
+	block_number, _ := blockchain.NewNumberFromKeyValueParameter(recent_reply)
 	return block_number, nil
 }
 
@@ -428,19 +427,19 @@ func (manager *Manager) queue_recent_blocks() {
 			continue
 		}
 
-		block_number_to, block_timestamp_to := spaghetti_log.RecentBlock(logs)
+		block_to := spaghetti_log.RecentBlock(logs)
 
 		// we already accumulated the logs
-		if block_number_to == block_number {
+		if block_to.Number == block_number {
 			sub_logger.Warn("reached out to the most recent logs", "block_number", block_number)
 			continue
 		}
 
-		new_block := spaghetti_block.NewBlock(manager.Network.Id, block_number_to, block_timestamp_to, logs)
+		new_block := spaghetti_block.NewBlock(manager.Network.Id, block_to, logs)
 
-		sub_logger.Info("add a block to consume", "block_number", block_number_to, "event log amount", len(logs))
+		sub_logger.Info("add a block to consume", "block_number", block_to, "event log amount", len(logs))
 		manager.subscribed_blocks.Push(new_block)
 
-		block_number = block_number_to + 1
+		block_number = block_to.Number.Increment()
 	}
 }

@@ -138,7 +138,7 @@ func (c *Client) GetRecentBlockNumber() (uint64, error) {
 //
 // Spaghetti Transaction requires network_id, but client doesn't have it.
 // TODO: add network id from the caller
-func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.Transaction, error) {
+func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.RawTransaction, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, get_timeout())
 	defer cancel()
 
@@ -169,8 +169,8 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.T
 	if parse_err != nil {
 		return nil, fmt.Errorf("transaction.New: %w", parse_err)
 	}
-	if tx.TxTo == "" {
-		tx.TxTo = receipt.ContractAddress.Hex()
+	if tx.Key.Address == "" {
+		tx.Key.Address = receipt.ContractAddress.Hex()
 	}
 
 	return tx, nil

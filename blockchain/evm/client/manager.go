@@ -15,6 +15,7 @@ import (
 
 	"github.com/blocklords/sds/app/remote/message"
 
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 
@@ -179,7 +180,7 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 		return message.Fail("multiple attempts were made : " + err.Error())
 	}
 
-	block_timestamp, err := worker.get_block_timestamp(block_number_from)
+	block_timestamp, err := worker.get_block_timestamp(blockchain.NewNumber(block_number_from))
 	if err != nil {
 		return message.Fail("failed to get block timestamp from blockchain: " + err.Error())
 	}
@@ -198,7 +199,7 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 	return reply
 }
 
-func (worker *Manager) get_block_timestamp(block_number uint64) (uint64, error) {
+func (worker *Manager) get_block_timestamp(block_number blockchain.Number) (blockchain.Timestamp, error) {
 	clients := worker.stable_clients()
 	if len(clients) == 0 {
 		return 0, fmt.Errorf("no stable clients found")
@@ -211,7 +212,7 @@ func (worker *Manager) get_block_timestamp(block_number uint64) (uint64, error) 
 
 		attempt := ATTEMPT_AMOUNT
 		for {
-			fetched_block_timestamp, err = client.GetBlockTimestamp(block_number)
+			fetched_block_timestamp, err = client.GetBlockTimestamp(block_number.Value())
 			if err == nil {
 				break
 			}
@@ -238,7 +239,7 @@ func (worker *Manager) get_block_timestamp(block_number uint64) (uint64, error) 
 		return 0, fmt.Errorf("multiple attempts were made")
 	}
 
-	return block_timestamp, nil
+	return blockchain.NewTimestamp(block_timestamp), nil
 }
 
 // Handle the deployed-transaction command
@@ -246,7 +247,7 @@ func (worker *Manager) get_block_timestamp(block_number uint64) (uint64, error) 
 func (worker *Manager) get_transaction(parameters key_value.KeyValue) message.Reply {
 	transaction_id, _ := parameters.GetString("transaction_id")
 
-	var tx *transaction.Transaction = nil
+	var tx *transaction.RawTransaction = nil
 	var err error
 	clients := worker.stable_clients()
 	if len(clients) == 0 {
@@ -254,7 +255,7 @@ func (worker *Manager) get_transaction(parameters key_value.KeyValue) message.Re
 	}
 	attempt_failed := 0
 	for _, client := range clients {
-		var fetched_tx *transaction.Transaction
+		var fetched_tx *transaction.RawTransaction
 
 		attempt := ATTEMPT_AMOUNT
 		for {
@@ -338,18 +339,20 @@ func (worker *Manager) get_recent_block() message.Reply {
 		return message.Fail("block number=confirmations")
 	}
 
-	block_timestamp, err := worker.get_block_timestamp(block_number)
+	recent_block := blockchain.New(0, 0)
+	recent_block.Number = blockchain.NewNumber(block_number)
+
+	block_timestamp, err := worker.get_block_timestamp(recent_block.Number)
 	if err != nil {
 		return message.Fail("failed to get block timestamp from blockchain: " + err.Error())
 	}
+	recent_block.Timestamp = blockchain.Timestamp(block_timestamp)
+	recent_block_kv, _ := key_value.NewFromInterface(recent_block)
 
 	reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"block_number":    block_number,
-			"block_timestamp": block_timestamp,
-		}),
+		Status:     "OK",
+		Message:    "",
+		Parameters: recent_block_kv,
 	}
 
 	return reply

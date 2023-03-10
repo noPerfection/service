@@ -16,6 +16,7 @@ import (
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
@@ -28,7 +29,7 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 	addresses := []string{sm.Address}
 
 	for {
-		raw_logs, _, err := spaghetti_log.RemoteLogFilter(sock, sm.BlockTimestamp+1, addresses)
+		raw_logs, _, err := spaghetti_log.RemoteLogFilter(sock, blockchain.Number(sm.BlockTimestamp.Value())+1, addresses)
 		if err != nil {
 			fmt.Println("failed to get the remote block number for network: " + sm.NetworkId + " error: " + err.Error())
 			fmt.Fprintf(os.Stderr, "Error when imx client for logs`: %v\n", err)
@@ -41,8 +42,8 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 			continue
 		}
 
-		block_number, block_timestamp := spaghetti_log.RecentBlock(raw_logs)
-		sm.SetBlockParameter(block_number, block_timestamp)
+		recent_block := spaghetti_log.RecentBlock(raw_logs)
+		sm.SetBlockParameter(recent_block)
 
 		new_logs := make([]*event.Log, len(raw_logs))
 		for i, raw_log := range raw_logs {

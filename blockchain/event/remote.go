@@ -6,12 +6,13 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/common/blockchain"
 )
 
 // Sends the command to the remote SDS Spaghetti to filter the logs
 // block_from parameter is either block_number or block_timestamp
 // depending on the blockchain
-func RemoteLogFilter(socket *remote.Socket, block_from uint64, addresses []string) ([]*Log, uint64, error) {
+func RemoteLogFilter(socket *remote.Socket, block_from blockchain.Number, addresses []string) ([]*RawLog, uint64, error) {
 	request := message.Request{
 		Command: "log-filter",
 		Parameters: map[string]interface{}{

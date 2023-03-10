@@ -1,18 +1,21 @@
 package categorizer
 
-import "github.com/blocklords/sds/blockchain/evm/categorizer/smartcontract"
+import (
+	"github.com/blocklords/sds/blockchain/evm/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/blockchain"
+)
 
 // Worker Groups are list of smartcontracts
 // That are categorized together.
 type OldWorkerGroup struct {
-	block_number uint64
+	block_number blockchain.Number
 	workers      smartcontract.EvmWorkers
 }
 
 type OldWorkerGroups []*OldWorkerGroup
 
 // Create the old smartcontracts worker group
-func NewGroup(block_number uint64, workers smartcontract.EvmWorkers) *OldWorkerGroup {
+func NewGroup(block_number blockchain.Number, workers smartcontract.EvmWorkers) *OldWorkerGroup {
 	return &OldWorkerGroup{
 		block_number: block_number,
 		workers:      workers,
@@ -28,7 +31,7 @@ func (group *OldWorkerGroup) add_workers(workers smartcontract.EvmWorkers) {
 // That means, this categorizer group didn't reach to the block number.
 //
 // User can add his worker to this group. Then once its the time, categorization will happen.
-func (groups OldWorkerGroups) FirstGroupGreaterThan(block_number uint64) *OldWorkerGroup {
+func (groups OldWorkerGroups) FirstGroupGreaterThan(block_number blockchain.Number) *OldWorkerGroup {
 	for _, group := range groups {
 		if block_number > group.block_number {
 			return group

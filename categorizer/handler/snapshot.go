@@ -9,6 +9,7 @@ import (
 	"github.com/blocklords/sds/static/smartcontract"
 
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
@@ -28,7 +29,7 @@ func GetSnapshot(request message.Request, logger log.Logger, parameters ...inter
 	// Extract the parameters
 	//
 	/////////////////////////////////////////////////////////////////////////////
-	block_timestamp_from, err := request.Parameters.GetUint64("block_timestamp_from")
+	block_timestamp_from, err := blockchain.NewTimestampFromKeyValueParameter(request.Parameters)
 	if err != nil {
 		return message.Fail(err.Error())
 	}

@@ -2,64 +2,24 @@ package transaction
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
 // Parse the JSON into spaghetti.Transation
-func NewFromMap(parameters key_value.KeyValue) (*Transaction, error) {
-	network_id, err := parameters.GetString("network_id")
+func New(parameters key_value.KeyValue) (*RawTransaction, error) {
+	var transaction RawTransaction
+	err := parameters.ToInterface(&transaction)
 	if err != nil {
-		return nil, err
-	}
-	block_number, err := parameters.GetUint64("block_number")
-	if err != nil {
-		return nil, err
-	}
-	block_timestamp, err := parameters.GetUint64("block_timestamp")
-	if err != nil {
-		return nil, err
-	}
-	Txid, err := parameters.GetString("txid")
-	if err != nil {
-		return nil, err
-	}
-	tx_index, err := parameters.GetUint64("tx_index")
-	if err != nil {
-		return nil, err
-	}
-	tx_from, err := parameters.GetString("tx_from")
-	if err != nil {
-		return nil, err
-	}
-	tx_to, err := parameters.GetString("tx_to")
-	if err != nil {
-		return nil, err
-	}
-	tx_Data, err := parameters.GetString("tx_data")
-	if err != nil {
-		return nil, err
-	}
-	Value, err := parameters.GetFloat64("tx_value")
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("convert key value: %w", err)
 	}
 
-	return &Transaction{
-		NetworkId:      network_id,
-		BlockNumber:    block_number,
-		BlockTimestamp: block_timestamp,
-		Txid:           Txid,
-		TxIndex:        uint(tx_index),
-		TxFrom:         tx_from,
-		TxTo:           tx_to,
-		Data:           tx_Data,
-		Value:          Value,
-	}, nil
+	return &transaction, nil
 }
 
-func NewTransactions(txs []interface{}) ([]*Transaction, error) {
-	var transactions []*Transaction = make([]*Transaction, len(txs))
+func NewTransactions(txs []interface{}) ([]*RawTransaction, error) {
+	var transactions []*RawTransaction = make([]*RawTransaction, len(txs))
 	for i, raw := range txs {
 		if raw == nil {
 			continue
@@ -68,7 +28,7 @@ func NewTransactions(txs []interface{}) ([]*Transaction, error) {
 		if !ok {
 			return nil, errors.New("transaction is not a map")
 		}
-		transaction, err := NewFromMap(map_log)
+		transaction, err := New(map_log)
 		if err != nil {
 			return nil, err
 		}

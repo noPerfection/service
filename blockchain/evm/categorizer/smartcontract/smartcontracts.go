@@ -6,12 +6,13 @@ import (
 	"sort"
 
 	categorizer_smartcontract "github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/blockchain"
 )
 
 type EvmWorkers []*EvmWorker
 
 // Splits the workers to two workers by the block number
-func (workers EvmWorkers) Split(block_number uint64) (EvmWorkers, EvmWorkers) {
+func (workers EvmWorkers) Split(block_number blockchain.Number) (EvmWorkers, EvmWorkers) {
 	old_workers := make(EvmWorkers, 0)
 	new_workers := make(EvmWorkers, 0)
 
@@ -36,7 +37,7 @@ func (workers EvmWorkers) Sort() EvmWorkers {
 }
 
 // Returns the earliest block number
-func (workers EvmWorkers) EarliestBlockNumber() uint64 {
+func (workers EvmWorkers) EarliestBlockNumber() blockchain.Number {
 	sorted_workers := workers.Sort()
 	if len(sorted_workers) == 0 {
 		return 0
@@ -45,7 +46,7 @@ func (workers EvmWorkers) EarliestBlockNumber() uint64 {
 	return sorted_workers[0].Smartcontract.BlockNumber
 }
 
-func (workers EvmWorkers) RecentBlockNumber() uint64 {
+func (workers EvmWorkers) RecentBlockNumber() blockchain.Number {
 	sorted_workers := workers.Sort()
 	if len(sorted_workers) == 0 {
 		return 0

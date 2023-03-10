@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/smartcontract"
 )
@@ -26,7 +27,7 @@ func Save(db *db.Database, t *Log) error {
 }
 
 // returns list of logs by transaction keys
-func GetLogsFromDb(con *db.Database, smartcontracts []*smartcontract.Smartcontract, block_timestamp uint64, limit uint64) ([]*Log, error) {
+func GetLogsFromDb(con *db.Database, smartcontracts []*smartcontract.Smartcontract, block_timestamp blockchain.Timestamp, limit uint64) ([]*Log, error) {
 	var logs []*Log = make([]*Log, 0)
 	sm_amount := len(smartcontracts)
 

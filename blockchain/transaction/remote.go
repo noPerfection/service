@@ -5,12 +5,12 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
-	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/blockchain"
 )
 
 // Sends the command to the remote SDS Spaghetti to get the smartcontract deploy metaData by
 // its transaction id
-func RemoteTransactionDeployed(socket *remote.Socket, network_id string, Txid string) (string, string, uint64, uint64, error) {
+func RemoteTransactionDeployed(socket *remote.Socket, network_id string, Txid string) (string, string, blockchain.Block, error) {
 	// Send hello.
 	request := message.Request{
 		Command: "transaction_deployed_get",
@@ -22,27 +22,14 @@ func RemoteTransactionDeployed(socket *remote.Socket, network_id string, Txid st
 
 	raw_params, err := socket.RequestRemoteService(&request)
 	if err != nil {
-		return "", "", 0, 0, fmt.Errorf("socket.RequestRemoteService: %w", err)
+		return "", "", blockchain.Block{}, fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
 
-	params := key_value.New(raw_params)
-
-	address, err := params.GetString("address")
+	var transaction RawTransaction
+	err = raw_params.ToInterface(&transaction)
 	if err != nil {
-		return "", "", 0, 0, fmt.Errorf("params.GetString(`string`): %w", err)
-	}
-	deployer, err := params.GetString("deployer")
-	if err != nil {
-		return "", "", 0, 0, fmt.Errorf("params.GetString(`deployer`): %w", err)
-	}
-	block_number, err := params.GetUint64("block_number")
-	if err != nil {
-		return "", "", 0, 0, fmt.Errorf("params.GetUint64(`block_number`): %w", err)
-	}
-	block_timestamp, err := params.GetUint64("block_timestamp")
-	if err != nil {
-		return "", "", 0, 0, fmt.Errorf("params.GetUint64(`block_timestamp`): %w", err)
+		return "", "", blockchain.Block{}, fmt.Errorf("key-value to interface: %w", err)
 	}
 
-	return address, deployer, block_number, block_timestamp, nil
+	return transaction.Key.Address, transaction.From, transaction.Block, nil
 }

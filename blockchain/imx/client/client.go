@@ -13,7 +13,10 @@ import (
 	"github.com/blocklords/sds/blockchain/imx"
 	"github.com/blocklords/sds/blockchain/imx/util"
 	"github.com/blocklords/sds/blockchain/network"
+	"github.com/blocklords/sds/blockchain/transaction"
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/static/smartcontract/key"
 
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
 )
@@ -39,7 +42,7 @@ func New(network *network.Network) *Client {
 }
 
 // Returns list of transfers
-func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]*event.Log, error) {
+func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]*event.RawLog, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -48,7 +51,7 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 	var resp *imx_api.ListTransfersResponse
 	var r *http.Response
 	var err error
-	logs := make([]*event.Log, 0)
+	logs := make([]*event.RawLog, 0)
 
 	till_max := false
 	if strings.Compare(timestamp, timestamp_to) != 0 {
@@ -106,16 +109,26 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
 			}
 
-			l := &event.Log{
-				NetworkId:        "imx",
-				TransactionId:    strconv.Itoa(int(imxTx.TransactionId)),
-				TransactionIndex: uint(i),
-				BlockNumber:      uint64(blockTime.UTC().Unix()),
-				BlockTimestamp:   uint64(blockTime.UTC().Unix()),
-				LogIndex:         uint(i),
-				Data:             data_string,
-				Topics:           []string{},
-				Address:          address,
+			key := key.New(imx.NETWORK_ID, address)
+			block := blockchain.New(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
+			tx_key := blockchain.TransactionKey{
+				Id:    strconv.Itoa(int(imxTx.TransactionId)),
+				Index: uint(i),
+			}
+
+			transaction := transaction.RawTransaction{
+				Key:            key,
+				Block:          block,
+				TransactionKey: tx_key,
+				Value:          0,
+				Data:           "",
+			}
+
+			l := &event.RawLog{
+				Transaction: transaction,
+				LogIndex:    uint(i),
+				Data:        data_string,
+				Topics:      []string{},
 			}
 
 			logs = append(logs, l)
@@ -135,7 +148,7 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 	return logs, nil
 }
 
-func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]*event.Log, error) {
+func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]*event.RawLog, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -144,7 +157,7 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 	var resp *imx_api.ListMintsResponse
 	var r *http.Response
 	var err error
-	logs := make([]*event.Log, 0)
+	logs := make([]*event.RawLog, 0)
 
 	till_max := false
 	if strings.Compare(timestamp, timestamp_to) != 0 {
@@ -203,16 +216,26 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
 			}
 
-			l := &event.Log{
-				NetworkId:        "imx",
-				TransactionId:    strconv.Itoa(int(imxTx.TransactionId)),
-				TransactionIndex: uint(i),
-				BlockNumber:      uint64(blockTime.UTC().Unix()),
-				BlockTimestamp:   uint64(blockTime.UTC().Unix()),
-				LogIndex:         uint(i),
-				Data:             data_string,
-				Topics:           []string{},
-				Address:          address,
+			key := key.New(imx.NETWORK_ID, address)
+			block := blockchain.New(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
+			tx_key := blockchain.TransactionKey{
+				Id:    strconv.Itoa(int(imxTx.TransactionId)),
+				Index: uint(i),
+			}
+
+			transaction := transaction.RawTransaction{
+				Key:            key,
+				Block:          block,
+				TransactionKey: tx_key,
+				Value:          0,
+				Data:           "",
+			}
+
+			l := &event.RawLog{
+				Transaction: transaction,
+				LogIndex:    uint(i),
+				Data:        data_string,
+				Topics:      []string{},
 			}
 
 			logs = append(logs, l)

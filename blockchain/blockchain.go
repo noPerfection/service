@@ -15,8 +15,6 @@ import (
 	"github.com/blocklords/sds/categorizer"
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/sds/blockchain/transaction"
-
 	"github.com/blocklords/sds/blockchain/network"
 
 	"github.com/blocklords/sds/app/configuration"
@@ -25,7 +23,6 @@ import (
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
-	"github.com/blocklords/sds/common/data_type/key_value"
 
 	"fmt"
 
@@ -82,20 +79,12 @@ func transaction_deployed_get(request message.Request, logger log.Logger, _param
 		return message.Fail("remote transaction_request: " + err.Error())
 	}
 
-	tx_raw, _ := blockchain_reply.GetKeyValue("transaction")
-	tx, _ := transaction.NewFromMap(tx_raw)
+	transaction_key_value, _ := blockchain_reply.GetKeyValue("transaction")
 
 	reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"network_id":      network_id,
-			"block_number":    tx.BlockNumber,
-			"block_timestamp": tx.BlockTimestamp,
-			"address":         tx.TxTo,
-			"deployer":        tx.TxFrom,
-			"txid":            txid,
-		}),
+		Status:     "OK",
+		Message:    "",
+		Parameters: transaction_key_value,
 	}
 
 	return reply

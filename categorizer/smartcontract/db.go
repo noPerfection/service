@@ -3,16 +3,17 @@ package smartcontract
 import (
 	"fmt"
 
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/db"
 )
 
 // Update the block number and block timestamp of the smartcontract
-func SetSyncing(db *db.Database, b *Smartcontract, n uint64, t uint64) error {
-	b.SetBlockParameter(n, t)
+func SetSyncing(db *db.Database, sm *Smartcontract, b blockchain.Block) error {
+	sm.SetBlockParameter(b)
 	_, err := db.Connection.Exec(`UPDATE categorizer_smartcontract SET block_number = ?, block_timestamp = ? WHERE network_id = ? AND address = ? `,
-		n, t, b.NetworkId, b.Address)
+		b.Number, b.Timestamp, sm.NetworkId, sm.Address)
 	if err != nil {
-		return fmt.Errorf("failed to update the categorized block data in the database %s %s: %w ", b.NetworkId, b.Address, err)
+		return fmt.Errorf("failed to update the categorized block data in the database %s %s: %w ", sm.NetworkId, sm.Address, err)
 	}
 
 	return nil
@@ -43,8 +44,8 @@ func Get(db *db.Database, network_id string, address string) (*Smartcontract, er
 	row := db.Connection.QueryRow("SELECT block_number, block_timestamp FROM categorizer_smartcontract WHERE network_id = ? AND address = ? ", network_id, address)
 
 	// Loop through rows, using Scan to assign column data to struct fields.
-	var block_number uint64
-	var block_timestamp uint64
+	var block_number blockchain.Number
+	var block_timestamp blockchain.Timestamp
 	if err := row.Scan(&block_number, &block_timestamp); err != nil {
 		return nil, fmt.Errorf("row.Scan from the database: %w ", err)
 	}
@@ -71,8 +72,8 @@ func GetAll(db *db.Database) ([]*Smartcontract, error) {
 	for rows.Next() {
 		var network_id string
 		var address string
-		var block_number uint64
-		var block_timestamp uint64
+		var block_number blockchain.Number
+		var block_timestamp blockchain.Timestamp
 		if err := rows.Scan(&network_id, &address, &block_number, &block_timestamp); err != nil {
 			return smartcontracts, fmt.Errorf("row.Scan: %w", err)
 		}
@@ -107,8 +108,8 @@ func GetAllByNetworkId(db *db.Database, network_id string) ([]*Smartcontract, er
 	for rows.Next() {
 		var network_id string
 		var address string
-		var block_number uint64
-		var block_timestamp uint64
+		var block_number blockchain.Number
+		var block_timestamp blockchain.Timestamp
 		if err := rows.Scan(&network_id, &address, &block_number, &block_timestamp); err != nil {
 			return nil, fmt.Errorf("row.Scan: %w", err)
 		}

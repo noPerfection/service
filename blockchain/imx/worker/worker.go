@@ -95,7 +95,9 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 		return message.Fail("client.GetSmartcontractTransferLogs: " + err.Error())
 	}
 	if len(transfers) > 0 {
-		_, block_timestamp_to = spaghetti_log.RecentBlock(transfers)
+		recent_block := spaghetti_log.RecentBlock(transfers)
+		block_timestamp_to = recent_block.Timestamp.Value()
+
 		timestamp_to = time.Unix(int64(block_timestamp_to), 0).UTC().Format(time.RFC3339)
 	}
 
@@ -110,7 +112,8 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 	transfers = append(transfers, mints...)
 
 	if len(transfers) > 0 {
-		_, block_timestamp_to = spaghetti_log.RecentBlock(transfers)
+		recent_block := spaghetti_log.RecentBlock(transfers)
+		block_timestamp_to = recent_block.Timestamp.Value()
 	}
 
 	reply := message.Reply{
