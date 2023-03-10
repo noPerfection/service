@@ -43,7 +43,7 @@ func NewService(service *service.Service) *Account {
 	return &Account{
 		Id:             0,
 		NonceTimestamp: 0,
-		PublicKey:      service.PublicKey,
+		PublicKey:      service.Credentials.PublicKey,
 		Organization:   "",
 		service:        service,
 	}
@@ -157,7 +157,7 @@ func (accounts Accounts) BroadcastPublicKeys() []string {
 	public_keys := make([]string, len(accounts))
 
 	for i := range accounts {
-		public_keys[i] = accounts[i].service.BroadcastPublicKey
+		public_keys[i] = accounts[i].service.Credentials.PublicKey
 	}
 
 	return public_keys
