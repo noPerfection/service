@@ -110,7 +110,7 @@ func Run(app_config *configuration.Config) {
 		reply.SetLogger(logger)
 	}
 
-	err = start_clients(logger, app_config)
+	err = run_networks(logger, app_config)
 	if err != nil {
 		logger.Fatal("StartWorkers", "message", err)
 	}
@@ -124,8 +124,8 @@ func Run(app_config *configuration.Config) {
 	}
 }
 
-// Start the workers
-func start_clients(logger log.Logger, app_config *configuration.Config) error {
+// Start the workers for each blockchain
+func run_networks(logger log.Logger, app_config *configuration.Config) error {
 	networks, err := network.GetNetworks(network.ALL)
 	if err != nil {
 		return fmt.Errorf("gosds/blockchain: failed to get networks: %v", err)
