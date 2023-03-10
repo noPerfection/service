@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/blocklords/sds/app/argument"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/app/service"
@@ -32,6 +31,7 @@ type Socket struct {
 	socket        *zmq.Socket
 	protocol      string
 	inproc_url    string
+	secure        bool
 }
 
 type SDS_Message interface {
@@ -83,11 +83,7 @@ func (socket *Socket) reconnect() error {
 		}
 	}
 
-	plain, err := argument.Exist(argument.PLAIN)
-	if err != nil {
-		return fmt.Errorf("argument.Exist: %w", err)
-	}
-	if !plain {
+	if socket.secure {
 		public_key := ""
 		client_public_key := ""
 		client_secret_key := ""
@@ -325,7 +321,7 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.REQ
-func TcpRequestSocketOrPanic(e *service.Service, client *service.Service) *Socket {
+func TcpRequestSocketOrPanic(e *service.Service, client *service.Service, secure bool) *Socket {
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
 		panic(err)
@@ -335,6 +331,7 @@ func TcpRequestSocketOrPanic(e *service.Service, client *service.Service) *Socke
 		thisService:   client,
 		socket:        sock,
 		protocol:      "tcp",
+		secure:        secure,
 	}
 	err = new_socket.reconnect()
 	if err != nil {
@@ -353,6 +350,7 @@ func InprocRequestSocket(url string) *Socket {
 		socket:     sock,
 		protocol:   "inproc",
 		inproc_url: url,
+		secure:     false,
 	}
 	err = new_socket.inproc_reconnect()
 	if err != nil {
@@ -364,18 +362,14 @@ func InprocRequestSocket(url string) *Socket {
 
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.SUB
-func TcpSubscriberOrPanic(e *service.Service, client_env *service.Service) *Socket {
+func TcpSubscriberOrPanic(e *service.Service, client_env *service.Service, secure bool) *Socket {
 	socket, sockErr := zmq.NewSocket(zmq.SUB)
 	if sockErr != nil {
 		panic(sockErr)
 	}
 
-	plain, err := argument.Exist(argument.PLAIN)
-	if err != nil {
-		panic(err)
-	}
-	if !plain {
-		err = socket.ClientAuthCurve(e.BroadcastPublicKey, client_env.BroadcastPublicKey, client_env.BroadcastSecretKey)
+	if secure {
+		err := socket.ClientAuthCurve(e.BroadcastPublicKey, client_env.BroadcastPublicKey, client_env.BroadcastSecretKey)
 		if err != nil {
 			panic(err)
 		}
@@ -389,5 +383,7 @@ func TcpSubscriberOrPanic(e *service.Service, client_env *service.Service) *Sock
 	return &Socket{
 		remoteService: e,
 		socket:        socket,
+		secure:        secure,
+		protocol:      "tcp",
 	}
 }
