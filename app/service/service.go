@@ -152,15 +152,6 @@ func NewSecure(service_type ServiceType, limit Limit) (*Service, error) {
 	return s, nil
 }
 
-// Returns the Vault secret storage and the key for curve private part.
-func (s *Service) SecretKeyVariable() (string, string) {
-	return "SDS_SERVICES", s.Name + "_SECRET_KEY"
-}
-
-// Returns the Vault secret storage and the key for curve private part for broadcaster.
-func (s *Service) BroadcastSecretKeyVariable() (string, string) {
-	return "SDS_SERVICES", s.Name + "_BROADCAST_SECRET_KEY"
-}
 
 // Returns the service environment parameters by its Public Key
 func GetByPublicKey(PublicKey string) (*Service, error) {
