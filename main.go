@@ -99,15 +99,5 @@ func main() {
 	}()
 	wg.Wait()
 
-	// fmt.Println("query the database")
-	// result, err := database.Query(context.TODO(), "SELECT address FROM static_smartcontract WHERE 1", nil)
-	// if err != nil {
-	// log.Fatalf("test query to database: %v", err)
-	// }
-
-	// fmt.Println("database query result: ")
-	// for _, address := range result {
-	// fmt.Println("address ", address)
-	// }
-	logger.Info("Gracefully shutted down")
+	logger.Info("SeascapeSDS main exit!")
 }
