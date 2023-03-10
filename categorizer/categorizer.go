@@ -25,8 +25,6 @@ import (
 	"github.com/blocklords/sds/app/controller"
 )
 
-var static_socket *remote.Socket
-
 // Sends the smartcontracts to the blockchain package.
 //
 // The blockchain package will have the categorizer for its each blockchain type.
@@ -72,7 +70,7 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 // The event data stored in the database.
 // Provides commands to fetch the decoded logs from SDK.
 //
-// dep: SDS Static core service
+// dep: SDS Blockchain core service
 func Run(app_config *configuration.Config, db_con *db.Database) {
 	logger := app_log.New()
 	logger.SetPrefix("categorizer")
@@ -86,17 +84,20 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		logger.Fatal("new categorizer service config", "message", err)
 	}
 
-	static_env, err := service.Inprocess(service.STATIC)
+	blockchain_service, err := service.Inprocess(service.SPAGHETTI)
 	if err != nil {
-		logger.Fatal("new static service config", "message", err)
+		logger.Fatal("new blockchain service config", "message", err)
 	}
-	static_socket = remote.TcpRequestSocketOrPanic(static_env, categorizer_env)
+	blockchain_socket := remote.InprocRequestSocket(blockchain_service.Url())
 
 	logger.Info("retreive networks", "network-type", network.ALL)
-	networks, err := network.GetRemoteNetworks(static_socket, network.ALL)
+
+	networks, err := network.GetRemoteNetworks(blockchain_socket, network.ALL)
+	blockchain_socket.Close()
 	if err != nil {
 		logger.Fatal("newwork.GetRemoteNetworks", "message", err)
 	}
+
 	logger.Info("networks retreived")
 
 	for _, the_network := range networks {
