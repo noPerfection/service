@@ -2,7 +2,6 @@ package handler
 
 import (
 	"github.com/blocklords/sds/db"
-	"github.com/blocklords/sds/static/configuration"
 	"github.com/blocklords/sds/static/smartcontract"
 	"github.com/charmbracelet/log"
 
@@ -35,9 +34,7 @@ func SmartcontractFilter(request message.Request, logger log.Logger, parameters 
 		return message.Fail("topic.NewFromKeyValueParameter: " + err.Error())
 	}
 
-	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
-
-	smartcontracts, topics, err := smartcontract.GetFromDatabaseFilterBy(db_con, query, query_parameters)
+	smartcontracts, topics, err := smartcontract.GetFromDatabaseFilterBy(db_con, topic_filter)
 	if err != nil {
 		return message.Fail("failed to filter smartcontracts by the topic filter:" + err.Error())
 	} else if len(smartcontracts) == 0 {
@@ -76,9 +73,7 @@ func SmartcontractKeyFilter(request message.Request, logger log.Logger, paramete
 		return message.Fail("topic.NewFromKeyValueParameter: " + err.Error())
 	}
 
-	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
-
-	smartcontracts, topics, err := smartcontract.GetFromDatabaseFilterBy(db_con, query, query_parameters)
+	smartcontracts, topics, err := smartcontract.GetFromDatabaseFilterBy(db_con, topic_filter)
 	if err != nil {
 		return message.Fail(err.Error())
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/static/configuration"
 )
 
 // Whether the smartcontract address on network_id exist in database or not
@@ -70,7 +71,10 @@ func GetFromDatabase(db *db.Database, key smartcontract_key.Key) (*Smartcontract
 }
 
 // Returns the static smartcontracts by filter_parameters from database
-func GetFromDatabaseFilterBy(con *db.Database, filter_query string, filter_parameters []string) ([]*Smartcontract, []*topic.Topic, error) {
+func GetFromDatabaseFilterBy(con *db.Database, topic_filter *topic.TopicFilter) ([]*Smartcontract, []*topic.Topic, error) {
+	// Get the Categorization parameters
+	filter_query, filter_parameters := configuration.QueryFilterSmartcontract(topic_filter)
+
 	query := `SELECT s.network_id, s.address, s.abi_id, s.transaction_id, s.transaction_index, s.block_number, s.block_timestamp, s.deployer,
 	static_configuration.organization, static_configuration.project, static_configuration.group_name, static_configuration.smartcontract_name
 	FROM static_smartcontract AS s, static_configuration WHERE
