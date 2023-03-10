@@ -40,14 +40,14 @@ func GetSnapshot(request message.Request, logger log.Logger, parameters ...inter
 
 	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
 
-	smartcontracts, _, err := smartcontract.GetFromDatabaseFilterBy(db_con, query, query_parameters)
+	smartcontract_keys, _, err := smartcontract.FilterKeysFromDatabase(db_con, query, query_parameters)
 	if err != nil {
 		return message.Fail("failed to filter smartcontracts by the topic filter:" + err.Error())
-	} else if len(smartcontracts) == 0 {
+	} else if len(smartcontract_keys) == 0 {
 		return message.Fail("no matching smartcontracts for the topic filter " + topic_filter.ToString())
 	}
 
-	logs, err := event.GetLogsFromDb(db_con, smartcontracts, block_timestamp_from, SNAPSHOT_LIMIT)
+	logs, err := event.GetLogsFromDb(db_con, smartcontract_keys, block_timestamp_from, SNAPSHOT_LIMIT)
 	if err != nil {
 		return message.Fail("database error to filter logs: " + err.Error())
 	}

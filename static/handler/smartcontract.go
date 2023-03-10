@@ -37,7 +37,7 @@ func SmartcontractFilter(request message.Request, logger log.Logger, parameters 
 
 	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
 
-	smartcontracts, topics, err := smartcontract.GetFromDatabaseFilterBy(db_con, query, query_parameters)
+	smartcontracts, topics, err := smartcontract.FilterFromDatabase(db_con, query, query_parameters)
 	if err != nil {
 		return message.Fail("failed to filter smartcontracts by the topic filter:" + err.Error())
 	} else if len(smartcontracts) == 0 {
@@ -78,14 +78,14 @@ func SmartcontractKeyFilter(request message.Request, logger log.Logger, paramete
 
 	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
 
-	smartcontracts, topics, err := smartcontract.GetFromDatabaseFilterBy(db_con, query, query_parameters)
+	smartcontract_keys, topics, err := smartcontract.FilterKeysFromDatabase(db_con, query, query_parameters)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	blob := make(map[string]string, len(smartcontracts))
-	for i, s := range smartcontracts {
-		blob[s.SmartcontractKey.ToString()] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
+	blob := make(map[string]string, len(smartcontract_keys))
+	for i, key := range smartcontract_keys {
+		blob[key.ToString()] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
 	}
 
 	reply := message.Reply{

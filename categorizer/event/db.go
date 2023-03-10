@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/common/blockchain"
+	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db"
-	"github.com/blocklords/sds/static/smartcontract"
 )
 
 func Save(db *db.Database, t *Log) error {
@@ -27,7 +27,7 @@ func Save(db *db.Database, t *Log) error {
 }
 
 // returns list of logs for smartcontracts
-func GetLogsFromDb(con *db.Database, smartcontracts []*smartcontract.Smartcontract, block_timestamp blockchain.Timestamp, limit uint64) ([]*Log, error) {
+func GetLogsFromDb(con *db.Database, smartcontracts []smartcontract_key.Key, block_timestamp blockchain.Timestamp, limit uint64) ([]*Log, error) {
 	var logs []*Log = make([]*Log, 0)
 	sm_amount := len(smartcontracts)
 
@@ -42,8 +42,8 @@ func GetLogsFromDb(con *db.Database, smartcontracts []*smartcontract.Smartcontra
 
 	smartcontracts_clause := ""
 	for i, sm := range smartcontracts {
-		network_id := sm.SmartcontractKey.NetworkId
-		address := sm.SmartcontractKey.Address
+		network_id := sm.NetworkId
+		address := sm.Address
 
 		smartcontracts_clause += "(network_id = ? AND address = ?) "
 		if i < sm_amount-1 {
