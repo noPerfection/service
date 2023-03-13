@@ -5,6 +5,7 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
@@ -66,7 +67,7 @@ func GetRemoteNetwork(socket *remote.Socket, network_id string, network_type Net
 		},
 	}
 
-	raw_params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRouter(service.SPAGHETTI, &request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to return network from static socket: %v", err)
 	}
