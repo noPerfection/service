@@ -6,6 +6,7 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
@@ -65,7 +66,7 @@ func RemoteSmartcontractKeys(socket *remote.Socket, tf *topic.TopicFilter) (smar
 		Command:    "smartcontract_key_filter",
 		Parameters: key_value.Empty().Set("topic_filter", kv),
 	}
-	raw_params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRouter(service.STATIC, &request)
 	if err != nil {
 		return nil, err
 	}
