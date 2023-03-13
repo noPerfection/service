@@ -157,6 +157,70 @@ func (socket *Socket) Close() error {
 	return nil
 }
 
+// Send a command to the remote SDS service via the router.
+// Router identifies the redirecting rule based on service_type.
+// Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
+// In case of successful request, the function returns reply parameters.
+func (socket *Socket) RequestRouter(service_type service.ServiceType, request *message.Request) (key_value.KeyValue, error) {
+	request_timeout := parameter.RequestTimeout()
+
+	request_string, err := request.ToString()
+	if err != nil {
+		return nil, fmt.Errorf("request.ToString: %w", err)
+	}
+
+	// we attempt requests for an infinite amount of time.
+	for {
+		//  We send a request, then we work to get a reply
+		if _, err := socket.socket.SendMessage(service_type.ToString(), request_string); err != nil {
+			return nil, fmt.Errorf("failed to send the command '%s' to '%s'. socket error: %w", request.Command, socket.remote_service.Name, err)
+		}
+
+		//  Poll socket for a reply, with timeout
+		sockets, err := socket.poller.Poll(request_timeout)
+		if err != nil {
+			return nil, fmt.Errorf("failed to to send the command '%s' to '%s'. poll error: %w", request.Command, socket.remote_service.Name, err)
+		}
+
+		//  Here we process a server reply and exit our loop if the
+		//  reply is valid. If we didn't a reply we close the client
+		//  socket and resend the request. We try a number of times
+		//  before finally abandoning:
+
+		if len(sockets) > 0 {
+			// Wait for reply.
+			r, err := socket.socket.RecvMessage(0)
+			if err != nil {
+				return nil, fmt.Errorf("failed to receive the command '%s' message. socket error: %w", request.Command, err)
+			}
+
+			reply, err := message.ParseReply(r)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse the command '%s': %w", request.Command, err)
+			}
+
+			if !reply.IsOK() {
+				return nil, fmt.Errorf("the command '%s' replied with a failure: %s", request.Command, reply.Message)
+			}
+
+			return reply.Parameters, nil
+		} else {
+			fmt.Println("timeout", socket.protocol, request_string, socket.inproc_url)
+			if socket.protocol == "inproc" {
+				err := socket.inproc_reconnect()
+				if err != nil {
+					return nil, fmt.Errorf("socket.inproc_reconnect: %w", err)
+				}
+			} else {
+				err := socket.reconnect()
+				if err != nil {
+					return nil, fmt.Errorf("socket.reconnect: %w", err)
+				}
+			}
+		}
+	}
+}
+
 // Send a command to the remote SDS service.
 // Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
 // In case of successful request, the function returns reply parameters.
