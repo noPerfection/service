@@ -16,7 +16,7 @@ type Service struct {
 }
 
 // Creates the service with the parameters but without any information
-func Inprocess(service_type ServiceType) (*Service, error) {
+func Inprocess(service_type ServiceType) *Service {
 	name := string(service_type)
 
 	s := Service{
@@ -25,7 +25,7 @@ func Inprocess(service_type ServiceType) (*Service, error) {
 		url:    "inproc://reply_" + name,
 	}
 
-	return &s, nil
+	return &s
 }
 
 // Creates the service with the parameters but without any information
