@@ -14,17 +14,17 @@ import (
 )
 
 const (
-	SDS_STATIC_NETWORKS = "SDS_STATIC_NETWORKS"
+	SDS_BLOCKCHAIN_NETWORKS = "SDS_BLOCKCHAIN_NETWORKS"
 )
 
 // Returns list of the blockchain networks
 func GetNetworks(network_type NetworkType) (Networks, error) {
 	network_config := configuration.New()
-	network_config.SetDefault(SDS_STATIC_NETWORKS, DefaultConfiguration())
+	network_config.SetDefault(SDS_BLOCKCHAIN_NETWORKS, DefaultConfiguration())
 
-	env := network_config.GetString(SDS_STATIC_NETWORKS)
+	env := network_config.GetString(SDS_BLOCKCHAIN_NETWORKS)
 	if len(env) == 0 {
-		return nil, errors.New("the environment variable 'SDS_STATIC_NETWORKS' is empty")
+		return nil, errors.New("the environment variable 'SDS_BLOCKCHAIN_NETWORKS' is empty")
 	}
 
 	var raw_networks []map[string]interface{}
@@ -32,7 +32,7 @@ func GetNetworks(network_type NetworkType) (Networks, error) {
 	decoder.UseNumber()
 
 	if err := decoder.Decode(&raw_networks); err != nil {
-		return nil, errors.New("invalid json for SDS_STATIC_NETWORKS " + err.Error())
+		return nil, errors.New("invalid json for SDS_BLOCKCHAIN_NETWORKS " + err.Error())
 	}
 
 	networks := make([]*Network, 0)
