@@ -2,3 +2,4 @@
 bin/cache*
 bin
 _db/mysql
+_vault/file
