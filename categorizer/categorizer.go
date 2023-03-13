@@ -60,6 +60,11 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 	return nil
 }
 
+// Returns this service's configuration
+func Service() *service.Service {
+	return service.Inprocess(service.CATEGORIZER)
+}
+
 // This core service decodes the smartcontract event logs.
 // The event data stored in the database.
 // Provides commands to fetch the decoded logs from SDK.
@@ -73,15 +78,8 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	logger.Info("starting")
 
-	categorizer_env, err := service.Inprocess(service.CATEGORIZER)
-	if err != nil {
-		logger.Fatal("new categorizer service config", "message", err)
-	}
+	blockchain_service := service.Inprocess(service.SPAGHETTI)
 
-	blockchain_service, err := service.Inprocess(service.SPAGHETTI)
-	if err != nil {
-		logger.Fatal("new blockchain service config", "message", err)
-	}
 	blockchain_socket := remote.InprocRequestSocket(blockchain_service.Url())
 
 	logger.Info("retreive networks", "network-type", network.ALL)
@@ -108,9 +106,9 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		"snapshot_get":          handler.GetSnapshot,
 	}
 
-	reply, err := controller.NewReply(categorizer_env)
+	reply, err := controller.NewReply(Service())
 	if err != nil {
-		logger.Fatal("controller.NewReply", "service", categorizer_env)
+		logger.Fatal("controller.NewReply", "service", Service())
 	} else {
 		reply.SetLogger(logger)
 	}

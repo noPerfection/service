@@ -180,6 +180,11 @@ func get_all_networks(request message.Request, logger log.Logger, _parameters ..
 	}
 }
 
+// Returns this service's configuration
+func Service() *service.Service {
+	return service.Inprocess(service.SPAGHETTI)
+}
+
 func Run(app_config *configuration.Config) {
 	logger := app_log.New()
 	logger.SetPrefix("blockchain")
@@ -188,12 +193,7 @@ func Run(app_config *configuration.Config) {
 
 	logger.Info("starting")
 
-	spaghetti_env, err := service.Inprocess(service.SPAGHETTI)
-	if err != nil {
-		logger.Fatal("spaghetti service configuration", "message", err)
-	}
-
-	reply, err := controller.NewReply(spaghetti_env)
+	reply, err := controller.NewReply(Service())
 	if err != nil {
 		logger.Fatal("controller new", "message", err)
 	} else {
@@ -232,10 +232,7 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 		logger.Fatal("create a pusher to SDS Categorizer", "message", err)
 	}
 
-	static_env, err := service.Inprocess(service.STATIC)
-	if err != nil {
-		logger.Fatal("new static service config", "message", err)
-	}
+	static_env := service.Inprocess(service.STATIC)
 	static_socket := remote.InprocRequestSocket(static_env.Url())
 
 	for _, new_network := range networks {

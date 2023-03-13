@@ -28,6 +28,11 @@ func Run(app_config *configuration.Config, db_connection *db.Database) {
 		"configuration_set": handler.ConfigurationRegister,
 	}
 
+
+// Returns this service's configuration
+func Service() *service.Service {
+	return service.Inprocess(service.STATIC)
+}
 	logger := log.New()
 	logger.SetPrefix("static")
 	logger.SetReportCaller(true)
@@ -36,10 +41,7 @@ func Run(app_config *configuration.Config, db_connection *db.Database) {
 	logger.Info("starting")
 
 	// Getting the services which has access to the SDS Static
-	static_env, err := service.Inprocess(service.STATIC)
-	if err != nil {
-		logger.Fatal("service configuration", "message", err)
-	}
+	static_env := service.Inprocess(service.STATIC)
 
 	reply, err := controller.NewReply(static_env)
 	if err != nil {
