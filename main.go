@@ -89,24 +89,24 @@ func main() {
 		_ = database.Close()
 	}()
 
-	core_service, err := service.NewExternal(service.CORE, service.THIS)
-	if err != nil {
-		logger.Fatal("external core service error", "message", err)
+	var core_service *service.Service
+	if app_config.Plain {
+		core_service, err = service.NewExternal(service.CORE, service.THIS)
+		if err != nil {
+			logger.Fatal("external core service error", "message", err)
+		}
+	} else {
+		core_service, err = service.NewSecure(service.CORE, service.THIS)
+		if err != nil {
+			logger.Fatal("external core service error", "message", err)
+		}
 	}
 
 	router := controller.NewRouter(logger, core_service)
 
-	err = router.AddDealer(static.Service(), static.CommandHandlers().Commands())
+	err = router.AddDealers(static.Service(), categorizer.Service(), blockchain.Service())
 	if err != nil {
-		logger.Fatal("router.AddDealer(static)", "message", err)
-	}
-	err = router.AddDealer(categorizer.Service(), categorizer.CommandHandlers().Commands())
-	if err != nil {
-		logger.Fatal("router.AddDealer(categorizer)", "message", err)
-	}
-	err = router.AddDealer(blockchain.Service(), blockchain.CommandHandlers().Commands())
-	if err != nil {
-		logger.Fatal("router.AddDealer(blockchain)", "message", err)
+		logger.Fatal("router.AddDealers", "message", err)
 	}
 
 	// Start the core services
