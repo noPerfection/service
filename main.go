@@ -2,9 +2,9 @@
 package main
 
 import (
+	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
-
-	"sync"
+	"github.com/blocklords/sds/app/service"
 
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/blockchain"
@@ -15,7 +15,20 @@ import (
 	"github.com/blocklords/sds/static"
 )
 
-/** SeascapeSDS + its SDK to use it.*/
+// SDS Core
+//
+// Router with security enabled.
+// Router is connected from the Developer Gateway and Smartcontract Developer Gateway.
+//
+// Router has the request.
+// Request could go to static
+// Request could go to categorizer
+// Request could go to blockchain
+//
+// Each of the services has the reply controller.
+// The reply controller is replies back to the router.
+//
+// The router returns replies the result back to the user.
 func main() {
 	logger := log.New()
 	logger.SetPrefix("sds-core")
@@ -76,23 +89,32 @@ func main() {
 		_ = database.Close()
 	}()
 
+	core_service, err := service.NewExternal(service.CORE, service.THIS)
+	if err != nil {
+		logger.Fatal("external core service error", "message", err)
+	}
+
+	router := controller.NewRouter(logger, core_service)
+
+	err = router.AddDealer(static.Service(), static.CommandHandlers().Commands())
+	if err != nil {
+		logger.Fatal("router.AddDealer(static)", "message", err)
+	}
+	err = router.AddDealer(categorizer.Service(), categorizer.CommandHandlers().Commands())
+	if err != nil {
+		logger.Fatal("router.AddDealer(categorizer)", "message", err)
+	}
+	err = router.AddDealer(blockchain.Service(), blockchain.CommandHandlers().Commands())
+	if err != nil {
+		logger.Fatal("router.AddDealer(blockchain)", "message", err)
+	}
+
 	// Start the core services
-	// We wait for their execution to exit from blockchain
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		static.Run(app_config, database)
-		wg.Done()
-	}()
-	go func() {
-		categorizer.Run(app_config, database)
-		wg.Done()
-	}()
-	go func() {
-		blockchain.Run(app_config)
-		wg.Done()
-	}()
-	wg.Wait()
+	go static.Run(app_config, database)
+	go categorizer.Run(app_config, database)
+	go blockchain.Run(app_config)
+
+	router.Run()
 
 	logger.Info("SeascapeSDS main exit!")
 }
