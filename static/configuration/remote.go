@@ -5,6 +5,7 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/static/smartcontract"
@@ -21,7 +22,7 @@ func RemoteConfiguration(socket *remote.Socket, t *topic.Topic) (*Configuration,
 		Command:    "configuration_get",
 		Parameters: kv,
 	}
-	parameters, err := socket.RequestRemoteService(&request)
+	parameters, err := socket.RequestRouter(service.STATIC, &request)
 	if err != nil {
 		return nil, nil, err
 	}
