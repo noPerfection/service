@@ -5,6 +5,7 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
@@ -17,7 +18,7 @@ func RemoteSnapshot(socket *remote.Socket, smartcontract_keys []smartcontract_ke
 		Command:    "snapshot_get",
 		Parameters: key_value.Empty().Set("block_timestamp", block_timestamp).Set("smartcontract_keys", smartcontract_keys),
 	}
-	parameters, err := socket.RequestRemoteService(&request)
+	parameters, err := socket.RequestRouter(service.CATEGORIZER, &request)
 	if err != nil {
 		return nil, 0, fmt.Errorf("snapshot_get remote request: %w", err)
 	}
