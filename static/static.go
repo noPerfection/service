@@ -9,12 +9,8 @@ import (
 	"github.com/blocklords/sds/static/handler"
 )
 
-// Start the SDS Static core service.
-// It keeps the static data:
-// - smartcontract abi
-// - smartcontract information
-// - configuration (a relationship between common/topic.Topic and static.Smartcontract).
-func Run(app_config *configuration.Config, db_connection *db.Database) {
+// Return the list of command handlers for this service
+func CommandHandlers() controller.CommandHandlers {
 	var commands = controller.CommandHandlers{
 		"abi_get": handler.AbiGetBySmartcontractKey,
 		"abi_set": handler.AbiRegister,
@@ -28,11 +24,20 @@ func Run(app_config *configuration.Config, db_connection *db.Database) {
 		"configuration_set": handler.ConfigurationRegister,
 	}
 
+	return commands
+}
 
 // Returns this service's configuration
 func Service() *service.Service {
 	return service.Inprocess(service.STATIC)
 }
+
+// Start the SDS Static core service.
+// It keeps the static data:
+// - smartcontract abi
+// - smartcontract information
+// - configuration (a relationship between common/topic.Topic and static.Smartcontract).
+func Run(app_config *configuration.Config, db_connection *db.Database) {
 	logger := log.New()
 	logger.SetPrefix("static")
 	logger.SetReportCaller(true)
@@ -50,7 +55,7 @@ func Service() *service.Service {
 		reply.SetLogger(logger)
 	}
 
-	err = reply.Run(commands, db_connection)
+	err = reply.Run(CommandHandlers(), db_connection)
 	if err != nil {
 		logger.Fatal("reply controller", "message", err)
 	}

@@ -180,6 +180,18 @@ func get_all_networks(request message.Request, logger log.Logger, _parameters ..
 	}
 }
 
+// Return the list of command handlers for this service
+func CommandHandlers() controller.CommandHandlers {
+	var commands = controller.CommandHandlers{
+		"transaction_deployed_get": transaction_deployed_get,
+		"network_id_get_all":       get_network_ids,
+		"network_get_all":          get_all_networks,
+		"network_get":              get_network,
+	}
+
+	return commands
+}
+
 // Returns this service's configuration
 func Service() *service.Service {
 	return service.Inprocess(service.SPAGHETTI)
@@ -205,13 +217,7 @@ func Run(app_config *configuration.Config) {
 		logger.Fatal("StartWorkers", "message", err)
 	}
 
-	var commands = controller.CommandHandlers{
-		"transaction_deployed_get": transaction_deployed_get,
-		"network_id_get_all":       get_network_ids,
-		"network_get_all":          get_all_networks,
-		"network_get":              get_network,
-	}
-	err = reply.Run(commands)
+	err = reply.Run(CommandHandlers())
 	if err != nil {
 		logger.Fatal("controller error", "message", err)
 	}

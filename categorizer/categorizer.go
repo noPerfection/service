@@ -60,6 +60,18 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 	return nil
 }
 
+// Return the list of command handlers for this service
+func CommandHandlers() controller.CommandHandlers {
+	var commands = controller.CommandHandlers{
+		"smartcontract_get_all": handler.GetSmartcontracts,
+		"smartcontract_get":     handler.GetSmartcontract,
+		"smartcontract_set":     handler.SetSmartcontract,
+		"snapshot_get":          handler.GetSnapshot,
+	}
+
+	return commands
+}
+
 // Returns this service's configuration
 func Service() *service.Service {
 	return service.Inprocess(service.CATEGORIZER)
@@ -99,13 +111,6 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		}
 	}
 
-	var commands = controller.CommandHandlers{
-		"smartcontract_get_all": handler.GetSmartcontracts,
-		"smartcontract_get":     handler.GetSmartcontract,
-		"smartcontract_set":     handler.SetSmartcontract,
-		"snapshot_get":          handler.GetSnapshot,
-	}
-
 	reply, err := controller.NewReply(Service())
 	if err != nil {
 		logger.Fatal("controller.NewReply", "service", Service())
@@ -115,7 +120,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	go RunPuller(logger, db_con)
 
-	err = reply.Run(commands, db_con)
+	err = reply.Run(CommandHandlers(), db_con)
 	if err != nil {
 		logger.Fatal("controller.Run", "error", err)
 	}
