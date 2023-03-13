@@ -7,7 +7,6 @@ import (
 
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
-	"github.com/blocklords/sds/common/data_type/key_value"
 
 	app_log "github.com/blocklords/sds/app/log"
 
@@ -22,19 +21,16 @@ type Dealer struct {
 type Router struct {
 	service *service.Service
 	dealers []*Dealer
-	// command name to the dealer
-	routes key_value.KeyValue
-	logger log.Logger
+	logger  log.Logger
 }
 
 // Returns the initiated Router whith the service parameters
 func NewRouter(parent_log log.Logger, service *service.Service) Router {
 	logger := app_log.Child(parent_log, "router")
 
-	routes := key_value.Empty()
 	dealers := make([]*Dealer, 0)
 
-	return Router{logger: logger, service: service, routes: routes, dealers: dealers}
+	return Router{logger: logger, service: service, dealers: dealers}
 }
 
 // Whether the dealer for the service is added or not
@@ -48,33 +44,19 @@ func (r *Router) service_registered(service *service.Service) bool {
 	return false
 }
 
-// Whether the command registered or not
-func (r *Router) command_registered(name string) bool {
-	_, err := r.routes.GetUint64(name)
-	return err == nil
-}
-
-func (r *Router) add_service(service *service.Service) uint64 {
+func (r *Router) add_service(service *service.Service) {
 	dealer := Dealer{service: service, socket: nil}
 	r.dealers = append(r.dealers, &dealer)
-
-	return uint64(len(r.dealers) - 1)
 }
 
 // Registers the route from command to dealer.
 // SDS Core can have unique command handlers.
-func (router *Router) AddDealer(service *service.Service, commands []string) error {
-	if router.service_registered(service) {
-		return fmt.Errorf("duplicate service url '%s'", service.Url())
-	}
-	index := router.add_service(service)
-
-	for _, name := range commands {
-		if router.command_registered(name) {
-			return fmt.Errorf("duplicate command name '%s'", name)
+func (router *Router) AddDealers(services ...*service.Service) error {
+	for _, service := range services {
+		if router.service_registered(service) {
+			return fmt.Errorf("duplicate service url '%s'", service.Url())
 		}
-
-		router.routes.Set(name, index)
+		router.add_service(service)
 	}
 	return nil
 }
@@ -95,17 +77,39 @@ func (router *Router) add_socket(index uint64) error {
 }
 
 // Returns the route to the dealer based on the command name
-func (router *Router) get_route(name string) *Dealer {
-	for command_name, index := range router.routes {
-		if command_name == name {
-			return router.dealers[index.(uint64)]
+func (router *Router) get_dealer(service string) *Dealer {
+	for _, dealer := range router.dealers {
+		if dealer.service.Name == service {
+			return dealer
 		}
 	}
 
 	return nil
 }
 
-// Runs the router that redirects the incoming requests to the services.
+// Runs the router (asynchronous zmq.REP) along with dealers (asynchronous zmq.REQ).
+// The dealers are connected to the zmq.REP controllers.
+//
+// The router will redirect the message to the zmq.REP controllers using dealers.
+//
+// Note!!! If the request to this router comes from zmq.REQ client, then client
+// should set the identity using zmq.SetIdentity().
+//
+// Format of the incoming message:
+//
+//		0 - bytes request id
+//		1 - ""; empty delimiter
+//		2 - string (gosds/app/service.ServiceType) service name as a tag of dealer.
+//	     to identify which dealer to use
+//		3 - gosds/app/remote/message.Request the message that is redirected to the zmq.REP controller
+//
+// The request id is used to identify the client. Once the dealer gets the reply from zmq.REP controller
+// the router will return it back to the client by request id.
+//
+// Example:
+//
+//	// route the msg[3] to the SDS Static
+//	msg := [0: "uid-123", 1: "", 2: "static", 3: "{`command`: `smartcontract_get`, `parameters`: {}}"]
 func (router *Router) Run() {
 	router.logger.Info("setup the dealer sockets")
 	//  Initialize poll set
@@ -130,6 +134,8 @@ func (router *Router) Run() {
 	}
 
 	poller.Add(frontend, zmq.POLLIN)
+
+	router.logger.Info("The router waits for client requests", "service", router.service.Name, "url", router.service.Url())
 
 	//  Switch messages between sockets
 	for {
@@ -176,9 +182,9 @@ func (router *Router) Run() {
 					}
 					continue
 				}
-				dealer := router.get_route(msgs[2])
+				dealer := router.get_dealer(msgs[2])
 				if dealer == nil {
-					fail := message.Fail("no route to the socket for command " + msgs[2])
+					fail := message.Fail("no dealer registered for " + msgs[2])
 					fail_string, _ := fail.ToString()
 
 					_, err := frontend.Send(msgs[0], zmq.SNDMORE)
@@ -196,8 +202,21 @@ func (router *Router) Run() {
 					continue
 				}
 
-				// router id
-				dealer.socket.SendMessage(msgs)
+				// send the id
+				frontend.Send(msgs[0], zmq.SNDMORE)
+				// send the delimiter
+				frontend.Send(msgs[1], zmq.SNDMORE)
+				// skip the command name
+				// we skip the router name,
+				// sending only message.Request part
+				last_index := len(msgs) - 1
+				for i := 3; i <= last_index; i++ {
+					if i == last_index {
+						frontend.Send(msgs[i], 0)
+					} else {
+						frontend.Send(msgs[i], zmq.SNDMORE)
+					}
+				}
 			} else {
 				for {
 					msg, _ := zmq_socket.Recv(0)
