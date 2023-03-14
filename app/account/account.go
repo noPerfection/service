@@ -3,7 +3,6 @@ package account
 
 // Requester to the SDS Service. It's either a developer or another SDS service.
 type Account struct {
-	Id             uint64 `json:"id,omitempty"`    // Auto incremented for every new developer
 	PublicKey      string `json:"public_key"`      // Public Key for authentication.
 	Organization   string `json:"organization"`    // Organization
 	NonceTimestamp uint64 `json:"nonce_timestamp"` // Nonce since the last usage. Only acceptable for developers
@@ -21,9 +20,8 @@ func NewFromPublicKey(public_key string) *Account {
 }
 
 // Creates a new Account for a developer.
-func New(id uint64, public_key string, nonce_timestamp uint64, organization string) *Account {
+func New(public_key string, nonce_timestamp uint64, organization string) *Account {
 	return &Account{
-		Id:             id,
 		PublicKey:      public_key,
 		NonceTimestamp: nonce_timestamp,
 		Organization:   organization,
