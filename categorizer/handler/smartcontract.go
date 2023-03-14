@@ -4,13 +4,14 @@ import (
 	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/sds/app/remote/message"
-	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 
 	"github.com/blocklords/sds/db"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // return a categorized smartcontract parameters by network id and smartcontract address
@@ -80,8 +81,12 @@ func SetSmartcontract(request message.Request, logger log.Logger, parameters ...
 	pusher, err := blockchain_process.CategorizerManagerSocket(sm.SmartcontractKey.NetworkId)
 	if err != nil {
 		return message.Fail("inproc: " + err.Error())
+
+	pushers := parameters[1].(map[string]*zmq.Socket)
+	pusher, ok := pushers[sm.SmartcontractKey.NetworkId]
+	if !ok {
+		return message.Fail("no blockchain package for network id")
 	}
-	defer pusher.Close()
 
 	smartcontracts := []*smartcontract.Smartcontract{sm}
 

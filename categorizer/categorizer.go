@@ -17,6 +17,8 @@ import (
 	"github.com/blocklords/sds/categorizer/handler"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/db"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // Sends the smartcontracts to the blockchain package.
@@ -24,7 +26,7 @@ import (
 // The blockchain package will have the categorizer for its each blockchain type.
 // They will handle the decoding the event logs.
 // After decoding, the blockchain/categorizer will push back to this categorizer's puller.
-func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *network.Network) error {
+func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *network.Network, pusher *zmq.Socket) error {
 	var mu sync.Mutex
 	logger.Info("get all categorizable smartcontracts from database", "network_id", network.Id)
 	smartcontracts, err := smartcontract.GetAllByNetworkId(db_con, network.Id)
@@ -43,12 +45,6 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 		},
 	}
 	request_string, _ := request.ToString()
-
-	pusher, err := categorizer_process.CategorizerManagerSocket(network.Id)
-	if err != nil {
-		return fmt.Errorf("categorizer_process.CategorizerManagerSocket: %w", err)
-	}
-	defer pusher.Close()
 
 	mu.Lock()
 	_, err = pusher.SendMessage(request_string)
@@ -104,8 +100,16 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	logger.Info("networks retreived")
 
+	pushers := make(map[string]*zmq.Socket, len(networks))
+
 	for _, the_network := range networks {
-		err := setup_smartcontracts(logger, db_con, the_network)
+		pusher, err := categorizer_process.CategorizerManagerSocket(the_network.Id)
+		if err != nil {
+			logger.Fatal("categorizer_process.CategorizerManagerSocket: %w", err)
+		}
+		pushers[the_network.Id] = pusher
+
+		err = setup_smartcontracts(logger, db_con, the_network, pusher)
 		if err != nil {
 			logger.Fatal("setup_smartcontracts", "network_id", the_network.Id, "message", err)
 		}
@@ -120,7 +124,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	go RunPuller(logger, db_con)
 
-	err = reply.Run(CommandHandlers(), db_con)
+	err = reply.Run(CommandHandlers(), db_con, pushers)
 	if err != nil {
 		logger.Fatal("controller.Run", "error", err)
 	}
