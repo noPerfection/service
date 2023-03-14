@@ -203,18 +203,18 @@ func (router *Router) Run() {
 				}
 
 				// send the id
-				frontend.Send(msgs[0], zmq.SNDMORE)
+				dealer.socket.Send(msgs[0], zmq.SNDMORE)
 				// send the delimiter
-				frontend.Send(msgs[1], zmq.SNDMORE)
+				dealer.socket.Send(msgs[1], zmq.SNDMORE)
 				// skip the command name
 				// we skip the router name,
-				// sending only message.Request part
+				// sending the message.Request part
 				last_index := len(msgs) - 1
 				for i := 3; i <= last_index; i++ {
 					if i == last_index {
-						frontend.Send(msgs[i], 0)
+						dealer.socket.Send(msgs[i], 0)
 					} else {
-						frontend.Send(msgs[i], zmq.SNDMORE)
+						dealer.socket.Send(msgs[i], zmq.SNDMORE)
 					}
 				}
 			} else {
