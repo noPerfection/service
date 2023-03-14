@@ -14,6 +14,7 @@ import (
 	"github.com/blocklords/sds/blockchain/evm/transaction"
 	"github.com/blocklords/sds/blockchain/network/provider"
 	spaghetti_transaction "github.com/blocklords/sds/blockchain/transaction"
+	"github.com/blocklords/sds/common/blockchain"
 
 	"github.com/ethereum/go-ethereum"
 
@@ -165,7 +166,21 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.R
 	}
 	c.increase_rating()
 
-	tx, parse_err := transaction.New("", receipt.BlockNumber.Uint64(), receipt.TransactionIndex, transaction_raw)
+	block := blockchain.BlockHeader{
+		Number: blockchain.Number(receipt.BlockNumber.Uint64()),
+	}
+
+	time_ctx, time_cancel := context.WithTimeout(c.ctx, get_timeout())
+	defer time_cancel()
+	block_raw, err := c.client.BlockByNumber(time_ctx, receipt.BlockNumber)
+	if err != nil {
+		c.decrease_rating()
+		return nil, fmt.Errorf("client.BlockByNumber (%d): %w", block.Number, err)
+	}
+	c.increase_rating()
+	block.Timestamp = blockchain.NewTimestamp(block_raw.Header().Time)
+
+	tx, parse_err := transaction.New("", block, receipt.TransactionIndex, transaction_raw)
 	if parse_err != nil {
 		return nil, fmt.Errorf("transaction.New: %w", parse_err)
 	}

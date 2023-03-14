@@ -13,7 +13,7 @@ import (
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
 
-func New(network_id string, block_number uint64, transaction_index uint, tx *eth_types.Transaction) (*transaction.RawTransaction, error) {
+func New(network_id string, block blockchain.BlockHeader, transaction_index uint, tx *eth_types.Transaction) (*transaction.RawTransaction, error) {
 	msg, err := tx.AsMessage(eth_types.LatestSignerForChainID(tx.ChainId()), tx.GasPrice())
 	if err != nil {
 		return nil, fmt.Errorf("error parsing transaction. Failed to get 'From' field: %w", err)
@@ -28,7 +28,6 @@ func New(network_id string, block_number uint64, transaction_index uint, tx *eth
 	}
 
 	key := smartcontract_key.New(network_id, to)
-	block := blockchain.NewHeader(block_number, 0)
 	tx_key := blockchain.TransactionKey{
 		Id:    tx.Hash().String(),
 		Index: transaction_index,
