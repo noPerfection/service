@@ -22,10 +22,5 @@ func New(parameters key_value.KeyValue) (*Configuration, error) {
 		return nil, fmt.Errorf("failed to convert key-value of Configuration to interface %v", err)
 	}
 
-	address, err := parameters.GetString("address")
-	if err == nil {
-		conf.SetAddress(address)
-	}
-
 	return &conf, nil
 }

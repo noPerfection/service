@@ -34,7 +34,7 @@ func LoadDatabaseParts(db *db.Database, conf *Configuration) error {
 		return err
 	}
 
-	conf.SetAddress(address)
+	conf.Address = address
 
 	return nil
 }
