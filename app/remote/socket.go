@@ -169,6 +169,8 @@ func (socket *Socket) RequestRouter(service_type service.ServiceType, request *m
 		return nil, fmt.Errorf("request.ToString: %w", err)
 	}
 
+	attempt := parameter.Attempt()
+
 	// we attempt requests for an infinite amount of time.
 	for {
 		//  We send a request, then we work to get a reply
@@ -205,7 +207,8 @@ func (socket *Socket) RequestRouter(service_type service.ServiceType, request *m
 
 			return reply.Parameters, nil
 		} else {
-			fmt.Println("timeout", socket.protocol, request_string, socket.inproc_url)
+			fmt.Println("timeout", "attempts left", attempt, "protocol", socket.protocol, "request", request_string, socket.inproc_url)
+			// if attempts are 0, we reconnect to remove the buffer queue.
 			if socket.protocol == "inproc" {
 				err := socket.inproc_reconnect()
 				if err != nil {
@@ -217,6 +220,10 @@ func (socket *Socket) RequestRouter(service_type service.ServiceType, request *m
 					return nil, fmt.Errorf("socket.reconnect: %w", err)
 				}
 			}
+			if attempt == 0 {
+				return nil, fmt.Errorf("timeout")
+			}
+			attempt--
 		}
 	}
 }
