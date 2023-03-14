@@ -33,6 +33,9 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 	if err != nil {
 		return fmt.Errorf("smartcontract.GetAllByNetworkId: %w", err)
 	}
+	if len(smartcontracts) == 0 {
+		return nil
+	}
 
 	logger.Info("all smartcontracts returned", "network_id", network.Id, "smartcontract amount", len(smartcontracts))
 
