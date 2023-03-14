@@ -2,10 +2,10 @@ package handler
 
 import (
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/abi"
 	"github.com/blocklords/sds/static/smartcontract"
-	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/sds/app/remote/message"

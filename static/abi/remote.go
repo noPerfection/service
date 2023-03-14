@@ -6,6 +6,7 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 )
@@ -14,13 +15,13 @@ import (
 func Set(socket *remote.Socket, body interface{}) (key_value.KeyValue, error) {
 	// Send hello.
 	request := message.Request{
-		Command: "abi_register",
+		Command: "abi_set",
 		Parameters: map[string]interface{}{
-			"abi": body,
+			"body": body,
 		},
 	}
 
-	return socket.RequestRemoteService(&request)
+	return socket.RequestRouter(service.STATIC, &request)
 }
 
 // Returns the abi from the remote server

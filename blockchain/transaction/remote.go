@@ -5,6 +5,7 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/blockchain"
 )
 
@@ -21,7 +22,7 @@ func RemoteTransactionDeployed(socket *remote.Socket, network_id string, Txid st
 		},
 	}
 
-	raw_params, err := socket.RequestRemoteService(&request)
+	raw_params, err := socket.RequestRouter(service.SPAGHETTI, &request)
 	if err != nil {
 		return "", "", blockchain.BlockHeader{}, fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}

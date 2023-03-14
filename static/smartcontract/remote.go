@@ -121,11 +121,11 @@ func RemoteSmartcontractRegister(socket *remote.Socket, s *Smartcontract) (strin
 
 	// Send hello.
 	request := message.Request{
-		Command:    "smartcontract_register",
+		Command:    "smartcontract_set",
 		Parameters: json,
 	}
 
-	params, err := socket.RequestRemoteService(&request)
+	params, err := socket.RequestRouter(service.STATIC, &request)
 	if err != nil {
 		return "", err
 	}
