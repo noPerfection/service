@@ -78,9 +78,6 @@ func SetSmartcontract(request message.Request, logger log.Logger, parameters ...
 		return message.Fail("database: " + saveErr.Error())
 	}
 
-	pusher, err := blockchain_process.CategorizerManagerSocket(sm.SmartcontractKey.NetworkId)
-	if err != nil {
-		return message.Fail("inproc: " + err.Error())
 
 	pushers := parameters[1].(map[string]*zmq.Socket)
 	pusher, ok := pushers[sm.SmartcontractKey.NetworkId]
