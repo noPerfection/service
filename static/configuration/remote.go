@@ -55,10 +55,10 @@ func RemoteConfigurationRegister(socket *remote.Socket, conf *Configuration) err
 	}
 
 	request := message.Request{
-		Command:    "configuration_register",
+		Command:    "configuration_set",
 		Parameters: kv,
 	}
 
-	_, err = socket.RequestRemoteService(&request)
+	_, err = socket.RequestRouter(service.STATIC, &request)
 	return err
 }

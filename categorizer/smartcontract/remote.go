@@ -5,6 +5,7 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
@@ -16,7 +17,7 @@ func RemoteSet(b *Smartcontract, socket *remote.Socket) error {
 		Parameters: key_value.Empty().Set("smartcontract", b),
 	}
 
-	_, err := socket.RequestRemoteService(&request)
+	_, err := socket.RequestRouter(service.CATEGORIZER, &request)
 	if err != nil {
 		return err
 	}
