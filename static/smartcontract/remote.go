@@ -127,8 +127,13 @@ func RemoteSmartcontractRegister(socket *remote.Socket, s *Smartcontract) (strin
 
 	params, err := socket.RequestRouter(service.STATIC, &request)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("request router (smartcontract_set): %w", err)
 	}
 
-	return params.GetString("address")
+	smartcontract_key, err := params.GetKeyValue("key")
+	if err != nil {
+		return "", fmt.Errorf("get smartcontract_key: %w", err)
+	}
+
+	return smartcontract_key.GetString("address")
 }
