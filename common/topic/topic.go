@@ -17,19 +17,17 @@ type (
 		NetworkId     string `json:"n,omitempty"`
 		Group         string `json:"g,omitempty"`
 		Smartcontract string `json:"s,omitempty"`
-		Method        string `json:"m,omitempty"`
 		Event         string `json:"e,omitempty"`
 	}
 )
 
-func New(o string, p string, n string, g string, s string, m string, e string) Topic {
+func New(o string, p string, n string, g string, s string, e string) Topic {
 	return Topic{
 		Organization:  o,
 		Project:       p,
 		NetworkId:     n,
 		Group:         g,
 		Smartcontract: s,
-		Method:        m,
 		Event:         e,
 	}
 }
@@ -56,12 +54,9 @@ func (t *Topic) ToString(level uint8) string {
 	if level >= 5 {
 		str += ";s:" + t.Smartcontract
 	}
-	if level == 6 {
-		if len(t.Method) > 0 {
-			str += ";m:" + t.Method
-		} else if len(t.Event) > 0 {
-			str += ";e:" + t.Event
-		}
+
+	if level >= 6 {
+		str += ";e:" + t.Event
 	}
 
 	return str
@@ -84,7 +79,7 @@ func (t *Topic) Level() uint8 {
 					if len(t.Smartcontract) > 0 {
 						level++
 
-						if len(t.Method) > 0 || len(t.Event) > 0 {
+						if len(t.Event) > 0 {
 							level++
 						}
 					}
@@ -117,7 +112,6 @@ func ParseJSON(parameters key_value.KeyValue) (*Topic, error) {
 		NetworkId:     "",
 		Group:         "",
 		Smartcontract: "",
-		Method:        "",
 		Event:         "",
 	}
 
@@ -136,11 +130,6 @@ func ParseJSON(parameters key_value.KeyValue) (*Topic, error) {
 		topic.Smartcontract = smartcontract
 	}
 
-	method, err := parameters.GetString("m")
-	if err == nil {
-		topic.Method = method
-	}
-
 	event, err := parameters.GetString("e")
 	if err == nil {
 		topic.Event = event
@@ -150,7 +139,7 @@ func ParseJSON(parameters key_value.KeyValue) (*Topic, error) {
 }
 
 func isPathName(name string) bool {
-	return name == "o" || name == "p" || name == "n" || name == "g" || name == "s" || name == "m" || name == "e"
+	return name == "o" || name == "p" || name == "n" || name == "g" || name == "s" || name == "e"
 }
 
 func isLiteral(val string) bool {
@@ -188,12 +177,6 @@ func (t *Topic) setNewValue(pathName string, val string) error {
 			return fmt.Errorf("the duplicate smartcontract path name. already set as " + t.Smartcontract)
 		} else {
 			t.Smartcontract = val
-		}
-	case "m":
-		if len(t.Method) > 0 {
-			return fmt.Errorf("the duplicate method path name. already set as " + t.Method)
-		} else {
-			t.Method = val
 		}
 	case "e":
 		if len(t.Event) > 0 {
@@ -252,10 +235,6 @@ func ParseString(topic_string string) (Topic, error) {
 		if err != nil {
 			return t, fmt.Errorf("part[%d] setNewValue: %w", i, err)
 		}
-	}
-
-	if len(t.Method) > 0 && len(t.Event) > 0 {
-		return Topic{}, fmt.Errorf("both method and event parts of topic is given of %s", topic_string)
 	}
 
 	return t, nil

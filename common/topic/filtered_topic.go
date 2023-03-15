@@ -12,18 +12,16 @@ type TopicFilter struct {
 	NetworkIds     []string `json:"n,omitempty"`
 	Groups         []string `json:"g,omitempty"`
 	Smartcontracts []string `json:"s,omitempty"`
-	Methods        []string `json:"m,omitempty"`
 	Events         []string `json:"e,omitempty"`
 }
 
-func NewFilterTopic(o []string, p []string, n []string, g []string, s []string, m []string, e []string) TopicFilter {
+func NewFilterTopic(o []string, p []string, n []string, g []string, s []string, e []string) TopicFilter {
 	return TopicFilter{
 		Organizations:  o,
 		Projects:       p,
 		NetworkIds:     n,
 		Groups:         g,
 		Smartcontracts: s,
-		Methods:        m,
 		Events:         e,
 	}
 }
@@ -41,9 +39,9 @@ func (t *TopicFilter) Len(level uint8) int {
 	case SMARTCONTRACT_LEVEL:
 		return len(t.Smartcontracts)
 	case FULL_LEVEL:
-		return len(t.Methods) + len(t.Events)
+		return len(t.Events)
 	default:
-		return len(t.Organizations) + len(t.Projects) + len(t.NetworkIds) + len(t.Groups) + len(t.Smartcontracts) + len(t.Methods) + len(t.Events)
+		return len(t.Organizations) + len(t.Projects) + len(t.NetworkIds) + len(t.Groups) + len(t.Smartcontracts) + len(t.Events)
 	}
 }
 
@@ -80,9 +78,6 @@ func (t *TopicFilter) ToString() string {
 	if len(t.Smartcontracts) > 0 {
 		str += "s:" + list(t.Smartcontracts) + ";"
 	}
-	if len(t.Methods) > 0 {
-		str += "m:" + list(t.Methods) + ";"
-	}
 	if len(t.Events) > 0 {
 		str += "e:" + list(t.Events) + ";"
 	}
@@ -107,7 +102,6 @@ func NewFromKeyValue(parameters key_value.KeyValue) *TopicFilter {
 		NetworkIds:     []string{},
 		Groups:         []string{},
 		Smartcontracts: []string{},
-		Methods:        []string{},
 		Events:         []string{},
 	}
 
@@ -130,10 +124,6 @@ func NewFromKeyValue(parameters key_value.KeyValue) *TopicFilter {
 	smartcontracts, err := parameters.GetStringList("s")
 	if err == nil {
 		topic_filter.Smartcontracts = smartcontracts
-	}
-	methods, err := parameters.GetStringList("m")
-	if err == nil {
-		topic_filter.Methods = methods
 	}
 	logs, err := parameters.GetStringList("e")
 	if err == nil {
