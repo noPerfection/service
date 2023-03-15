@@ -18,7 +18,7 @@ const SNAPSHOT_LIMIT = uint64(500)
 // that matches topic_filter
 //
 // This function is called by the SDK through SDS Gateway
-func GetSnapshot(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+func GetSnapshot(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
 	block_timestamp_from, err := blockchain.NewTimestampFromKeyValueParameter(request.Parameters)

@@ -14,7 +14,7 @@ import (
 )
 
 // return a categorized smartcontract parameters by network id and smartcontract address
-func GetSmartcontract(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+func GetSmartcontract(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db := parameters[0].(*db.Database)
 
 	key, err := smartcontract_key.NewFromKeyValue(request.Parameters)
@@ -38,7 +38,7 @@ func GetSmartcontract(request message.Request, logger log.Logger, parameters ...
 }
 
 // returns all smartcontract categorized smartcontracts
-func GetSmartcontracts(_ message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+func GetSmartcontracts(_ message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db := parameters[0].(*db.Database)
 	smartcontracts, err := smartcontract.GetAll(db)
 	if err != nil {
