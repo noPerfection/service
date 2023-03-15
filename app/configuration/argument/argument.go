@@ -6,8 +6,7 @@ import (
 	"os"
 	"strings"
 
-	app_log "github.com/blocklords/sds/app/log"
-	"github.com/charmbracelet/log"
+	"github.com/blocklords/sds/app/log"
 )
 
 const (
@@ -49,11 +48,9 @@ func GetEnvPaths() []string {
 
 // Load arguments, not the environment variable paths.
 // Arguments starts with '--'
-func GetArguments(logger log.Logger) []string {
+func GetArguments(logger *log.Logger) []string {
 	if logger != nil {
-		env_logger := app_log.Child(logger, "arguments")
-		env_logger.SetReportCaller(false)
-		env_logger.SetReportTimestamp(false)
+		env_logger := logger.Child("arguments", log.WITHOUT_REPORT_CALLER, log.WITHOUT_TIMESTAMP)
 
 		env_logger.Info("To load .env files pass them as application arguments")
 		env_logger.Info(".env in folder from where you call the app loaded automatically")

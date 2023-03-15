@@ -10,8 +10,7 @@ import (
 	"sync"
 	"time"
 
-	app_log "github.com/blocklords/sds/app/log"
-	"github.com/charmbracelet/log"
+	"github.com/blocklords/sds/app/log"
 
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/common/data_type/key_value"
@@ -87,12 +86,11 @@ func GetDefaultCredentials(app_config *configuration.Config) DatabaseCredentials
 
 // NewDatabase establishes a database connection with the given Vault credentials
 func Open(logger log.Logger, parameters *DatabaseParameters, credentials DatabaseCredentials) (*Database, error) {
-	database_logger := app_log.Child(logger, "database")
 	database := &Database{
 		Connection:      nil,
 		connectionMutex: sync.Mutex{},
 		parameters:      *parameters,
-		logger:          database_logger,
+		logger:          logger.ChildWithoutReport("database"),
 	}
 
 	ctx := context.TODO()

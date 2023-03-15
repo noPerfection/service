@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/charmbracelet/log"
-
 	evm_log "github.com/blocklords/sds/blockchain/evm/event"
 	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/blockchain/transaction"
 
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 
 	"github.com/blocklords/sds/common/blockchain"
@@ -76,12 +75,12 @@ func (m *Manager) client_info(title string) {
 func (worker *Manager) SetupSocket() {
 	sock, err := zmq.NewSocket(zmq.REP)
 	if err != nil {
-		log.Fatal("trying to create new reply socket for network id %s: %v", worker.network.Id, err)
+		worker.logger.Fatal("trying to create new reply socket for network id %s: %v", worker.network.Id, err)
 	}
 
 	url := blockchain_proc.BlockchainManagerUrl(worker.network.Id)
 	if err := sock.Bind(url); err != nil {
-		log.Fatal("trying to create categorizer for network id %s: %v", worker.network.Id, err)
+		worker.logger.Fatal("trying to create categorizer for network id %s: %v", worker.network.Id, err)
 	}
 	worker.logger.Info("reply controller waiting for messages", "url", url)
 	defer sock.Close()
@@ -106,11 +105,11 @@ func (worker *Manager) SetupSocket() {
 		reply_string, err := reply.ToString()
 		if err != nil {
 			if _, err := sock.SendMessage(err.Error()); err != nil {
-				log.Fatal("reply.ToString error to send message for network id %s error: %w", worker.network.Id, err)
+				worker.logger.Fatal("reply.ToString error to send message for network id %s error: %w", worker.network.Id, err)
 			}
 		} else {
 			if _, err := sock.SendMessage(reply_string); err != nil {
-				log.Fatal("failed to reply: %w", err)
+				worker.logger.Fatal("failed to reply: %w", err)
 			}
 		}
 	}

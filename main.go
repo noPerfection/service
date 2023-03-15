@@ -30,10 +30,7 @@ import (
 //
 // The router returns replies the result back to the user.
 func main() {
-	logger := log.New()
-	logger.SetPrefix("sds-core")
-	logger.SetReportCaller(true)
-	logger.SetReportTimestamp(true)
+	logger := log.New("sds-core", log.WITH_REPORT_CALLER, log.WITH_TIMESTAMP)
 
 	app_config, err := configuration.NewAppConfig(logger)
 	if err != nil {

@@ -10,8 +10,7 @@ import (
 
 	"github.com/blocklords/sds/app/remote/message"
 
-	app_log "github.com/blocklords/sds/app/log"
-	"github.com/charmbracelet/log"
+	"github.com/blocklords/sds/app/log"
 
 	zmq "github.com/pebbe/zmq4"
 )
@@ -33,13 +32,10 @@ func broadcast_domain(s *service.Service) string {
 // The first parameter is the way to publish the messages.
 // The second parameter starts the message
 func New(s *service.Service, logger log.Logger) (*Broadcast, error) {
-	child := app_log.Child(logger, "broadcast")
-	child.SetReportCaller(false)
-
 	broadcast := Broadcast{
 		service: s,
 		In:      make(chan message.Broadcast),
-		logger:  child,
+		logger:  logger.ChildWithTimestamp("broadcast"),
 	}
 
 	return &broadcast, nil
@@ -103,7 +99,7 @@ func (b *Broadcast) Run() {
 		_, err = b.socket.SendMessage(broadcast.Topic, broadcast.ToBytes())
 		mu.Unlock()
 		if err != nil {
-			log.Fatal("socket error to send message", "message", err)
+			b.logger.Fatal("socket error to send message", "message", err)
 		}
 	}
 }

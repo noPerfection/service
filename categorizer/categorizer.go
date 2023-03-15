@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	app_log "github.com/blocklords/sds/app/log"
-	"github.com/charmbracelet/log"
+	"github.com/blocklords/sds/app/log"
 
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/controller"
@@ -82,10 +81,7 @@ func Service() *service.Service {
 //
 // dep: SDS Blockchain core service
 func Run(app_config *configuration.Config, db_con *db.Database) {
-	logger := app_log.New()
-	logger.SetPrefix("categorizer")
-	logger.SetReportCaller(true)
-	logger.SetReportTimestamp(true)
+	logger := log.New("categorizer", log.WITHOUT_REPORT_CALLER, log.WITH_TIMESTAMP)
 
 	logger.Info("starting")
 
@@ -118,11 +114,10 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		}
 	}
 
-	reply, err := controller.NewReply(Service())
+	cat_service := Service()
+	reply, err := controller.NewReply(cat_service, logger)
 	if err != nil {
 		logger.Fatal("controller.NewReply", "service", Service())
-	} else {
-		reply.SetLogger(logger)
 	}
 
 	go RunPuller(logger, db_con)

@@ -1,10 +1,10 @@
 package handler
 
 import (
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/configuration"
 	"github.com/blocklords/sds/static/smartcontract"
-	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
@@ -26,7 +26,7 @@ Algorithm
     The smartcontract package accepts the db_query from configuration config.
  4. return list of smartcontracts back
 */
-func SmartcontractFilter(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+func SmartcontractFilter(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
 	topic_filter, err := topic.NewFromKeyValueParameter(request.Parameters)
@@ -67,7 +67,7 @@ func SmartcontractFilter(request message.Request, logger log.Logger, parameters 
 //	returns {
 //			"smartcontract_keys" (where key is smartcontract key, value is a topic string)
 //	}
-func SmartcontractKeyFilter(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+func SmartcontractKeyFilter(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
 	topic_filter, err := topic.NewFromKeyValueParameter(request.Parameters)
@@ -100,7 +100,7 @@ func SmartcontractKeyFilter(request message.Request, logger log.Logger, paramete
 // Register a new smartcontract. It means we are adding smartcontract parameters into
 // static_smartcontract.
 // Requires abi_id parameter. First call abi_register method first.
-func SmartcontractRegister(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
 	sm, err := smartcontract.New(request.Parameters)
@@ -127,7 +127,7 @@ func SmartcontractRegister(request message.Request, logger log.Logger, parameter
 }
 
 // Returns configuration and smartcontract information related to the configuration
-func SmartcontractGet(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+func SmartcontractGet(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
 	key, err := smartcontract_key.NewFromKeyValue(request.Parameters)

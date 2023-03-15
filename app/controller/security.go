@@ -3,8 +3,7 @@ package controller
 import (
 	"fmt"
 
-	"github.com/charmbracelet/log"
-
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/service"
 
 	zmq "github.com/pebbe/zmq4"

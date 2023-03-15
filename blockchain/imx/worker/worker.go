@@ -4,12 +4,11 @@ import (
 	"errors"
 	"time"
 
-	"github.com/charmbracelet/log"
-
 	"github.com/blocklords/sds/blockchain/imx"
 	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
 
 	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	spaghetti_log "github.com/blocklords/sds/blockchain/event"
 	"github.com/blocklords/sds/blockchain/imx/client"
@@ -46,7 +45,7 @@ func (worker *Manager) SetupSocket() {
 
 	url := blockchain_proc.BlockchainManagerUrl(worker.client.Network.Id)
 	if err := sock.Bind(url); err != nil {
-		log.Fatal("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
+		worker.logger.Fatal("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
 	}
 
 	worker.logger.Info("reply controller waiting for messages", "url", url)

@@ -1,9 +1,8 @@
 package handler
 
 import (
-	"github.com/charmbracelet/log"
-
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"

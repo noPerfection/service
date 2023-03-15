@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/charmbracelet/log"
-
 	"github.com/blocklords/sds/app/configuration"
-	app_log "github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	hashicorp "github.com/hashicorp/vault/api"
@@ -73,8 +71,7 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_MOUNT_PATH' environment variable")
 	}
 
-	vault_logger := app_log.Child(logger, "vault")
-	vault_logger.SetReportCaller(false)
+	vault_logger := logger.Child("vault", log.WITHOUT_REPORT_CALLER, log.WITH_TIMESTAMP)
 
 	secure := app_config.GetBool("SDS_VAULT_HTTPS")
 	host := app_config.GetString("SDS_VAULT_HOST")

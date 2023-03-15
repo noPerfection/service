@@ -3,12 +3,10 @@ package controller
 import (
 	"fmt"
 
-	"github.com/charmbracelet/log"
-
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
 
-	app_log "github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/log"
 
 	zmq "github.com/pebbe/zmq4"
 )
@@ -26,7 +24,7 @@ type Router struct {
 
 // Returns the initiated Router whith the service parameters
 func NewRouter(parent_log log.Logger, service *service.Service) Router {
-	logger := app_log.Child(parent_log, "router")
+	logger := parent_log.ChildWithoutReport("router")
 
 	dealers := make([]*Dealer, 0)
 

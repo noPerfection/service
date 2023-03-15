@@ -37,22 +37,17 @@ func Service() *service.Service {
 // - smartcontract abi
 // - smartcontract information
 // - configuration (a relationship between common/topic.Topic and static.Smartcontract).
-func Run(app_config *configuration.Config, db_connection *db.Database) {
-	logger := log.New()
-	logger.SetPrefix("static")
-	logger.SetReportCaller(true)
-	logger.SetReportTimestamp(true)
+func Run(_ *configuration.Config, db_connection *db.Database) {
+	logger := log.New("static", log.WITH_REPORT_CALLER, log.WITH_TIMESTAMP)
 
 	logger.Info("starting")
 
 	// Getting the services which has access to the SDS Static
-	static_env := service.Inprocess(service.STATIC)
+	static_env := Service()
 
-	reply, err := controller.NewReply(static_env)
+	reply, err := controller.NewReply(static_env, logger)
 	if err != nil {
 		logger.Fatal("reply controller", "message", err)
-	} else {
-		reply.SetLogger(logger)
 	}
 
 	err = reply.Run(CommandHandlers(), db_connection)

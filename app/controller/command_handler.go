@@ -1,8 +1,8 @@
 package controller
 
 import (
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
-	"github.com/charmbracelet/log"
 )
 
 // command name => function

@@ -6,11 +6,9 @@ package configuration
 import (
 	"fmt"
 
-	"github.com/charmbracelet/log"
-
 	"github.com/blocklords/sds/app/configuration/argument"
 	"github.com/blocklords/sds/app/configuration/env"
-	app_log "github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/log"
 	"github.com/spf13/viper"
 )
 
@@ -18,26 +16,25 @@ import (
 type Config struct {
 	viper *viper.Viper // used to keep default values
 
-	Plain         bool       // if true then no security
-	Broadcast     bool       // if true then broadcast of the service will be enabled
-	Reply         bool       // if true then reply controller of the service will be enabled
-	DebugSecurity bool       // if true then we print the security layer logs
-	logger        log.Logger // debug purpose only
+	Plain         bool        // if true then no security
+	Broadcast     bool        // if true then broadcast of the service will be enabled
+	Reply         bool        // if true then reply controller of the service will be enabled
+	DebugSecurity bool        // if true then we print the security layer logs
+	logger        *log.Logger // debug purpose only
 }
 
 // Returns the new configuration file after loading environment variables
 // At the application level
 func NewAppConfig(logger log.Logger) (*Config, error) {
-	config_logger := app_log.Child(logger, "app-config")
-	config_logger.SetReportCaller(false)
-	config_logger.SetReportTimestamp(false)
+	config_logger := logger.Child("app-config", log.WITHOUT_REPORT_CALLER, log.WITHOUT_TIMESTAMP)
+
 	// First we check the parameters of the application arguments
-	arguments := argument.GetArguments(config_logger)
+	arguments := argument.GetArguments(&config_logger)
 
 	conf := Config{
 		Plain:         argument.Has(arguments, argument.PLAIN),
 		DebugSecurity: argument.Has(arguments, argument.SECURITY_DEBUG),
-		logger:        config_logger,
+		logger:        &config_logger,
 	}
 
 	config_logger.Info("Supported application arguments:")

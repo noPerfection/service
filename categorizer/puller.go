@@ -3,12 +3,11 @@ package categorizer
 import (
 	"fmt"
 
-	app_log "github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/db"
-	"github.com/charmbracelet/log"
 
 	zmq "github.com/pebbe/zmq4"
 )
@@ -31,7 +30,7 @@ func NewCategorizerPusher() (*zmq.Socket, error) {
 // The received data stored in the database.
 // This socket receives messages from blockchain/categorizers.
 func RunPuller(cat_logger log.Logger, database *db.Database) {
-	logger := app_log.Child(cat_logger, "puller")
+	logger := cat_logger.ChildWithoutReport("puller")
 
 	sock, err := zmq.NewSocket(zmq.PULL)
 	if err != nil {

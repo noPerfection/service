@@ -6,11 +6,10 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/app/configuration"
-	app_log "github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db"
-	"github.com/charmbracelet/log"
 	hashicorp "github.com/hashicorp/vault/api"
 )
 
@@ -32,8 +31,7 @@ var DatabaseVaultConfigurations = configuration.DefaultConfig{
 
 // Create the credentials of the database
 func NewDatabase(vault *Vault) (*DatabaseVault, error) {
-	vault_logger := app_log.Child(vault.logger, "database")
-	vault_logger.SetReportCaller(false)
+	vault_logger := vault.logger.ChildWithoutReport("database")
 
 	database_path := vault.app_config.GetString("SDS_VAULT_DATABASE_PATH")
 
@@ -48,7 +46,7 @@ func NewDatabase(vault *Vault) (*DatabaseVault, error) {
 
 // GetDatabaseCredentials retrieves a new set of temporary database credentials
 func (v *DatabaseVault) GetDatabaseCredentials() (db.DatabaseCredentials, error) {
-	log.Info("getting temporary database credentials from vault: begin")
+	v.logger.Info("getting temporary database credentials from vault: begin")
 
 	ctx := context.TODO()
 	login_ctx, cancel := context.WithTimeout(ctx, parameter.RequestTimeout())
@@ -70,7 +68,7 @@ func (v *DatabaseVault) GetDatabaseCredentials() (db.DatabaseCredentials, error)
 		return db.DatabaseCredentials{}, fmt.Errorf("unable to unmarshal credentials: %w", err)
 	}
 
-	log.Info("getting temporary database credentials from vault: success!")
+	v.logger.Info("getting temporary database credentials from vault: success!")
 
 	v.database_auth_token = lease
 

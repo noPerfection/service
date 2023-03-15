@@ -10,8 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	app_log "github.com/blocklords/sds/app/log"
-	"github.com/charmbracelet/log"
+	"github.com/blocklords/sds/app/log"
 
 	"time"
 
@@ -56,8 +55,6 @@ type Manager struct {
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
 func NewManager(logger log.Logger, network *network.Network, pusher *zmq.Socket, static *remote.Socket) *Manager {
-	categorizer_logger := app_log.Child(logger, "categorizer")
-
 	manager := Manager{
 		Network: network,
 
@@ -68,7 +65,7 @@ func NewManager(logger log.Logger, network *network.Network, pusher *zmq.Socket,
 		// consumes the data from the subscribed blocks
 		current_workers: make(smartcontract.EvmWorkers, 0),
 
-		logger: categorizer_logger,
+		logger: logger.ChildWithTimestamp("categorizer"),
 		pusher: pusher,
 		static: static,
 	}
@@ -114,7 +111,7 @@ func (manager *Manager) Start() {
 
 	url := blockchain_proc.CategorizerManagerUrl(manager.Network.Id)
 	if err := sock.Connect(url); err != nil {
-		log.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
+		manager.logger.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
 	}
 
 	manager.logger.Info("waiting for the messages at", "url", url)
@@ -201,7 +198,7 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 // Get Log for the smartcontracts.
 func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 	var mu sync.Mutex
-	old_logger := app_log.Child(manager.logger, "old_logger_"+time.Now().String())
+	old_logger := manager.logger.ChildWithTimestamp("old_logger_" + time.Now().String())
 
 	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
 	blockchain_socket := remote.InprocRequestSocket(url)
@@ -310,7 +307,7 @@ func (manager *Manager) add_current_workers(workers smartcontract.EvmWorkers) {
 // Consume each received block from SDS Spaghetti broadcast
 func (manager *Manager) categorize_current_smartcontracts() {
 	var mu sync.Mutex
-	current_logger := app_log.Child(manager.logger, "current")
+	current_logger := manager.logger.ChildWithTimestamp("current")
 
 	current_logger.Info("starting to consume subscribed blocks...")
 
@@ -402,7 +399,7 @@ func recent_block_number(socket *remote.Socket) (blockchain.Number, error) {
 // And put it in the queue.
 // The worker will start to consume them one by one.
 func (manager *Manager) queue_recent_blocks() {
-	sub_logger := app_log.Child(manager.logger, "recent_block_queue")
+	sub_logger := manager.logger.ChildWithoutReport("recent_block_queue")
 
 	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
 	blockchain_socket := remote.InprocRequestSocket(url)

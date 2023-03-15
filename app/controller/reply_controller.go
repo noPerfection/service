@@ -8,8 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/charmbracelet/log"
-
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
 
@@ -22,7 +21,9 @@ type Controller struct {
 	logger  log.Logger
 }
 
-func NewReply(s *service.Service) (*Controller, error) {
+func NewReply(s *service.Service, logger log.Logger) (*Controller, error) {
+	controller_logger := logger.ChildWithTimestamp("reply_" + s.Name)
+
 	// Socket to talk to clients
 	socket, err := zmq.NewSocket(zmq.REP)
 	if err != nil {
@@ -32,12 +33,8 @@ func NewReply(s *service.Service) (*Controller, error) {
 	return &Controller{
 		socket:  socket,
 		service: s,
+		logger:  controller_logger,
 	}, nil
-}
-
-// Set the logger
-func (c *Controller) SetLogger(logger log.Logger) {
-	c.logger = logger
 }
 
 // Controllers started to receive messages
@@ -45,10 +42,6 @@ func (c *Controller) SetLogger(logger log.Logger) {
 func (c *Controller) Run(commands CommandHandlers, parameters ...interface{}) error {
 	if err := c.socket.Bind(c.service.Url()); err != nil {
 		return fmt.Errorf("socket.bind on tcp protocol for %s at url %s: %w", c.service.Name, c.service.Url(), err)
-	}
-
-	if c.logger != nil {
-		c.logger.Info("reply controller runs successfully", "url", c.service.Url())
 	}
 
 	for {

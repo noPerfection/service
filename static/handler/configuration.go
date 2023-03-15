@@ -1,12 +1,12 @@
 package handler
 
 import (
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/configuration"
 	"github.com/blocklords/sds/static/smartcontract"
-	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/sds/app/remote/message"
 )
@@ -37,7 +37,7 @@ func ConfigurationRegister(request message.Request, logger log.Logger, parameter
 }
 
 // Returns configuration and smartcontract information related to the configuration
-func ConfigurationGet(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+func ConfigurationGet(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
 	conf, err := configuration.New(request.Parameters)

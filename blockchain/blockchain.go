@@ -10,11 +10,10 @@
 package blockchain
 
 import (
-	app_log "github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/log"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/categorizer"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/sds/blockchain/network"
 
@@ -93,7 +92,7 @@ func transaction_deployed_get(request message.Request, logger log.Logger, _param
 
 // Returns Network
 func get_network(request message.Request, logger log.Logger, _parameters ...interface{}) message.Reply {
-	command_logger := app_log.Child(logger, "network-get-command")
+	command_logger := logger.ChildWithoutReport("network-get-command")
 	command_logger.Info("incoming request", "parameters", request.Parameters)
 
 	network_id, err := request.Parameters.GetString("network_id")
@@ -156,7 +155,7 @@ func get_network_ids(request message.Request, logger log.Logger, _parameters ...
 
 // Returns an abi by the smartcontract key.
 func get_all_networks(request message.Request, logger log.Logger, _parameters ...interface{}) message.Reply {
-	command_logger := app_log.Child(logger, "network-get-all-command")
+	command_logger := logger.ChildWithoutReport("network-get-all-command")
 	command_logger.Info("incoming request", "parameters", request.Parameters)
 
 	raw_network_type, err := request.Parameters.GetString("network_type")
@@ -198,18 +197,14 @@ func Service() *service.Service {
 }
 
 func Run(app_config *configuration.Config) {
-	logger := app_log.New()
-	logger.SetPrefix("blockchain")
-	logger.SetReportCaller(true)
-	logger.SetReportTimestamp(true)
+	logger := log.New("blockchain", log.WITH_REPORT_CALLER, log.WITH_TIMESTAMP)
 
 	logger.Info("starting")
 
-	reply, err := controller.NewReply(Service())
+	this_service := Service()
+	reply, err := controller.NewReply(this_service, logger)
 	if err != nil {
 		logger.Fatal("controller new", "message", err)
-	} else {
-		reply.SetLogger(logger)
 	}
 
 	err = run_networks(logger, app_config)
@@ -242,8 +237,7 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 	static_socket := remote.InprocRequestSocket(static_env.Url())
 
 	for _, new_network := range networks {
-		worker_logger := app_log.Child(logger, new_network.Type.String()+"_network_id_"+new_network.Id)
-		worker_logger.SetReportCaller(false)
+		worker_logger := logger.ChildWithTimestamp(new_network.Type.String() + "_network_id_" + new_network.Id)
 
 		if new_network.Type == network.EVM {
 			blockchain_manager, err := evm_client.NewManager(new_network, worker_logger)

@@ -1,18 +1,18 @@
 package handler
 
 import (
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/abi"
 	"github.com/blocklords/sds/static/smartcontract"
-	"github.com/charmbracelet/log"
 
 	"github.com/blocklords/sds/app/remote/message"
 )
 
 // Returns an abi by the smartcontract key.
-func AbiGetBySmartcontractKey(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+func AbiGetBySmartcontractKey(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
 	key, err := smartcontract_key.NewFromKeyValue(request.Parameters)
@@ -45,7 +45,7 @@ func AbiGetBySmartcontractKey(request message.Request, logger log.Logger, parame
 //	     	"abi_id": "0x012345"
 //	     }
 //	}
-func AbiRegister(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+func AbiRegister(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
 	abi_body, ok := request.Parameters["body"]

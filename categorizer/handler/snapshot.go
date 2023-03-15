@@ -1,8 +1,7 @@
 package handler
 
 import (
-	"github.com/charmbracelet/log"
-
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/db"
 
