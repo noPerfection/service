@@ -6,7 +6,6 @@ import (
 	"github.com/blocklords/sds/static/smartcontract"
 	"github.com/charmbracelet/log"
 
-	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
@@ -55,7 +54,7 @@ func SmartcontractFilter(request message.Request, logger log.Logger, parameters 
 		Status:  "OK",
 		Message: "",
 		Parameters: key_value.New(map[string]interface{}{
-			"smartcontracts": data_type.ToMapList(smartcontracts),
+			"smartcontracts": smartcontracts,
 			"topics":         topic_strings,
 		}),
 	}

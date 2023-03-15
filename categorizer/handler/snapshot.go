@@ -8,7 +8,6 @@ import (
 
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/blockchain"
-	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 )
@@ -58,7 +57,7 @@ func GetSnapshot(request message.Request, logger log.Logger, parameters ...inter
 	reply := message.Reply{
 		Status: "OK",
 		Parameters: key_value.New(map[string]interface{}{
-			"logs":            data_type.ToMapList(logs),
+			"logs":            logs,
 			"block_timestamp": block_timestamp_to,
 		}),
 	}
