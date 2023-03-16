@@ -71,7 +71,10 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_MOUNT_PATH' environment variable")
 	}
 
-	vault_logger := logger.Child("vault", log.WITHOUT_REPORT_CALLER, log.WITH_TIMESTAMP)
+	vault_logger, err := logger.Child("vault", log.WITH_TIMESTAMP)
+	if err != nil {
+		return nil, fmt.Errorf("child logger: %w", err)
+	}
 
 	secure := app_config.GetBool("SDS_VAULT_HTTPS")
 	host := app_config.GetString("SDS_VAULT_HOST")

@@ -85,12 +85,17 @@ func GetDefaultCredentials(app_config *configuration.Config) DatabaseCredentials
 }
 
 // NewDatabase establishes a database connection with the given Vault credentials
-func Open(logger log.Logger, parameters *DatabaseParameters, credentials DatabaseCredentials) (*Database, error) {
+func Open(parent log.Logger, parameters *DatabaseParameters, credentials DatabaseCredentials) (*Database, error) {
+	logger, err := parent.ChildWithoutReport("database")
+	if err != nil {
+		return nil, fmt.Errorf("child logger: %w", err)
+	}
+
 	database := &Database{
 		Connection:      nil,
 		connectionMutex: sync.Mutex{},
 		parameters:      *parameters,
-		logger:          logger.ChildWithoutReport("database"),
+		logger:          logger,
 	}
 
 	ctx := context.TODO()

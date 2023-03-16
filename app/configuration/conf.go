@@ -26,7 +26,10 @@ type Config struct {
 // Returns the new configuration file after loading environment variables
 // At the application level
 func NewAppConfig(logger log.Logger) (*Config, error) {
-	config_logger := logger.Child("app-config", log.WITHOUT_REPORT_CALLER, log.WITHOUT_TIMESTAMP)
+	config_logger, err := logger.Child("app-config", log.WITHOUT_TIMESTAMP)
+	if err != nil {
+		return nil, fmt.Errorf("error creating child logger: %w", err)
+	}
 
 	// First we check the parameters of the application arguments
 	arguments := argument.GetArguments(&config_logger)
@@ -42,7 +45,7 @@ func NewAppConfig(logger log.Logger) (*Config, error) {
 	config_logger.Info("--"+argument.SECURITY_DEBUG, "to hide security debug. Enabled", conf.DebugSecurity)
 
 	// First we load the environment variables
-	err := env.LoadAnyEnv()
+	err = env.LoadAnyEnv()
 	if err != nil {
 		return nil, fmt.Errorf("loading environment variables: %w", err)
 	}

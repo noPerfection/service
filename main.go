@@ -30,7 +30,10 @@ import (
 //
 // The router returns replies the result back to the user.
 func main() {
-	logger := log.New("sds-core", log.WITH_REPORT_CALLER, log.WITH_TIMESTAMP)
+	logger, err := log.New("sds-core", log.WITH_TIMESTAMP)
+	if err != nil {
+		panic(err)
+	}
 
 	app_config, err := configuration.NewAppConfig(logger)
 	if err != nil {
@@ -99,7 +102,10 @@ func main() {
 		}
 	}
 
-	router := controller.NewRouter(logger, core_service)
+	router, err := controller.NewRouter(logger, core_service)
+	if err != nil {
+		logger.Fatal("controller new router", "error", err)
+	}
 
 	err = router.AddDealers(static.Service(), categorizer.Service(), blockchain.Service())
 	if err != nil {

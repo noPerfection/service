@@ -32,10 +32,15 @@ func broadcast_domain(s *service.Service) string {
 // The first parameter is the way to publish the messages.
 // The second parameter starts the message
 func New(s *service.Service, logger log.Logger) (*Broadcast, error) {
+	logger, err := logger.ChildWithTimestamp("broadcast")
+	if err != nil {
+		return nil, fmt.Errorf("error creating child logger: %w", err)
+	}
+
 	broadcast := Broadcast{
 		service: s,
 		In:      make(chan message.Broadcast),
-		logger:  logger.ChildWithTimestamp("broadcast"),
+		logger:  logger,
 	}
 
 	return &broadcast, nil

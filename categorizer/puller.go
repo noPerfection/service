@@ -30,7 +30,10 @@ func NewCategorizerPusher() (*zmq.Socket, error) {
 // The received data stored in the database.
 // This socket receives messages from blockchain/categorizers.
 func RunPuller(cat_logger log.Logger, database *db.Database) {
-	logger := cat_logger.ChildWithoutReport("puller")
+	logger, err := cat_logger.ChildWithoutReport("puller")
+	if err != nil {
+		cat_logger.Fatal("failed to create child logger", "error", err)
+	}
 
 	sock, err := zmq.NewSocket(zmq.PULL)
 	if err != nil {

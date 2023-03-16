@@ -38,7 +38,7 @@ func Service() *service.Service {
 // - smartcontract information
 // - configuration (a relationship between common/topic.Topic and static.Smartcontract).
 func Run(_ *configuration.Config, db_connection *db.Database) {
-	logger := log.New("static", log.WITH_REPORT_CALLER, log.WITH_TIMESTAMP)
+	logger, _ := log.New("static", log.WITH_TIMESTAMP)
 
 	logger.Info("starting")
 

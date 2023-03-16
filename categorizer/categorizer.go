@@ -81,7 +81,7 @@ func Service() *service.Service {
 //
 // dep: SDS Blockchain core service
 func Run(app_config *configuration.Config, db_con *db.Database) {
-	logger := log.New("categorizer", log.WITHOUT_REPORT_CALLER, log.WITH_TIMESTAMP)
+	logger, _ := log.New("categorizer", log.WITH_TIMESTAMP)
 
 	logger.Info("starting")
 

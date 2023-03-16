@@ -3,11 +3,13 @@ module github.com/blocklords/sds
 go 1.19
 
 require (
+	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/charmbracelet/log v0.1.2
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/hashicorp/vault/api v1.8.3
 	github.com/hashicorp/vault/api/auth/approle v0.3.0
 	github.com/immutable/imx-core-sdk-golang v0.2.2
+	github.com/muesli/gamut v0.3.1
 	github.com/spf13/viper v1.15.0
 )
 
@@ -15,7 +17,6 @@ require (
 	github.com/armon/go-metrics v0.4.0 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
-	github.com/charmbracelet/lipgloss v0.6.0 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
@@ -51,6 +52,8 @@ require (
 	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.0 // indirect
+	github.com/muesli/clusters v0.0.0-20200529215643-2700303c1762 // indirect
+	github.com/muesli/kmeans v0.3.1 // indirect
 	github.com/muesli/reflow v0.2.1-0.20210115123740-9e1d0d53df68 // indirect
 	github.com/muesli/termenv v0.11.1-0.20220204035834-5ac8409525e0 // indirect
 	github.com/oklog/run v1.0.0 // indirect
@@ -66,6 +69,7 @@ require (
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
 	github.com/tklauser/numcpus v0.5.0 // indirect
+	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/net v0.4.0 // indirect

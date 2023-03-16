@@ -23,12 +23,15 @@ type Router struct {
 }
 
 // Returns the initiated Router whith the service parameters
-func NewRouter(parent_log log.Logger, service *service.Service) Router {
-	logger := parent_log.ChildWithoutReport("router")
+func NewRouter(parent_log log.Logger, service *service.Service) (Router, error) {
+	logger, err := parent_log.ChildWithoutReport("router")
+	if err != nil {
+		return Router{}, fmt.Errorf("error creating child logger: %w", err)
+	}
 
 	dealers := make([]*Dealer, 0)
 
-	return Router{logger: logger, service: service, dealers: dealers}
+	return Router{logger: logger, service: service, dealers: dealers}, nil
 }
 
 // Whether the dealer for the service is added or not

@@ -22,7 +22,10 @@ type Controller struct {
 }
 
 func NewReply(s *service.Service, logger log.Logger) (*Controller, error) {
-	controller_logger := logger.ChildWithTimestamp("reply_" + s.Name)
+	controller_logger, err := logger.ChildWithTimestamp("reply_" + s.Name)
+	if err != nil {
+		return nil, fmt.Errorf("error creating child logger: %w", err)
+	}
 
 	// Socket to talk to clients
 	socket, err := zmq.NewSocket(zmq.REP)

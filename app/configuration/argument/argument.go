@@ -50,7 +50,7 @@ func GetEnvPaths() []string {
 // Arguments starts with '--'
 func GetArguments(logger *log.Logger) []string {
 	if logger != nil {
-		env_logger := logger.Child("arguments", log.WITHOUT_REPORT_CALLER, log.WITHOUT_TIMESTAMP)
+		env_logger, _ := logger.Child("arguments", log.WITHOUT_TIMESTAMP)
 
 		env_logger.Info("To load .env files pass them as application arguments")
 		env_logger.Info(".env in folder from where you call the app loaded automatically")

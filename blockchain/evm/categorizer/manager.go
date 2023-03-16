@@ -54,7 +54,12 @@ type Manager struct {
 
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
-func NewManager(logger log.Logger, network *network.Network, pusher *zmq.Socket, static *remote.Socket) *Manager {
+func NewManager(parent log.Logger, network *network.Network, pusher *zmq.Socket, static *remote.Socket) (*Manager, error) {
+	logger, err := parent.ChildWithTimestamp("categorizer")
+	if err != nil {
+		return nil, fmt.Errorf("child logger: %w", err)
+	}
+
 	manager := Manager{
 		Network: network,
 
@@ -65,12 +70,12 @@ func NewManager(logger log.Logger, network *network.Network, pusher *zmq.Socket,
 		// consumes the data from the subscribed blocks
 		current_workers: make(smartcontract.EvmWorkers, 0),
 
-		logger: logger.ChildWithTimestamp("categorizer"),
+		logger: logger,
 		pusher: pusher,
 		static: static,
 	}
 
-	return &manager
+	return &manager, nil
 }
 
 // Returns all smartcontracts from all types of workers
@@ -198,7 +203,10 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 // Get Log for the smartcontracts.
 func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 	var mu sync.Mutex
-	old_logger := manager.logger.ChildWithTimestamp("old_logger_" + time.Now().String())
+	old_logger, err := manager.logger.ChildWithTimestamp("old_logger_" + time.Now().String())
+	if err != nil {
+		manager.logger.Fatal("failed to create child logger", "message", err)
+	}
 
 	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
 	blockchain_socket := remote.InprocRequestSocket(url)
@@ -307,7 +315,10 @@ func (manager *Manager) add_current_workers(workers smartcontract.EvmWorkers) {
 // Consume each received block from SDS Spaghetti broadcast
 func (manager *Manager) categorize_current_smartcontracts() {
 	var mu sync.Mutex
-	current_logger := manager.logger.ChildWithTimestamp("current")
+	current_logger, err := manager.logger.ChildWithTimestamp("current")
+	if err != nil {
+		manager.logger.Fatal("failed to create child logger", "error", err)
+	}
 
 	current_logger.Info("starting to consume subscribed blocks...")
 
@@ -399,7 +410,10 @@ func recent_block_number(socket *remote.Socket) (blockchain.Number, error) {
 // And put it in the queue.
 // The worker will start to consume them one by one.
 func (manager *Manager) queue_recent_blocks() {
-	sub_logger := manager.logger.ChildWithoutReport("recent_block_queue")
+	sub_logger, err := manager.logger.ChildWithoutReport("recent_block_queue")
+	if err != nil {
+		manager.logger.Fatal("failed to create child log", "error", err)
+	}
 
 	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
 	blockchain_socket := remote.InprocRequestSocket(url)
