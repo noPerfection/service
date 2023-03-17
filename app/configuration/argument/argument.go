@@ -74,8 +74,8 @@ func GetArguments(logger *log.Logger) []string {
 
 // This function is same as `env.HasArgument`,
 // except `env.ArgumentExist()` loads arguments automatically.
-func Exist(argument string) (bool, error) {
-	return Has(GetArguments(nil), argument), nil
+func Exist(argument string) bool {
+	return Has(GetArguments(nil), argument)
 }
 
 // Extracts the value of the argument if it has.
