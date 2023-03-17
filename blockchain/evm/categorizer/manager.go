@@ -227,7 +227,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			continue
 		}
 
-		block_to := blockchain.NewHeader(0, 0)
+		block_to := blockchain.NewHeader(block_number_to, 0)
 		if len(all_logs) > 0 {
 			block_to = spaghetti_log.RecentBlock(all_logs)
 		}
