@@ -113,10 +113,21 @@ func FilterFromDatabase(con *db.Database, filter_query string, filter_parameters
 }
 
 func FilterKeysFromDatabase(con *db.Database, filter_query string, filter_parameters []string) ([]smartcontract_key.Key, []*topic.Topic, error) {
-	query := `SELECT s.network_id, s.address, c.organization, c.project, c.group_name, c.smartcontract_name
-	FROM static_smartcontract AS s, static_configuration AS c WHERE
-	s.network_id = static_configuration.network_id AND s.address = static_configuration.smartcontract_address
+	query := `SELECT 
+		static_smartcontract.network_id, 
+		static_smartcontract.address, 
+		static_configuration.organization, 
+		static_configuration.project, 
+		static_configuration.group_name, 
+		static_configuration.smartcontract_name
+	FROM 
+		static_smartcontract, 
+		static_configuration 
+	WHERE
+		static_smartcontract.network_id = static_configuration.network_id AND 
+		static_smartcontract.address = static_configuration.address
 	` + filter_query
+
 
 	args := make([]interface{}, len(filter_parameters))
 	for i, param := range filter_parameters {
