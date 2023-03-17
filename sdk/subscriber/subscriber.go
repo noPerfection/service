@@ -55,10 +55,11 @@ func (s *Subscriber) Start() error {
 func (s *Subscriber) get_snapshot(socket *remote.Socket, block_timestamp_from uint64) (uint64, []*event.Log, error) {
 	request := message.Request{
 		Command: "snapshot_get",
-		Parameters: map[string]interface{}{
-			"topic_filter":         s.topic_filter,
-			"block_timestamp_from": block_timestamp_from,
-		},
+		Parameters: key_value.
+			Empty().
+			Set("topic_filter", s.topic_filter).
+			Set("block_timestamp", block_timestamp_from).
+			Set("public_key", s.credentials.PublicKey),
 	}
 
 	snapshot_parameters, err := socket.RequestRemoteService(&request)
@@ -92,7 +93,14 @@ func (s *Subscriber) get_snapshot(socket *remote.Socket, block_timestamp_from ui
 
 // calls the snapshot then incoming data in real-time from SDS Publisher
 func (s *Subscriber) start() {
-	socket, err := remote.NewTcpSocket(s.gateway, s.credentials)
+	credentials := s.credentials
+	if !s.credentials.HasPrivateKey() {
+		credentials = nil
+	}
+
+	fmt.Println("start::new tcp socket", s.gateway.Url(), "credentials", credentials)
+
+	socket, err := remote.NewTcpSocket(s.gateway, credentials)
 	if err != nil {
 		s.Channel <- NewErrorMessage("socket_init: " + err.Error())
 		return
@@ -125,15 +133,17 @@ func (s *Subscriber) start() {
 // Get the recent logs timestamp from where we should continue to fetch
 func (s *Subscriber) recent_subscriber_state(socket *remote.Socket) (uint64, error) {
 	request := message.Request{
-		Command:    "subscriber_state",
-		Parameters: key_value.Empty().Set("topic_filter", s.topic_filter),
+		Command: "subscriber_state",
+		Parameters: key_value.
+			Empty().
+			Set("topic_filter", s.topic_filter).
+			Set("public_key", s.credentials.PublicKey),
 	}
 
 	parameters, err := socket.RequestRemoteService(&request)
 	if err != nil {
 		return 0, fmt.Errorf("remote subsriber_state: %w", err)
 	}
-
 	block_timestamp, err := parameters.GetUint64("block_timestamp")
 	if err != nil {
 		return 0, fmt.Errorf("get block_timestamp from remote subsriber_state: %w", err)
