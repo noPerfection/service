@@ -20,7 +20,7 @@ const SNAPSHOT_LIMIT = uint64(500)
 func GetSnapshot(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
-	block_timestamp_from, err := blockchain.NewTimestampFromKeyValueParameter(request.Parameters)
+	last_block_timestamp, err := blockchain.NewTimestampFromKeyValueParameter(request.Parameters)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -41,15 +41,15 @@ func GetSnapshot(request message.Request, _ log.Logger, parameters ...interface{
 		smartcontract_keys[i] = key
 	}
 
-	logs, err := event.GetLogsFromDb(db_con, smartcontract_keys, block_timestamp_from, SNAPSHOT_LIMIT)
+	logs, err := event.GetLogsFromDb(db_con, smartcontract_keys, last_block_timestamp+1, SNAPSHOT_LIMIT)
 	if err != nil {
 		return message.Fail("database error to filter logs: " + err.Error())
 	}
 
-	block_timestamp_to := block_timestamp_from
+	recent_block_timestamp := last_block_timestamp
 	for _, log := range logs {
-		if log.BlockHeader.Timestamp > block_timestamp_to {
-			block_timestamp_to = log.BlockHeader.Timestamp
+		if log.BlockHeader.Timestamp > recent_block_timestamp {
+			recent_block_timestamp = log.BlockHeader.Timestamp
 		}
 	}
 
@@ -57,7 +57,7 @@ func GetSnapshot(request message.Request, _ log.Logger, parameters ...interface{
 		Status: "OK",
 		Parameters: key_value.New(map[string]interface{}{
 			"logs":            logs,
-			"block_timestamp": block_timestamp_to,
+			"block_timestamp": recent_block_timestamp,
 		}),
 	}
 
