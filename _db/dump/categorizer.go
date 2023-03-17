@@ -60,9 +60,8 @@ func main() {
 			fake_name := "_dump_" + faker.Word()
 			fake_event := event.New(fake_name, fake_parameters)
 
-			fake_block_header := blockchain.BlockHeader{}
-			faker.Struct(&fake_block_header)
-			fake_event.BlockHeader = fake_block_header
+			fake_event.BlockHeader.Number = blockchain.NewNumber(uint64(faker.Uint16()))
+			fake_event.BlockHeader.Timestamp = blockchain.NewTimestamp(uint64(faker.Date().Unix()))
 
 			fake_event.Index = uint(faker.Uint32())
 			fake_event.SmartcontractKey = sm.SmartcontractKey
