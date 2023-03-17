@@ -77,8 +77,8 @@ var Version string = "Seascape GoSDS version: 0.0.8"
 // The address argument is the wallet address that is allowed to read.
 //
 //	address is the whitelisted user's address.
-func NewReader(address string) (*reader.Reader, error) {
-	e, err := gateway_service()
+func NewReader(address string, plain bool) (*reader.Reader, error) {
+	e, err := gateway_service(plain)
 	if err != nil {
 		return nil, err
 	}
@@ -96,8 +96,8 @@ func NewReader(address string) (*reader.Reader, error) {
 	return reader.NewReader(gatewaySocket, address), nil
 }
 
-func NewWriter(address string) (*writer.Writer, error) {
-	e, err := gateway_service()
+func NewWriter(address string, plain bool) (*writer.Writer, error) {
+	e, err := gateway_service(plain)
 	if err != nil {
 		return nil, err
 	}
@@ -116,15 +116,30 @@ func NewWriter(address string) (*writer.Writer, error) {
 }
 
 // Returns a new subscriber
-func NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subscriber, error) {
-	e, err := gateway_service()
+func NewSubscriber(topic_filter topic.TopicFilter, plain bool) (*subscriber.Subscriber, error) {
+	e, err := gateway_service(plain)
 	if err != nil {
 		return nil, err
 	}
 
-	creds, err := developer_credentials()
-	if err != nil {
-		return nil, err
+	var creds *credentials.Credentials
+	if !plain {
+		creds, err = developer_credentials()
+		if err != nil {
+			return nil, fmt.Errorf("developer_credentials: %w", err)
+		}
+	} else {
+		err = env.LoadAnyEnv()
+		if err != nil {
+			return nil, fmt.Errorf("env.LoadAnyEnv: %w", err)
+		}
+
+		if !env.Exists("SDS_PUBLIC_KEY") {
+			return nil, fmt.Errorf("environment varialbe SDS_PUBLIC_KEY not set")
+		}
+
+		public_key := env.GetString("SDS_PUBLIC_KEY")
+		creds = credentials.New(public_key)
 	}
 
 	return subscriber.NewSubscriber(&topic_filter, creds, e)
@@ -132,13 +147,22 @@ func NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subscriber, erro
 
 // Returns the gateway environment variable
 // If the broadcast argument set true, then Gateway will require the broadcast to be set as well.
-func gateway_service() (*service.Service, error) {
-	e, err := service.NewSecure(service.GATEWAY, service.REMOTE)
-	if err != nil {
-		return nil, err
+func gateway_service(plain bool) (*service.Service, error) {
+	var serv *service.Service
+	var err error
+	if !plain {
+		serv, err = service.NewSecure(service.GATEWAY, service.REMOTE)
+		if err != nil {
+			return nil, fmt.Errorf("service.NewSecure: %w", err)
+		}
+	} else {
+		serv, err = service.NewExternal(service.GATEWAY, service.REMOTE)
+		if err != nil {
+			return nil, fmt.Errorf("service.NewExternal: %w", err)
+		}
 	}
 
-	return e, nil
+	return serv, nil
 }
 
 func developer_credentials() (*credentials.Credentials, error) {
