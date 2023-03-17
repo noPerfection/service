@@ -71,7 +71,7 @@ func GetLogsFromDb(con *db.Database, smartcontracts []smartcontract_key.Key, blo
 	FROM 
 		categorizer_event
 	WHERE 
-		block_timestamp >= ? AND ` + smartcontracts_clause + " LIMIT ? "
+		block_timestamp >= ? AND ` + smartcontracts_clause + " ORDER BY block_timestamp ASC LIMIT ? "
 
 	rows, err := con.Connection.Query(query, args...)
 	if err != nil {
