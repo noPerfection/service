@@ -350,7 +350,7 @@ go build -o ./bin/sds.exe
 
 ## Next
 
-Either set the Security or Install SDS Gateway.
+Either set the Security or Install SDS Gateway. Or setup the [configurations](#sds-configuration).
 
 ---
 # Security
@@ -373,6 +373,23 @@ The following set ups are necessary for running on your machine:
 * [Mysql Database](https://mysql.com/) 
 * [sds-ts](https://github.com/blocklords/sds-ts/) keeps the other core services that are written in Typescript.
 * .env with the SeascapeSDS Service ports, its configuration, vault access and database parameters.
+
+# SDS Configuration
+
+We can set the following environment variables
+
+| Name                                | Default | Description |
+|-------------------------------------|---------|-------------|
+| `SDS_BLOCKCHAIN_NETWORKS` |         | See [Network](#network) section |
+| `CORE_PORT` | *4001* | The SDS is available for SDS Gateway on this port |
+| `SDS_DATABASE_NAME` | *seascape_sds* | The database name |
+| `SDS_DATABASE_PORT` | *3306* | The database port |
+| `SDS_DATABASE_HOST` | *localhost* | The database host |
+| `SDS_DATABASE_TIMEOUT` | *10* | The request timeout seconds. If database doesn't responde within the timeout, then SDS will terminate or return an error |
+| `SDS_REQUEST_TIMEOUT` | *30* | The request timeout in Seconds. Any request from one thread or process to another (whether its internal or remote) handles `SDS_REQUEST_TIMEOUT` seconds. If the remote service doesn't respond within the timeout, then SDS will reconnect. **It goes along with with `SDS_REQUEST_ATTEMPT`** |
+| `SDS_REQUEST_ATTEMPT` | *5* | Amount of reconnects that SDS is trying to do. If the remote thread or process doesn't respond within `SDS_REQUEST_TIMEOUT` seconds, then SDS will make `SDS_REQUEST_ATTEMPT` attempts. If the remote thread or process doesn't responde with all attempts, then SDS will return an error. |
+| `SDS_IMX_REQUEST_PER_SECOND` | *20* | How many requests SDS can do to the remote Imx provider. This parameter sets the limit that is managed by SDS. The more smartcontracts are registered on `imx` network, the slower the fetch speed. |
+
 
 ## Network
 
