@@ -40,172 +40,138 @@ For big innovations, working as a single team, trying to earn money on your cryp
 Right, let the cryptocurrency of each project "go to the moon" because of its popularity and its users, not because of the underlying technology.
 
 ---
----
 # Installation
-This is the go module that includes the core of the SDS and SDK to interact with SDS.
 
-**Go**
-Setup [go](https://go.dev/). Then in your project folder get this package:
+*Prerequirements*
+
+## Building the package
+
+### Go
+The SDS core is written in Go programming language, therefore we need Go to be installed on the machine. 
+Visit the [go](https://go.dev/) official website for installation instructions. 
+
+Once you have go installed, you can import SDS into your go project as:
 
 ```sh
 go get github.com/blocklords/sds
 ```
 
----
-**ZeroMQ**
+###ZeroMQ
 
-The SDS is built using [pebbe/zmq4](https://github.com/pebbe/zmq4). The package is the bindings to the `Zeromq` C library. But package itself doesn't come with `Zeromq`. Therefore, we would need to install C library on your OS, then configure `go` to call `C` functions.
+Internally, SDS relies on [ZeroMQ](https://zeromq.org/) C (programming language) library. SDS uses [pebbe/zmq4](https://github.com/pebbe/zmq4) &ndash; a go wrapper around C library.
 
-> Check here [zmq4/requirements](https://github.com/pebbe/zmq4#requirements)
+> :bulb: **Detailed instructions**
+> [pebbe/zmq4/requirements](https://github.com/pebbe/zmq4#requirements)
 
----
-**Docker**
-For local production you would need `docker` and `docker-compose`.
-Installation of [Docker Desktop](https://www.docker.com/products/docker-desktop/) will install `docker-compose` file as well.
+#### Enable CGO:
 
----
-**Run database and vault**
+In Centos8:
 
-```shell
-docker-compose up -d
+```bash
+export CGO_ENABLED=1
 ```
 
-It will setup mysql database, UI for database, the vault and vault dashboard.
+#### Go with CGO enabling depends on GCC.
 
-* database web UI: http://localhost:8088/
-  username: `root`
-  password: `tiger`
-* vault web UI: http://localhost:8200/ui/
-  *Login into vault web UI will require key part and root token. Both are stored in `./_vault/tokens/root.json`. The key part=`"keys_base64"`. The root token=`"root_token"`*
+In Centos8:
 
-**Initial database setup**
-Create a new database.
-![Create a new database](_assets/create_database.png "Creating a database in the database admin UI")
-* Go to http://localhost:8080/
-* Login with *username* `root` and *password* `tiger`.
-* On the panel, click the *New* button to create the database.
-* Name of the database. For example: *sds_dev*
-* Encoding format should be **utf8_general_ci**.
-
-**Install migration tool**
-We use [*goose*](https://github.com/pressly/goose).
-Follow the [Installation](https://pressly.github.io/goose/installation/) page to setup on your machine.
-
-> For better performance store them in `/_db/bin/` folder. The documentation will assume that goose binary is stored there.*
-
-**Migrate**
-At the root folder of gosds, run the following:
-
-```powershell
-./_db/bin/goose `
--dir ./_db/migrations `
-mysql "root:tiger@/sds_dev" `
-up
+```bash
+yum install dnf && dnf group install "Development Tools"
 ```
-The `root` is the username, `tiger` is the password.
-`sds_dev` is the database name that we created during **initial database setup** step.
+
+The successfull installation should have `gcc` to be available on the Terminal.
 
 
-> **Creating a new migration**
-> ```powershell
-> ./_db/bin/goose `
-> -dir ./_db/migrations `
-> mysql "root:tiger@/sds_dev" `
-> create <action_name> sql
-> ```
+#### Install Zeromq and its dependencies
 
----
-# Vault
-For setting up the Vault, visit the page:
-[Vault setup](./VAULT.md).
+In Centos8
 
----
+```bash
+yum install epel-release && yum install zeromq-devel
+```
+
+*The official Centos repository doesn't include Zeromq, therefore, we first install `epel` repository.*
+
+
 ---
 # Example
-Let's assume that the smartcontract developer deployed the smartcontract on a blockchain. He did it using SDS CLI. Now our smartcontract is registered on SeascapeSDS.
 
-For example let's work with ScapeNFT. Its registered on the SeascapeSDS as:
+Create a new folder for the project:
 
-
-```javascript
-
-organization: "seascape"
-project: "core"
-network_ids: ["1", "56", "1284"]
-group: "nft"
-name: "ScapeNFT"
+```bash
+mkdir hello-sds
+cd hello-sds
+go init github.com/example/hello-sds
 ```
 
-ScapeNFTs created by "seascape" organization. Its part of its core project. ScapeNFT belongs to the "nft" smartcontract groups.
-
-Finally its deployed on three blockchains: `Ethereum`, `BNB Chain`, and `Moonriver`.
-
-
-## Example 1: Track the ScapeNFT transfers
-
-Create an empty project with go programming language:
-
-```sh
-?> mkdir scape_nft_example
-?> go init mod
-?> go get github.com/blocklords/sds
+Then install the SDS package:
+```bash
+go get github.com/blocklords/sds
 ```
+
+>Let's assume that the smartcontract developer deployed the smartcontract on a blockchain. He did it using SDS CLI. Now our smartcontract is registered on SeascapeSDS.
+
+>For example let's work with ScapeNFT. Its registered on the SeascapeSDS as:
+
+
+>```javascript
+> {
+> 	organization: "seascape"
+>	project:      "core"
+>	network_ids:  ["1", "56", "1284"]
+>	group:        "nft"
+>	name:         "ScapeNFT"
+>}
+> ```
+
 
 With the gosds package installed, let's create the `.env` file with the authentication parameters.
 
 > Installation process of gosds and its setup requirements will be added later.
 
-Here is the example of tracking transactions:
+Here is the sample code that tracks all NFT events from `Seascape` organization in all networks.
 
-```
+```go
 package main
 
 import (
-	"github.com/blocklords/sds/categorizer"
-	"github.com/blocklords/sds/app/env"
+	"fmt"
+	"log"
+
+	"github.com/blocklords/sds/app/configuration/env"
 	"github.com/blocklords/sds/app/remote/message"
-	"github.com/blocklords/sds/sdk"
-	"github.com/blocklords/sds/security"
 	"github.com/blocklords/sds/common/topic"
+	"github.com/blocklords/sds/sdk"
 )
 
 func main() {
-	security.EnableSecurity()
-	env.LoadAnyEnv()
-
-	// ScapeNFT topic filter
 	filter := topic.TopicFilter{
-            Organizations:  []string{"seascape"},
-            Projects:       []string{"core"},
-            Smartcontracts: []string{"ScapeNFT"},
-            Methods:        []string{"transfer"},
+		Organizations: []string{"seascape"},
+		Groups:        []string{"nft"},
 	}
 
-	subscriber, _ := sdk.NewSubscriber("sample", &filter, true)
+	subscriber, _ := sdk.NewSubscriber(&filter, true)
 	subscriber.Start()
 
 	for {
-		response := <-subscriber.BroadcastChan
+		reply := <-subscriber.Channel
 
-		if !response.IsOK() {
-			fmt.Println("received an error %s", response.Reply().Message)
+		if reply.Status == message.FAIL {
+			fmt.Fatalf("received an error %s", reply.Message)
 			break
 		}
 
-		parameters := response.Reply().Params
-		transactions := parameters["transactions"].([]*categorizer.Transaction)
 
-		fmt.Println("the transaction in the gosds/categorizer.Transaction struct", transactions)
-            
-    		for _, tx := range transactions {
-	    		nft_id := tx.Args["_nftId"]
-		    	from := tx.Args["_from"]
-			to := tx.Args["_to"]
+		for _, event := range reply.Parameters.Logs {
+			event_name := event.Name
+			event_parameters := event.Parameters
 
-			fmt.Println("NFT %d transferred from %s to %s", nft_id, from, to)
-			fmt.Println("on a network %s at %d", tx.NetworkId, tx.BlockTimestamp)
+			fmt.Printf("Event Name: '%s'\n", event_name)
+			fmt.Printf("Parameters: %v\n", event_parameters)
+			fmt.Printf("Network: %s\n", event.SmartcontractKey.NetworkId)
+			fmt.Printf("Timestamp %d\n", event.BlockHeader.Timestamp)
 
-			// Do something with the transactions
+			// Do something with the event logs
 		}
 	}
 }
@@ -250,7 +216,148 @@ The names of the arguments are identical how they are written in the source code
 
 On the roadmap, we have a plan want to generate a documentation by AI. AI will parse the smartcontract interface, and will set the basic use cases with `copy-paste` code. Write, the less developer writes, the better it is.
 
-> More examples are coming soon.
+> :bulb: **More examples**
+> Coming soon.
+
+---
+
+# Source code
+
+If you want to run SDS in your local computer, then we need two external applications: Database and Vault.
+
+> :bulb: **Tip**
+> You can skip the Vault if you run the application with `--plain` argument.
+
+There are two options how to install them: Install manually or by docker.
+
+## Docker
+
+The docker package also comes with the UI for vault and Database.
+
+### Docker and Docker Compose
+For local production you would need `docker` and `docker-compose`.
+Installation of [Docker Desktop](https://www.docker.com/products/docker-desktop/) will install `docker-compose` file as well.
+
+---
+
+### Install images
+> :memo: **For Linux**
+> Before you install images, you should create `_db/mysql` and `_db/mysql_logs` directories.
+
+To install database image only:
+
+```shel
+docker compose up -d sds-db
+```
+
+or if you want to install both database and vault along with the UI.
+```shell
+docker compose up -d
+```
+
+ * database web UI: http://localhost:8088/
+  username: `root`
+  password: `tiger`
+ * vault web UI: http://localhost:8200/ui/
+  *Login into vault web UI will require key part and root token. Both are stored in `./_vault/tokens/root.json`. The key part=`"keys_base64"`. The root token=`"root_token"`*
+
+
+## Manually
+
+> Follow the Mysql database and Hashicorp Vault websites to install on your machine.
+
+## Setup Database
+Once we have Database, we need to setup for SDS. This example assumes that you've using Database via Docker.
+
+### Create a new database.
+
+In terminal:
+
+```bash
+docker exec -it sds-db bash
+mysql -u root -p
+```
+For password type `tiger`.
+In the Mysql create the SDS database:
+
+```sql
+CREATE DATABASE sds_dev `
+CHARACTER SET utf8 COLLATE utf8_general_ci;
+```
+
+Then exit from mysql and from container by typing `exit` twice.
+
+On UI:
+
+![Create a new database](_assets/create_database.png "Creating a database in the database admin UI")
+1 Go to http://localhost:8080/
+2 Login with *username* `root` and *password* `tiger`.
+3 On the panel, click the *New* button to create the database.
+4 Name of the database. For example: *sds_dev*
+5 Encoding format should be **utf8_general_ci**.
+
+### Install migration tool
+We use [*goose*](https://github.com/pressly/goose).
+Follow the [Installation](https://pressly.github.io/goose/installation/) page to setup on your machine.
+
+> In our example we store the goose binary in `/_db/bin/` directory.*
+
+### Migrate tables
+In the `sds` root directory, run the following:
+
+```powershell
+./_db/bin/goose `
+-dir ./_db/migrations `
+mysql "root:tiger@/sds_dev" `
+up
+```
+The `root` is the username, `tiger` is the password.
+`sds_dev` is the database name that we created during **Create a new database** step.
+
+
+> :memo: **Creating a new migration**
+> ```powershell
+> ./_db/bin/goose `
+> -dir ./_db/migrations `
+> mysql "root:tiger@/sds_dev" `
+> create <action_name> sql
+> ```
+
+## Minimum environment
+Create `.env` in the root from where you call the binary.
+
+```env
+SDS_DATABASE_NAME=sds_dev
+```
+
+## Build binary
+
+```bash
+go build -o ./bin/sds
+```
+
+On Windows
+
+```powershell
+go build -o ./bin/sds.exe
+```
+
+## Run SDS
+
+```bash
+./bin/sds --plain ./.env
+```
+
+## Next
+
+Either set the Security or Install SDS Gateway.
+
+---
+# Security
+
+## Vault
+For setting up the Vault, visit the page:
+[Vault setup](./VAULT.md).
 
 ---
 
@@ -267,7 +374,46 @@ The following set ups are necessary for running on your machine:
 * [sds-ts](https://github.com/blocklords/sds-ts/) keeps the other core services that are written in Typescript.
 * .env with the SeascapeSDS Service ports, its configuration, vault access and database parameters.
 
-## Setup
-SeascapeSDS if its running for the first time, will setup the database for you.
+## Network
 
-If the .env are not set, then it will use the default values.
+```env
+SDS_BLOCKCHAIN_NETWORKS=[{"id":"56","providers":[{"url":"https://rpc.ankr.com/bsc","length": 32}],"type":"evm"}]
+```
+
+Add any `EVM` based networks or `ImmutableX` based networks in the environment variable.
+**The value is the JSON array with Network objects in the single line**.
+
+Here is the format of the JSON value:
+```json
+[
+	{
+		"id":"56",
+		"providers":[
+			{
+				"url":"https://rpc.ankr.com/bsc",
+				"length": 32
+			},
+			{
+				"url": "https://binance.nodereal.io",
+				"length": 32
+			}
+		],
+		"type": "evm"
+	}
+]
+```
+
+Description of the parameters
+
+* `"id"` &ndash; **string** Network ID. For EVM based networks its identical to the Chain ID.
+* `"type"` &ndash; **string** Type of Blockchain. Supported types are: *`evm`* and *`imx`*.
+* `"providers"` &ndash; **Array** of Providers. 
+
+You can set multiple providers for each network. SDS is smart enough to use all of the providers for the blockchain requests.
+
+Description of the Provider parameters:
+* `"url"` &ndash; **string** HTTP path to the remote blockchain node RPC.
+* `"length"` &ndash; **Number** Amount of blocks that SDS could fetch from the remote RPC.
+
+Once you set the SDS, stop binary, and re-run to enable the new networks.
+
