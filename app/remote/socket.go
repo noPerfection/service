@@ -12,6 +12,7 @@ package remote
 import (
 	"fmt"
 
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/app/service"
@@ -31,6 +32,7 @@ type Socket struct {
 	socket             *zmq.Socket
 	protocol           string
 	inproc_url         string
+	logger             log.Logger
 }
 
 // Initiates the socket with a timeout.
@@ -199,7 +201,7 @@ func (socket *Socket) RequestRouter(service_type service.ServiceType, request *m
 
 			return reply.Parameters, nil
 		} else {
-			fmt.Println("timeout", "attempts left", attempt, "protocol", socket.protocol, "request", request_string, socket.inproc_url)
+			socket.logger.Warn("router timeout", "target service", service_type, "request_command", request.Command, "attempts_left", attempt)
 			// if attempts are 0, we reconnect to remove the buffer queue.
 			if socket.protocol == "inproc" {
 				err := socket.inproc_reconnect()
@@ -269,7 +271,7 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 
 			return reply.Parameters, nil
 		} else {
-			fmt.Println("timeout", socket.protocol, request_string, socket.inproc_url)
+			socket.logger.Warn("timeout", "request_command", request.Command, "attempts_left", attempt)
 			if socket.protocol == "inproc" {
 				err := socket.inproc_reconnect()
 				if err != nil {
@@ -292,10 +294,15 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.REQ
-func NewTcpSocket(remote_service *service.Service, client *credentials.Credentials) (*Socket, error) {
+func NewTcpSocket(remote_service *service.Service, client *credentials.Credentials, parent log.Logger) (*Socket, error) {
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
+	}
+
+	logger, err := parent.ChildWithTimestamp("tcp_socket")
+	if err != nil {
+		return nil, fmt.Errorf("logger: %w", err)
 	}
 
 	new_socket := Socket{
@@ -303,37 +310,45 @@ func NewTcpSocket(remote_service *service.Service, client *credentials.Credentia
 		client_credentials: client,
 		socket:             sock,
 		protocol:           "tcp",
+		logger:             logger,
 	}
 	err = new_socket.reconnect()
 	if err != nil {
-		return nil, fmt.Errorf("connect: %w", err)
+		return nil, fmt.Errorf("reconnect: %w", err)
 	}
 
 	return &new_socket, nil
 }
 
-func InprocRequestSocket(url string) *Socket {
+func InprocRequestSocket(url string, parent log.Logger) (*Socket, error) {
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
+
+	logger, err := parent.ChildWithTimestamp("inproc_socket")
+	if err != nil {
+		return nil, fmt.Errorf("logger: %w", err)
+	}
+
 	new_socket := Socket{
 		socket:             sock,
 		protocol:           "inproc",
 		inproc_url:         url,
 		client_credentials: nil,
+		logger:             logger,
 	}
 	err = new_socket.inproc_reconnect()
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("new_socket.inproc_reconnect: %w", err)
 	}
 
-	return &new_socket
+	return &new_socket, nil
 }
 
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.SUB
-func NewTcpSubscriber(e *service.Service, client *credentials.Credentials) (*Socket, error) {
+func NewTcpSubscriber(e *service.Service, client *credentials.Credentials, parent log.Logger) (*Socket, error) {
 	socket, sockErr := zmq.NewSocket(zmq.SUB)
 	if sockErr != nil {
 		return nil, fmt.Errorf("new sub socket: %w", sockErr)
@@ -351,10 +366,16 @@ func NewTcpSubscriber(e *service.Service, client *credentials.Credentials) (*Soc
 		return nil, fmt.Errorf("connect to broadcast: %w", conErr)
 	}
 
+	logger, err := parent.ChildWithTimestamp("tcp_subscriber")
+	if err != nil {
+		return nil, fmt.Errorf("logger: %w", err)
+	}
+
 	return &Socket{
 		remote_service:     e,
 		socket:             socket,
 		client_credentials: client,
 		protocol:           "tcp",
+		logger:             logger,
 	}, nil
 }

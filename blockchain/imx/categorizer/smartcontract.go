@@ -5,8 +5,6 @@
 package categorizer
 
 import (
-	"fmt"
-	"os"
 	"sync"
 	"time"
 
@@ -24,16 +22,17 @@ import (
 func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 	var mu sync.Mutex
 	url := blockchain_process.BlockchainManagerUrl(manager.network.Id)
-	sock := remote.InprocRequestSocket(url)
+	sock, err := remote.InprocRequestSocket(url, manager.logger)
+	if err != nil {
+		manager.logger.Fatal("remote.InprocRequest", "url", url, "error", err)
+	}
 
 	addresses := []string{sm.SmartcontractKey.Address}
 
 	for {
 		raw_logs, _, err := spaghetti_log.RemoteLogFilter(sock, blockchain.Number(sm.BlockHeader.Timestamp.Value())+1, addresses)
 		if err != nil {
-			fmt.Println("failed to get the remote block number for network: " + sm.SmartcontractKey.NetworkId + " error: " + err.Error())
-			fmt.Fprintf(os.Stderr, "Error when imx client for logs`: %v\n", err)
-			fmt.Println("trying to request again in 10 seconds...")
+			manager.logger.Warn("imx remote filter (sleep and try again)", "sleep", 10*time.Second, "error", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
@@ -50,15 +49,15 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 			data_string := raw_log.Data
 			log_kv, err := key_value.NewFromString(data_string)
 			if err != nil {
-				panic(err)
+				manager.logger.Fatal("raw_log.Data() -> key_value", "error", err)
 			}
 			log_name, err := log_kv.GetString("log")
 			if err != nil {
-				panic(err)
+				manager.logger.Fatal("log.GetString(name)", "error", err)
 			}
 			log_outputs, err := log_kv.GetKeyValue("outputs")
 			if err != nil {
-				panic(err)
+				manager.logger.Fatal("log.GetKeyValue outputs", "error", err)
 			}
 			log := event.New(log_name, log_outputs)
 			log.AddMetadata(raw_log).AddSmartcontractData(sm)
@@ -84,7 +83,7 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 		_, err = manager.pusher.SendMessage(request_string)
 		mu.Unlock()
 		if err != nil {
-			panic(err)
+			manager.logger.Fatal("push.SendMessage", "error", err)
 		}
 
 		time.Sleep(time.Second * 1)

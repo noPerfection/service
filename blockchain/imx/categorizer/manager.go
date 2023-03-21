@@ -1,9 +1,10 @@
 package categorizer
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	blockchai_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
@@ -17,28 +18,35 @@ type Manager struct {
 
 	smartcontracts []*smartcontract.Smartcontract
 	pusher         *zmq.Socket
+	logger         log.Logger
 }
 
-func NewManager(app_config *configuration.Config, network *network.Network, pusher *zmq.Socket) *Manager {
+func NewManager(parent log.Logger, app_config *configuration.Config, network *network.Network, pusher *zmq.Socket) (*Manager, error) {
+	logger, err := parent.ChildWithTimestamp("categorizer")
+	if err != nil {
+		return nil, fmt.Errorf("child logger: %w", err)
+	}
+
 	manager := &Manager{
 		network:        network,
 		smartcontracts: make([]*smartcontract.Smartcontract, 0),
 		pusher:         pusher,
+		logger:         logger,
 	}
 
-	return manager
+	return manager, nil
 }
 
 // Run as goroutine
 func (manager *Manager) Start() {
 	sock, err := zmq.NewSocket(zmq.PULL)
 	if err != nil {
-		panic(err)
+		manager.logger.Fatal("new pull socket", "error", err)
 	}
 
 	url := blockchai_process.CategorizerManagerUrl(manager.network.Id)
 	if err := sock.Connect(url); err != nil {
-		log.Fatalf("trying to create categorizer for network id %s: %v", manager.network.Id, err)
+		manager.logger.Fatal("socket.Connect", "error", err)
 	}
 
 	for {

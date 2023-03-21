@@ -64,7 +64,10 @@ func transaction_deployed_get(request message.Request, logger log.Logger, _param
 	}
 
 	url := blockchain_process.BlockchainManagerUrl(network_id)
-	sock := remote.InprocRequestSocket(url)
+	sock, err := remote.InprocRequestSocket(url, logger)
+	if err != nil {
+		return message.Fail("blockchain request error: " + err.Error())
+	}
 	defer sock.Close()
 
 	tx_request := message.Request{
@@ -239,7 +242,6 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 		logger.Fatal("create a pusher to SDS Categorizer", "message", err)
 	}
 
-
 	for _, new_network := range networks {
 		worker_logger, err := logger.ChildWithTimestamp(new_network.Type.String() + "_network_id_" + new_network.Id)
 		if err != nil {
@@ -268,7 +270,10 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 			new_worker := imx_worker.New(app_config, new_client, worker_logger)
 			go new_worker.SetupSocket()
 
-			imx_manager := imx_categorizer.NewManager(app_config, new_network, pusher)
+			imx_manager, err := imx_categorizer.NewManager(worker_logger, app_config, new_network, pusher)
+			if err != nil {
+				worker_logger.Fatal("imx.NewManager", "error", err)
+			}
 			go imx_manager.Start()
 		} else {
 			return fmt.Errorf("no blockchain handler for network_type %v", new_network.Type)
@@ -281,8 +286,6 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 			return fmt.Errorf("gosds/blockchain: failed to validate IMX specific config: %v", err)
 		}
 	}
-
-	logger.Warn("all workers are running! Exit this goroutine")
 
 	return nil
 }

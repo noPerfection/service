@@ -106,7 +106,10 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 // Same as Run. Run it as a goroutine
 func (manager *Manager) Start() {
 	static_env := service.Inprocess(service.STATIC)
-	static_socket := remote.InprocRequestSocket(static_env.Url())
+	static_socket, err := remote.InprocRequestSocket(static_env.Url(), manager.logger)
+	if err != nil {
+		manager.logger.Fatal("remote.InprocRequest", "url", static_env.Url(), "error", err)
+	}
 	manager.static = static_socket
 
 	manager.logger.Info("starting categorization")
@@ -144,7 +147,11 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 	raw_smartcontracts, _ := parameters.GetKeyValueList("smartcontracts")
 
 	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
-	blockchain_socket := remote.InprocRequestSocket(url)
+	blockchain_socket, err := remote.InprocRequestSocket(url, manager.logger)
+	if err != nil {
+		manager.logger.Fatal("remote.InprocRequest", "url", url, "error", err)
+	}
+
 	block_number, err := recent_block_number(blockchain_socket)
 	if err != nil {
 		manager.logger.Fatal("recent-block-number", "message", err)
@@ -213,7 +220,10 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 	}
 
 	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
-	blockchain_socket := remote.InprocRequestSocket(url)
+	blockchain_socket, err := remote.InprocRequestSocket(url, old_logger)
+	if err != nil {
+		manager.logger.Fatal("remote.InprocRequest", "url", url, "error", err)
+	}
 	defer blockchain_socket.Close()
 
 	old_logger.Info("starting categorization of old smartcontracts.", "blockchain client manager", url)
@@ -420,7 +430,10 @@ func (manager *Manager) queue_recent_blocks() {
 	}
 
 	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
-	blockchain_socket := remote.InprocRequestSocket(url)
+	blockchain_socket, err := remote.InprocRequestSocket(url, sub_logger)
+	if err != nil {
+		manager.logger.Fatal("remote.InprocRequest", "url", url, "error", err)
+	}
 	block_number, err := recent_block_number(blockchain_socket)
 	if err != nil {
 		sub_logger.Fatal("recent-block-number", "message", err)
