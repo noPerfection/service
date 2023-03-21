@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/service"
 
 	"time"
 
@@ -54,7 +55,7 @@ type Manager struct {
 
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
-func NewManager(parent log.Logger, network *network.Network, pusher *zmq.Socket, static *remote.Socket) (*Manager, error) {
+func NewManager(parent log.Logger, network *network.Network, pusher *zmq.Socket) (*Manager, error) {
 	logger, err := parent.ChildWithTimestamp("categorizer")
 	if err != nil {
 		return nil, fmt.Errorf("child logger: %w", err)
@@ -72,7 +73,6 @@ func NewManager(parent log.Logger, network *network.Network, pusher *zmq.Socket,
 
 		logger: logger,
 		pusher: pusher,
-		static: static,
 	}
 
 	return &manager, nil
@@ -105,6 +105,10 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 
 // Same as Run. Run it as a goroutine
 func (manager *Manager) Start() {
+	static_env := service.Inprocess(service.STATIC)
+	static_socket := remote.InprocRequestSocket(static_env.Url())
+	manager.static = static_socket
+
 	manager.logger.Info("starting categorization")
 	go manager.queue_recent_blocks()
 	go manager.categorize_current_smartcontracts()

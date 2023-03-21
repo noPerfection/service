@@ -239,8 +239,6 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 		logger.Fatal("create a pusher to SDS Categorizer", "message", err)
 	}
 
-	static_env := service.Inprocess(service.STATIC)
-	static_socket := remote.InprocRequestSocket(static_env.Url())
 
 	for _, new_network := range networks {
 		worker_logger, err := logger.ChildWithTimestamp(new_network.Type.String() + "_network_id_" + new_network.Id)
@@ -257,7 +255,7 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 
 			// Categorizer of the smartcontracts
 			// This categorizers are interacting with the SDS Categorizer
-			categorizer, err := evm_categorizer.NewManager(worker_logger, new_network, pusher, static_socket)
+			categorizer, err := evm_categorizer.NewManager(worker_logger, new_network, pusher)
 			if err != nil {
 				worker_logger.Fatal("evm categorizer manager", "error", err)
 			}
