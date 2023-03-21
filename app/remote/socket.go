@@ -239,6 +239,8 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 		return nil, fmt.Errorf("request.ToString: %w", err)
 	}
 
+	attempt := parameter.Attempt()
+
 	// we attempt requests for an infinite amount of time.
 	for {
 		//  We send a request, then we work to get a reply
@@ -287,6 +289,11 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 					return nil, fmt.Errorf("socket.reconnect: %w", err)
 				}
 			}
+
+			if attempt == 0 {
+				return nil, fmt.Errorf("timeout")
+			}
+			attempt--
 		}
 	}
 }
