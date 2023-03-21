@@ -175,13 +175,13 @@ func (socket *Socket) RequestRouter(service_type service.ServiceType, request *m
 	for {
 		//  We send a request, then we work to get a reply
 		if _, err := socket.socket.SendMessage(service_type.ToString(), request_string); err != nil {
-			return nil, fmt.Errorf("failed to send the command '%s' to '%s'. socket error: %w", request.Command, socket.remote_service.Name, err)
+			return nil, fmt.Errorf("failed to send the command '%s' to. socket error: %w", request.Command, err)
 		}
 
 		//  Poll socket for a reply, with timeout
 		sockets, err := socket.poller.Poll(request_timeout)
 		if err != nil {
-			return nil, fmt.Errorf("failed to to send the command '%s' to '%s'. poll error: %w", request.Command, socket.remote_service.Name, err)
+			return nil, fmt.Errorf("failed to to send the command '%s'. poll error: %w", request.Command, err)
 		}
 
 		//  Here we process a server reply and exit our loop if the
@@ -243,13 +243,13 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 	for {
 		//  We send a request, then we work to get a reply
 		if _, err := socket.socket.SendMessage(request_string); err != nil {
-			return nil, fmt.Errorf("failed to send the command '%s' to '%s'. socket error: %w", request.Command, socket.remote_service.Name, err)
+			return nil, fmt.Errorf("failed to send the command '%s'. socket error: %w", request.Command, err)
 		}
 
 		//  Poll socket for a reply, with timeout
 		sockets, err := socket.poller.Poll(request_timeout)
 		if err != nil {
-			return nil, fmt.Errorf("failed to to send the command '%s' to '%s'. poll error: %w", request.Command, socket.remote_service.Name, err)
+			return nil, fmt.Errorf("failed to to send the command '%s'. poll error: %w", request.Command, err)
 		}
 
 		//  Here we process a server reply and exit our loop if the
@@ -317,13 +317,13 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 	for {
 		//  We send a request, then we work to get a reply
 		if _, err := socket.socket.SendMessage(request_string); err != nil {
-			return nil, fmt.Errorf("failed to send the command '%s' to '%s'. socket error: %w", command_name, socket.remote_service.Name, err)
+			return nil, fmt.Errorf("failed to send the command '%s'. socket error: %w", command_name, err)
 		}
 
 		//  Poll socket for a reply, with timeout
 		sockets, err := socket.poller.Poll(request_timeout)
 		if err != nil {
-			return nil, fmt.Errorf("failed to to send the command '%s' to '%s'. poll error: %w", command_name, socket.remote_service.Name, err)
+			return nil, fmt.Errorf("failed to to send the command '%s'. poll error: %w", command_name, err)
 		}
 
 		//  Here we process a server reply and exit our loop if the
@@ -335,21 +335,21 @@ func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue,
 			// Wait for reply.
 			r, err := socket.socket.RecvMessage(0)
 			if err != nil {
-				return nil, fmt.Errorf("failed to receive the command '%s' message from '%s'. socket error: %w", command_name, socket.remote_service.Name, err)
+				return nil, fmt.Errorf("failed to receive the command '%s' message. socket error: %w", command_name, err)
 			}
 
 			reply, err := message.ParseReply(r)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse the command '%s' reply from '%s'. gosds error %w", command_name, socket.remote_service.Name, err)
+				return nil, fmt.Errorf("failed to parse the command '%s' reply. gosds error %w", command_name, err)
 			}
 
 			if !reply.IsOK() {
-				return nil, fmt.Errorf("the command '%s' replied with a failure by '%s'. the reply error message: %s", command_name, socket.remote_service.Name, reply.Message)
+				return nil, fmt.Errorf("the command '%s' replied with a failure. the reply error message: %s", command_name, reply.Message)
 			}
 
 			return reply.Parameters, nil
 		} else {
-			fmt.Println("command '", command_name, "' wasn't replied by '", socket.remote_service.Name, "' in ", request_timeout, ", retrying...")
+			fmt.Println("command '", command_name, "' in ", request_timeout, ", retrying...")
 			err := socket.reconnect()
 			if err != nil {
 				return nil, fmt.Errorf("socket.reconnect: %w", err)
