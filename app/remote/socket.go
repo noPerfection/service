@@ -10,7 +10,6 @@
 package remote
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/blocklords/sds/app/remote/message"
@@ -32,13 +31,6 @@ type Socket struct {
 	socket             *zmq.Socket
 	protocol           string
 	inproc_url         string
-}
-
-type SDS_Message interface {
-	*message.Request
-
-	CommandName() string
-	ToString() (string, error)
 }
 
 // Initiates the socket with a timeout.
@@ -294,73 +286,6 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 				return nil, fmt.Errorf("timeout")
 			}
 			attempt--
-		}
-	}
-}
-
-// Requests a message to the remote service.
-// The socket parameter is the Request socket from this service.
-// The request is the message.
-func RequestReply[V SDS_Message](socket *Socket, request V) (key_value.KeyValue, error) {
-	socket_type, err := socket.socket.GetType()
-	if err != nil {
-		return nil, fmt.Errorf("zmq socket get type: %w", err)
-	}
-
-	if socket_type != zmq.REQ && socket_type != zmq.DEALER {
-		return nil, errors.New("invalid socket type for request-reply. Only REQ or DEALER is supported")
-	}
-
-	command_name := request.CommandName()
-
-	request_timeout := parameter.RequestTimeout()
-
-	request_string, err := request.ToString()
-	if err != nil {
-		return nil, fmt.Errorf("request.ToString: %w", err)
-	}
-
-	// we attempt requests for an infinite amount of time.
-	for {
-		//  We send a request, then we work to get a reply
-		if _, err := socket.socket.SendMessage(request_string); err != nil {
-			return nil, fmt.Errorf("failed to send the command '%s'. socket error: %w", command_name, err)
-		}
-
-		//  Poll socket for a reply, with timeout
-		sockets, err := socket.poller.Poll(request_timeout)
-		if err != nil {
-			return nil, fmt.Errorf("failed to to send the command '%s'. poll error: %w", command_name, err)
-		}
-
-		//  Here we process a server reply and exit our loop if the
-		//  reply is valid. If we didn't a reply we close the client
-		//  socket and resend the request. We try a number of times
-		//  before finally abandoning:
-
-		if len(sockets) > 0 {
-			// Wait for reply.
-			r, err := socket.socket.RecvMessage(0)
-			if err != nil {
-				return nil, fmt.Errorf("failed to receive the command '%s' message. socket error: %w", command_name, err)
-			}
-
-			reply, err := message.ParseReply(r)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse the command '%s' reply. gosds error %w", command_name, err)
-			}
-
-			if !reply.IsOK() {
-				return nil, fmt.Errorf("the command '%s' replied with a failure. the reply error message: %s", command_name, reply.Message)
-			}
-
-			return reply.Parameters, nil
-		} else {
-			fmt.Println("command '", command_name, "' in ", request_timeout, ", retrying...")
-			err := socket.reconnect()
-			if err != nil {
-				return nil, fmt.Errorf("socket.reconnect: %w", err)
-			}
 		}
 	}
 }
