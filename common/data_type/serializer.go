@@ -18,5 +18,9 @@ func Serialize(body interface{}) ([]byte, error) {
 func Deserialize(bytes []byte, body interface{}) error {
 	err := json.Unmarshal(bytes, &body)
 
-	return fmt.Errorf("json: '%w'", err)
+	if err != nil {
+		return fmt.Errorf("json: '%w'", err)
+	}
+
+	return nil
 }
