@@ -151,6 +151,11 @@ func New(prefix string, timestamp bool) (Logger, error) {
 	return new_logger, nil
 }
 
+// Replace the `panic`
+func Fatal(title string, keyval ...interface{}) {
+	log.Fatal(title, keyval...)
+}
+
 func (logger Logger) Info(title string, keyval ...interface{}) {
 	logger.style.info()
 	logger.logger.Info(title, keyval...)
