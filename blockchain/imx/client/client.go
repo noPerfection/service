@@ -42,7 +42,7 @@ func New(network *network.Network) *Client {
 }
 
 // Returns list of transfers
-func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]*event.RawLog, error) {
+func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]event.RawLog, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -51,7 +51,7 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 	var resp *imx_api.ListTransfersResponse
 	var r *http.Response
 	var err error
-	logs := make([]*event.RawLog, 0)
+	logs := make([]event.RawLog, 0)
 
 	till_max := false
 	if strings.Compare(timestamp, timestamp_to) != 0 {
@@ -131,7 +131,7 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 				Topics:      []string{},
 			}
 
-			logs = append(logs, l)
+			logs = append(logs, *l)
 		}
 
 		if !till_max {
@@ -148,7 +148,7 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 	return logs, nil
 }
 
-func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]*event.RawLog, error) {
+func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]event.RawLog, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
 	orderBy := "transaction_id"
@@ -157,7 +157,7 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 	var resp *imx_api.ListMintsResponse
 	var r *http.Response
 	var err error
-	logs := make([]*event.RawLog, 0)
+	logs := make([]event.RawLog, 0)
 
 	till_max := false
 	if strings.Compare(timestamp, timestamp_to) != 0 {
@@ -238,7 +238,7 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 				Topics:      []string{},
 			}
 
-			logs = append(logs, l)
+			logs = append(logs, *l)
 		}
 
 		if !till_max {

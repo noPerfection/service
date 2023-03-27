@@ -71,7 +71,7 @@ func FilterByAddress(all_logs []*RawLog, address string) []*RawLog {
 
 // Get the most recent block parameters
 // returns block_number and block_timestamp
-func RecentBlock(all_logs []*RawLog) blockchain.BlockHeader {
+func RecentBlock(all_logs []RawLog) blockchain.BlockHeader {
 	block := blockchain.NewHeader(0, 0)
 
 	for _, log := range all_logs {

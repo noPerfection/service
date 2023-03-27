@@ -13,18 +13,18 @@ import (
 type Block struct {
 	NetworkId string
 	Header    blockchain.BlockHeader
-	RawLogs   []*spaghetti_log.RawLog
+	RawLogs   []spaghetti_log.RawLog
 }
 
 func SetLogs(block *Block, raw_logs []eth_types.Log) error {
-	var logs []*spaghetti_log.RawLog
+	var logs []spaghetti_log.RawLog
 	for _, rawLog := range raw_logs {
 		if rawLog.Removed {
 			continue
 		}
 
 		log := event.NewSpaghettiLog(block.NetworkId, block.Header.Timestamp, &rawLog)
-		logs = append(logs, log)
+		logs = append(logs, *log)
 	}
 
 	block.RawLogs = logs
@@ -35,8 +35,8 @@ func SetLogs(block *Block, raw_logs []eth_types.Log) error {
 // Returns the smartcontract information
 // Todo Get the logs for the blockchain
 // Rather than getting transactions
-func (block *Block) GetForSmartcontract(address string) []*spaghetti_log.RawLog {
-	logs := make([]*spaghetti_log.RawLog, 0)
+func (block *Block) GetForSmartcontract(address string) []spaghetti_log.RawLog {
+	logs := make([]spaghetti_log.RawLog, 0)
 
 	for _, log := range block.RawLogs {
 		if strings.EqualFold(address, log.Transaction.SmartcontractKey.Address) {

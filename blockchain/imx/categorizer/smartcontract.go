@@ -10,6 +10,7 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/blockchain/command"
 	spaghetti_log "github.com/blocklords/sds/blockchain/event"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/categorizer/event"
@@ -30,22 +31,28 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 	addresses := []string{sm.SmartcontractKey.Address}
 
 	for {
-		raw_logs, _, err := spaghetti_log.RemoteLogFilter(sock, blockchain.Number(sm.BlockHeader.Timestamp.Value())+1, addresses)
+
+		block_number_from := blockchain.Number(sm.BlockHeader.Timestamp.Value()) + 1
+		parameters, err := command.FilterLog{
+			BlockFrom: block_number_from,
+			Addresses: addresses,
+		}.
+			Request(sock)
 		if err != nil {
 			manager.logger.Warn("imx remote filter (sleep and try again)", "sleep", 10*time.Second, "error", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
-		if len(raw_logs) == 0 {
+		if len(parameters.RawLogs) == 0 {
 			time.Sleep(1 * time.Second)
 			continue
 		}
 
-		recent_block := spaghetti_log.RecentBlock(raw_logs)
+		recent_block := spaghetti_log.RecentBlock(parameters.RawLogs)
 		sm.SetBlockHeader(recent_block)
 
-		new_logs := make([]*event.Log, len(raw_logs))
-		for i, raw_log := range raw_logs {
+		new_logs := make([]*event.Log, len(parameters.RawLogs))
+		for i, raw_log := range parameters.RawLogs {
 			data_string := raw_log.Data
 			log_kv, err := key_value.NewFromString(data_string)
 			if err != nil {
@@ -60,7 +67,7 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 				manager.logger.Fatal("log.GetKeyValue outputs", "error", err)
 			}
 			log := event.New(log_name, log_outputs)
-			log.AddMetadata(raw_log).AddSmartcontractData(sm)
+			log.AddMetadata(&raw_log).AddSmartcontractData(sm)
 
 			new_logs[i] = log
 		}

@@ -20,8 +20,8 @@ func New(parameters key_value.KeyValue) (*RawLog, error) {
 }
 
 // Parse list of Logs into array of spaghetti.Log
-func NewLogs(raw_logs []interface{}) ([]*RawLog, error) {
-	logs := make([]*RawLog, len(raw_logs))
+func NewLogs(raw_logs []interface{}) ([]RawLog, error) {
+	logs := make([]RawLog, len(raw_logs))
 	for i, raw := range raw_logs {
 		if raw == nil {
 			continue
@@ -34,7 +34,7 @@ func NewLogs(raw_logs []interface{}) ([]*RawLog, error) {
 		if err != nil {
 			return nil, fmt.Errorf("log[%d] converting to Log: %w", i, err)
 		}
-		logs[i] = l
+		logs[i] = *l
 	}
 	return logs, nil
 }

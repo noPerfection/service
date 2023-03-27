@@ -19,6 +19,7 @@ import (
 	"github.com/blocklords/sds/blockchain/network"
 
 	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/blockchain/command"
 	"github.com/blocklords/sds/blockchain/evm/abi"
 	"github.com/blocklords/sds/blockchain/evm/categorizer/smartcontract"
 	categorizer_event "github.com/blocklords/sds/categorizer/event"
@@ -237,29 +238,34 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 		old_logger.Info("fetch from blockchain client manager logs", "block_number", block_number_from, "addresses", addresses)
 
-		all_logs, block_number_to, err := spaghetti_log.RemoteLogFilter(blockchain_socket, block_number_from, addresses)
+		parameters, err := command.FilterLog{
+			BlockFrom: block_number_from,
+			Addresses: addresses,
+		}.
+			Request(blockchain_socket)
+
 		if err != nil {
 			old_logger.Warn("SKIP, blockchain manager returned an error for block number %d and addresses %v: %w", block_number_from, addresses, err)
 			time.Sleep(time.Second)
 			continue
 		}
 
-		block_to := blockchain.NewHeader(block_number_to, 0)
-		if len(all_logs) > 0 {
-			block_to = spaghetti_log.RecentBlock(all_logs)
+		block_to := blockchain.NewHeader(parameters.BlockTo, 0)
+		if len(parameters.RawLogs) > 0 {
+			block_to = spaghetti_log.RecentBlock(parameters.RawLogs)
 		}
-		old_logger.Info("fetched from blockchain client manager", "logs amount", len(all_logs), "smartcontract address", addresses, "block_to", block_to)
+		old_logger.Info("fetched from blockchain client manager", "logs amount", len(parameters.RawLogs), "smartcontract address", addresses, "block_to", block_to)
 
 		decoded_logs := make([]*categorizer_event.Log, 0)
 
 		// decode the logs
-		for _, raw_log := range all_logs {
+		for _, raw_log := range parameters.RawLogs {
 			for _, worker := range group.workers {
 				if worker.Smartcontract.SmartcontractKey.Address != raw_log.Transaction.SmartcontractKey.Address {
 					continue
 				}
 
-				decoded_log, err := worker.DecodeLog(raw_log)
+				decoded_log, err := worker.DecodeLog(&raw_log)
 				if err != nil {
 					old_logger.Fatal("worker.DecodeLog", "smartcontract", worker.Smartcontract.SmartcontractKey.Address, "message", err)
 				}
@@ -281,7 +287,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			smartcontract.SetBlockHeader(new_block)
 		}
 
-		old_logger.Info("notify SDS Categorizer about update", "block_number_from", block_number_from, "block_number_to", block_number_to)
+		old_logger.Info("notify SDS Categorizer about update", "block_number_from", block_number_from, "block_number_to", parameters.BlockTo)
 
 		// now we send the categorized smartcontracts and logs information
 		// to SDS Categorizer, so that SDS Categorizer will update its Database
@@ -304,11 +310,11 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 		if !manager.subscribed_blocks.IsEmpty() {
 			recent_block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).Header.Number
-			left := recent_block_number.Value() - block_number_to
-			old_logger.Info("categorized certain blocks", "block_number_left", left, "block_number_to", block_number_to, "subscribed", recent_block_number)
+			left := recent_block_number.Value() - parameters.BlockTo
+			old_logger.Info("categorized certain blocks", "block_number_left", left, "block_number_to", parameters.BlockTo, "subscribed", recent_block_number)
 			group.block_number = block_to.Number
 
-			if block_number_to >= recent_block_number.Value() {
+			if parameters.BlockTo >= recent_block_number.Value() {
 				old_logger.Info("catched the current blocks")
 				manager.add_current_workers(group.workers)
 				break
@@ -359,7 +365,7 @@ func (manager *Manager) categorize_current_smartcontracts() {
 						continue
 					}
 
-					decoded_log, err := worker.DecodeLog(raw_log)
+					decoded_log, err := worker.DecodeLog(&raw_log)
 					if err != nil {
 						current_logger.Error("worker.DecodeLog", "smartcontract", worker.Smartcontract.SmartcontractKey.Address, "message", err)
 						continue
@@ -452,18 +458,22 @@ func (manager *Manager) queue_recent_blocks() {
 			continue
 		}
 
-		logs, _, err := spaghetti_log.RemoteLogFilter(blockchain_socket, block_number, []string{})
+		parameters, err := command.FilterLog{
+			BlockFrom: block_number,
+			Addresses: []string{},
+		}.
+			Request(blockchain_socket)
 		if err != nil {
 			sub_logger.Warn("failed to get the log filters [trying in 10 seconds]", "message", err)
 			continue
 		}
 
-		if len(logs) == 0 {
+		if len(parameters.RawLogs) == 0 {
 			sub_logger.Warn("no logs were found", "block_number", block_number)
 			continue
 		}
 
-		block_to := spaghetti_log.RecentBlock(logs)
+		block_to := spaghetti_log.RecentBlock(parameters.RawLogs)
 
 		// we already accumulated the logs
 		if block_to.Number == block_number {
@@ -471,9 +481,9 @@ func (manager *Manager) queue_recent_blocks() {
 			continue
 		}
 
-		new_block := spaghetti_block.NewBlock(manager.Network.Id, block_to, logs)
+		new_block := spaghetti_block.NewBlock(manager.Network.Id, block_to, parameters.RawLogs)
 
-		sub_logger.Info("add a block to consume", "block_number", block_to, "event log amount", len(logs))
+		sub_logger.Info("add a block to consume", "block_number", block_to, "event log amount", len(parameters.RawLogs))
 		manager.subscribed_blocks.Push(new_block)
 
 		block_number = block_to.Number.Increment()
