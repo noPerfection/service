@@ -11,10 +11,10 @@ package blockchain
 
 import (
 	"github.com/blocklords/sds/app/log"
+	common_command "github.com/blocklords/sds/app/remote/command"
 	"github.com/blocklords/sds/blockchain/command"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/categorizer"
-	"github.com/blocklords/sds/common/data_type/key_value"
 
 	"github.com/blocklords/sds/blockchain/network"
 
@@ -69,16 +69,17 @@ func transaction_deployed_get(request message.Request, logger log.Logger, parame
 	}
 	defer sock.Close()
 
-	blockchain_reply, err := command.Transaction{
+	req_parameters := command.Transaction{
 		TransactionId: request_parameters.TransactionId,
-	}.
-		Request(sock)
+	}
 
+	var blockchain_reply command.LogFilterReply
+	err = command.FILTER_LOG_COMMAND.Request(sock, req_parameters, &blockchain_reply)
 	if err != nil {
 		return message.Fail("remote transaction_request: " + err.Error())
 	}
 
-	reply, err := blockchain_reply.Reply()
+	reply, err := common_command.Reply(blockchain_reply)
 	if err != nil {
 		return message.Fail("reply preparation: " + err.Error())
 	}
@@ -94,62 +95,55 @@ func get_network(request message.Request, logger log.Logger, _ ...interface{}) m
 	}
 	command_logger.Info("incoming request", "parameters", request.Parameters)
 
-	network_id, err := request.Parameters.GetString("network_id")
+	var request_parameters command.NetworkId
+	err = request.Parameters.ToInterface(&request_parameters)
+	if err != nil {
+		return message.Fail("failed to parse request parameters " + err.Error())
+	}
+
+	networks, err := network.GetNetworks(request_parameters.NetworkType)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	raw_network_type, err := request.Parameters.GetString("network_type")
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-	network_type, err := network.NewNetworkType(raw_network_type)
-	if err != nil {
-		return message.Fail("'network_type' parameter is invalid")
-	}
-
-	networks, err := network.GetNetworks(network_type)
+	n, err := networks.Get(request_parameters.NetworkId)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	n, err := networks.Get(network_id)
+	reply := command.NetworkReply{
+		Network: *n,
+	}
+	reply_message, err := common_command.Reply(reply)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("failed to reply: " + err.Error())
 	}
 
-	reply := message.Reply{
-		Status:     "OK",
-		Message:    "",
-		Parameters: key_value.Empty().Set("network", n),
-	}
-
-	return reply
+	return reply_message
 }
 
 // Returns an abi by the smartcontract key.
 func get_network_ids(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
-	raw_network_type, err := request.Parameters.GetString("network_type")
+	var parameters command.NetworkIds
+	err := request.Parameters.ToInterface(&parameters)
 	if err != nil {
-		return message.Fail(err.Error())
-	}
-	network_type, err := network.NewNetworkType(raw_network_type)
-	if err != nil {
-		return message.Fail("'network_type' parameter is invalid")
+		return message.Fail("invalid parameters: " + err.Error())
 	}
 
-	network_ids, err := network.GetNetworkIds(network_type)
+	network_ids, err := network.GetNetworkIds(parameters.NetworkType)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	return message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"network_ids": network_ids,
-		}),
+	reply := command.NetworkIdsReply{
+		NetworkIds: network_ids,
 	}
+	reply_message, err := common_command.Reply(reply)
+	if err != nil {
+		return message.Fail("failed to reply: " + err.Error())
+	}
+
+	return reply_message
 }
 
 // Returns an abi by the smartcontract key.
@@ -160,25 +154,26 @@ func get_all_networks(request message.Request, logger log.Logger, _ ...interface
 	}
 	command_logger.Info("incoming request", "parameters", request.Parameters)
 
-	raw_network_type, err := request.Parameters.GetString("network_type")
+	var parameters command.NetworkIds
+	err = request.Parameters.ToInterface(&parameters)
 	if err != nil {
-		return message.Fail("missing network_type parameter " + err.Error())
-	}
-	network_type, err := network.NewNetworkType(raw_network_type)
-	if err != nil {
-		return message.Fail("parameter 'network_type' has invalid type")
+		return message.Fail("invalid parameters: " + err.Error())
 	}
 
-	networks, err := network.GetNetworks(network_type)
+	networks, err := network.GetNetworks(parameters.NetworkType)
 	if err != nil {
 		return message.Fail("blockchain " + err.Error())
 	}
 
-	return message.Reply{
-		Status:     "OK",
-		Message:    "",
-		Parameters: key_value.Empty().Set("networks", networks),
+	reply := command.NetworksReply{
+		Networks: networks,
 	}
+	reply_message, err := common_command.Reply(reply)
+	if err != nil {
+		return message.Fail("failed to reply: " + err.Error())
+	}
+
+	return reply_message
 }
 
 // Return the list of command handlers for this service

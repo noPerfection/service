@@ -33,16 +33,20 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 	for {
 
 		block_number_from := blockchain.Number(sm.BlockHeader.Timestamp.Value()) + 1
-		parameters, err := command.FilterLog{
+
+		req_parameters := command.FilterLog{
 			BlockFrom: block_number_from,
 			Addresses: addresses,
-		}.
-			Request(sock)
+		}
+
+		var parameters command.LogFilterReply
+		err = command.FILTER_LOG_COMMAND.Request(sock, req_parameters, &parameters)
 		if err != nil {
 			manager.logger.Warn("imx remote filter (sleep and try again)", "sleep", 10*time.Second, "error", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
+
 		if len(parameters.RawLogs) == 0 {
 			time.Sleep(1 * time.Second)
 			continue

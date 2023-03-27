@@ -238,11 +238,13 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 		old_logger.Info("fetch from blockchain client manager logs", "block_number", block_number_from, "addresses", addresses)
 
-		parameters, err := command.FilterLog{
+		req_parameters := command.FilterLog{
 			BlockFrom: block_number_from,
 			Addresses: addresses,
-		}.
-			Request(blockchain_socket)
+		}
+
+		var parameters command.LogFilterReply
+		err = command.FILTER_LOG_COMMAND.Request(blockchain_socket, req_parameters, &parameters)
 
 		if err != nil {
 			old_logger.Warn("SKIP, blockchain manager returned an error for block number %d and addresses %v: %w", block_number_from, addresses, err)
@@ -458,11 +460,13 @@ func (manager *Manager) queue_recent_blocks() {
 			continue
 		}
 
-		parameters, err := command.FilterLog{
+		req_parameters := command.FilterLog{
 			BlockFrom: block_number,
 			Addresses: []string{},
-		}.
-			Request(blockchain_socket)
+		}
+
+		var parameters command.LogFilterReply
+		err = command.FILTER_LOG_COMMAND.Request(blockchain_socket, req_parameters, &parameters)
 		if err != nil {
 			sub_logger.Warn("failed to get the log filters [trying in 10 seconds]", "message", err)
 			continue
