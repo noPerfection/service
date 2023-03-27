@@ -5,5 +5,6 @@ import (
 )
 
 const (
+	// Through the router
 	SNAPSHOT command.Command = "snapshot_get"
 )
