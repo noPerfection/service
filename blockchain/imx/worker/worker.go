@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/blocklords/sds/blockchain/command"
 	"github.com/blocklords/sds/blockchain/imx"
 	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
 
@@ -57,8 +58,14 @@ func (worker *Manager) SetupSocket() {
 
 		var reply message.Reply
 
-		if request.Command == "log-filter" {
-			reply = worker.filter_log(request.Parameters)
+		if request.Command == command.FILTER_LOG_COMMAND.String() {
+			var request_parameters command.FilterLog
+			err := request.Parameters.ToInterface(&request_parameters)
+			if err != nil {
+				reply = message.Fail("request parameter: " + err.Error())
+			} else {
+				reply = worker.filter_log(request_parameters)
+			}
 		} else {
 			reply = message.Fail("unsupported command " + request.Command)
 		}
@@ -76,11 +83,10 @@ func (worker *Manager) SetupSocket() {
 	}
 }
 
-func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
-	addresses, _ := parameters.GetStringList("addresses")
-	address := addresses[0]
+func (worker *Manager) filter_log(parameters command.FilterLog) message.Reply {
+	address := parameters.Addresses[0]
 
-	block_timestamp, _ := parameters.GetUint64("block_from")
+	block_timestamp := parameters.BlockFrom
 	timestamp := time.Unix(int64(block_timestamp), 0).UTC().Format(time.RFC3339)
 
 	block_timestamp_to := uint64(block_timestamp)

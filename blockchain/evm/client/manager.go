@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/blocklords/sds/blockchain/command"
 	evm_log "github.com/blocklords/sds/blockchain/evm/event"
 	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
@@ -67,13 +68,6 @@ func (m *Manager) stable_clients() []*Client {
 	return clients
 }
 
-// Print the client logs
-func (m *Manager) client_info(title string) {
-	for i, c := range m.clients {
-		m.logger.Info("client info"+title, "id", i, "provider url", c.provider.Url, "rating", c.Rating)
-	}
-}
-
 // Sets up the socket to interact with other packages within SDS
 func (worker *Manager) SetupSocket() {
 	sock, err := zmq.NewSocket(zmq.REP)
@@ -94,15 +88,26 @@ func (worker *Manager) SetupSocket() {
 		request, _ := message.ParseRequest(msgs)
 
 		var reply message.Reply
-
-		if request.Command == "log-filter" {
-			reply = worker.filter_log(request.Parameters)
-		} else if request.Command == "transaction" {
-			reply = worker.get_transaction(request.Parameters)
+		var err error = nil
+		if request.Command == command.FILTER_LOG_COMMAND.String() {
+			var request_parameters command.FilterLog
+			err = request.Parameters.ToInterface(&request_parameters)
+			if err == nil {
+				reply = worker.filter_log(request_parameters)
+			}
+		} else if request.Command == command.TRANSACTION_COMMAND.String() {
+			var request_parameters command.Transaction
+			err = request.Parameters.ToInterface(&request_parameters)
+			if err == nil {
+				reply = worker.get_transaction(request_parameters)
+			}
 		} else if request.Command == "recent-block-number" {
 			reply = worker.get_recent_block()
 		} else {
 			reply = message.Fail("unsupported command")
+		}
+		if err != nil {
+			reply = message.Fail("request parameter: " + err.Error())
 		}
 
 		reply_string, err := reply.ToString()
@@ -120,11 +125,10 @@ func (worker *Manager) SetupSocket() {
 
 // Handle the filter-log command
 // Returns the smartcontract event logs filtered by the smartcontract addresses
-func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
+func (worker *Manager) filter_log(parameters command.FilterLog) message.Reply {
 	network_id := worker.network.Id
-	block_number_from, _ := parameters.GetUint64("block_from")
-
-	addresses, _ := parameters.GetStringList("addresses")
+	block_number_from := parameters.BlockFrom.Value()
+	addresses := parameters.Addresses
 
 	length, err := worker.network.GetFirstProviderLength()
 	if err != nil {
@@ -246,9 +250,7 @@ func (worker *Manager) get_block_timestamp(block_number blockchain.Number) (bloc
 
 // Handle the deployed-transaction command
 // Returns the transaction information from blockchain
-func (worker *Manager) get_transaction(parameters key_value.KeyValue) message.Reply {
-	transaction_id, _ := parameters.GetString("transaction_id")
-
+func (worker *Manager) get_transaction(parameters command.Transaction) message.Reply {
 	var tx *transaction.RawTransaction = nil
 	var err error
 	clients := worker.stable_clients()
@@ -261,7 +263,7 @@ func (worker *Manager) get_transaction(parameters key_value.KeyValue) message.Re
 
 		attempt := ATTEMPT_AMOUNT
 		for {
-			fetched_tx, err = client.GetTransaction(transaction_id, worker.app_config)
+			fetched_tx, err = client.GetTransaction(parameters.TransactionId, worker.app_config)
 			if err == nil {
 				break
 			}

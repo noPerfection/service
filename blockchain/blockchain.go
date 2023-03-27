@@ -11,6 +11,7 @@ package blockchain
 
 import (
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/blockchain/command"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/categorizer"
 	"github.com/blocklords/sds/common/data_type/key_value"
@@ -45,13 +46,10 @@ import (
 // this function returns the smartcontract deployer, deployed block number
 // and block timestamp by a transaction hash of the smartcontract deployment.
 func transaction_deployed_get(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
-	network_id, err := request.Parameters.GetString("network_id")
+	var request_parameters command.DeployedTransaction
+	err := request.Parameters.ToInterface(&request_parameters)
 	if err != nil {
-		return message.Fail("validation: " + err.Error())
-	}
-	txid, err := request.Parameters.GetString("txid")
-	if err != nil {
-		return message.Fail("validation " + err.Error())
+		return message.Fail("failed to parse request parameters " + err.Error())
 	}
 
 	networks, err := network.GetNetworks(network.ALL)
@@ -59,36 +57,30 @@ func transaction_deployed_get(request message.Request, logger log.Logger, parame
 		return message.Fail("network: " + err.Error())
 	}
 
-	if !networks.Exist(network_id) {
+	if !networks.Exist(request_parameters.NetworkId) {
 		return message.Fail("unsupported network id")
 	}
 
 	app_config := parameters[0].(*configuration.Config)
-	url := blockchain_process.BlockchainManagerUrl(network_id)
+	url := blockchain_process.BlockchainManagerUrl(request_parameters.NetworkId)
 	sock, err := remote.InprocRequestSocket(url, logger, app_config)
 	if err != nil {
 		return message.Fail("blockchain request error: " + err.Error())
 	}
 	defer sock.Close()
 
-	tx_request := message.Request{
-		Command: "transaction",
-		Parameters: map[string]interface{}{
-			"transaction_id": txid,
-		},
-	}
+	blockchain_reply, err := command.Transaction{
+		TransactionId: request_parameters.TransactionId,
+	}.
+		Request(sock)
 
-	blockchain_reply, err := sock.RequestRemoteService(&tx_request)
 	if err != nil {
 		return message.Fail("remote transaction_request: " + err.Error())
 	}
 
-	transaction_key_value, _ := blockchain_reply.GetKeyValue("transaction")
-
-	reply := message.Reply{
-		Status:     "OK",
-		Message:    "",
-		Parameters: transaction_key_value,
+	reply, err := blockchain_reply.Reply()
+	if err != nil {
+		return message.Fail("reply preparation: " + err.Error())
 	}
 
 	return reply

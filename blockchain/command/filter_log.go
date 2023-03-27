@@ -10,14 +10,6 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-const (
-	FILTER_LOG_COMMAND = "log-filter"
-)
-
-type Command interface {
-	Request(*remote.Socket) (interface{}, error)
-}
-
 type FilterLog struct {
 	BlockFrom blockchain.Number `json:"block_from"`
 	Addresses []string          `json:"addresses"`
@@ -28,6 +20,14 @@ type LogFilterReply struct {
 	RawLogs []event.RawLog `json:"raw_logs"`
 }
 
+func LogFilterParameters(parameters key_value.KeyValue) (FilterLog, error) {
+	var filter FilterLog
+	reply := LogFilterReply{}
+	err := parameters.ToInterface(&reply)
+
+	return filter, err
+}
+
 func (request FilterLog) Request(socket *remote.Socket) (*LogFilterReply, error) {
 	request_parameters, err := key_value.NewFromInterface(request)
 	if err != nil {
@@ -35,7 +35,7 @@ func (request FilterLog) Request(socket *remote.Socket) (*LogFilterReply, error)
 	}
 
 	request_message := message.Request{
-		Command:    FILTER_LOG_COMMAND,
+		Command:    FILTER_LOG_COMMAND.String(),
 		Parameters: request_parameters,
 	}
 
@@ -45,6 +45,6 @@ func (request FilterLog) Request(socket *remote.Socket) (*LogFilterReply, error)
 	}
 
 	reply := LogFilterReply{}
-	reply_parameters.ToInterface(&reply)
-	return &reply, nil
+	err = reply_parameters.ToInterface(&reply)
+	return &reply, err
 }
