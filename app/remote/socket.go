@@ -12,6 +12,7 @@ package remote
 import (
 	"fmt"
 
+	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/remote/parameter"
@@ -33,6 +34,7 @@ type Socket struct {
 	protocol           string
 	inproc_url         string
 	logger             log.Logger
+	app_config         *configuration.Config
 }
 
 // Initiates the socket with a timeout.
@@ -156,14 +158,14 @@ func (socket *Socket) Close() error {
 // Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
 // In case of successful request, the function returns reply parameters.
 func (socket *Socket) RequestRouter(service_type service.ServiceType, request *message.Request) (key_value.KeyValue, error) {
-	request_timeout := parameter.RequestTimeout()
+	request_timeout := parameter.RequestTimeout(socket.app_config)
 
 	request_string, err := request.ToString()
 	if err != nil {
 		return nil, fmt.Errorf("request.ToString: %w", err)
 	}
 
-	attempt := parameter.Attempt()
+	attempt := parameter.Attempt(socket.app_config)
 
 	// we attempt requests for an infinite amount of time.
 	for {
@@ -226,14 +228,14 @@ func (socket *Socket) RequestRouter(service_type service.ServiceType, request *m
 // Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
 // In case of successful request, the function returns reply parameters.
 func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
-	request_timeout := parameter.RequestTimeout()
+	request_timeout := parameter.RequestTimeout(socket.app_config)
 
 	request_string, err := request.ToString()
 	if err != nil {
 		return nil, fmt.Errorf("request.ToString: %w", err)
 	}
 
-	attempt := parameter.Attempt()
+	attempt := parameter.Attempt(socket.app_config)
 
 	// we attempt requests for an infinite amount of time.
 	for {
@@ -294,7 +296,7 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.REQ
-func NewTcpSocket(remote_service *service.Service, client *credentials.Credentials, parent log.Logger) (*Socket, error) {
+func NewTcpSocket(remote_service *service.Service, client *credentials.Credentials, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
@@ -311,6 +313,7 @@ func NewTcpSocket(remote_service *service.Service, client *credentials.Credentia
 		socket:             sock,
 		protocol:           "tcp",
 		logger:             logger,
+		app_config:         app_config,
 	}
 	err = new_socket.reconnect()
 	if err != nil {
@@ -320,7 +323,7 @@ func NewTcpSocket(remote_service *service.Service, client *credentials.Credentia
 	return &new_socket, nil
 }
 
-func InprocRequestSocket(url string, parent log.Logger) (*Socket, error) {
+func InprocRequestSocket(url string, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
@@ -337,6 +340,7 @@ func InprocRequestSocket(url string, parent log.Logger) (*Socket, error) {
 		inproc_url:         url,
 		client_credentials: nil,
 		logger:             logger,
+		app_config:         app_config,
 	}
 	err = new_socket.inproc_reconnect()
 	if err != nil {
@@ -348,7 +352,7 @@ func InprocRequestSocket(url string, parent log.Logger) (*Socket, error) {
 
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.SUB
-func NewTcpSubscriber(e *service.Service, client *credentials.Credentials, parent log.Logger) (*Socket, error) {
+func NewTcpSubscriber(e *service.Service, client *credentials.Credentials, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
 	socket, sockErr := zmq.NewSocket(zmq.SUB)
 	if sockErr != nil {
 		return nil, fmt.Errorf("new sub socket: %w", sockErr)
@@ -377,5 +381,6 @@ func NewTcpSubscriber(e *service.Service, client *credentials.Credentials, paren
 		client_credentials: client,
 		protocol:           "tcp",
 		logger:             logger,
+		app_config:         app_config,
 	}, nil
 }

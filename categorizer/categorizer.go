@@ -87,7 +87,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	blockchain_service := service.Inprocess(service.SPAGHETTI)
 
-	blockchain_socket, err := remote.InprocRequestSocket(blockchain_service.Url(), logger)
+	blockchain_socket, err := remote.InprocRequestSocket(blockchain_service.Url(), logger, app_config)
 	if err != nil {
 		logger.Fatal("remote.InprocRequest", "url", blockchain_service.Url(), "error", err)
 	}

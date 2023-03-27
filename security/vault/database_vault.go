@@ -51,8 +51,10 @@ func NewDatabase(vault *Vault) (*DatabaseVault, error) {
 func (v *DatabaseVault) GetDatabaseCredentials() (db.DatabaseCredentials, error) {
 	v.logger.Info("getting temporary database credentials from vault: begin")
 
+	request_timeout := parameter.RequestTimeout(v.vault.GetConfig())
+
 	ctx := context.TODO()
-	login_ctx, cancel := context.WithTimeout(ctx, parameter.RequestTimeout())
+	login_ctx, cancel := context.WithTimeout(ctx, request_timeout)
 	defer cancel()
 
 	lease, err := v.vault.client.Logical().ReadWithContext(login_ctx, v.database_path)

@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/blockchain/evm/transaction"
 	"github.com/blocklords/sds/blockchain/network/provider"
@@ -38,17 +39,6 @@ type Client struct {
 	ctx      context.Context
 	provider provider.Provider
 	Rating   float64
-}
-
-// Get Request timeout based on the configuration.
-// The minimum timeout is 1 second.
-func get_timeout() time.Duration {
-	request_timeout := parameter.RequestTimeout()
-
-	if request_timeout/2 <= time.Second {
-		return time.Second
-	}
-	return request_timeout / 2
 }
 
 // Create a network client connected to the blockchain based on a Static parameters
@@ -105,8 +95,10 @@ func (c *Client) decrease_rating() {
 /////////////////////////////////////////////////////////
 
 // Returns the block timestamp from the blockchain
-func (c *Client) GetBlockTimestamp(block_number uint64) (uint64, error) {
-	ctx, cancel := context.WithTimeout(c.ctx, get_timeout())
+func (c *Client) GetBlockTimestamp(block_number uint64, app_config *configuration.Config) (uint64, error) {
+	request_timeout := parameter.RequestTimeout(app_config)
+
+	ctx, cancel := context.WithTimeout(c.ctx, request_timeout)
 	defer cancel()
 
 	header, err := c.client.HeaderByNumber(ctx, big.NewInt(int64(block_number)))
@@ -120,8 +112,10 @@ func (c *Client) GetBlockTimestamp(block_number uint64) (uint64, error) {
 }
 
 // Returns the most recent block number from blockchain
-func (c *Client) GetRecentBlockNumber() (uint64, error) {
-	ctx, cancel := context.WithTimeout(c.ctx, get_timeout())
+func (c *Client) GetRecentBlockNumber(app_config *configuration.Config) (uint64, error) {
+	request_timeout := parameter.RequestTimeout(app_config)
+
+	ctx, cancel := context.WithTimeout(c.ctx, request_timeout)
 	defer cancel()
 
 	block_number, err := c.client.BlockNumber(ctx)
@@ -139,8 +133,10 @@ func (c *Client) GetRecentBlockNumber() (uint64, error) {
 //
 // Spaghetti Transaction requires network_id, but client doesn't have it.
 // TODO: add network id from the caller
-func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.RawTransaction, error) {
-	ctx, cancel := context.WithTimeout(c.ctx, get_timeout())
+func (c *Client) GetTransaction(transaction_id string, app_config *configuration.Config) (*spaghetti_transaction.RawTransaction, error) {
+	request_timeout := parameter.RequestTimeout(app_config)
+
+	ctx, cancel := context.WithTimeout(c.ctx, request_timeout)
 	defer cancel()
 
 	transaction_hash := eth_common.HexToHash(transaction_id)
@@ -156,7 +152,7 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.R
 	}
 	c.increase_rating()
 
-	new_ctx, new_cancel := context.WithTimeout(c.ctx, get_timeout())
+	new_ctx, new_cancel := context.WithTimeout(c.ctx, request_timeout)
 	defer new_cancel()
 
 	receipt, err := c.client.TransactionReceipt(new_ctx, transaction_hash)
@@ -170,7 +166,7 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.R
 		Number: blockchain.Number(receipt.BlockNumber.Uint64()),
 	}
 
-	time_ctx, time_cancel := context.WithTimeout(c.ctx, get_timeout())
+	time_ctx, time_cancel := context.WithTimeout(c.ctx, request_timeout)
 	defer time_cancel()
 	block_raw, err := c.client.BlockByNumber(time_ctx, receipt.BlockNumber)
 	if err != nil {
@@ -192,7 +188,7 @@ func (c *Client) GetTransaction(transaction_id string) (*spaghetti_transaction.R
 }
 
 // Returns the block logs
-func (c *Client) GetBlockLogs(block_number uint64) ([]eth_types.Log, error) {
+func (c *Client) GetBlockLogs(block_number uint64, app_config *configuration.Config) ([]eth_types.Log, error) {
 	big_int := big.NewInt(int64(block_number))
 
 	query := ethereum.FilterQuery{
@@ -201,7 +197,9 @@ func (c *Client) GetBlockLogs(block_number uint64) ([]eth_types.Log, error) {
 		Addresses: []eth_common.Address{},
 	}
 
-	raw_logs, log_err := c.filter_logs(query)
+	request_timeout := parameter.RequestTimeout(app_config)
+
+	raw_logs, log_err := c.filter_logs(query, request_timeout)
 	if log_err != nil {
 		return nil, fmt.Errorf("client.filter_logs for block number %d: %w", block_number, log_err)
 	}
@@ -209,7 +207,7 @@ func (c *Client) GetBlockLogs(block_number uint64) ([]eth_types.Log, error) {
 }
 
 // Returns the logs for a block range
-func (c *Client) GetBlockRangeLogs(block_number_from uint64, block_number_to uint64, addresses []string) ([]eth_types.Log, error) {
+func (c *Client) GetBlockRangeLogs(block_number_from uint64, block_number_to uint64, addresses []string, app_config *configuration.Config) ([]eth_types.Log, error) {
 	big_from := big.NewInt(int64(block_number_from))
 	big_to := big.NewInt(int64(block_number_to))
 
@@ -225,15 +223,17 @@ func (c *Client) GetBlockRangeLogs(block_number_from uint64, block_number_to uin
 		Addresses: eth_addresses,
 	}
 
-	raw_logs, log_err := c.filter_logs(query)
+	request_timeout := parameter.RequestTimeout(app_config)
+
+	raw_logs, log_err := c.filter_logs(query, request_timeout)
 	if log_err != nil {
 		return nil, fmt.Errorf("client.filter_logs for between %d - %d, addresses amount (%d): %w", block_number_from, block_number_to, len(addresses), log_err)
 	}
 	return raw_logs, log_err
 }
 
-func (c *Client) filter_logs(query ethereum.FilterQuery) ([]eth_types.Log, error) {
-	ctx, cancel := context.WithTimeout(c.ctx, get_timeout())
+func (c *Client) filter_logs(query ethereum.FilterQuery, request_timeout time.Duration) ([]eth_types.Log, error) {
+	ctx, cancel := context.WithTimeout(c.ctx, request_timeout)
 	defer cancel()
 
 	raw_logs, log_err := c.client.FilterLogs(ctx, query)

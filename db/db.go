@@ -108,6 +108,10 @@ func Open(parent log.Logger, parameters *DatabaseParameters, credentials Databas
 	return database, nil
 }
 
+func (database *Database) Timeout() time.Duration {
+	return database.parameters.timeout
+}
+
 // Reconnect will be called periodically to refresh the database connection
 // since the dynamic credentials expire after some time, it will:
 //  1. construct a connection string using the given credentials

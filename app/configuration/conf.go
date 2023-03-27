@@ -23,8 +23,7 @@ type Config struct {
 	logger        *log.Logger // debug purpose only
 }
 
-// Returns the new configuration file after loading environment variables
-// At the application level
+// Create a global configuration for the entire application
 func NewAppConfig(logger log.Logger) (*Config, error) {
 	config_logger, err := logger.Child("app-config", log.WITHOUT_TIMESTAMP)
 	if err != nil {

@@ -19,6 +19,7 @@ type Manager struct {
 	smartcontracts []*smartcontract.Smartcontract
 	pusher         *zmq.Socket
 	logger         log.Logger
+	app_config     *configuration.Config
 }
 
 func NewManager(parent log.Logger, app_config *configuration.Config, network *network.Network, pusher *zmq.Socket) (*Manager, error) {
@@ -32,6 +33,7 @@ func NewManager(parent log.Logger, app_config *configuration.Config, network *ne
 		smartcontracts: make([]*smartcontract.Smartcontract, 0),
 		pusher:         pusher,
 		logger:         logger,
+		app_config:     app_config,
 	}
 
 	return manager, nil

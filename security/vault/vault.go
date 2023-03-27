@@ -220,3 +220,7 @@ func (v *Vault) get_string(secret_name string, key string) (string, error) {
 
 	return value, nil
 }
+
+func (v *Vault) GetConfig() *configuration.Config {
+	return v.app_config
+}

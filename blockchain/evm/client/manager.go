@@ -11,6 +11,7 @@ import (
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/blockchain/transaction"
 
+	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 
@@ -30,24 +31,26 @@ const (
 // Manager encapsulates the client.
 // All other services can send data through the manager.
 type Manager struct {
-	logger  log.Logger
-	clients []*Client
-	network *network.Network
+	logger     log.Logger
+	clients    []*Client
+	app_config *configuration.Config
+	network    *network.Network
 }
 
 // A wrapper around Blockchain Client
 // This wrapper sets the connection between blockchain client and SDS.
 // All other parts of the SDS interacts with the client through this
-func NewManager(network *network.Network, logger log.Logger) (*Manager, error) {
+func NewManager(network *network.Network, logger log.Logger, app_config *configuration.Config) (*Manager, error) {
 	clients, err := new_clients(network.Providers)
 	if err != nil {
 		return nil, fmt.Errorf("new_clients: %w", err)
 	}
 
 	return &Manager{
-		clients: clients,
-		logger:  logger,
-		network: network,
+		clients:    clients,
+		logger:     logger,
+		network:    network,
+		app_config: app_config,
 	}, nil
 }
 
@@ -140,7 +143,7 @@ func (worker *Manager) filter_log(parameters key_value.KeyValue) message.Reply {
 
 		attempt := ATTEMPT_AMOUNT
 		for {
-			fetched_raw_logs, err = client.GetBlockRangeLogs(block_number_from, block_number_to, addresses)
+			fetched_raw_logs, err = client.GetBlockRangeLogs(block_number_from, block_number_to, addresses, worker.app_config)
 			if err == nil {
 				break
 			}
@@ -211,7 +214,7 @@ func (worker *Manager) get_block_timestamp(block_number blockchain.Number) (bloc
 
 		attempt := ATTEMPT_AMOUNT
 		for {
-			fetched_block_timestamp, err = client.GetBlockTimestamp(block_number.Value())
+			fetched_block_timestamp, err = client.GetBlockTimestamp(block_number.Value(), worker.app_config)
 			if err == nil {
 				break
 			}
@@ -258,7 +261,7 @@ func (worker *Manager) get_transaction(parameters key_value.KeyValue) message.Re
 
 		attempt := ATTEMPT_AMOUNT
 		for {
-			fetched_tx, err = client.GetTransaction(transaction_id)
+			fetched_tx, err = client.GetTransaction(transaction_id, worker.app_config)
 			if err == nil {
 				break
 			}
@@ -307,7 +310,7 @@ func (worker *Manager) get_recent_block() message.Reply {
 
 		attempt := ATTEMPT_AMOUNT
 		for {
-			fetched_block_number, err = client.GetRecentBlockNumber()
+			fetched_block_number, err = client.GetRecentBlockNumber(worker.app_config)
 			if err == nil {
 				break
 			}

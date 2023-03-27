@@ -22,7 +22,7 @@ import (
 func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 	var mu sync.Mutex
 	url := blockchain_process.BlockchainManagerUrl(manager.network.Id)
-	sock, err := remote.InprocRequestSocket(url, manager.logger)
+	sock, err := remote.InprocRequestSocket(url, manager.logger, manager.app_config)
 	if err != nil {
 		manager.logger.Fatal("remote.InprocRequest", "url", url, "error", err)
 	}

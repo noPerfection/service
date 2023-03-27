@@ -44,7 +44,7 @@ import (
 
 // this function returns the smartcontract deployer, deployed block number
 // and block timestamp by a transaction hash of the smartcontract deployment.
-func transaction_deployed_get(request message.Request, logger log.Logger, _parameters ...interface{}) message.Reply {
+func transaction_deployed_get(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
 	network_id, err := request.Parameters.GetString("network_id")
 	if err != nil {
 		return message.Fail("validation: " + err.Error())
@@ -63,8 +63,9 @@ func transaction_deployed_get(request message.Request, logger log.Logger, _param
 		return message.Fail("unsupported network id")
 	}
 
+	app_config := parameters[0].(*configuration.Config)
 	url := blockchain_process.BlockchainManagerUrl(network_id)
-	sock, err := remote.InprocRequestSocket(url, logger)
+	sock, err := remote.InprocRequestSocket(url, logger, app_config)
 	if err != nil {
 		return message.Fail("blockchain request error: " + err.Error())
 	}
@@ -94,7 +95,7 @@ func transaction_deployed_get(request message.Request, logger log.Logger, _param
 }
 
 // Returns Network
-func get_network(request message.Request, logger log.Logger, _parameters ...interface{}) message.Reply {
+func get_network(request message.Request, logger log.Logger, _ ...interface{}) message.Reply {
 	command_logger, err := logger.ChildWithoutReport("network-get-command")
 	if err != nil {
 		return message.Fail("network-get-command: " + err.Error())
@@ -135,7 +136,7 @@ func get_network(request message.Request, logger log.Logger, _parameters ...inte
 }
 
 // Returns an abi by the smartcontract key.
-func get_network_ids(request message.Request, logger log.Logger, _parameters ...interface{}) message.Reply {
+func get_network_ids(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
 	raw_network_type, err := request.Parameters.GetString("network_type")
 	if err != nil {
 		return message.Fail(err.Error())
@@ -160,7 +161,7 @@ func get_network_ids(request message.Request, logger log.Logger, _parameters ...
 }
 
 // Returns an abi by the smartcontract key.
-func get_all_networks(request message.Request, logger log.Logger, _parameters ...interface{}) message.Reply {
+func get_all_networks(request message.Request, logger log.Logger, _ ...interface{}) message.Reply {
 	command_logger, err := logger.ChildWithoutReport("network-get-all-command")
 	if err != nil {
 		return message.Fail("network-get-all-command: " + err.Error())
@@ -221,7 +222,7 @@ func Run(app_config *configuration.Config) {
 		logger.Fatal("StartWorkers", "message", err)
 	}
 
-	err = reply.Run(CommandHandlers())
+	err = reply.Run(CommandHandlers(), app_config)
 	if err != nil {
 		logger.Fatal("controller error", "message", err)
 	}
@@ -249,7 +250,7 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 		}
 
 		if new_network.Type == network.EVM {
-			blockchain_manager, err := evm_client.NewManager(new_network, worker_logger)
+			blockchain_manager, err := evm_client.NewManager(new_network, worker_logger, app_config)
 			if err != nil {
 				return fmt.Errorf("gosds/blockchain: failed to create EVM client: %v", err)
 			}
@@ -257,7 +258,7 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 
 			// Categorizer of the smartcontracts
 			// This categorizers are interacting with the SDS Categorizer
-			categorizer, err := evm_categorizer.NewManager(worker_logger, new_network, pusher)
+			categorizer, err := evm_categorizer.NewManager(worker_logger, new_network, pusher, app_config)
 			if err != nil {
 				worker_logger.Fatal("evm categorizer manager", "error", err)
 			}
