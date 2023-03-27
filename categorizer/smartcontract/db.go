@@ -56,8 +56,8 @@ func Get(db *db.Database, key smartcontract_key.Key) (*Smartcontract, error) {
 	return &sm, nil
 }
 
-func GetAll(db *db.Database) ([]*Smartcontract, error) {
-	smartcontracts := make([]*Smartcontract, 0)
+func GetAll(db *db.Database) ([]Smartcontract, error) {
+	smartcontracts := make([]Smartcontract, 0)
 
 	rows, err := db.Connection.Query("SELECT network_id, address, block_number, block_timestamp FROM categorizer_smartcontract ")
 	if err != nil {
@@ -75,7 +75,7 @@ func GetAll(db *db.Database) ([]*Smartcontract, error) {
 			return smartcontracts, fmt.Errorf("row.Scan: %w", err)
 		}
 
-		smartcontracts = append(smartcontracts, &sm)
+		smartcontracts = append(smartcontracts, sm)
 	}
 	if err = rows.Err(); err != nil {
 		return smartcontracts, fmt.Errorf("database error: %w", err)
