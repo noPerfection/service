@@ -27,8 +27,8 @@ func Save(db *db.Database, t *Log) error {
 }
 
 // returns list of logs for smartcontracts
-func GetLogsFromDb(con *db.Database, smartcontracts []smartcontract_key.Key, block_timestamp blockchain.Timestamp, limit uint64) ([]*Log, error) {
-	var logs []*Log = make([]*Log, 0)
+func GetLogsFromDb(con *db.Database, smartcontracts []smartcontract_key.Key, block_timestamp blockchain.Timestamp, limit uint64) ([]Log, error) {
+	var logs []Log = make([]Log, 0)
 	sm_amount := len(smartcontracts)
 
 	if sm_amount == 0 {
@@ -92,7 +92,7 @@ func GetLogsFromDb(con *db.Database, smartcontracts []smartcontract_key.Key, blo
 			return nil, fmt.Errorf("json.deserialize %s: %w", string(output_bytes), err)
 		}
 
-		logs = append(logs, &s)
+		logs = append(logs, s)
 	}
 
 	return logs, nil

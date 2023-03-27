@@ -11,6 +11,7 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
+	blockchain_command "github.com/blocklords/sds/blockchain/command"
 	categorizer_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/categorizer/handler"
@@ -94,7 +95,11 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	logger.Info("retreive networks", "network-type", network.ALL)
 
-	networks, err := network.GetRemoteNetworks(blockchain_socket, network.ALL)
+	request_parameters := blockchain_command.NetworkIds{
+		NetworkType: network.ALL,
+	}
+	var parameters blockchain_command.NetworksReply
+	err = blockchain_command.NETWORKS_COMMAND.Request(blockchain_socket, request_parameters, &parameters)
 	blockchain_socket.Close()
 	if err != nil {
 		logger.Fatal("newwork.GetRemoteNetworks", "message", err)
@@ -102,9 +107,9 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	logger.Info("networks retreived")
 
-	pushers := make(map[string]*zmq.Socket, len(networks))
+	pushers := make(map[string]*zmq.Socket, len(parameters.Networks))
 
-	for _, the_network := range networks {
+	for _, the_network := range parameters.Networks {
 		pusher, err := categorizer_process.CategorizerManagerSocket(the_network.Id)
 		if err != nil {
 			logger.Fatal("categorizer_process.CategorizerManagerSocket: %w", err)
