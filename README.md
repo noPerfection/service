@@ -31,11 +31,16 @@ You still wonder, why there is no big "play2earn" games and dapps?
 ---
 
 # Enter SeascapeSDS
-Consider SeascapeSDS as a collection of microservices. You deploy the smartcontract with it, and all the tools necessary to build your dapps are magically appear to you. Each tool is microservice.
+Consider SeascapeSDS as the list of three linked tools.
+* ***cli*** &ndash; for smartcontract developer
+* ***sds*** &ndash; for processing smartcontract
+* ***sdk*** &ndash; for backend developer
 
-Since SeascapeSDS is in the microservice architecture, if you don't have the feature that you want, then you can create it on your own or ask the community to build it for you through bounties and share it with all other developers as we do it with you.
+The smartcontract developer deploys the smartcontract with ***cli***, and all the tools to read data, to write the data appear on ***sds***. Then the backend developer who wants to read the data or send the data uses ***sdk***.
 
-For big innovations, working as a single team, trying to earn money on your cryptocurrency is one of the major drawbacks that pushes the crypto space from innovation.
+Since SeascapeSDS (all three are open-source), if you don't have the feature that you want, then you can create it on your own or ask the community to build it for you.
+
+The blockchain is a complex an advanced technology. To create the big innovations, working as a single team is not enough. We should work together and share the experiences (which is SeascapeSDS) to push the innovations.
 
 Right, let the cryptocurrency of each project "go to the moon" because of its popularity and its users, not because of the underlying technology.
 
