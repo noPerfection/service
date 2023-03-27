@@ -40,6 +40,7 @@ func main() {
 		logger.Fatal("configuration.NewAppConfig", "error", err)
 	}
 
+	// Prepare the parameters of database
 	app_config.SetDefaults(db.DatabaseConfigurations)
 	database_parameters, err := db.GetParameters(app_config)
 	if err != nil {
@@ -47,8 +48,8 @@ func main() {
 	}
 	database_credentials := db.GetDefaultCredentials(app_config)
 
+	// Prepare the security layer if plain wasn't given
 	logger.Info("Setting up Vault connection and authentication layer...")
-
 	var vault_database *vault.DatabaseVault
 	if !app_config.Plain {
 		app_config.SetDefaults(vault.VaultConfigurations)
@@ -80,7 +81,6 @@ func main() {
 	if err != nil {
 		logger.Fatal("database error", "message", err)
 	}
-
 	if !app_config.Plain {
 		go vault_database.PeriodicallyRenewLeases(database.Reconnect)
 	}
@@ -89,6 +89,11 @@ func main() {
 		_ = database.Close()
 	}()
 
+	/////////////////////////////////////////////////////////////////////////
+	//
+	// Run the Core services:
+	//
+	/////////////////////////////////////////////////////////////////////////
 	var core_service *service.Service
 	if app_config.Plain {
 		core_service, err = service.NewExternal(service.CORE, service.THIS)
@@ -102,11 +107,15 @@ func main() {
 		}
 	}
 
+	// Prepare the external message receiver
+	// This is aimed to be connected by SDS Gateway
 	router, err := controller.NewRouter(logger, core_service)
 	if err != nil {
 		logger.Fatal("controller new router", "error", err)
 	}
 
+	// Prepare the list of core services that
+	// The router will redirect the data to the services
 	err = router.AddDealers(static.Service(), categorizer.Service(), blockchain.Service())
 	if err != nil {
 		logger.Fatal("router.AddDealers", "message", err)
@@ -117,7 +126,6 @@ func main() {
 	go categorizer.Run(app_config, database)
 	go blockchain.Run(app_config)
 
+	// Start the external services
 	router.Run()
-
-	logger.Info("SeascapeSDS main exit!")
 }
