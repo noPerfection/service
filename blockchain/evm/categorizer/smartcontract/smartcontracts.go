@@ -57,8 +57,8 @@ func (workers EvmWorkers) RecentBlockNumber() blockchain.Number {
 }
 
 // Returns the smartcontract information that should be categorized
-func (workers EvmWorkers) GetSmartcontracts() []*categorizer_smartcontract.Smartcontract {
-	smartcontracts := make([]*categorizer_smartcontract.Smartcontract, 0)
+func (workers EvmWorkers) GetSmartcontracts() []categorizer_smartcontract.Smartcontract {
+	smartcontracts := make([]categorizer_smartcontract.Smartcontract, 0)
 
 	for _, worker := range workers {
 		smartcontracts = append(smartcontracts, worker.Smartcontract)

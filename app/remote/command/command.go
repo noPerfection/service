@@ -2,11 +2,14 @@ package command
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 type Command string
@@ -37,6 +40,37 @@ func (command Command) Request(socket *remote.Socket, request interface{}, reply
 
 	err = reply_parameters.ToInterface(&reply)
 	return err
+}
+
+// Makes a remote request with the @request parameters
+// And then returns the @reply.
+//
+// Both request and reply are the message parameters.
+func (command Command) Push(socket *zmq.Socket, request interface{}) error {
+	var mu sync.Mutex
+	request_parameters, err := key_value.NewFromInterface(request)
+	if err != nil {
+		return fmt.Errorf("conver parameters to: %w", err)
+	}
+
+	request_message := message.Request{
+		Command:    command.String(),
+		Parameters: request_parameters,
+	}
+
+	request_string, err := request_message.ToString()
+	if err != nil {
+		return fmt.Errorf("failed to stringify message: %w", err)
+	}
+
+	mu.Lock()
+	_, err = socket.SendMessage(request_string)
+	mu.Unlock()
+	if err != nil {
+		return fmt.Errorf("failed to send to blockchain package: %w", err)
+	}
+
+	return nil
 }
 
 func (command Command) RequestRouter(socket *remote.Socket, service_type service.ServiceType, request interface{}, reply interface{}) error {

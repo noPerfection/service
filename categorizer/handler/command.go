@@ -13,4 +13,7 @@ const (
 	GET_SMARTCONTRACT command.Command = "smartcontract_get"
 	// Through the router
 	SET_SMARTCONTRACT command.Command = "smartcontract_set"
+	// Internal from SDS Blockchain service to SDS Categorizer
+	// Indicates that the list of smartcontracts are categorized
+	CATEGORIZATION command.Command = "categorize"
 )

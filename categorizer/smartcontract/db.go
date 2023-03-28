@@ -85,8 +85,8 @@ func GetAll(db *db.Database) ([]Smartcontract, error) {
 }
 
 // Returns list of categorizing smartcontracts at certain network.
-func GetAllByNetworkId(db *db.Database, network_id string) ([]*Smartcontract, error) {
-	var smartcontracts []*Smartcontract
+func GetAllByNetworkId(db *db.Database, network_id string) ([]Smartcontract, error) {
+	var smartcontracts []Smartcontract
 
 	rows, err := db.Connection.Query("SELECT network_id, address, block_number, block_timestamp FROM categorizer_smartcontract WHERE network_id = ?", network_id)
 	if err != nil {
@@ -106,7 +106,7 @@ func GetAllByNetworkId(db *db.Database, network_id string) ([]*Smartcontract, er
 			return nil, fmt.Errorf("row.Scan: %w", err)
 		}
 
-		smartcontracts = append(smartcontracts, &sm)
+		smartcontracts = append(smartcontracts, sm)
 	}
 	if err = rows.Err(); err != nil {
 		return smartcontracts, fmt.Errorf("database error: %w", err)

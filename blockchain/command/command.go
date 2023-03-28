@@ -17,6 +17,11 @@ const (
 	NETWORKS_COMMAND command.Command = "network_get_all"
 	// The command executed by the blockchain manager
 	NETWORK_COMMAND command.Command = "network_get"
-	// Internal for EVM only
+	// Internal blockchain package's.
+	// Its only for EVM blockchains.
+	// EVM blockchain categorizer fetches the recent block number from
+	// EVM blockchain clients
 	RECENT_BLOCK_NUMBER command.Command = "recent-block-number"
+	// Internal from SDS Categorizer service to SDS Blockchain service
+	NEW_CATEGORIZED_SMARTCONTRACTS command.Command = "new-smartcontracts"
 )

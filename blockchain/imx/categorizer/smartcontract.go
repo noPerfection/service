@@ -5,11 +5,9 @@
 package categorizer
 
 import (
-	"sync"
 	"time"
 
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/blockchain/command"
 	spaghetti_log "github.com/blocklords/sds/blockchain/event"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
@@ -17,11 +15,12 @@ import (
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
+
+	categorizer_command "github.com/blocklords/sds/categorizer/handler"
 )
 
 // Run the goroutine for each Imx smartcontract.
 func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
-	var mu sync.Mutex
 	url := blockchain_process.BlockchainManagerUrl(manager.network.Id)
 	sock, err := remote.InprocRequestSocket(url, manager.logger, manager.app_config)
 	if err != nil {
@@ -55,7 +54,7 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 		recent_block := spaghetti_log.RecentBlock(parameters.RawLogs)
 		sm.SetBlockHeader(recent_block)
 
-		new_logs := make([]*event.Log, len(parameters.RawLogs))
+		new_logs := make([]event.Log, len(parameters.RawLogs))
 		for i, raw_log := range parameters.RawLogs {
 			data_string := raw_log.Data
 			log_kv, err := key_value.NewFromString(data_string)
@@ -73,26 +72,19 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 			log := event.New(log_name, log_outputs)
 			log.AddMetadata(&raw_log).AddSmartcontractData(sm)
 
-			new_logs[i] = log
+			new_logs[i] = *log
 		}
-
-		smartcontracts := []*smartcontract.Smartcontract{sm}
-
-		push := message.Request{
-			Command: "",
-			Parameters: map[string]interface{}{
-				"smartcontracts": smartcontracts,
-				"logs":           new_logs,
-			},
-		}
-		request_string, _ := push.ToString()
 
 		// pusher is a single for all categorizers
 		// its defined in sds/blockchain package on a different goroutine
 		// Without mutexes, the socket behaviour is undefined
-		mu.Lock()
-		_, err = manager.pusher.SendMessage(request_string)
-		mu.Unlock()
+
+		request := categorizer_command.PushCategorization{
+			Smartcontracts: []smartcontract.Smartcontract{*sm},
+			Logs:           new_logs,
+		}
+		err = categorizer_command.CATEGORIZATION.Push(manager.pusher, request)
+
 		if err != nil {
 			manager.logger.Fatal("push.SendMessage", "error", err)
 		}

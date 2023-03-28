@@ -4,6 +4,8 @@ import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/command"
 	"github.com/blocklords/sds/app/remote/message"
+	blockchain_command "github.com/blocklords/sds/blockchain/command"
+	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/smartcontract_key"
 
@@ -27,6 +29,10 @@ type SetSmartcontractsReply struct{}
 type GetSmartcontractsRequest struct{}
 type GetSmartcontractsReply struct {
 	Smartcontracts []smartcontract.Smartcontract `json:"smartcontracts"`
+}
+type PushCategorization struct {
+	Smartcontracts []smartcontract.Smartcontract `json:"smartcontracts"`
+	Logs           []event.Log                   `json:"logs"`
 }
 
 // return a categorized smartcontract parameters by network id and smartcontract address
@@ -102,19 +108,12 @@ func SetSmartcontract(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("no blockchain package for network id")
 	}
 
-	smartcontracts := []*smartcontract.Smartcontract{&request_parameters.Smartcontract}
-
-	push := message.Request{
-		Command: "new-smartcontracts",
-		Parameters: map[string]interface{}{
-			"smartcontracts": smartcontracts,
-		},
+	push := blockchain_command.PushNewSmartcontracts{
+		Smartcontracts: []smartcontract.Smartcontract{request_parameters.Smartcontract},
 	}
-	request_string, _ := push.ToString()
-
-	_, err = pusher.SendMessage(request_string)
+	err = blockchain_command.NEW_CATEGORIZED_SMARTCONTRACTS.Push(pusher, push)
 	if err != nil {
-		return message.Fail("send: " + err.Error())
+		return message.Fail("failed to send to blockchain package: " + err.Error())
 	}
 
 	reply := SetSmartcontractsReply{}

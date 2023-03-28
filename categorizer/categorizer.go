@@ -2,14 +2,12 @@ package categorizer
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/blocklords/sds/app/log"
 
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
 	blockchain_command "github.com/blocklords/sds/blockchain/command"
 	categorizer_process "github.com/blocklords/sds/blockchain/inproc"
@@ -27,7 +25,6 @@ import (
 // They will handle the decoding the event logs.
 // After decoding, the blockchain/categorizer will push back to this categorizer's puller.
 func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *network.Network, pusher *zmq.Socket) error {
-	var mu sync.Mutex
 	logger.Info("get all categorizable smartcontracts from database", "network_id", network.Id)
 	smartcontracts, err := smartcontract.GetAllByNetworkId(db_con, network.Id)
 	if err != nil {
@@ -38,20 +35,12 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 	}
 
 	logger.Info("all smartcontracts returned", "network_id", network.Id, "smartcontract amount", len(smartcontracts))
-
 	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id, "url", categorizer_process.CategorizerManagerUrl(network.Id))
 
-	request := message.Request{
-		Command: "new-smartcontracts",
-		Parameters: map[string]interface{}{
-			"smartcontracts": smartcontracts,
-		},
+	request := blockchain_command.PushNewSmartcontracts{
+		Smartcontracts: smartcontracts,
 	}
-	request_string, _ := request.ToString()
-
-	mu.Lock()
-	_, err = pusher.SendMessage(request_string)
-	mu.Unlock()
+	err = blockchain_command.NEW_CATEGORIZED_SMARTCONTRACTS.Push(pusher, request)
 	if err != nil {
 		return fmt.Errorf("failed to send to blockchain package: %w", err)
 	}

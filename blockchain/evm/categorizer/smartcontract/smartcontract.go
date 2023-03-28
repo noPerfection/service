@@ -15,25 +15,25 @@ import (
 type EvmWorker struct {
 	abi *abi.Abi
 	// todo remove from struct
-	Smartcontract *categorizer_smartcontract.Smartcontract
+	Smartcontract categorizer_smartcontract.Smartcontract
 }
 
 // Wraps the Worker with the EVM related data and returns the wrapped Worker as EvmWorker
 func New(sm *categorizer_smartcontract.Smartcontract, abi *abi.Abi) *EvmWorker {
 	return &EvmWorker{
 		abi:           abi,
-		Smartcontract: sm,
+		Smartcontract: *sm,
 	}
 }
 
 // Categorize the blocks for this smartcontract
-func (worker *EvmWorker) DecodeLog(raw_log *spaghetti_log.RawLog) (*event.Log, error) {
+func (worker *EvmWorker) DecodeLog(raw_log *spaghetti_log.RawLog) (event.Log, error) {
 	log_name, outputs, err := worker.abi.DecodeLog(raw_log.Topics, raw_log.Data)
 	if err != nil {
-		return nil, fmt.Errorf("abi.DecodeLog (event %d in transaction %s): %w", raw_log.Index, raw_log.Transaction.TransactionKey.Id, err)
+		return event.Log{}, fmt.Errorf("abi.DecodeLog (event %d in transaction %s): %w", raw_log.Index, raw_log.Transaction.TransactionKey.Id, err)
 	}
 
-	l := event.New(log_name, outputs).AddMetadata(raw_log).AddSmartcontractData(worker.Smartcontract)
+	l := event.New(log_name, outputs).AddMetadata(raw_log).AddSmartcontractData(&worker.Smartcontract)
 
-	return l, nil
+	return *l, nil
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/blocklords/sds/blockchain/evm/abi"
 	"github.com/blocklords/sds/blockchain/evm/categorizer/smartcontract"
 	categorizer_event "github.com/blocklords/sds/categorizer/event"
+	categorizer_command "github.com/blocklords/sds/categorizer/handler"
 	categorizer_smartcontract "github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type"
@@ -260,7 +261,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		}
 		old_logger.Info("fetched from blockchain client manager", "logs amount", len(parameters.RawLogs), "smartcontract address", addresses, "block_to", block_to)
 
-		decoded_logs := make([]*categorizer_event.Log, 0)
+		decoded_logs := make([]categorizer_event.Log, 0)
 
 		// decode the logs
 		for _, raw_log := range parameters.RawLogs {
@@ -295,19 +296,11 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 		// now we send the categorized smartcontracts and logs information
 		// to SDS Categorizer, so that SDS Categorizer will update its Database
-		push := message.Request{
-			Command: "",
-			Parameters: map[string]interface{}{
-				"smartcontracts": smartcontracts,
-				"logs":           decoded_logs,
-			},
+		request := categorizer_command.PushCategorization{
+			Smartcontracts: smartcontracts,
+			Logs:           decoded_logs,
 		}
-		request_string, _ := push.ToString()
-
-		mu.Lock()
-		_, err = manager.pusher.SendMessage(request_string)
-		mu.Unlock()
-
+		err = categorizer_command.CATEGORIZATION.Push(manager.pusher, request)
 		if err != nil {
 			old_logger.Fatal("send to SDS Categorizer", "message", err)
 		}
@@ -360,7 +353,7 @@ func (manager *Manager) categorize_current_smartcontracts() {
 		for {
 			raw_block := manager.subscribed_blocks.Pop().(*spaghetti_block.Block)
 
-			decoded_logs := make([]*categorizer_event.Log, 0)
+			decoded_logs := make([]categorizer_event.Log, 0)
 
 			// decode the logs
 			for _, raw_log := range raw_block.RawLogs {
@@ -392,21 +385,13 @@ func (manager *Manager) categorize_current_smartcontracts() {
 				smartcontract.SetBlockHeader(new_block)
 			}
 
-			push := message.Request{
-				Command: "",
-				Parameters: map[string]interface{}{
-					"smartcontracts": smartcontracts,
-					"logs":           decoded_logs,
-				},
-			}
-			request_string, _ := push.ToString()
-
 			current_logger.Info("send a notification to SDS Categorizer", "logs_amount", len(decoded_logs))
 
-			mu.Lock()
-			_, err := manager.pusher.SendMessage(request_string)
-			mu.Unlock()
-
+			request := categorizer_command.PushCategorization{
+				Smartcontracts: smartcontracts,
+				Logs:           decoded_logs,
+			}
+			err = categorizer_command.CATEGORIZATION.Push(manager.pusher, request)
 			if err != nil {
 				current_logger.Fatal("sending notification to SDS Categorizer", "message", err)
 			}
