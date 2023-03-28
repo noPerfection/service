@@ -1,13 +1,14 @@
-package command
+package handler
 
 import (
 	"github.com/blocklords/sds/blockchain/transaction"
 )
 
-type Transaction struct {
+type DeployedTransaction struct {
+	NetworkId     string `json:"network_id"`
 	TransactionId string `json:"transaction_id"`
 }
 
-type TransactionReply struct {
+type DeployedTransactionReply struct {
 	Raw transaction.RawTransaction `json:"transaction"`
 }

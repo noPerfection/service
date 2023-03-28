@@ -1,4 +1,4 @@
-package command
+package handler
 
 import (
 	"github.com/blocklords/sds/common/blockchain"
