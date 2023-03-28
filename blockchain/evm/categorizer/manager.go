@@ -19,9 +19,9 @@ import (
 	"github.com/blocklords/sds/blockchain/network"
 
 	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/blockchain/command"
 	"github.com/blocklords/sds/blockchain/evm/abi"
 	"github.com/blocklords/sds/blockchain/evm/categorizer/smartcontract"
+	"github.com/blocklords/sds/blockchain/handler"
 	categorizer_event "github.com/blocklords/sds/categorizer/event"
 	categorizer_command "github.com/blocklords/sds/categorizer/handler"
 	categorizer_smartcontract "github.com/blocklords/sds/categorizer/smartcontract"
@@ -240,13 +240,13 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 
 		old_logger.Info("fetch from blockchain client manager logs", "block_number", block_number_from, "addresses", addresses)
 
-		req_parameters := command.FilterLog{
+		req_parameters := handler.FilterLog{
 			BlockFrom: block_number_from,
 			Addresses: addresses,
 		}
 
-		var parameters command.LogFilterReply
-		err = command.FILTER_LOG_COMMAND.Request(blockchain_socket, req_parameters, &parameters)
+		var parameters handler.LogFilterReply
+		err = handler.FILTER_LOG_COMMAND.Request(blockchain_socket, req_parameters, &parameters)
 
 		if err != nil {
 			old_logger.Warn("SKIP, blockchain manager returned an error for block number %d and addresses %v: %w", block_number_from, addresses, err)
@@ -402,10 +402,10 @@ func (manager *Manager) categorize_current_smartcontracts() {
 }
 
 func recent_block_number(socket *remote.Socket) (blockchain.Number, error) {
-	var recent_request command.RecentBlockRequest = key_value.Empty()
-	var recent_reply command.RecentBlockReply
+	var recent_request handler.RecentBlockRequest = key_value.Empty()
+	var recent_reply handler.RecentBlockReply
 
-	err := command.RECENT_BLOCK_NUMBER.Request(socket, recent_request, &recent_reply)
+	err := handler.RECENT_BLOCK_NUMBER.Request(socket, recent_request, &recent_reply)
 	if err != nil {
 		return 0, fmt.Errorf("RemoteRequest: %w", err)
 	}
@@ -442,13 +442,13 @@ func (manager *Manager) queue_recent_blocks() {
 			continue
 		}
 
-		req_parameters := command.FilterLog{
+		req_parameters := handler.FilterLog{
 			BlockFrom: block_number,
 			Addresses: []string{},
 		}
 
-		var parameters command.LogFilterReply
-		err = command.FILTER_LOG_COMMAND.Request(blockchain_socket, req_parameters, &parameters)
+		var parameters handler.LogFilterReply
+		err = handler	.FILTER_LOG_COMMAND.Request(blockchain_socket, req_parameters, &parameters)
 		if err != nil {
 			sub_logger.Warn("failed to get the log filters [trying in 10 seconds]", "message", err)
 			continue

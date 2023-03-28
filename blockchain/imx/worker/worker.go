@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/blocklords/sds/blockchain/command"
+	"github.com/blocklords/sds/blockchain/handler"
 	"github.com/blocklords/sds/blockchain/imx"
 	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
 
@@ -58,8 +58,8 @@ func (worker *Manager) SetupSocket() {
 
 		var reply message.Reply
 
-		if request.Command == command.FILTER_LOG_COMMAND.String() {
-			var request_parameters command.FilterLog
+		if request.Command == handler.FILTER_LOG_COMMAND.String() {
+			var request_parameters handler.FilterLog
 			err := request.Parameters.ToInterface(&request_parameters)
 			if err != nil {
 				reply = message.Fail("request parameter: " + err.Error())
@@ -83,7 +83,7 @@ func (worker *Manager) SetupSocket() {
 	}
 }
 
-func (worker *Manager) filter_log(parameters command.FilterLog) message.Reply {
+func (worker *Manager) filter_log(parameters handler.FilterLog) message.Reply {
 	address := parameters.Addresses[0]
 
 	block_timestamp := parameters.BlockFrom

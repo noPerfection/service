@@ -10,9 +10,9 @@
 package blockchain
 
 import (
-	common_command "github.com/blocklords/sds/app/command"
+	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/blockchain/command"
+	"github.com/blocklords/sds/blockchain/handler"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/categorizer"
 
@@ -46,7 +46,7 @@ import (
 // this function returns the smartcontract deployer, deployed block number
 // and block timestamp by a transaction hash of the smartcontract deployment.
 func transaction_deployed_get(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
-	var request_parameters command.DeployedTransaction
+	var request_parameters handler.DeployedTransaction
 	err := request.Parameters.ToInterface(&request_parameters)
 	if err != nil {
 		return message.Fail("failed to parse request parameters " + err.Error())
@@ -69,17 +69,17 @@ func transaction_deployed_get(request message.Request, logger log.Logger, parame
 	}
 	defer sock.Close()
 
-	req_parameters := command.Transaction{
+	req_parameters := handler.Transaction{
 		TransactionId: request_parameters.TransactionId,
 	}
 
-	var blockchain_reply command.LogFilterReply
-	err = command.FILTER_LOG_COMMAND.Request(sock, req_parameters, &blockchain_reply)
+	var blockchain_reply handler.LogFilterReply
+	err = handler.FILTER_LOG_COMMAND.Request(sock, req_parameters, &blockchain_reply)
 	if err != nil {
 		return message.Fail("remote transaction_request: " + err.Error())
 	}
 
-	reply, err := common_command.Reply(blockchain_reply)
+	reply, err := command.Reply(blockchain_reply)
 	if err != nil {
 		return message.Fail("reply preparation: " + err.Error())
 	}
@@ -95,7 +95,7 @@ func get_network(request message.Request, logger log.Logger, _ ...interface{}) m
 	}
 	command_logger.Info("incoming request", "parameters", request.Parameters)
 
-	var request_parameters command.NetworkId
+	var request_parameters handler.NetworkId
 	err = request.Parameters.ToInterface(&request_parameters)
 	if err != nil {
 		return message.Fail("failed to parse request parameters " + err.Error())
@@ -111,10 +111,10 @@ func get_network(request message.Request, logger log.Logger, _ ...interface{}) m
 		return message.Fail(err.Error())
 	}
 
-	reply := command.NetworkReply{
+	reply := handler.NetworkReply{
 		Network: *n,
 	}
-	reply_message, err := common_command.Reply(reply)
+	reply_message, err := command.Reply(reply)
 	if err != nil {
 		return message.Fail("failed to reply: " + err.Error())
 	}
@@ -124,7 +124,7 @@ func get_network(request message.Request, logger log.Logger, _ ...interface{}) m
 
 // Returns an abi by the smartcontract key.
 func get_network_ids(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
-	var parameters command.NetworkIds
+	var parameters handler.NetworkIds
 	err := request.Parameters.ToInterface(&parameters)
 	if err != nil {
 		return message.Fail("invalid parameters: " + err.Error())
@@ -135,10 +135,10 @@ func get_network_ids(request message.Request, _ log.Logger, _ ...interface{}) me
 		return message.Fail(err.Error())
 	}
 
-	reply := command.NetworkIdsReply{
+	reply := handler.NetworkIdsReply{
 		NetworkIds: network_ids,
 	}
-	reply_message, err := common_command.Reply(reply)
+	reply_message, err := command.Reply(reply)
 	if err != nil {
 		return message.Fail("failed to reply: " + err.Error())
 	}
@@ -154,7 +154,7 @@ func get_all_networks(request message.Request, logger log.Logger, _ ...interface
 	}
 	command_logger.Info("incoming request", "parameters", request.Parameters)
 
-	var parameters command.NetworkIds
+	var parameters handler.NetworkIds
 	err = request.Parameters.ToInterface(&parameters)
 	if err != nil {
 		return message.Fail("invalid parameters: " + err.Error())
@@ -165,10 +165,10 @@ func get_all_networks(request message.Request, logger log.Logger, _ ...interface
 		return message.Fail("blockchain " + err.Error())
 	}
 
-	reply := command.NetworksReply{
+	reply := handler.NetworksReply{
 		Networks: networks,
 	}
-	reply_message, err := common_command.Reply(reply)
+	reply_message, err := command.Reply(reply)
 	if err != nil {
 		return message.Fail("failed to reply: " + err.Error())
 	}
@@ -177,12 +177,12 @@ func get_all_networks(request message.Request, logger log.Logger, _ ...interface
 }
 
 // Return the list of command handlers for this service
-func CommandHandlers() common_command.Handlers {
-	return common_command.EmptyHandlers().
-		Add(command.DEPLOYED_TRANSACTION_COMMAND, transaction_deployed_get).
-		Add(command.NETWORK_IDS_COMMAND, get_network_ids).
-		Add(command.NETWORKS_COMMAND, get_all_networks).
-		Add(command.NETWORK_COMMAND, get_network)
+func CommandHandlers() command.Handlers {
+	return command.EmptyHandlers().
+		Add(handler.DEPLOYED_TRANSACTION_COMMAND, transaction_deployed_get).
+		Add(handler.NETWORK_IDS_COMMAND, get_network_ids).
+		Add(handler.NETWORKS_COMMAND, get_all_networks).
+		Add(handler.NETWORK_COMMAND, get_network)
 }
 
 // Returns this service's configuration

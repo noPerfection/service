@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/blocklords/sds/blockchain/command"
 	evm_log "github.com/blocklords/sds/blockchain/evm/event"
+	"github.com/blocklords/sds/blockchain/handler"
 	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/blockchain/transaction"
@@ -89,19 +89,19 @@ func (worker *Manager) SetupSocket() {
 
 		var reply message.Reply
 		var err error = nil
-		if request.Command == command.FILTER_LOG_COMMAND.String() {
-			var request_parameters command.FilterLog
+		if request.Command == handler.FILTER_LOG_COMMAND.String() {
+			var request_parameters handler.FilterLog
 			err = request.Parameters.ToInterface(&request_parameters)
 			if err == nil {
 				reply = worker.filter_log(request_parameters)
 			}
-		} else if request.Command == command.TRANSACTION_COMMAND.String() {
-			var request_parameters command.Transaction
+		} else if request.Command == handler.TRANSACTION_COMMAND.String() {
+			var request_parameters handler.Transaction
 			err = request.Parameters.ToInterface(&request_parameters)
 			if err == nil {
 				reply = worker.get_transaction(request_parameters)
 			}
-		} else if request.Command == command.TRANSACTION_COMMAND.String() {
+		} else if request.Command == handler.TRANSACTION_COMMAND.String() {
 			reply = worker.get_recent_block()
 		} else {
 			reply = message.Fail("unsupported command: " + request.Command)
@@ -125,7 +125,7 @@ func (worker *Manager) SetupSocket() {
 
 // Handle the filter-log command
 // Returns the smartcontract event logs filtered by the smartcontract addresses
-func (worker *Manager) filter_log(parameters command.FilterLog) message.Reply {
+func (worker *Manager) filter_log(parameters handler.FilterLog) message.Reply {
 	network_id := worker.network.Id
 	block_number_from := parameters.BlockFrom.Value()
 	addresses := parameters.Addresses
@@ -250,7 +250,7 @@ func (worker *Manager) get_block_timestamp(block_number blockchain.Number) (bloc
 
 // Handle the deployed-transaction command
 // Returns the transaction information from blockchain
-func (worker *Manager) get_transaction(parameters command.Transaction) message.Reply {
+func (worker *Manager) get_transaction(parameters handler.Transaction) message.Reply {
 	var tx *transaction.RawTransaction = nil
 	var err error
 	clients := worker.stable_clients()

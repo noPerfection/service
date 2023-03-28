@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/blockchain/command"
 	spaghetti_log "github.com/blocklords/sds/blockchain/event"
+	"github.com/blocklords/sds/blockchain/handler"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
@@ -33,13 +33,13 @@ func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
 
 		block_number_from := blockchain.Number(sm.BlockHeader.Timestamp.Value()) + 1
 
-		req_parameters := command.FilterLog{
+		req_parameters := handler.FilterLog{
 			BlockFrom: block_number_from,
 			Addresses: addresses,
 		}
 
-		var parameters command.LogFilterReply
-		err = command.FILTER_LOG_COMMAND.Request(sock, req_parameters, &parameters)
+		var parameters handler.LogFilterReply
+		err = handler.FILTER_LOG_COMMAND.Request(sock, req_parameters, &parameters)
 		if err != nil {
 			manager.logger.Warn("imx remote filter (sleep and try again)", "sleep", 10*time.Second, "error", err)
 			time.Sleep(10 * time.Second)
