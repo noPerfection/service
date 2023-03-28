@@ -156,28 +156,28 @@ func Fatal(title string, keyval ...interface{}) {
 	log.Fatal(title, keyval...)
 }
 
-func (logger Logger) Info(title string, keyval ...interface{}) {
+func (logger *Logger) Info(title string, keyval ...interface{}) {
 	logger.style.info()
 	logger.logger.Info(title, keyval...)
 }
 
-func (logger Logger) Fatal(title string, keyval ...interface{}) {
+func (logger *Logger) Fatal(title string, keyval ...interface{}) {
 	logger.style.fatal()
 	logger.logger.Fatal(title, keyval...)
 }
 
-func (logger Logger) Warn(title string, keyval ...interface{}) {
+func (logger *Logger) Warn(title string, keyval ...interface{}) {
 	logger.style.warn()
 	logger.logger.Warn(title, keyval...)
 }
 
-func (logger Logger) Error(title string, keyval ...interface{}) {
+func (logger *Logger) Error(title string, keyval ...interface{}) {
 	logger.style.error()
 	logger.logger.Error(title, keyval...)
 }
 
 // Create a new child from the parent
-func (parent Logger) Child(prefix string, timestamp bool) (Logger, error) {
+func (parent *Logger) Child(prefix string, timestamp bool) (Logger, error) {
 	random_style, err := random_style()
 	if err != nil {
 		return Logger{}, fmt.Errorf("random_style: %w", err)
@@ -194,7 +194,7 @@ func (parent Logger) Child(prefix string, timestamp bool) (Logger, error) {
 	}, nil
 }
 
-func (parent Logger) ChildWithoutReport(prefix string) (Logger, error) {
+func (parent *Logger) ChildWithoutReport(prefix string) (Logger, error) {
 	child, err := parent.Child(prefix, WITHOUT_TIMESTAMP)
 	if err != nil {
 		return Logger{}, fmt.Errorf("parent.Child: %w", err)
@@ -203,7 +203,7 @@ func (parent Logger) ChildWithoutReport(prefix string) (Logger, error) {
 	return child, nil
 }
 
-func (parent Logger) ChildWithTimestamp(prefix string) (Logger, error) {
+func (parent *Logger) ChildWithTimestamp(prefix string) (Logger, error) {
 	child, err := parent.Child(prefix, WITH_TIMESTAMP)
 	if err != nil {
 		return Logger{}, fmt.Errorf("parent.Child: %w", err)
