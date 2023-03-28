@@ -10,22 +10,7 @@ import (
 )
 
 // Return the list of command handlers for this service
-func CommandHandlers() controller.CommandHandlers {
-	var commands = controller.CommandHandlers{
-		"abi_get": handler.AbiGetBySmartcontractKey,
-		"abi_set": handler.AbiRegister,
-
-		"smartcontract_get":        handler.SmartcontractGet,
-		"smartcontract_set":        handler.SmartcontractRegister,
-		"smartcontract_filter":     handler.SmartcontractFilter,
-		"smartcontract_key_filter": handler.SmartcontractKeyFilter,
-
-		"configuration_get": handler.ConfigurationGet,
-		"configuration_set": handler.ConfigurationRegister,
-	}
-
-	return commands
-}
+var CommandHandlers = handler.CommandHandlers()
 
 // Returns this service's configuration
 func Service() *service.Service {
@@ -50,7 +35,7 @@ func Run(_ *configuration.Config, db_connection *db.Database) {
 		logger.Fatal("reply controller", "message", err)
 	}
 
-	err = reply.Run(CommandHandlers(), db_connection)
+	err = reply.Run(CommandHandlers, db_connection)
 	if err != nil {
 		logger.Fatal("reply controller", "message", err)
 	}

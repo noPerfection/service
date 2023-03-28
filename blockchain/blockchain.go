@@ -10,8 +10,8 @@
 package blockchain
 
 import (
+	common_command "github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/log"
-	common_command "github.com/blocklords/sds/app/remote/command"
 	"github.com/blocklords/sds/blockchain/command"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/categorizer"
@@ -177,15 +177,12 @@ func get_all_networks(request message.Request, logger log.Logger, _ ...interface
 }
 
 // Return the list of command handlers for this service
-func CommandHandlers() controller.CommandHandlers {
-	var commands = controller.CommandHandlers{
-		"transaction_deployed_get": transaction_deployed_get,
-		"network_id_get_all":       get_network_ids,
-		"network_get_all":          get_all_networks,
-		"network_get":              get_network,
-	}
-
-	return commands
+func CommandHandlers() common_command.Handlers {
+	return common_command.EmptyHandlers().
+		Add(command.DEPLOYED_TRANSACTION_COMMAND, transaction_deployed_get).
+		Add(command.NETWORK_IDS_COMMAND, get_network_ids).
+		Add(command.NETWORKS_COMMAND, get_all_networks).
+		Add(command.NETWORK_COMMAND, get_network)
 }
 
 // Returns this service's configuration

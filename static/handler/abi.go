@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/remote/command"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/abi"

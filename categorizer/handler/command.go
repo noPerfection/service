@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/blocklords/sds/app/remote/command"
+	"github.com/blocklords/sds/app/command"
 )
 
 const (
@@ -17,3 +17,13 @@ const (
 	// Indicates that the list of smartcontracts are categorized
 	CATEGORIZATION command.Command = "categorize"
 )
+
+// Return the list of command handlers for this service
+// For the controller
+func CommandHandlers() command.Handlers {
+	return command.EmptyHandlers().
+		Add(GET_SMARTCONTRACTS, GetSmartcontracts).
+		Add(GET_SMARTCONTRACT, GetSmartcontract).
+		Add(SET_SMARTCONTRACT, SetSmartcontract).
+		Add(SNAPSHOT, GetSnapshot)
+}

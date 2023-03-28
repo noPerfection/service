@@ -18,6 +18,10 @@ func (c Command) String() string {
 	return string(c)
 }
 
+func New(value string) Command {
+	return Command(value)
+}
+
 // Makes a remote request with the @request parameters
 // And then returns the @reply.
 //

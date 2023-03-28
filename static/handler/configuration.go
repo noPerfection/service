@@ -7,7 +7,7 @@ import (
 	"github.com/blocklords/sds/static/configuration"
 	"github.com/blocklords/sds/static/smartcontract"
 
-	"github.com/blocklords/sds/app/remote/command"
+	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/remote/message"
 )
 

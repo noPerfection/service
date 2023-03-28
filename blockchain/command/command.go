@@ -1,7 +1,7 @@
 package command
 
 import (
-	"github.com/blocklords/sds/app/remote/command"
+	"github.com/blocklords/sds/app/command"
 )
 
 const (

@@ -49,16 +49,7 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 }
 
 // Return the list of command handlers for this service
-func CommandHandlers() controller.CommandHandlers {
-	var commands = controller.CommandHandlers{
-		"smartcontract_get_all": handler.GetSmartcontracts,
-		"smartcontract_get":     handler.GetSmartcontract,
-		"smartcontract_set":     handler.SetSmartcontract,
-		"snapshot_get":          handler.GetSnapshot,
-	}
-
-	return commands
-}
+var CommandHandlers = handler.CommandHandlers()
 
 // Returns this service's configuration
 func Service() *service.Service {
@@ -119,7 +110,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	go RunPuller(logger, db_con)
 
-	err = reply.Run(CommandHandlers(), db_con, pushers)
+	err = reply.Run(CommandHandlers, db_con, pushers)
 	if err != nil {
 		logger.Fatal("controller.Run", "error", err)
 	}

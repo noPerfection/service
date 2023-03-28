@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/remote/command"
 	"github.com/blocklords/sds/app/remote/message"
 	blockchain_command "github.com/blocklords/sds/blockchain/command"
 	"github.com/blocklords/sds/categorizer/event"

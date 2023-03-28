@@ -84,8 +84,8 @@ func NewManager(parent log.Logger, network *network.Network, pusher *zmq.Socket,
 }
 
 // Returns all smartcontracts from all types of workers
-func (manager *Manager) GetSmartcontracts() []*categorizer_smartcontract.Smartcontract {
-	smartcontracts := make([]*categorizer_smartcontract.Smartcontract, 0)
+func (manager *Manager) GetSmartcontracts() []categorizer_smartcontract.Smartcontract {
+	smartcontracts := make([]categorizer_smartcontract.Smartcontract, 0)
 
 	for _, group := range manager.old_categorizers {
 		smartcontracts = append(smartcontracts, group.workers.GetSmartcontracts()...)
@@ -220,7 +220,6 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 // Get List of smartcontract addresses
 // Get Log for the smartcontracts.
 func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
-	var mu sync.Mutex
 	old_logger, err := manager.logger.ChildWithTimestamp("old_logger_" + time.Now().String())
 	if err != nil {
 		manager.logger.Fatal("failed to create child logger", "message", err)
@@ -334,7 +333,6 @@ func (manager *Manager) add_current_workers(workers smartcontract.EvmWorkers) {
 
 // Consume each received block from SDS Spaghetti broadcast
 func (manager *Manager) categorize_current_smartcontracts() {
-	var mu sync.Mutex
 	current_logger, err := manager.logger.ChildWithTimestamp("current")
 	if err != nil {
 		manager.logger.Fatal("failed to create child logger", "error", err)

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
@@ -42,7 +43,7 @@ func NewReply(s *service.Service, logger log.Logger) (*Controller, error) {
 
 // Controllers started to receive messages
 // The parameters are the list of parameters that are passed to the command handlers
-func (c *Controller) Run(commands CommandHandlers, parameters ...interface{}) error {
+func (c *Controller) Run(handlers command.Handlers, parameters ...interface{}) error {
 	if err := c.socket.Bind(c.service.Url()); err != nil {
 		return fmt.Errorf("socket.bind on tcp protocol for %s at url %s: %w", c.service.Name, c.service.Url(), err)
 	}
@@ -71,8 +72,10 @@ func (c *Controller) Run(commands CommandHandlers, parameters ...interface{}) er
 		}
 		request.SetPublicKey(metadata["pub_key"])
 
+		request_command := command.New(request.Command)
+
 		// Any request types is compatible with the Request.
-		if !commands.Exist(request.Command) {
+		if !handlers.Exist(request_command) {
 			fail := message.Fail("unsupported command " + request.Command)
 			reply, _ := fail.ToString()
 			if _, err := c.socket.SendMessage(reply); err != nil {
@@ -81,7 +84,7 @@ func (c *Controller) Run(commands CommandHandlers, parameters ...interface{}) er
 			continue
 		}
 
-		reply := commands[request.Command](request, c.logger, parameters...)
+		reply := handlers[request_command](request, c.logger, parameters...)
 
 		reply_string, err := reply.ToString()
 		if err != nil {
