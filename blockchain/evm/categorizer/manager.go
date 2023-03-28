@@ -419,18 +419,15 @@ func (manager *Manager) categorize_current_smartcontracts() {
 }
 
 func recent_block_number(socket *remote.Socket) (blockchain.Number, error) {
-	request := message.Request{
-		Command:    "recent-block-number",
-		Parameters: key_value.Empty(),
-	}
+	var recent_request command.RecentBlockRequest = key_value.Empty()
+	var recent_reply command.RecentBlockReply
 
-	recent_reply, err := socket.RequestRemoteService(&request)
+	err := command.RECENT_BLOCK_NUMBER.Request(socket, recent_request, &recent_reply)
 	if err != nil {
 		return 0, fmt.Errorf("RemoteRequest: %w", err)
 	}
 
-	block_number, _ := blockchain.NewNumberFromKeyValueParameter(recent_reply)
-	return block_number, nil
+	return recent_reply.Number, nil
 }
 
 // We start to consume the block information from SDS Spaghetti

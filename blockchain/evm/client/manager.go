@@ -101,10 +101,10 @@ func (worker *Manager) SetupSocket() {
 			if err == nil {
 				reply = worker.get_transaction(request_parameters)
 			}
-		} else if request.Command == "recent-block-number" {
+		} else if request.Command == command.TRANSACTION_COMMAND.String() {
 			reply = worker.get_recent_block()
 		} else {
-			reply = message.Fail("unsupported command")
+			reply = message.Fail("unsupported command: " + request.Command)
 		}
 		if err != nil {
 			reply = message.Fail("request parameter: " + err.Error())

@@ -17,4 +17,6 @@ const (
 	NETWORKS_COMMAND command.Command = "network_get_all"
 	// The command executed by the blockchain manager
 	NETWORK_COMMAND command.Command = "network_get"
+	// Internal for EVM only
+	RECENT_BLOCK_NUMBER command.Command = "recent-block-number"
 )
