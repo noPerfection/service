@@ -6,12 +6,28 @@ import (
 	"github.com/blocklords/sds/static/configuration"
 	"github.com/blocklords/sds/static/smartcontract"
 
-	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
 
+	"github.com/blocklords/sds/app/remote/command"
 	"github.com/blocklords/sds/app/remote/message"
 )
+
+type FilterSmartcontractsRequest = topic.TopicFilter
+type FilterSmartcontractsReply struct {
+	Smartcontracts []smartcontract.Smartcontract `json:"smartcontracts"`
+	Topics         []string                      `json:"topics"`
+}
+
+type FilterSmartcontractKeysRequest = topic.TopicFilter
+type FilterSmartcontractKeysReply struct {
+	SmartcontractKeys map[string]string `json:"smartcontract_keys"`
+}
+
+type SetSmartcontractRequest = smartcontract.Smartcontract
+type SetSmartcontractReply = smartcontract.Smartcontract
+type GetSmartcontractRequest = smartcontract_key.Key
+type GetSmartcontractReply = smartcontract.Smartcontract
 
 /*
 Return list of smartcontracts by given filter topic.
@@ -29,12 +45,13 @@ Algorithm
 func SmartcontractFilter(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
-	topic_filter, err := topic.NewFromKeyValueParameter(request.Parameters)
+	var topic_filter FilterSmartcontractKeysRequest
+	err := request.Parameters.ToInterface(&topic_filter)
 	if err != nil {
-		return message.Fail("topic.NewFromKeyValueParameter: " + err.Error())
+		return message.Fail("failed to parse data")
 	}
 
-	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
+	query, query_parameters := configuration.QueryFilterSmartcontract(&topic_filter)
 
 	smartcontracts, topics, err := smartcontract.FilterFromDatabase(db_con, query, query_parameters)
 	if err != nil {
@@ -50,15 +67,16 @@ func SmartcontractFilter(request message.Request, _ log.Logger, parameters ...in
 		topic_strings[i] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
 	}
 
-	reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"smartcontracts": smartcontracts,
-			"topics":         topic_strings,
-		}),
+	reply := FilterSmartcontractsReply{
+		Smartcontracts: smartcontracts,
+		Topics:         topic_strings,
 	}
-	return reply
+	reply_message, err := command.Reply(&reply)
+	if err != nil {
+		return message.Fail("failed to reply")
+	}
+
+	return reply_message
 }
 
 // returns smartcontract keys and topic of the smartcontract
@@ -70,12 +88,12 @@ func SmartcontractFilter(request message.Request, _ log.Logger, parameters ...in
 func SmartcontractKeyFilter(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
-	topic_filter, err := topic.NewFromKeyValueParameter(request.Parameters)
+	var topic_filter FilterSmartcontractsRequest
+	err := request.Parameters.ToInterface(&topic_filter)
 	if err != nil {
-		return message.Fail("topic.NewFromKeyValueParameter: " + err.Error())
+		return message.Fail("failed to parse data")
 	}
-
-	query, query_parameters := configuration.QueryFilterSmartcontract(topic_filter)
+	query, query_parameters := configuration.QueryFilterSmartcontract(&topic_filter)
 
 	smartcontract_keys, topics, err := smartcontract.FilterKeysFromDatabase(db_con, query, query_parameters)
 	if err != nil {
@@ -87,14 +105,15 @@ func SmartcontractKeyFilter(request message.Request, _ log.Logger, parameters ..
 		blob[key.ToString()] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
 	}
 
-	reply := message.Reply{
-		Status:  "OK",
-		Message: "",
-		Parameters: key_value.New(map[string]interface{}{
-			"smartcontract_keys": blob,
-		}),
+	reply := FilterSmartcontractKeysReply{
+		SmartcontractKeys: blob,
 	}
-	return reply
+	reply_message, err := command.Reply(&reply)
+	if err != nil {
+		return message.Fail("failed to reply")
+	}
+
+	return reply_message
 }
 
 // Register a new smartcontract. It means we are adding smartcontract parameters into
@@ -103,36 +122,37 @@ func SmartcontractKeyFilter(request message.Request, _ log.Logger, parameters ..
 func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
-	sm, err := smartcontract.New(request.Parameters)
+	var sm SetSmartcontractRequest
+	err := request.Parameters.ToInterface(&sm)
 	if err != nil {
-		return message.Fail(err.Error())
+		return message.Fail("failed to parse data")
 	}
-	sm_kv, _ := key_value.NewFromInterface(sm)
 
-	reply := message.Reply{
-		Status:     "OK",
-		Message:    "",
-		Parameters: sm_kv,
+	var reply SetSmartcontractReply = sm
+	reply_message, err := command.Reply(&reply)
+	if err != nil {
+		return message.Fail("failed to reply")
 	}
 
 	if smartcontract.ExistInDatabase(db_con, sm.SmartcontractKey) {
-		return reply
+		return reply_message
 	}
 
-	if err = smartcontract.SetInDatabase(db_con, sm); err != nil {
+	if err = smartcontract.SetInDatabase(db_con, &sm); err != nil {
 		return message.Fail("Smartcontract saving in the database failed: " + err.Error())
 	}
 
-	return reply
+	return reply_message
 }
 
 // Returns configuration and smartcontract information related to the configuration
 func SmartcontractGet(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
-	key, err := smartcontract_key.NewFromKeyValue(request.Parameters)
+	var key GetSmartcontractRequest
+	err := request.Parameters.ToInterface(&key)
 	if err != nil {
-		return message.Fail("key.NewFromKeyValue: " + err.Error())
+		return message.Fail("failed to parse data")
 	}
 
 	sm, err := smartcontract.GetFromDatabase(db_con, key)
@@ -140,9 +160,11 @@ func SmartcontractGet(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("Failed to get smartcontract from database: " + err.Error())
 	}
 
-	return message.Reply{
-		Status:     "OK",
-		Message:    "",
-		Parameters: key_value.Empty().Set("smartcontract", sm),
+	var reply SetSmartcontractReply = *sm
+	reply_message, err := command.Reply(&reply)
+	if err != nil {
+		return message.Fail("failed to reply")
 	}
+
+	return reply_message
 }

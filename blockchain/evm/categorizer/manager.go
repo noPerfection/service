@@ -27,7 +27,7 @@ import (
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	static_abi "github.com/blocklords/sds/static/abi"
+	static_handler "github.com/blocklords/sds/static/handler"
 
 	"github.com/blocklords/sds/app/remote/message"
 	spaghetti_log "github.com/blocklords/sds/blockchain/event"
@@ -172,13 +172,15 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 		sm, _ := categorizer_smartcontract.New(raw_sm)
 
 		mu.Lock()
-		abi_data, err := static_abi.Get(manager.static, sm.SmartcontractKey)
+		var req static_handler.GetAbiRequest = sm.SmartcontractKey
+		var abi_data static_handler.GetAbiReply
+		err := static_handler.GET_ABI.Request(manager.static, req, &abi_data)
 		mu.Unlock()
 		if err != nil {
 			manager.logger.Fatal("remote static abi get", "error", err)
 		}
 
-		cat_abi, err := abi.NewAbi(abi_data)
+		cat_abi, err := abi.NewAbi(&abi_data)
 		if err != nil {
 			manager.logger.Fatal("failed to decode", "index", i, "smartcontract", sm.SmartcontractKey.Address, "errr", err)
 		}

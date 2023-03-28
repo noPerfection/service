@@ -2,7 +2,7 @@ package handler
 
 import (
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/app/remote/command"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/abi"
@@ -11,13 +11,23 @@ import (
 	"github.com/blocklords/sds/app/remote/message"
 )
 
+type GetAbiRequest = smartcontract_key.Key
+
+type SetAbiRequest struct {
+	Body interface{} `json:"body"`
+}
+
+type GetAbiReply = abi.Abi
+type SetAbiReply = GetAbiReply
+
 // Returns an abi by the smartcontract key.
 func AbiGetBySmartcontractKey(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
-	key, err := smartcontract_key.NewFromKeyValue(request.Parameters)
+	var key GetAbiRequest
+	err := request.Parameters.ToInterface(&key)
 	if err != nil {
-		return message.Fail("smartcontract_key from parameter: " + err.Error())
+		return message.Fail("failed to parse data")
 	}
 
 	smartcontract, err := smartcontract.GetFromDatabase(db_con, key)
@@ -30,41 +40,35 @@ func AbiGetBySmartcontractKey(request message.Request, _ log.Logger, parameters 
 		return message.Fail("failed to get abi from database: " + err.Error())
 	}
 
-	return message.Reply{
-		Status:     "OK",
-		Message:    "",
-		Parameters: key_value.Empty().Set("body", abi.ToString()).Set("abi_id", abi.Id),
+	reply_message, err := command.Reply(abi)
+	if err != nil {
+		return message.Fail("failed to reply")
 	}
+
+	return reply_message
 }
 
-// inserts into the static database a new abi
-//
-//	Returning message.Reply {
-//			params: {
-//	     	"body": [],
-//	     	"abi_id": "0x012345"
-//	     }
-//	}
 func AbiRegister(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	db_con := parameters[0].(*db.Database)
 
-	abi_body, ok := request.Parameters["body"]
-	if !ok {
-		return message.Fail("missing 'body' parameter")
+	var request_parameters SetAbiRequest
+	err := request.Parameters.ToInterface(&request_parameters)
+	if err != nil {
+		return message.Fail("failed to parse data")
 	}
-	new_abi, err := abi.NewFromInterface(abi_body)
+
+	new_abi, err := abi.NewFromInterface(request_parameters.Body)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	reply := message.Reply{
-		Status:     "OK",
-		Message:    "",
-		Parameters: key_value.Empty().Set("body", new_abi.ToString()).Set("abi_id", new_abi.Id),
+	reply_message, err := command.Reply(new_abi)
+	if err != nil {
+		return message.Fail("failed to reply")
 	}
 
 	if abi.ExistInDatabase(db_con, new_abi.Id) {
-		return reply
+		return reply_message
 	}
 
 	save_err := abi.SetInDatabase(db_con, new_abi)
@@ -72,5 +76,5 @@ func AbiRegister(request message.Request, _ log.Logger, parameters ...interface{
 		return message.Fail(err.Error())
 	}
 
-	return reply
+	return reply_message
 }
