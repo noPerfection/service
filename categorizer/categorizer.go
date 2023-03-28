@@ -9,7 +9,7 @@ import (
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/service"
-	blockchain_command "github.com/blocklords/sds/blockchain/command"
+	blockchain_command "github.com/blocklords/sds/blockchain/handler"
 	categorizer_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/categorizer/handler"

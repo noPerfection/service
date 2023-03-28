@@ -4,7 +4,7 @@ import (
 	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
-	blockchain_command "github.com/blocklords/sds/blockchain/command"
+	blockchain_command "github.com/blocklords/sds/blockchain/handler"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/smartcontract_key"
