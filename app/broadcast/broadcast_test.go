@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
@@ -26,10 +27,14 @@ type TestBroadcastSuite struct {
 // before each test
 func (suite *TestBroadcastSuite) SetupTest() {
 	logger, err := log.New("log", log.WITHOUT_TIMESTAMP)
-	suite.Nil(err, "failed to create logger")
-	subscriber_service, err := service.NewExternal(service.CATEGORIZER, service.SUBSCRIBE)
+	suite.Require().Nil(err, "failed to create logger")
+
+	app_config, err := configuration.NewAppConfig(logger)
+	suite.Require().Nil(err, "failed to create logger")
+
+	subscriber_service, err := service.NewExternal(service.CATEGORIZER, service.SUBSCRIBE, app_config)
 	suite.Nil(err, "failed to create subscriber service")
-	categorizer_service, err := service.NewExternal(service.CATEGORIZER, service.BROADCAST)
+	categorizer_service, err := service.NewExternal(service.CATEGORIZER, service.BROADCAST, app_config)
 	suite.Nil(err, "failed to create categorizer service")
 
 	// todo test the inproc broadcasting
