@@ -3,16 +3,15 @@ package command
 import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
-	"github.com/blocklords/sds/common/data_type/key_value"
 )
+
+type HandleFunc = func(message.Request, log.Logger, ...interface{}) message.Reply
 
 type Handler struct {
 	Command    Command
-	Exec       func(key_value.KeyValue, ...interface{}) message.Reply
+	Exec       HandleFunc
 	Parameters interface{}
 }
-
-type HandleFunc = func(message.Request, log.Logger, ...interface{}) message.Reply
 
 // command name => function
 type Handlers map[Command]HandleFunc
