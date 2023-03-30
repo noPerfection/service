@@ -1,5 +1,41 @@
-// Broadcast package creates a publishing socket
-// Use this package in a goroutine.
+/*
+The Broadcast messages from a service,
+subscribe to consume them.
+
+The Broadcast depends on the service.Service
+with the service.BROADCAST limit.
+
+The service.BROADCAST limit requires SERVICE_BROADCAST_PORT
+and SERVICE_BROADCAST_HOST configuration parameters.
+
+Example to start broadcaster
+
+	logger, _ := log.New("service", log.WITH_TIMESTAMP)
+	service, _ := service.NewExternal(service.CATEGORIZER, service.BROADCAST)
+	broadcast, _ := broadcast.New(service, logger)
+
+	// Start the broadcaster
+	go broadcast.Run()
+
+	broadcast_connection, _ := broadcast.ConnectionSocket()
+	msg := message.Broadcast{}
+	msg_string, _ := msg.ToString()
+	broadcast_connection.SendMessage(msg_string)
+
+Example to subscribe
+
+	app_config, _ := configuration.NewAppConfig()
+	logger, _ := logger.New("client", log.WITHOUT_TIMESTAMP)
+	service, _ := service.NewExternal(service.CATEGORIZER, service.SUBCRIBE)
+	socket, _ := remote.NewTcpSubscriber(service, "topic", logger, app_config)
+	while {
+		// message.Broadcast, error
+		broadcast_message, err := service.Subscribe()
+		if err != nil {
+			panic(err)
+		}
+	}
+*/
 package broadcast
 
 import (
@@ -20,7 +56,6 @@ type Broadcast struct {
 	service *service.Service
 	socket  *zmq.Socket
 	logger  log.Logger
-	In      chan message.Broadcast
 }
 
 // Prefix for logging
@@ -32,6 +67,10 @@ func broadcast_domain(s *service.Service) string {
 // The first parameter is the way to publish the messages.
 // The second parameter starts the message
 func New(s *service.Service, logger log.Logger) (*Broadcast, error) {
+	if !s.IsBroadcast() {
+		return nil, fmt.Errorf("the service is not limited to BROADCAST. run service.NewExternal(type, service.BROADCAST)")
+	}
+
 	logger, err := logger.ChildWithTimestamp("broadcast")
 	if err != nil {
 		return nil, fmt.Errorf("error creating child logger: %w", err)
@@ -39,7 +78,6 @@ func New(s *service.Service, logger log.Logger) (*Broadcast, error) {
 
 	broadcast := Broadcast{
 		service: s,
-		In:      make(chan message.Broadcast),
 		logger:  logger,
 	}
 
@@ -59,6 +97,31 @@ func (c *Broadcast) SetPrivateKey() error {
 		return fmt.Errorf("socket.ServerAuthCurve: %w", err)
 	}
 	return nil
+}
+
+// Returns the connection url if
+// Broadcast is running.
+func ConnectionUrl(service *service.Service) string {
+	return "inproc://broadcast_" + service.Name
+}
+
+// Creates a socket that will send to the
+// Broadcaster a new message.
+func ConnectionSocket(service *service.Service) (*zmq.Socket, error) {
+	sock, err := zmq.NewSocket(zmq.PUSH)
+	if err != nil {
+		return nil, fmt.Errorf("zmq error for new push socket: %w", err)
+	}
+
+	url := ConnectionUrl(service)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectionUrl: %w", err)
+	}
+	if err := sock.Bind(url); err != nil {
+		return nil, fmt.Errorf("trying to create a connection socket: %w", err)
+	}
+
+	return sock, nil
 }
 
 // Run a new broadcaster
@@ -87,7 +150,7 @@ func (b *Broadcast) Run() {
 		b.logger.Fatal("could not create pull socket", "message", err)
 	}
 
-	url := "inproc://broadcast_" + b.service.Name
+	url := ConnectionUrl(b.service)
 	if err := sock.Connect(url); err != nil {
 		b.logger.Fatal("socket binding to %s: %w", url, err)
 	}

@@ -13,6 +13,7 @@ type Service struct {
 	Credentials *credentials.Credentials
 	inproc      bool
 	url         string
+	limit       Limit
 }
 
 // Creates the service with the parameters but without any information
@@ -23,6 +24,7 @@ func Inprocess(service_type ServiceType) *Service {
 		Name:   name,
 		inproc: true,
 		url:    "inproc://reply_" + name,
+		limit:  THIS,
 	}
 
 	return &s
@@ -43,6 +45,7 @@ func NewExternal(service_type ServiceType, limit Limit) (*Service, error) {
 		Name:        name,
 		inproc:      false,
 		Credentials: nil,
+		limit:       limit,
 	}
 
 	switch limit {
@@ -112,4 +115,28 @@ func NewSecure(service_type ServiceType, limit Limit) (*Service, error) {
 // Returns the request-reply url as a host:port
 func (e *Service) Url() string {
 	return e.url
+}
+
+// Whether the service defined for this machine as a broadcaster.
+// If so, then URL host will be a '*' wildcard.
+func (e *Service) IsBroadcast() bool {
+	return e.limit == BROADCAST
+}
+
+// Whether the service defined for the remote broadcaster.
+// If so, then URL will have host:port.
+func (e *Service) IsSubscribe() bool {
+	return e.limit == SUBSCRIBE
+}
+
+// Whether the service defined for the remote machine.
+// If so, then URL will have host:port.
+func (e *Service) IsRemote() bool {
+	return e.limit == REMOTE
+}
+
+// Whether the service defined for this machine.
+// If so, then URL will have * wildcard for the host.
+func (e *Service) IsThis() bool {
+	return e.limit == THIS
 }
