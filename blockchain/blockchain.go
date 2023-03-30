@@ -52,7 +52,8 @@ func transaction_deployed_get(request message.Request, logger log.Logger, parame
 		return message.Fail("failed to parse request parameters " + err.Error())
 	}
 
-	networks, err := network.GetNetworks(network.ALL)
+	app_config := parameters[0].(*configuration.Config)
+	networks, err := network.GetNetworks(app_config, network.ALL)
 	if err != nil {
 		return message.Fail("network: " + err.Error())
 	}
@@ -61,7 +62,6 @@ func transaction_deployed_get(request message.Request, logger log.Logger, parame
 		return message.Fail("unsupported network id")
 	}
 
-	app_config := parameters[0].(*configuration.Config)
 	url := blockchain_process.BlockchainManagerUrl(request_parameters.NetworkId)
 	sock, err := remote.InprocRequestSocket(url, logger, app_config)
 	if err != nil {
@@ -88,7 +88,7 @@ func transaction_deployed_get(request message.Request, logger log.Logger, parame
 }
 
 // Returns Network
-func get_network(request message.Request, logger log.Logger, _ ...interface{}) message.Reply {
+func get_network(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
 	command_logger, err := logger.ChildWithoutReport("network-get-command")
 	if err != nil {
 		return message.Fail("network-get-command: " + err.Error())
@@ -101,7 +101,8 @@ func get_network(request message.Request, logger log.Logger, _ ...interface{}) m
 		return message.Fail("failed to parse request parameters " + err.Error())
 	}
 
-	networks, err := network.GetNetworks(request_parameters.NetworkType)
+	app_config := app_parameters[0].(*configuration.Config)
+	networks, err := network.GetNetworks(app_config, request_parameters.NetworkType)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -123,14 +124,15 @@ func get_network(request message.Request, logger log.Logger, _ ...interface{}) m
 }
 
 // Returns an abi by the smartcontract key.
-func get_network_ids(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+func get_network_ids(request message.Request, _ log.Logger, app_parameters ...interface{}) message.Reply {
 	var parameters handler.NetworkIds
 	err := request.Parameters.ToInterface(&parameters)
 	if err != nil {
 		return message.Fail("invalid parameters: " + err.Error())
 	}
 
-	network_ids, err := network.GetNetworkIds(parameters.NetworkType)
+	app_config := app_parameters[0].(*configuration.Config)
+	network_ids, err := network.GetNetworkIds(app_config, parameters.NetworkType)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
@@ -147,7 +149,7 @@ func get_network_ids(request message.Request, _ log.Logger, _ ...interface{}) me
 }
 
 // Returns an abi by the smartcontract key.
-func get_all_networks(request message.Request, logger log.Logger, _ ...interface{}) message.Reply {
+func get_all_networks(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
 	command_logger, err := logger.ChildWithoutReport("network-get-all-command")
 	if err != nil {
 		return message.Fail("network-get-all-command: " + err.Error())
@@ -160,7 +162,8 @@ func get_all_networks(request message.Request, logger log.Logger, _ ...interface
 		return message.Fail("invalid parameters: " + err.Error())
 	}
 
-	networks, err := network.GetNetworks(parameters.NetworkType)
+	app_config := app_parameters[0].(*configuration.Config)
+	networks, err := network.GetNetworks(app_config, parameters.NetworkType)
 	if err != nil {
 		return message.Fail("blockchain " + err.Error())
 	}
@@ -214,7 +217,7 @@ func Run(app_config *configuration.Config) {
 
 // Start the workers for each blockchain
 func run_networks(logger log.Logger, app_config *configuration.Config) error {
-	networks, err := network.GetNetworks(network.ALL)
+	networks, err := network.GetNetworks(app_config, network.ALL)
 	if err != nil {
 		return fmt.Errorf("gosds/blockchain: failed to get networks: %v", err)
 	}

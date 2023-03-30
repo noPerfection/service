@@ -96,12 +96,12 @@ func main() {
 	/////////////////////////////////////////////////////////////////////////
 	var core_service *service.Service
 	if app_config.Plain {
-		core_service, err = service.NewExternal(service.CORE, service.THIS)
+		core_service, err = service.NewExternal(service.CORE, service.THIS, app_config)
 		if err != nil {
 			logger.Fatal("external core service error", "message", err)
 		}
 	} else {
-		core_service, err = service.NewSecure(service.CORE, service.THIS)
+		core_service, err = service.NewSecure(service.CORE, service.THIS, app_config)
 		if err != nil {
 			logger.Fatal("external core service error", "message", err)
 		}

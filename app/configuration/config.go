@@ -17,8 +17,6 @@ type Config struct {
 	viper *viper.Viper // used to keep default values
 
 	Plain         bool        // if true then no security
-	Broadcast     bool        // if true then broadcast of the service will be enabled
-	Reply         bool        // if true then reply controller of the service will be enabled
 	DebugSecurity bool        // if true then we print the security layer logs
 	logger        *log.Logger // debug purpose only
 }
@@ -54,45 +52,6 @@ func NewAppConfig(logger log.Logger) (*Config, error) {
 	conf.viper.AutomaticEnv()
 
 	return &conf, nil
-}
-
-// Return the configuration engine to use with default parameters
-func New() *Config {
-	arguments := argument.GetArguments(nil)
-
-	conf := Config{
-		Plain:     argument.Has(arguments, argument.PLAIN),
-		Broadcast: false,
-		Reply:     false,
-	}
-
-	// replace the values with the ones we fetched from environment variables
-	conf.viper = viper.New()
-	conf.viper.AutomaticEnv()
-
-	return &conf
-}
-
-// Returns the configuration for the service
-// That means application arguments are not used.
-// Only the underlying configuration engine is loaded.
-func NewService(default_config DefaultConfig) *Config {
-	// First we check the parameters of the application arguments
-	arguments := argument.GetArguments(nil)
-
-	conf := Config{
-		Plain:     argument.Has(arguments, argument.PLAIN),
-		Broadcast: false,
-		Reply:     false,
-	}
-
-	// replace the values with the ones we fetched from environment variables
-	conf.viper = viper.New()
-	conf.viper.AutomaticEnv()
-
-	conf.SetDefaults(default_config)
-
-	return &conf
 }
 
 // Populates the app configuration with the default vault configuration parameters.

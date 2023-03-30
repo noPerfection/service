@@ -31,9 +31,9 @@ func Inprocess(service_type ServiceType) *Service {
 }
 
 // Creates the service with the parameters but without any information
-func NewExternal(service_type ServiceType, limit Limit) (*Service, error) {
+func NewExternal(service_type ServiceType, limit Limit, app_config *configuration.Config) (*Service, error) {
 	default_configuration := DefaultConfiguration(service_type)
-	app_config := configuration.NewService(default_configuration)
+	app_config.SetDefaults(default_configuration)
 
 	name := string(service_type)
 	host_env := name + "_HOST"
@@ -64,18 +64,15 @@ func NewExternal(service_type ServiceType, limit Limit) (*Service, error) {
 
 // Creates the service with the parameters that includes
 // private and private key
-func NewSecure(service_type ServiceType, limit Limit) (*Service, error) {
-	default_configuration := DefaultConfiguration(service_type)
-	app_config := configuration.NewService(default_configuration)
+func NewSecure(service_type ServiceType, limit Limit, app_config *configuration.Config) (*Service, error) {
+	s, err := NewExternal(service_type, limit, app_config)
+	if err != nil {
+		return nil, fmt.Errorf("service.New: %w", err)
+	}
 
 	name := string(service_type)
 	public_key := name + "_PUBLIC_KEY"
 	broadcast_public_key := name + "_BROADCAST_PUBLIC_KEY"
-
-	s, err := NewExternal(service_type, limit)
-	if err != nil {
-		return nil, fmt.Errorf("service.New: %w", err)
-	}
 
 	switch limit {
 	case REMOTE:

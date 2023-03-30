@@ -18,8 +18,7 @@ const (
 )
 
 // Returns list of the blockchain networks
-func GetNetworks(network_type NetworkType) (Networks, error) {
-	network_config := configuration.New()
+func GetNetworks(network_config *configuration.Config, network_type NetworkType) (Networks, error) {
 	network_config.SetDefault(SDS_BLOCKCHAIN_NETWORKS, DefaultConfiguration())
 
 	env := network_config.GetString(SDS_BLOCKCHAIN_NETWORKS)
@@ -52,8 +51,8 @@ func GetNetworks(network_type NetworkType) (Networks, error) {
 }
 
 // Returns list of support network IDs
-func GetNetworkIds(network_type NetworkType) ([]string, error) {
-	networks, err := GetNetworks(network_type)
+func GetNetworkIds(network_config *configuration.Config, network_type NetworkType) ([]string, error) {
+	networks, err := GetNetworks(network_config, network_type)
 	if err != nil {
 		return nil, fmt.Errorf("GetNetworks: %w", err)
 	}
