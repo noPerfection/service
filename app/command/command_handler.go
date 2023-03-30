@@ -7,12 +7,6 @@ import (
 
 type HandleFunc = func(message.Request, log.Logger, ...interface{}) message.Reply
 
-type Handler struct {
-	Command    Command
-	Exec       HandleFunc
-	Parameters interface{}
-}
-
 // command name => function
 type Handlers map[Command]HandleFunc
 
