@@ -59,7 +59,7 @@ func (suite *TestBroadcastSuite) SetupTest() {
 
 	go suite.broadcast.Run()
 	// Prepare for the broadcaster to be ready.
-	time.Sleep(time.Millisecond * 2000)
+	time.Sleep(time.Millisecond * 200)
 }
 
 // All methods that begin with "Test" are run as tests within a
