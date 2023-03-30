@@ -323,7 +323,19 @@ func NewTcpSocket(remote_service *service.Service, client *credentials.Credentia
 	return &new_socket, nil
 }
 
+// Create an inter-process socket.
+// Through this socket a thread could connect to
+// another thread.
+//
+// The `url` should start with `inproc://`
 func InprocRequestSocket(url string, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
+	if len(url) < 9 {
+		return nil, fmt.Errorf("the url is too short")
+	}
+	if url[:9] != "inproc://" {
+		return nil, fmt.Errorf("url doesn't start with `inproc` protocol. Its %s", url[:9])
+	}
+
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
