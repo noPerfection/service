@@ -27,7 +27,7 @@ type TestCommandSuite struct {
 // before each test
 func (suite *TestCommandSuite) SetupTest() {
 
-	logger, err := log.New("commnad_test", log.WITHOUT_TIMESTAMP)
+	logger, err := log.New("command_test", log.WITHOUT_TIMESTAMP)
 	suite.NoError(err, "failed to create logger")
 
 	app_config, err := configuration.NewAppConfig(logger)
