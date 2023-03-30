@@ -11,11 +11,21 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// Asynchronous Requests.
+// The Dealer is the Requst from Router to the
+// Reply Controller.
+//
+// The socket.Type must be zmq.DEALER
 type Dealer struct {
+	// The reply controller parameter
+	// Could be Remote or Inproc
 	service *service.Service
-	socket  *zmq.Socket
+	// The client socket
+	socket *zmq.Socket
 }
 
+// The Proxy Controller that connects the multiple
+// Reply Controllers together.
 type Router struct {
 	service *service.Service
 	dealers []*Dealer
@@ -24,6 +34,10 @@ type Router struct {
 
 // Returns the initiated Router whith the service parameters
 func NewRouter(parent_log log.Logger, service *service.Service) (Router, error) {
+	if service == nil || !service.IsInproc() || service.IsThis() {
+		return Router{}, fmt.Errorf("the router should be with a THIS limit or inproc type")
+	}
+
 	logger, err := parent_log.ChildWithoutReport("router")
 	if err != nil {
 		return Router{}, fmt.Errorf("error creating child logger: %w", err)
@@ -34,7 +48,8 @@ func NewRouter(parent_log log.Logger, service *service.Service) (Router, error) 
 	return Router{logger: logger, service: service, dealers: dealers}, nil
 }
 
-// Whether the dealer for the service is added or not
+// Whether the dealer for the service is added or not.
+// The service parameter should have the correct Limit or protocol type
 func (r *Router) service_registered(service *service.Service) bool {
 	for _, dealer := range r.dealers {
 		if dealer.service.Url() == service.Url() {
@@ -45,6 +60,10 @@ func (r *Router) service_registered(service *service.Service) bool {
 	return false
 }
 
+// Add a new client that is connected to the Reply Controller.
+// Verification of the service limit or service protocol type
+// is handled on outside. As a result, it doesn't return
+// any error.
 func (r *Router) add_service(service *service.Service) {
 	dealer := Dealer{service: service, socket: nil}
 	r.dealers = append(r.dealers, &dealer)
@@ -54,6 +73,10 @@ func (r *Router) add_service(service *service.Service) {
 // SDS Core can have unique command handlers.
 func (router *Router) AddDealers(services ...*service.Service) error {
 	for _, service := range services {
+		if !service.IsInproc() && !service.IsRemote() {
+			return fmt.Errorf("the service '%s' is not with the REMOTE limit or inproc type", service.Name)
+		}
+
 		if router.service_registered(service) {
 			return fmt.Errorf("duplicate service url '%s'", service.Url())
 		}
@@ -62,6 +85,15 @@ func (router *Router) AddDealers(services ...*service.Service) error {
 	return nil
 }
 
+// Internal function that assigns the socket
+// to the Clients.
+//
+// Its handled in this not in the the socket.
+// Because called from the router goroutine (go router.Run())
+//
+// If the Router creating thread calls
+// then as thread-unsafety, will lead to the unexpected
+// behaviours.
 func (router *Router) add_socket(index uint64) error {
 	socket, err := zmq.NewSocket(zmq.DEALER)
 	if err != nil {
@@ -77,10 +109,11 @@ func (router *Router) add_socket(index uint64) error {
 	return nil
 }
 
-// Returns the route to the dealer based on the command name
-func (router *Router) get_dealer(service string) *Dealer {
+// Returns the route to the dealer based on the command name.
+// Case sensitive.
+func (router *Router) get_dealer(name string) *Dealer {
 	for _, dealer := range router.dealers {
-		if dealer.service.Name == service {
+		if dealer.service.Name == name {
 			return dealer
 		}
 	}
@@ -140,6 +173,8 @@ func (router *Router) Run() {
 
 	//  Switch messages between sockets
 	for {
+		// The '-1' argument indicates waiting for the
+		// infinite amount of time.
 		sockets, _ := poller.Poll(-1)
 		for _, socket := range sockets {
 			zmq_socket := socket.Socket

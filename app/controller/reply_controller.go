@@ -22,7 +22,11 @@ type Controller struct {
 	logger  log.Logger
 }
 
+// Creates a synchrounous Reply controller.
 func NewReply(s *service.Service, logger log.Logger) (*Controller, error) {
+	if !s.IsThis() && !s.IsInproc() {
+		return nil, fmt.Errorf("service should be limited to service.THIS or inproc type")
+	}
 	controller_logger, err := logger.ChildWithTimestamp("reply_" + s.Name)
 	if err != nil {
 		return nil, fmt.Errorf("error creating child logger: %w", err)
