@@ -15,23 +15,7 @@ func LoadAnyEnv() error {
 		return nil
 	}
 
-	paths := make([]string, 0)
-	for _, opt := range opts {
-		if len(opt) < 4 {
-			continue
-		}
-
-		last_part := opt[len(opt)-4:]
-		if last_part == ".env" {
-			paths = append(paths, opt)
-		}
-	}
-
-	if len(paths) == 0 {
-		return nil
-	}
-
-	err := godotenv.Load(paths...)
+	err := godotenv.Load(opts...)
 	if err != nil {
 		return fmt.Errorf("godotenv.Load for paths %v: %w", opts, err)
 	}

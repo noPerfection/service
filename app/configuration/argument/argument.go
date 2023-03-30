@@ -38,9 +38,19 @@ func GetEnvPaths() []string {
 	paths := make([]string, 0)
 
 	for _, arg := range args {
-		if arg[:2] != "--" {
-			paths = append(paths, arg)
+		if len(arg) < 4 {
+			continue
 		}
+
+		last_part := arg[len(arg)-4:]
+		if last_part != ".env" {
+			continue
+		}
+
+		if arg[:2] == "--" {
+			continue
+		}
+		paths = append(paths, arg)
 	}
 
 	return paths
