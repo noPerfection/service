@@ -14,12 +14,20 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/ecies"
 )
 
-const ECDSA uint8 = 1
+// Different blockchains use different
+// Public/Private key pair algorithms.
+//
+// SDS as the blockchain agnostic tries to support
+// any blockchain's wallet
+type CurveType = uint8
+
+// Used in Ethereum and Ethereum based blockchains.
+const ECDSA CurveType = 1
 
 // Smartcontract developer uses Ecdsapublic key
 type SmartcontractDeveloper struct {
 	Address         string
-	AccountType     uint8             // The cryptographic algorithm key
+	AccountType     CurveType         // The cryptographic algorithm key
 	EcdsaPublicKey  *ecdsa.PublicKey  // If the account type is ECDSA, then this one will keep the pub key
 	EcdsaPrivateKey *ecdsa.PrivateKey //
 }
@@ -27,7 +35,7 @@ type SmartcontractDeveloper struct {
 // Creates a new SmartcontractDeveloper with a public key but without private key
 func NewEcdsaPublicKey(pub_key *ecdsa.PublicKey) *SmartcontractDeveloper {
 	return &SmartcontractDeveloper{
-		Address:         crypto.PubkeyToAddress(*pub_key).Hex(),
+		Address:         PublicKeyToAddress(pub_key),
 		AccountType:     ECDSA,
 		EcdsaPublicKey:  pub_key,
 		EcdsaPrivateKey: nil,
@@ -37,11 +45,15 @@ func NewEcdsaPublicKey(pub_key *ecdsa.PublicKey) *SmartcontractDeveloper {
 // Creates a new SmartcontractDeveloper with a private key
 func NewEcdsaPrivateKey(private_key *ecdsa.PrivateKey) *SmartcontractDeveloper {
 	return &SmartcontractDeveloper{
-		Address:         crypto.PubkeyToAddress(private_key.PublicKey).Hex(),
+		Address:         PublicKeyToAddress(&private_key.PublicKey),
 		AccountType:     ECDSA,
 		EcdsaPublicKey:  &private_key.PublicKey,
 		EcdsaPrivateKey: private_key,
 	}
+}
+
+func PublicKeyToAddress(public_key *ecdsa.PublicKey) string {
+	return crypto.PubkeyToAddress(*public_key).Hex()
 }
 
 // Get the account who did the request.
@@ -51,32 +63,9 @@ func NewEcdsaPrivateKey(private_key *ecdsa.PrivateKey) *SmartcontractDeveloper {
 // For now it supports ECDSA addresses only. Therefore verification automatically assumes that address
 // is for the ethereum network.
 func VerifySignature(request *message.SmartcontractDeveloperRequest) error {
-	// without 0x prefix
-	signature, err := hexutil.Decode(request.Signature)
+	_, err := GetPublicKeyAccount(request)
 	if err != nil {
-		return fmt.Errorf("hexutil.Decode: %w", err)
-	}
-	digested_hash, err := request.DigestedMessage()
-	if err != nil {
-		return fmt.Errorf("request.DigestMessage: %w", err)
-	}
-
-	if len(signature) != 65 {
-		return errors.New("the ECDSA signature length is invalid. It should be 64 bytes long. Signature length: ")
-	}
-	if signature[64] != 27 && signature[64] != 28 {
-		return errors.New("invalid Ethereum signature (V is not 27 or 28)")
-	}
-	signature[64] -= 27 // Transform yellow paper V from 27/28 to 0/1
-
-	ecdsa_public_key, err := crypto.SigToPub(digested_hash, signature)
-	if err != nil {
-		return fmt.Errorf("crypto.SigToPub for %v hash and %s signature: %w", digested_hash, string(signature), err)
-	}
-
-	address := crypto.PubkeyToAddress(*ecdsa_public_key).Hex()
-	if !strings.EqualFold(address, request.Address) {
-		return fmt.Errorf("derived address %s mismatch smartcontract developer address %s", address, request.Address)
+		return fmt.Errorf("GetPublicKeyAccount: %w", err)
 	}
 
 	return nil
@@ -87,13 +76,37 @@ func VerifySignature(request *message.SmartcontractDeveloperRequest) error {
 //
 // Call this function after VerifySignature()
 // Because it doesn't check for errors
-func GetPublicKeyAccount(request *message.SmartcontractDeveloperRequest) *SmartcontractDeveloper {
+
+func GetPublicKeyAccount(request *message.SmartcontractDeveloperRequest) (*SmartcontractDeveloper, error) {
 	// without 0x prefix
-	signature, _ := hexutil.Decode(request.Signature)
-	digested_hash, _ := request.DigestedMessage()
+	signature, err := hexutil.Decode(request.Signature)
+	if err != nil {
+		return nil, fmt.Errorf("hexutil.Decode: %w", err)
+	}
+	digested_hash, err := request.DigestedMessage()
+	if err != nil {
+		return nil, fmt.Errorf("request.DigestMessage: %w", err)
+	}
+
+	if len(signature) != 65 {
+		return nil, fmt.Errorf("the ECDSA signature length is invalid. It should be 64 bytes long. Signature length: %d", len(signature))
+	}
+	if signature[64] != 27 && signature[64] != 28 {
+		return nil, errors.New("invalid Ethereum signature (V is not 27 or 28)")
+	}
 	signature[64] -= 27 // Transform yellow paper V from 27/28 to 0/1
-	ecdsa_public_key, _ := crypto.SigToPub(digested_hash, signature)
-	return NewEcdsaPublicKey(ecdsa_public_key)
+
+	ecdsa_public_key, err := crypto.SigToPub(digested_hash, signature)
+	if err != nil {
+		return nil, fmt.Errorf("crypto.SigToPub for %v hash and %s signature: %w", digested_hash, string(signature), err)
+	}
+
+	address := PublicKeyToAddress(ecdsa_public_key)
+	if !strings.EqualFold(address, request.Address) {
+		return nil, fmt.Errorf("derived address %s mismatch address in the message %s", address, request.Address)
+	}
+
+	return NewEcdsaPublicKey(ecdsa_public_key), nil
 }
 
 // Encrypts the given data with a public key

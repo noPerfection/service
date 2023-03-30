@@ -439,3 +439,9 @@ Description of the Provider parameters:
 
 Once you set the SDS, stop binary, and re-run to enable the new networks.
 
+# Testing
+
+Run recursively
+```bash
+go test ./...
+```
