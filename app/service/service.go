@@ -117,23 +117,27 @@ func (e *Service) Url() string {
 // Whether the service defined for this machine as a broadcaster.
 // If so, then URL host will be a '*' wildcard.
 func (e *Service) IsBroadcast() bool {
-	return e.limit == BROADCAST
+	return e.limit == BROADCAST && !e.inproc
 }
 
 // Whether the service defined for the remote broadcaster.
 // If so, then URL will have host:port.
 func (e *Service) IsSubscribe() bool {
-	return e.limit == SUBSCRIBE
+	return e.limit == SUBSCRIBE && !e.inproc
 }
 
 // Whether the service defined for the remote machine.
 // If so, then URL will have host:port.
 func (e *Service) IsRemote() bool {
-	return e.limit == REMOTE
+	return e.limit == REMOTE && !e.inproc
 }
 
 // Whether the service defined for this machine.
 // If so, then URL will have * wildcard for the host.
 func (e *Service) IsThis() bool {
-	return e.limit == THIS
+	return e.limit == THIS && !e.inproc
+}
+
+func (e *Service) IsInproc() bool {
+	return e.inproc
 }
