@@ -42,7 +42,7 @@ func (command Command) Request(socket *remote.Socket, request interface{}, reply
 		return fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
 
-	err = reply_parameters.ToInterface(&reply)
+	err = reply_parameters.ToInterface(reply)
 	return err
 }
 
@@ -93,7 +93,7 @@ func (command Command) RequestRouter(socket *remote.Socket, service_type service
 		return fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
 
-	err = reply_parameters.ToInterface(&reply)
+	err = reply_parameters.ToInterface(reply)
 	return err
 }
 
