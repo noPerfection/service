@@ -297,6 +297,12 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.REQ
 func NewTcpSocket(remote_service *service.Service, client *credentials.Credentials, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
+	if remote_service == nil ||
+		remote_service.IsInproc() ||
+		!remote_service.IsRemote() {
+		return nil, fmt.Errorf("remote service is not a remote service with REMOTE limit")
+	}
+
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
