@@ -44,6 +44,19 @@ func (suite *TestAccountSuite) TestAccountFromPublicKey() {
 	suite.NotEmpty(suite.AccountWithPublicKey)
 }
 
+// Test the Accounts ([]*Accounts) related functions
+func (suite *TestAccountSuite) TestAccounts() {
+	accounts := NewAccounts(suite.AccountFromDb, suite.AccountWithPublicKey)
+	suite.Len(accounts, 2, "accounts should have two elements")
+
+	new_account := NewFromPublicKey("no_public_key")
+	accounts = accounts.Add(new_account)
+	suite.Len(accounts, 3, "accounts should have added elements")
+
+	accounts = accounts.Remove(new_account)
+	suite.Len(accounts, 2, "accounts should remove the new element")
+}
+
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestAccount(t *testing.T) {
