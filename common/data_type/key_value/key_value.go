@@ -29,6 +29,11 @@ func NewFromString(s string) (KeyValue, error) {
 		return Empty(), fmt.Errorf("json.decoder: '%w'", err)
 	}
 
+	nil_err := key_value.no_nil_value()
+	if nil_err != nil {
+		return Empty(), fmt.Errorf("value is nil: %w", nil_err)
+	}
+
 	return key_value, nil
 }
 
@@ -47,12 +52,38 @@ func NewFromInterface(i interface{}) (KeyValue, error) {
 		return Empty(), fmt.Errorf("json:unmarshal %s: '%w'", bytes, err)
 	}
 
+	nil_err := k.no_nil_value()
+	if nil_err != nil {
+		return Empty(), fmt.Errorf("value is nil: %w", nil_err)
+	}
+
 	return k, nil
 }
 
 // Returns an empty key value
 func Empty() KeyValue {
 	return KeyValue(map[string]interface{}{})
+}
+
+// Checks that the values are not nil.
+func (k KeyValue) no_nil_value() error {
+	for key, value := range k {
+		if value == nil {
+			return fmt.Errorf("key %s is nil", key)
+		}
+
+		nested_kv, ok := value.(KeyValue)
+		if !ok {
+			continue
+		}
+
+		err := nested_kv.no_nil_value()
+		if err != nil {
+			return fmt.Errorf("key %s nested value nil: %w", key, err)
+		}
+	}
+
+	return nil
 }
 
 // Converts the key-valueto the golang map
@@ -62,6 +93,10 @@ func (k KeyValue) ToMap() map[string]interface{} {
 
 // Returns the serialized key-value as a series of bytes
 func (k KeyValue) ToBytes() ([]byte, error) {
+	err := k.no_nil_value()
+	if err != nil {
+		return []byte{}, fmt.Errorf("nil value: %w", err)
+	}
 	bytes, err := json.Marshal(k)
 	if err != nil {
 		return []byte{}, fmt.Errorf("json.serialize: '%w'", err)
