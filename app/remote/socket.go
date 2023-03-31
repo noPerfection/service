@@ -154,6 +154,7 @@ func (socket *Socket) Close() error {
 }
 
 // Send a command to the remote SDS service via the router.
+// Both inproc and tcp
 // Router identifies the redirecting rule based on service_type.
 // Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
 // In case of successful request, the function returns reply parameters.
@@ -224,7 +225,7 @@ func (socket *Socket) RequestRouter(service_type service.ServiceType, request *m
 	}
 }
 
-// Send a command to the remote SDS service.
+// Send a command to the remote SDS service. Both for inproc and tcp
 // Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
 // In case of successful request, the function returns reply parameters.
 func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
@@ -297,6 +298,10 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.REQ
 func NewTcpSocket(remote_service *service.Service, client *credentials.Credentials, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
+	if app_config == nil {
+		return nil, fmt.Errorf("missing app_config")
+	}
+
 	if remote_service == nil ||
 		remote_service.IsInproc() ||
 		!remote_service.IsRemote() {
@@ -335,6 +340,10 @@ func NewTcpSocket(remote_service *service.Service, client *credentials.Credentia
 //
 // The `url` should start with `inproc://`
 func InprocRequestSocket(url string, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
+	if app_config == nil {
+		return nil, fmt.Errorf("missing app_config")
+	}
+
 	if len(url) < 9 {
 		return nil, fmt.Errorf("the url is too short")
 	}
@@ -371,6 +380,16 @@ func InprocRequestSocket(url string, parent log.Logger, app_config *configuratio
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.SUB
 func NewTcpSubscriber(e *service.Service, client *credentials.Credentials, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
+	if app_config == nil {
+		return nil, fmt.Errorf("missing app_config")
+	}
+	if e == nil {
+		return nil, fmt.Errorf("missing service")
+	}
+	if !e.IsSubscribe() || e.IsInproc() {
+		return nil, fmt.Errorf("the service is a tcp or it doesn't SUBSCRIBE limit")
+	}
+
 	socket, sockErr := zmq.NewSocket(zmq.SUB)
 	if sockErr != nil {
 		return nil, fmt.Errorf("new sub socket: %w", sockErr)
