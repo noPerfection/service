@@ -14,9 +14,10 @@ import (
 )
 
 // The broadcasters sends to all subscribers this message.
+// The reply and the topic
 type Broadcast struct {
-	Topic string `json:"topic"`
 	Reply Reply  `json:"reply"`
+	Topic string `json:"topic"`
 }
 
 // Create a new broadcast

@@ -10,6 +10,39 @@ import (
 // The SDS Service will accepts the SmartcontractDeveloperRequest message.
 // Its created from message.Request.
 // Therefore we don't serialize or deserialize it.
+//
+// Unlike other message types, this Request
+// doesn't have the parse.
+// Instead its derived from message.ToSmartcontractDeveloper()
+//
+// The correct request message should have the following
+// parameters:
+//   - _address in a hex format with "0x" prefixed. Derived from public key
+//   - _nonce_timestamp a number
+//   - _signature in a hex format. Signature of the digested
+//     hash signed by the private key.
+//     The digested hash is the hash of message hash + prefix.
+//     The message hash is the request parameter except the _signature parameter
+//
+// The Valid Request to convert:
+//
+//		request := Request{
+//			Command: "get_data",
+//			Parameters: key_value.Empty().
+//				Set("_address", "0xdead").
+//				Set("_nonce_timestamp", 14790213).
+//				Set("_signature", "0xdead").
+//				// the "get_data" command parameters...
+//				Set("data_type", "number")
+//		}
+//
+//	 sm_request, _ := message.ToSmartcontractDeveloperRequest(request)
+//
+// ---------------------------------------------
+//
+// The signature and address verification is not checked here
+// But its done by the app/account.SmartcontractDeveloper
+// Because of the encryption algorithm depends on the blockchain, to validate the nonce.
 type SmartcontractDeveloperRequest struct {
 	Address        string
 	NonceTimestamp uint64
@@ -17,7 +50,9 @@ type SmartcontractDeveloperRequest struct {
 	Request        Request
 }
 
-// SmartcontractDeveloperRequest message as a  sequence of bytes
+// SmartcontractDeveloperRequest message as a sequence of bytes
+//
+// For now .ToBytes() is not used by the service.
 func (request *SmartcontractDeveloperRequest) ToBytes() ([]byte, error) {
 	kv, err := key_value.NewFromInterface(request)
 	if err != nil {
@@ -33,6 +68,8 @@ func (request *SmartcontractDeveloperRequest) ToBytes() ([]byte, error) {
 }
 
 // Convert SmartcontractDeveloperRequest message to the string
+//
+// For now .ToString() is not used by the service.
 func (request *SmartcontractDeveloperRequest) ToString() (string, error) {
 	bytes, err := request.ToBytes()
 	if err != nil {
@@ -83,9 +120,32 @@ func (request *SmartcontractDeveloperRequest) DigestedMessage() ([]byte, error) 
 	return digested_hash.Bytes(), nil
 }
 
+func (sm_req *SmartcontractDeveloperRequest) validate_parameters() error {
+	if len(sm_req.Address) < 3 {
+		return fmt.Errorf("atleast 3 characters required for address")
+	} else if sm_req.Address[:2] != "0x" && sm_req.Address[:2] != "0X" {
+		return fmt.Errorf("'%s' address parameter has no '0x' prefix", sm_req.Address)
+	}
+	if len(sm_req.Signature) < 3 {
+		return fmt.Errorf("atleast 3 characters required for signature")
+	} else if sm_req.Signature[:2] != "0x" && sm_req.Signature[:2] != "0X" {
+		return fmt.Errorf("'%s' signature parameter has no '0x' prefix", sm_req.Signature)
+	}
+	if sm_req.NonceTimestamp == 0 {
+		return fmt.Errorf("nonce can not be 0")
+	}
+
+	return nil
+}
+
 // Extracts the smartcontract request parameters from the request
 // The request then cleaned up from the smartcontract request parameters
 func ToSmartcontractDeveloperRequest(request Request) (SmartcontractDeveloperRequest, error) {
+	_, err := request.ToBytes()
+	if err != nil {
+		return SmartcontractDeveloperRequest{}, fmt.Errorf("request is invalid: %w", err)
+	}
+
 	address, err := request.Parameters.GetString("_address")
 	if err != nil {
 		return SmartcontractDeveloperRequest{}, fmt.Errorf("GetString(`address`): %w", err)
@@ -112,6 +172,11 @@ func ToSmartcontractDeveloperRequest(request Request) (SmartcontractDeveloperReq
 		NonceTimestamp: nonce_timestamp,
 		Signature:      signature,
 		Request:        request,
+	}
+
+	err = sm_request.validate_parameters()
+	if err != nil {
+		return SmartcontractDeveloperRequest{}, fmt.Errorf("validation: %w", err)
 	}
 
 	return sm_request, nil
