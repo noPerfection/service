@@ -33,8 +33,8 @@ type Router struct {
 }
 
 // Returns the initiated Router whith the service parameters
-func NewRouter(parent_log log.Logger, service *service.Service) (Router, error) {
-	if service == nil || !service.IsInproc() || service.IsThis() {
+func NewRouter(service *service.Service, parent_log log.Logger) (Router, error) {
+	if service == nil || !service.IsInproc() && !service.IsThis() {
 		return Router{}, fmt.Errorf("the router should be with a THIS limit or inproc type")
 	}
 
@@ -72,6 +72,10 @@ func (r *Router) add_service(service *service.Service) {
 // Registers the route from command to dealer.
 // SDS Core can have unique command handlers.
 func (router *Router) AddDealers(services ...*service.Service) error {
+	if len(router.dealers) > 0 && router.dealers[0].socket != nil {
+		return fmt.Errorf("this router is already running, add a dealers before calling router.Run()")
+	}
+
 	for _, service := range services {
 		if !service.IsInproc() && !service.IsRemote() {
 			return fmt.Errorf("the service '%s' is not with the REMOTE limit or inproc type", service.Name)
@@ -145,6 +149,9 @@ func (router *Router) get_dealer(name string) *Dealer {
 //	// route the msg[3] to the SDS Static
 //	msg := [0: "uid-123", 1: "", 2: "static", 3: "{`command`: `smartcontract_get`, `parameters`: {}}"]
 func (router *Router) Run() {
+	if len(router.dealers) == 0 {
+		router.logger.Fatal("no dealers registered in the router", "hint", "call router.AddDealers()")
+	}
 	router.logger.Info("setup the dealer sockets")
 	//  Initialize poll set
 	poller := zmq.NewPoller()
@@ -166,6 +173,8 @@ func (router *Router) Run() {
 	if err != nil {
 		router.logger.Fatal("zmq new router", "error", err)
 	}
+	hwm, _ := frontend.GetRcvhwm()
+	router.logger.Warn("high watermark from router", hwm)
 
 	poller.Add(frontend, zmq.POLLIN)
 
@@ -175,95 +184,109 @@ func (router *Router) Run() {
 	for {
 		// The '-1' argument indicates waiting for the
 		// infinite amount of time.
-		sockets, _ := poller.Poll(-1)
+		sockets, err := poller.Poll(-1)
+		if err != nil {
+			router.logger.Fatal("poller", "error", err)
+		}
 		for _, socket := range sockets {
 			zmq_socket := socket.Socket
 			// redirect to the dealer
 			if zmq_socket == frontend {
 				msgs, err := zmq_socket.RecvMessage(0)
 				if err != nil {
-					fail := message.Fail("frontend receive message error " + err.Error())
-					fail_string, _ := fail.ToString()
-
-					_, err := frontend.Send(msgs[0], zmq.SNDMORE)
-					if err != nil {
-						router.logger.Fatal("failed to send back id to frontend", "msgs", "error", fail_string)
-					}
-					_, err = frontend.Send(msgs[1], zmq.SNDMORE)
-					if err != nil {
-						router.logger.Fatal("failed to send back delimiter to frontend", "error", fail_string)
-					}
-					_, err = frontend.Send(fail_string, 0)
-					if err != nil {
-						router.logger.Fatal("failed to send back error to frontend", "error", fail_string)
+					if err := reply_error_message(frontend, err, msgs); err != nil {
+						router.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
 				}
 
 				if len(msgs) < 4 {
-					fail := message.Fail("invalid message. it should have atleast 4 parts")
-					fail_string, _ := fail.ToString()
-
-					_, err := frontend.Send(msgs[0], zmq.SNDMORE)
-					if err != nil {
-						router.logger.Fatal("failed to send back id to frontend", "msgs", msgs, "fail", fail_string)
-					}
-					_, err = frontend.Send(msgs[1], zmq.SNDMORE)
-					if err != nil {
-						router.logger.Fatal("failed to send back delimiter to frontend", "msgs", msgs, "fail", fail_string)
-					}
-					_, err = frontend.Send(fail_string, 0)
-					if err != nil {
-						router.logger.Fatal("failed to send back error to frontend", "msgs", msgs, "fail", fail_string)
+					err := fmt.Errorf("message is too short. It should have atleast 4 parts")
+					if err := reply_error_message(frontend, err, msgs); err != nil {
+						router.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
 				}
 				dealer := router.get_dealer(msgs[2])
 				if dealer == nil {
-					fail := message.Fail("no dealer registered for " + msgs[2])
-					fail_string, _ := fail.ToString()
-
-					_, err := frontend.Send(msgs[0], zmq.SNDMORE)
-					if err != nil {
-						router.logger.Fatal("failed to send back id to frontend", "msgs", msgs[2:], "fail", fail_string)
-					}
-					_, err = frontend.Send(msgs[1], zmq.SNDMORE)
-					if err != nil {
-						router.logger.Fatal("failed to send back delimiter to frontend", "msgs", msgs[2:], "fail", fail_string)
-					}
-					_, err = frontend.Send(fail_string, 0)
-					if err != nil {
-						router.logger.Fatal("failed to send back error to frontend", "msgs", msgs[2:], "fail", fail_string)
+					err := fmt.Errorf("'%s' dealer wasn't registered", msgs[2])
+					if err := reply_error_message(frontend, err, msgs); err != nil {
+						router.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
 				}
 
 				// send the id
-				dealer.socket.Send(msgs[0], zmq.SNDMORE)
+				_, err = dealer.socket.Send(msgs[0], zmq.SNDMORE)
+				if err != nil {
+					router.logger.Fatal("send to dealer", "error", err)
+				}
 				// send the delimiter
-				dealer.socket.Send(msgs[1], zmq.SNDMORE)
+				_, err = dealer.socket.Send(msgs[1], zmq.SNDMORE)
+				if err != nil {
+					router.logger.Fatal("send to dealer", "error", err)
+				}
 				// skip the command name
 				// we skip the router name,
 				// sending the message.Request part
 				last_index := len(msgs) - 1
 				for i := 3; i <= last_index; i++ {
 					if i == last_index {
-						dealer.socket.Send(msgs[i], 0)
+						_, err := dealer.socket.Send(msgs[i], 0)
+						if err != nil {
+							router.logger.Fatal("send to dealer", "error", err)
+						}
 					} else {
-						dealer.socket.Send(msgs[i], zmq.SNDMORE)
+						_, err := dealer.socket.Send(msgs[i], zmq.SNDMORE)
+						if err != nil {
+							router.logger.Fatal("send to dealer", "error", err)
+						}
 					}
 				}
 			} else {
 				for {
-					msg, _ := zmq_socket.Recv(0)
-					if more, _ := zmq_socket.GetRcvmore(); more {
-						frontend.Send(msg, zmq.SNDMORE)
+					msg, err := zmq_socket.Recv(0)
+					if err != nil {
+						router.logger.Fatal("receive from dealer", "error", err)
+					}
+					if more, err := zmq_socket.GetRcvmore(); more {
+						if err != nil {
+							router.logger.Fatal("receive more messages from dealer", "error", err)
+						}
+						_, err := frontend.Send(msg, zmq.SNDMORE)
+						if err != nil {
+							router.logger.Fatal("send from dealer to frontend", "error", err)
+						}
 					} else {
-						frontend.Send(msg, 0)
+						_, err := frontend.Send(msg, 0)
+						if err != nil {
+							router.logger.Fatal("send from dealer to frontend", "error", err)
+						}
 						break
 					}
 				}
 			}
 		}
 	}
+}
+
+// The router's error replier
+func reply_error_message(socket *zmq.Socket, new_err error, msgs []string) error {
+	fail := message.Fail("frontend receive message error " + new_err.Error())
+	fail_string, _ := fail.ToString()
+
+	_, err := socket.Send(msgs[0], zmq.SNDMORE)
+	if err != nil {
+		return fmt.Errorf("failed to send back id to frontend '%s': %w", fail_string, err)
+	}
+	_, err = socket.Send(msgs[1], zmq.SNDMORE)
+	if err != nil {
+		return fmt.Errorf("failed to send back delimiter to frontend '%s': %w", fail_string, err)
+	}
+	_, err = socket.Send(fail_string, 0)
+	if err != nil {
+		return fmt.Errorf("failed to send back fail message to frontend '%s': %w", fail_string, err)
+	}
+
+	return nil
 }

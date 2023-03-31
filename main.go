@@ -109,7 +109,7 @@ func main() {
 
 	// Prepare the external message receiver
 	// This is aimed to be connected by SDS Gateway
-	router, err := controller.NewRouter(logger, core_service)
+	router, err := controller.NewRouter(core_service, logger)
 	if err != nil {
 		logger.Fatal("controller new router", "error", err)
 	}
