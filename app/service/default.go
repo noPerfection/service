@@ -7,10 +7,23 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-const localhost = "localhost"
-const intial_port = 4000
+const (
+	localhost   = "localhost"
+	intial_port = 4000
+	port_offset = 10
+)
+
+// i is the service index
+func calculate_port(i int) int {
+	return intial_port + (i * port_offset)
+}
 
 // Returns the default configuration for the service
+//
+// The first service's launched in the initial_port.
+// At most the service should have 10 available ports.
+//
+// Each service's port number is incremented by 10.
 func DefaultConfiguration(service_type ServiceType) configuration.DefaultConfig {
 	service_types := service_types()
 
@@ -20,8 +33,8 @@ func DefaultConfiguration(service_type ServiceType) configuration.DefaultConfig 
 		}
 		name := service_type.ToString()
 
-		port_value := intial_port + (i * 10) + 1
-		broadcast_port_value := intial_port + (i * 10) + 2
+		port_value := calculate_port(i)
+		broadcast_port_value := port_value + 1
 
 		// names
 		parameters := map[string]interface{}{
@@ -49,25 +62,7 @@ func DefaultConfigurations() []configuration.DefaultConfig {
 	default_configs := make([]configuration.DefaultConfig, len(service_types))
 
 	for i, service_type := range service_types {
-		name := service_type.ToString()
-
-		port_value := intial_port + (i * 10) + 1
-		broadcast_port_value := intial_port + (i * 10) + 2
-
-		// names
-		parameters := map[string]interface{}{
-			name + "_HOST": localhost,
-			name + "_PORT": strconv.Itoa(port_value),
-
-			name + "_BROADCAST_HOST": localhost,
-			name + "_BROADCAST_PORT": strconv.Itoa(broadcast_port_value),
-		}
-
-		default_config := configuration.DefaultConfig{
-			Title:      service_type.ToString(),
-			Parameters: key_value.New(parameters),
-		}
-
+		default_config := DefaultConfiguration(service_type)
 		default_configs[i] = default_config
 	}
 

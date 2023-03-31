@@ -1,5 +1,7 @@
 package service
 
+import "fmt"
+
 type ServiceType string
 
 const (
@@ -12,6 +14,8 @@ const (
 	READER            ServiceType = "READER"
 	WRITER            ServiceType = "WRITER"
 	BUNDLE            ServiceType = "BUNDLE"
+
+	BUCKET string = "SDS_SERVICES"
 )
 
 // Returns the string represantion of the service type
@@ -21,12 +25,23 @@ func (s ServiceType) ToString() string {
 
 // Returns the Vault secret storage and the key for curve private part.
 func (name ServiceType) SecretKeyPath() (string, string) {
-	return "SDS_SERVICES", name.ToString() + "_SECRET_KEY"
+	return BUCKET, name.ToString() + "_SECRET_KEY"
 }
 
 // Returns the Vault secret path and the key for curve private part for broadcaster.
 func (name ServiceType) BroadcastSecretKeyPath() (string, string) {
-	return "SDS_SERVICES", name.ToString() + "_BROADCAST_SECRET_KEY"
+	return BUCKET, name.ToString() + "_BROADCAST_SECRET_KEY"
+}
+
+func (s ServiceType) valid() error {
+	types := service_types()
+	for _, service_type := range types {
+		if service_type == s {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("the '%s' service type not registered", s.ToString())
 }
 
 func service_types() []ServiceType {

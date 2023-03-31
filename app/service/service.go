@@ -17,21 +17,32 @@ type Service struct {
 }
 
 // Creates the service with the parameters but without any information
-func Inprocess(service_type ServiceType) *Service {
-	name := string(service_type)
+func Inprocess(service_type ServiceType) (*Service, error) {
+	if err := service_type.valid(); err != nil {
+		return nil, fmt.Errorf("valid: %w", err)
+	}
+	name := service_type.ToString()
 
 	s := Service{
 		Name:   name,
 		inproc: true,
-		url:    "inproc://reply_" + name,
+		url:    "inproc://SERVICE_" + name,
 		limit:  THIS,
 	}
 
-	return &s
+	return &s, nil
 }
 
 // Creates the service with the parameters but without any information
 func NewExternal(service_type ServiceType, limit Limit, app_config *configuration.Config) (*Service, error) {
+	if app_config == nil {
+		return nil, fmt.Errorf("missing app config")
+	}
+
+	if err := service_type.valid(); err != nil {
+		return nil, fmt.Errorf("valid: %w", err)
+	}
+
 	default_configuration := DefaultConfiguration(service_type)
 	app_config.SetDefaults(default_configuration)
 
@@ -57,6 +68,8 @@ func NewExternal(service_type ServiceType, limit Limit, app_config *configuratio
 		s.url = fmt.Sprintf("tcp://%s:%s", app_config.GetString(broadcast_host_env), app_config.GetString(broadcast_port_env))
 	case BROADCAST:
 		s.url = fmt.Sprintf("tcp://*:%s", app_config.GetString(broadcast_port_env))
+	default:
+		return nil, fmt.Errorf("unsupported limit: %v", limit)
 	}
 
 	return &s, nil
