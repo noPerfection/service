@@ -12,8 +12,16 @@ import (
 // Request-Reply checks the internet connection after this amount of time.
 // This is the default time if argument wasn't given that changes the REQUEST_TIMEOUT
 const (
-	REQUEST_TIMEOUT = 30 * time.Second //  msecs, (> 1000!)
-	ATTEMPT         = uint(5)
+	// Timeout in the seconds.
+	// Set the SDS_REQUEST_TIMEOUT.
+	// If the timeout is float, then its rounded
+	REQUEST_TIMEOUT = 30 * time.Second
+	//
+	// How many attempts to do if the remote socket doesn't responds.
+	// Set the SDS_REQUEST_ATTEMPT
+	// If the SDS_REQUEST_ATTEMPT is a float number
+	// then its rounded.
+	ATTEMPT = uint(5)
 )
 
 // Request timeout, from the configuration.
