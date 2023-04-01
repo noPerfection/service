@@ -115,6 +115,11 @@ func (k KeyValue) set_number() {
 			continue
 		}
 
+		_, ok = value.(json.Number)
+		if ok {
+			continue
+		}
+
 		big_num, err := k.GetBigNumber(key)
 		if err == nil {
 			delete(k, key)
@@ -152,6 +157,7 @@ func (k KeyValue) set_number() {
 		}
 
 		nested_map, ok := value.(map[string]interface{})
+
 		if ok {
 			nested_kv = New(nested_map)
 			// ToMap will call set_number()
