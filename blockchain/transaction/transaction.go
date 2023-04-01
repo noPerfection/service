@@ -10,6 +10,7 @@ import (
 )
 
 // Blockchain agnostic transaction
+// The transaction information
 type RawTransaction struct {
 	SmartcontractKey smartcontract_key.Key     `json:"smartcontract_key"`
 	BlockHeader      blockchain.BlockHeader    `json:"block_header"`

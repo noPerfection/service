@@ -12,11 +12,18 @@ import (
 )
 
 // Blockchain agnostic Event Log for smartcontract
+//
+// Based on the EVM blockchain's event log. However,
+// it's generalized for all blockchain's types.
 type RawLog struct {
+	// Transaction where the log was occured
 	Transaction transaction.RawTransaction `json:"transaction"`
-	Index       uint                       `json:"log_index"`            // index
-	Data        string                     `json:"log_data"`             // datatext data type
-	Topics      []string                   `json:"log_topics,omitempty"` // topics
+	// Index of the log in the transaction's log list.
+	Index uint `json:"log_index"` // index
+	// Raw data of the log
+	Data string `json:"log_data"` // datatext data type
+	// Indexed data of the log
+	Topics []string `json:"log_topics,omitempty"` // topics
 }
 
 // JSON string representation of the spaghetti.Log
@@ -35,6 +42,7 @@ func (l *RawLog) ToString() (string, error) {
 }
 
 // Serielizes the Log.Topics into the byte array
+// Reverse of log.ParseTopics()
 func (b *RawLog) TopicRaw() []byte {
 	byt, err := json.Marshal(b.Topics)
 	if err != nil {
@@ -44,7 +52,8 @@ func (b *RawLog) TopicRaw() []byte {
 	return byt
 }
 
-// Converts the byte series into the topic list
+// Converts the byte array into the topic list.
+// Reverse of log.TopicRaw()
 func (b *RawLog) ParseTopics(raw []byte) error {
 	var topics []string
 	err := json.Unmarshal(raw, &topics)
@@ -69,8 +78,8 @@ func FilterByAddress(all_logs []*RawLog, address string) []*RawLog {
 	return logs
 }
 
-// Get the most recent block parameters
-// returns block_number and block_timestamp
+// Get the most recent block's header
+// within the log list.
 func RecentBlock(all_logs []RawLog) blockchain.BlockHeader {
 	block := blockchain.NewHeader(0, 0)
 
