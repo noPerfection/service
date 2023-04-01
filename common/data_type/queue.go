@@ -20,9 +20,9 @@ const QUEUE_LENGTH = 10
 // by taking it out from the list.
 //
 // The added elements attached after the last element.
-func NewQueue(element_type reflect.Type) *Queue {
+func NewQueue() *Queue {
 	return &Queue{
-		element_type: element_type,
+		element_type: nil,
 		length:       QUEUE_LENGTH,
 		l:            list.New(),
 	}
@@ -44,17 +44,33 @@ func (q *Queue) IsFull() bool {
 // If the element type is not the same as
 // the expected type, then
 // It will silently drop it.
+// Silently drop if the queue is full
 func (q *Queue) Push(item interface{}) {
-	if reflect.TypeOf(item) == q.element_type {
+	if q.IsFull() {
+		return
+	}
+	if q.element_type == nil {
+		q.element_type = reflect.TypeOf(item)
+		q.l.PushBack(item)
+	} else if reflect.TypeOf(item) == q.element_type {
 		q.l.PushBack(item)
 	}
 }
 
 // Returns the first element without removing it from the queue
+// If there is no element, then returns nil
 func (q *Queue) First() interface{} {
+	if q.IsEmpty() {
+		return nil
+	}
 	return q.l.Front().Value
 }
 
+// Takes from the list and returns it.
+// If there is no element in the list, then returns nil
 func (q *Queue) Pop() interface{} {
+	if q.IsEmpty() {
+		return nil
+	}
 	return q.l.Remove(q.l.Front())
 }
