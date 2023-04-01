@@ -28,7 +28,7 @@ func NewFromKeyValue(parameters key_value.KeyValue) (Key, error) {
 	var key Key
 	err := parameters.ToInterface(&key)
 	if err != nil {
-		return Key{}, fmt.Errorf("failed to convert key-value to interface %v", err)
+		return Key{}, fmt.Errorf("failed to convert key-value to interface: %w", err)
 	}
 
 	if len(key.NetworkId) == 0 ||
