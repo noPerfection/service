@@ -232,6 +232,9 @@ func (parameters KeyValue) GetUint64(name string) (uint64, error) {
 		return 0, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
+	if raw == nil {
+		return 0, fmt.Errorf("key %s is nil", name)
+	}
 
 	pure_value, ok := raw.(uint64)
 	if ok {
@@ -269,6 +272,9 @@ func (parameters KeyValue) GetFloat64(name string) (float64, error) {
 
 	}
 	raw := parameters[name]
+	if raw == nil {
+		return 0, fmt.Errorf("key %s is nil", name)
+	}
 
 	pure_value, ok := raw.(float64)
 	if ok {
@@ -299,6 +305,9 @@ func (parameters KeyValue) GetBoolean(name string) (bool, error) {
 		return false, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
+	if raw == nil {
+		return false, fmt.Errorf("key %s is nil", name)
+	}
 
 	pure_value, ok := raw.(bool)
 	if ok {
@@ -314,6 +323,9 @@ func (parameters KeyValue) GetBigNumber(name string) (*big.Int, error) {
 		return nil, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
+	if raw == nil {
+		return nil, fmt.Errorf("key %s is nil", name)
+	}
 
 	value, ok := raw.(json.Number)
 	if !ok {
@@ -334,6 +346,9 @@ func (parameters KeyValue) GetString(name string) (string, error) {
 		return "", fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
+	if raw == nil {
+		return "", fmt.Errorf("key %s is nil", name)
+	}
 
 	value, ok := raw.(string)
 	if !ok {
@@ -413,9 +428,17 @@ func (parameters KeyValue) GetKeyValue(name string) (KeyValue, error) {
 		return nil, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
+	if raw == nil {
+		return nil, fmt.Errorf("key %s is nil", name)
+	}
 
 	value, ok := raw.(KeyValue)
 	if ok {
+		err := value.no_nil_value()
+		if err != nil {
+			return nil, fmt.Errorf("key %s is nil", name)
+		}
+
 		return value, nil
 	}
 
@@ -424,5 +447,11 @@ func (parameters KeyValue) GetKeyValue(name string) (KeyValue, error) {
 		return nil, fmt.Errorf("'%s' parameter type %T, can not convert to key-value", name, raw)
 	}
 
-	return New(raw_map), nil
+	nested_kv := New(raw_map)
+	err := nested_kv.no_nil_value()
+	if err != nil {
+		return nil, fmt.Errorf("key %s is nil", name)
+	}
+
+	return nested_kv, nil
 }
