@@ -113,7 +113,10 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 
 // Same as Run. Run it as a goroutine
 func (manager *Manager) Start() {
-	static_env := service.Inprocess(service.STATIC)
+	static_env, err := service.Inprocess(service.STATIC)
+	if err != nil {
+		manager.logger.Fatal("no inproc service configuration", "service type", service.STATIC, "error", err)
+	}
 	static_socket, err := remote.InprocRequestSocket(static_env.Url(), manager.logger, manager.app_config)
 	if err != nil {
 		manager.logger.Fatal("remote.InprocRequest", "url", static_env.Url(), "error", err)
@@ -451,7 +454,7 @@ func (manager *Manager) queue_recent_blocks() {
 		}
 
 		var parameters handler.LogFilterReply
-		err = handler	.FILTER_LOG_COMMAND.Request(blockchain_socket, req_parameters, &parameters)
+		err = handler.FILTER_LOG_COMMAND.Request(blockchain_socket, req_parameters, &parameters)
 		if err != nil {
 			sub_logger.Warn("failed to get the log filters [trying in 10 seconds]", "message", err)
 			continue
