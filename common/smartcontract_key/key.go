@@ -31,6 +31,11 @@ func NewFromKeyValue(parameters key_value.KeyValue) (Key, error) {
 		return Key{}, fmt.Errorf("failed to convert key-value to interface %v", err)
 	}
 
+	if len(key.NetworkId) == 0 ||
+		len(key.Address) == 0 {
+		return Key{}, fmt.Errorf("missing parameter or empty parameter")
+	}
+
 	return key, nil
 }
 
@@ -40,6 +45,12 @@ func NewFromString(s string) (Key, error) {
 	if len(str) != 2 {
 		return Key{}, fmt.Errorf("string '%s' doesn't have two parts", s)
 	}
+
+	if len(str[0]) == 0 ||
+		len(str[1]) == 0 {
+		return Key{}, fmt.Errorf("missing parameter or empty parameter")
+	}
+
 	return Key{NetworkId: str[0], Address: str[1]}, nil
 }
 
