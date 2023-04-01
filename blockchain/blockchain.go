@@ -190,7 +190,8 @@ func CommandHandlers() command.Handlers {
 
 // Returns this service's configuration
 func Service() *service.Service {
-	return service.Inprocess(service.SPAGHETTI)
+	service, _ := service.Inprocess(service.SPAGHETTI)
+	return service
 }
 
 func Run(app_config *configuration.Config) {

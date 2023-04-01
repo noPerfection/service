@@ -13,8 +13,10 @@ import (
 var CommandHandlers = handler.CommandHandlers()
 
 // Returns this service's configuration
+// Returns nil if the service parameters doesn't exist in the app/service.service_types
 func Service() *service.Service {
-	return service.Inprocess(service.STATIC)
+	service, _ := service.Inprocess(service.STATIC)
+	return service
 }
 
 // Start the SDS Static core service.

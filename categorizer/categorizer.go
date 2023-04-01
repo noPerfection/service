@@ -52,8 +52,10 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 var CommandHandlers = handler.CommandHandlers()
 
 // Returns this service's configuration
+// Could return nil, if the service is not found
 func Service() *service.Service {
-	return service.Inprocess(service.CATEGORIZER)
+	service, _ := service.Inprocess(service.CATEGORIZER)
+	return service
 }
 
 // This core service decodes the smartcontract event logs.
@@ -66,7 +68,10 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	logger.Info("starting")
 
-	blockchain_service := service.Inprocess(service.SPAGHETTI)
+	blockchain_service, err := service.Inprocess(service.SPAGHETTI)
+	if err != nil {
+		logger.Fatal("failed to get inproc configuration for the service", "service type", service.SPAGHETTI, "error", err)
+	}
 
 	blockchain_socket, err := remote.InprocRequestSocket(blockchain_service.Url(), logger, app_config)
 	if err != nil {

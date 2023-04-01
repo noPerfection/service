@@ -50,7 +50,8 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	suite.NoError(err)
 	suite.tcp_controller = tcp_controller
 
-	inproc_service := service.Inprocess(service.CATEGORIZER)
+	inproc_service, err := service.Inprocess(service.CATEGORIZER)
+	suite.NoError(err)
 	suite.NotEmpty(inproc_service)
 
 	inproc_controller, err := NewReply(inproc_service, logger)
