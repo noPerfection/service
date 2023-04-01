@@ -108,6 +108,13 @@ func (k KeyValue) set_number() {
 			continue
 		}
 
+		// even if its a number wrapped as a string
+		// we won't convert it.
+		_, ok := value.(string)
+		if ok {
+			continue
+		}
+
 		big_num, err := k.GetBigNumber(key)
 		if err == nil {
 			delete(k, key)
