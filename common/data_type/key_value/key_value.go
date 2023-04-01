@@ -162,8 +162,6 @@ func (k KeyValue) set_number() {
 			continue
 		}
 	}
-
-	return
 }
 
 // Converts the key-valueto the golang map
