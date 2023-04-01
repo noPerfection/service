@@ -75,8 +75,9 @@ func (b *RawLog) ParseTopics(raw []byte) error {
 }
 
 // Get the slice of logs filtered by the smartcontract address
-func FilterByAddress(all_logs []*RawLog, address string) []*RawLog {
-	logs := make([]*RawLog, 0)
+// If it wasn't found, then returns an empty result
+func FilterByAddress(all_logs []RawLog, address string) []RawLog {
+	logs := make([]RawLog, 0)
 
 	for _, log := range all_logs {
 		if strings.EqualFold(address, log.Transaction.SmartcontractKey.Address) {
@@ -89,6 +90,7 @@ func FilterByAddress(all_logs []*RawLog, address string) []*RawLog {
 
 // Get the most recent block's header
 // within the log list.
+// Its tracked by the block timestamp
 func RecentBlock(all_logs []RawLog) blockchain.BlockHeader {
 	block := blockchain.NewHeader(0, 0)
 
