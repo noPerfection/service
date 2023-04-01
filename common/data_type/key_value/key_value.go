@@ -247,7 +247,10 @@ func (parameters KeyValue) GetUint64(name string) (uint64, error) {
 	json_value, ok := raw.(json.Number)
 	if ok {
 		number, err := strconv.ParseUint(string(json_value), 10, 64)
-		return number, fmt.Errorf("strconv.ParseUint json_number %v (original: %v): '%w'", json_value, raw, err)
+		if err != nil {
+			return 0, fmt.Errorf("strconv.ParseUint(%v (type %T) as json number %v): '%w'", raw, raw, json_value, err)
+		}
+		return number, nil
 	}
 
 	string_value, ok := raw.(string)
