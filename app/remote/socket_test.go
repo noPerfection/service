@@ -29,12 +29,16 @@ type TestSocketSuite struct {
 // Make sure that Account is set to five
 // before each test
 func (suite *TestSocketSuite) SetupTest() {
+}
+
+func (suite *TestSocketSuite) TestNewSockets() {
 	logger, err := log.New("log", log.WITHOUT_TIMESTAMP)
 	suite.NoError(err, "failed to create logger")
 	app_config, err := configuration.NewAppConfig(logger)
 	suite.NoError(err, "failed to create logger")
 
-	inproc_categorizer_service := service.Inprocess(service.CATEGORIZER)
+	inproc_categorizer_service, err := service.Inprocess(service.CATEGORIZER)
+	suite.Require().NoError(err)
 	_, err = NewTcpSocket(inproc_categorizer_service, nil, logger, app_config)
 	suite.Require().Error(err)
 
