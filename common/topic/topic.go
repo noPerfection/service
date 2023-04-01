@@ -10,8 +10,11 @@ import (
 )
 
 type (
-	TopicKey string
-	Topic    struct {
+	// Topic Key is the
+	// string represantion of the topic
+	// or topic filter
+	TopicString string
+	Topic       struct {
 		Organization  string `json:"o,omitempty"`
 		Project       string `json:"p,omitempty"`
 		NetworkId     string `json:"n,omitempty"`
@@ -20,6 +23,14 @@ type (
 		Event         string `json:"e,omitempty"`
 	}
 )
+
+func AsTopicString(topic_string string) TopicString {
+	return TopicString(topic_string)
+}
+
+func (topic_string TopicString) String() string {
+	return string(topic_string)
+}
 
 func New(o string, p string, n string, g string, s string, e string) Topic {
 	return Topic{
@@ -32,7 +43,7 @@ func New(o string, p string, n string, g string, s string, e string) Topic {
 	}
 }
 
-func (t *Topic) ToString(level uint8) string {
+func (t *Topic) ToString(level uint8) TopicString {
 	if level < 1 || level > 6 {
 		return ""
 	}
@@ -59,7 +70,7 @@ func (t *Topic) ToString(level uint8) string {
 		str += ";e:" + t.Event
 	}
 
-	return str
+	return TopicString(str)
 }
 
 func (t *Topic) Level() uint8 {
@@ -146,7 +157,7 @@ func isLiteral(val string) bool {
 	return regexp.MustCompile(`^[A-Za-z0-9 _-]*$`).MatchString(val)
 }
 
-func (t *Topic) setNewValue(pathName string, val string) error {
+func (t *Topic) set_path(pathName string, val string) error {
 	switch pathName {
 	case "o":
 		if len(t.Organization) > 0 {
@@ -204,8 +215,8 @@ func (t *Topic) setNewValue(pathName string, val string) error {
 //   - Topic string should contain atleast 'organization' and 'project'
 //   - Order of the path names does not matter: o:org;p:proj == p:proj;o:org
 //   - The values between `<` and `>` are literals and should return true by `isLiteral(literal)` function
-func ParseString(topic_string string) (Topic, error) {
-	parts := strings.Split(topic_string, ";")
+func ParseString(topic_string TopicString) (Topic, error) {
+	parts := strings.Split(topic_string.String(), ";")
 	length := len(parts)
 	if length < 2 {
 		return Topic{}, fmt.Errorf("%s should have atleast 2 parts divided by ';'", topic_string)
@@ -231,9 +242,9 @@ func ParseString(topic_string string) (Topic, error) {
 			return Topic{}, fmt.Errorf("part[%d] ('%s') isLiteral(%v) false", i, key_value[0], key_value[1])
 		}
 
-		err := t.setNewValue(key_value[0], key_value[1])
+		err := t.set_path(key_value[0], key_value[1])
 		if err != nil {
-			return t, fmt.Errorf("part[%d] setNewValue: %w", i, err)
+			return t, fmt.Errorf("part[%d] set_path: %w", i, err)
 		}
 	}
 

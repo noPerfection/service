@@ -45,11 +45,6 @@ func (t *TopicFilter) Len(level uint8) int {
 	}
 }
 
-// topic key
-func (t *TopicFilter) Key() TopicKey {
-	return TopicKey(t.ToString())
-}
-
 // list of path
 func list(properties []string) string {
 	str := ""
@@ -61,7 +56,7 @@ func list(properties []string) string {
 }
 
 // Convert the topic filter object to the topic filter string.
-func (t *TopicFilter) ToString() string {
+func (t *TopicFilter) ToString() TopicString {
 	str := ""
 	if len(t.Organizations) > 0 {
 		str += "o:" + list(t.Organizations) + ";"
@@ -82,7 +77,7 @@ func (t *TopicFilter) ToString() string {
 		str += "e:" + list(t.Events) + ";"
 	}
 
-	return str
+	return TopicString(str)
 }
 
 func NewFromKeyValueParameter(parameters key_value.KeyValue) (*TopicFilter, error) {
