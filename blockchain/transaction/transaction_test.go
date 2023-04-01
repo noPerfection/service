@@ -1,11 +1,12 @@
 package transaction
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/common/blockchain"
+	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -16,6 +17,7 @@ import (
 // returns the current testing context
 type TestTransactionSuite struct {
 	suite.Suite
+	tx RawTransaction
 }
 
 // Test setup (inproc, tcp and sub)
@@ -29,65 +31,195 @@ type TestTransactionSuite struct {
 // Make sure that Account is set to five
 // before each test
 func (suite *TestTransactionSuite) SetupTest() {
-	logger, err := log.New("log", log.WITHOUT_TIMESTAMP)
-	suite.NoError(err, "failed to create logger")
-	app_config, err := configuration.NewAppConfig(logger)
-	suite.NoError(err, "failed to create logger")
+	sm_key := smartcontract_key.Key{
+		NetworkId: "1",
+		Address:   "0xdead",
+	}
+	header := blockchain.NewHeader(uint64(1), uint64(2))
+	tx_key := blockchain.TransactionKey{
+		Id:    "0x123213",
+		Index: 0,
+	}
+	from := "0x123"
+	data := "asdsad"
+	value := float64(0.0)
+	tx := RawTransaction{
+		SmartcontractKey: sm_key,
+		BlockHeader:      header,
+		TransactionKey:   tx_key,
+		From:             from,
+		Data:             data,
+		Value:            value,
+	}
 
-	inproc_categorizer_service, err := service.Inprocess(service.CATEGORIZER)
+	suite.tx = tx
+}
+
+func (suite *TestTransactionSuite) TestToString() {
+	expected := `{"block_header":{"block_number":1,"block_timestamp":2},"smartcontract_key":{"address":"0xdead","network_id":"1"},"transaction_data":"asdsad","transaction_from":"0x123","transaction_key":{"id":"0x123213","index":0}}`
+	actual, err := suite.tx.ToString()
 	suite.Require().NoError(err)
-	_, err = NewTcpSocket(inproc_categorizer_service, nil, logger, app_config)
+	suite.Require().EqualValues(expected, actual)
+
+	header := blockchain.NewHeader(uint64(1), uint64(2))
+	tx_key := blockchain.TransactionKey{
+		Id:    "0x123213",
+		Index: 0,
+	}
+	from := "0x123"
+	data := "asdsad"
+	value := float64(0.0)
+	tx := RawTransaction{
+		SmartcontractKey: smartcontract_key.Key{},
+		BlockHeader:      header,
+		TransactionKey:   tx_key,
+		From:             from,
+		Data:             data,
+		Value:            value,
+	}
+	// one of the parameters is empty
+	_, err = tx.ToString()
 	suite.Require().Error(err)
 
-	categorizer_service, err := service.NewExternal(service.CATEGORIZER, service.THIS, app_config)
-	suite.Require().NoError(err)
-	client_service, err := service.NewExternal(service.CATEGORIZER, service.REMOTE, app_config)
-	suite.Require().NoError(err)
-	subscriber_service, err := service.NewExternal(service.CATEGORIZER, service.SUBSCRIBE, app_config)
+	// omitting the parameter
+	tx = RawTransaction{
+		BlockHeader:    header,
+		TransactionKey: tx_key,
+		From:           from,
+		Data:           data,
+		Value:          value,
+	}
+	_, err = tx.ToString()
+	suite.Require().Error(err)
+
+	// from is empty, it should fail
+	sm_key := smartcontract_key.Key{
+		NetworkId: "1",
+		Address:   "0xdead",
+	}
+	tx = RawTransaction{
+		SmartcontractKey: sm_key,
+		BlockHeader:      header,
+		TransactionKey:   tx_key,
+		From:             "",
+		Data:             data,
+		Value:            value,
+	}
+	_, err = tx.ToString()
+	suite.Require().Error(err)
+
+	// one of the nested keys is empty
+	// in this case tx.SmartcontractKey.NetworkId
+	tx = RawTransaction{
+		SmartcontractKey: smartcontract_key.Key{
+			Address: "0xdead",
+		},
+		BlockHeader:    header,
+		TransactionKey: tx_key,
+		From:           "asdsa",
+		Data:           data,
+		Value:          value,
+	}
+	_, err = tx.ToString()
+	suite.Require().Error(err)
+}
+
+func (suite *TestTransactionSuite) TestNew() {
+	sm_key := smartcontract_key.Key{
+		NetworkId: "1",
+		Address:   "0xdead",
+	}
+	header := blockchain.NewHeader(uint64(1), uint64(2))
+	tx_key := blockchain.TransactionKey{
+		Id:    "0x123213",
+		Index: 0,
+	}
+	from := "0x123"
+	kv := key_value.Empty().
+		Set("smartcontract_key", sm_key).
+		Set("block_header", header).
+		Set("transaction_key", tx_key).
+		Set("transaction_from", from)
+
+	_, err := New(kv)
 	suite.Require().NoError(err)
 
-	// We can't initiate the socket with the THIS limit
-	_, err = NewTcpSocket(categorizer_service, nil, logger, app_config)
+	// empty map key should fail
+	// as transaction.validate() will fail
+	kv = key_value.Empty()
+	_, err = New(kv)
 	suite.Require().Error(err)
-	// We can't initiate with the empty service
-	_, err = NewTcpSocket(client_service, nil, logger, nil)
+
+	// one of the parameters is missing
+	// here its missing to have "transaction_from"
+	kv = key_value.Empty().
+		Set("smartcontract_key", sm_key).
+		Set("block_header", header).
+		Set("transaction_key", tx_key).
+		Set("from", from)
+	_, err = New(kv)
 	suite.Require().Error(err)
-	// We can't initiate with the empty service
-	_, err = NewTcpSocket(nil, nil, logger, app_config)
+
+	// even if the nested parameter is invalid
+	// its an error
+	kv = key_value.Empty().
+		Set("smartcontract_key", "it should be map string").
+		Set("block_header", header).
+		Set("transaction_key", tx_key).
+		Set("from", from)
+	_, err = New(kv)
 	suite.Require().Error(err)
-	_, err = NewTcpSocket(client_service, nil, logger, app_config)
+
+	// empty value should fail
+	kv = key_value.Empty().
+		Set("smartcontract_key", map[string]interface{}{}).
+		Set("block_header", header).
+		Set("transaction_key", tx_key).
+		Set("from", from)
+	_, err = New(kv)
+	suite.Require().Error(err)
+
+	// using a key value instead the data type should be valid
+	// its valid
+	kv = key_value.Empty().
+		Set("smartcontract_key", key_value.Empty().
+			Set("address", "0xdead").
+			Set("network_id", "1"),
+		).
+		Set("block_header", header).
+		Set("transaction_key", tx_key).
+		Set("transaction_from", from)
+	fmt.Println("the kv to convert", kv)
+	_, err = New(kv)
 	suite.Require().NoError(err)
 
-	// We can't initiate the socket with the THIS limit
-	_, err = InprocRequestSocket("", logger, app_config)
-	suite.Require().Error(err)
-	// We can't initiate with the empty service
-	_, err = InprocRequestSocket("inproc://a", logger, nil)
-	suite.Require().Error(err)
-	// We can't initiate with the empty service
-	_, err = InprocRequestSocket("inproc://", logger, app_config)
-	suite.Require().Error(err)
-	// We can't initiate with the non inproc url
-	_, err = InprocRequestSocket(categorizer_service.Url(), logger, app_config)
-	suite.Require().Error(err)
-	_, err = InprocRequestSocket(inproc_categorizer_service.Url(), logger, app_config)
+	// using a map instead data type for the field
+	// should be valid
+	kv = key_value.Empty().
+		Set("smartcontract_key", map[string]interface{}{
+			"address":    "0xdead",
+			"network_id": "1",
+		}).
+		Set("block_header", header).
+		Set("transaction_key", tx_key).
+		Set("transaction_from", from)
+	_, err = New(kv)
 	suite.Require().NoError(err)
 
-	// We can't initiate the socket with the non SUBSCRIBE limit
-	_, err = NewTcpSubscriber(categorizer_service, nil, logger, app_config)
+	// one of the nested parameters is empty
+	// it should fail
+	kv = key_value.Empty().
+		Set("smartcontract_key", key_value.Empty().
+			Set("address", "0xdead")).
+		Set("block_header", header).
+		Set("transaction_key", tx_key).
+		Set("transaction_from", from)
+	_, err = New(kv)
 	suite.Require().Error(err)
-	// We can't initiate with the empty service
-	_, err = NewTcpSubscriber(subscriber_service, nil, logger, nil)
-	suite.Require().Error(err)
-	// We can't initiate with the empty service
-	_, err = NewTcpSubscriber(nil, nil, logger, app_config)
-	suite.Require().Error(err)
-	_, err = NewTcpSubscriber(subscriber_service, nil, logger, app_config)
-	suite.Require().NoError(err)
 }
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestReplyController(t *testing.T) {
+func TestTransaction(t *testing.T) {
 	suite.Run(t, new(TestTransactionSuite))
 }
