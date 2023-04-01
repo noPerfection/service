@@ -36,6 +36,10 @@ func NewHeaderFromKeyValueParameter(parameters key_value.KeyValue) (BlockHeader,
 		return block, fmt.Errorf("failed to convert key-value of Configuration to interface %v", err)
 	}
 
+	if block.Number.Value() == 0 || block.Timestamp.Value() == 0 {
+		return block, fmt.Errorf("one of the parameters is 0")
+	}
+
 	return block, nil
 }
 
@@ -44,6 +48,10 @@ func NewNumberFromKeyValueParameter(parameters key_value.KeyValue) (Number, erro
 	number, err := parameters.GetUint64("block_number")
 	if err != nil {
 		return 0, fmt.Errorf("parameter.GetUint64: %w", err)
+	}
+
+	if number == 0 {
+		return 0, fmt.Errorf("parameter is 0")
 	}
 
 	return Number(number), nil
@@ -56,13 +64,17 @@ func NewTimestampFromKeyValueParameter(parameters key_value.KeyValue) (Timestamp
 		return 0, fmt.Errorf("parameter.GetUint64: %w", err)
 	}
 
+	if block_timestamp == 0 {
+		return 0, fmt.Errorf("parameter is 0")
+	}
+
 	return Timestamp(block_timestamp), nil
 }
 
 func NewHeader(number uint64, timestmap uint64) BlockHeader {
 	return BlockHeader{
-		Number:    Number(number),
-		Timestamp: Timestamp(timestmap),
+		Number:    NewNumber(number),
+		Timestamp: NewTimestamp(timestmap),
 	}
 }
 
