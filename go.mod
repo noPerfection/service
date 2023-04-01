@@ -11,6 +11,7 @@ require (
 	github.com/immutable/imx-core-sdk-golang v0.2.2
 	github.com/muesli/gamut v0.3.1
 	github.com/spf13/viper v1.15.0
+	github.com/stretchr/testify v1.8.2
 )
 
 require (
@@ -68,8 +69,6 @@ require (
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/objx v0.5.0 // indirect
-	github.com/stretchr/testify v1.8.2 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
 	github.com/tklauser/numcpus v0.5.0 // indirect
