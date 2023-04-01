@@ -6,6 +6,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
+// Filter unlike Topic can omit the parameters
 type TopicFilter struct {
 	Organizations  []string `json:"o,omitempty"`
 	Projects       []string `json:"p,omitempty"`
@@ -26,104 +27,106 @@ func NewFilterTopic(o []string, p []string, n []string, g []string, s []string, 
 	}
 }
 
-func (t *TopicFilter) Len(level uint8) int {
-	switch level {
-	case ORGANIZATION_LEVEL:
-		return len(t.Organizations)
-	case PROJECT_LEVEL:
-		return len(t.Projects)
-	case NETWORK_ID_LEVEL:
-		return len(t.NetworkIds)
-	case GROUP_LEVEL:
-		return len(t.Groups)
-	case SMARTCONTRACT_LEVEL:
-		return len(t.Smartcontracts)
-	case FULL_LEVEL:
-		return len(t.Events)
-	default:
-		return len(t.Organizations) + len(t.Projects) + len(t.NetworkIds) + len(t.Groups) + len(t.Smartcontracts) + len(t.Events)
-	}
-}
-
-// list of path
-func list(properties []string) string {
+// convert properties to string
+func reduce_properties(properties []string) string {
 	str := ""
-	for _, v := range properties {
-		str += "," + v
+	for i, v := range properties {
+		if i != 0 {
+			str += ","
+		}
+		str += v
 	}
 
 	return str
+}
+
+func (f *TopicFilter) has_nested_level(level uint8) bool {
+	switch level {
+	case ORGANIZATION_LEVEL:
+		if !f.has_nested_level(PROJECT_LEVEL) {
+			return len(f.Organizations) != 0
+		}
+		return true
+	case PROJECT_LEVEL:
+		if !f.has_nested_level(NETWORK_ID_LEVEL) {
+			return len(f.Projects) != 0
+		}
+		return true
+	case NETWORK_ID_LEVEL:
+		if !f.has_nested_level(GROUP_LEVEL) {
+			return len(f.NetworkIds) != 0
+		}
+		return true
+	case GROUP_LEVEL:
+		if !f.has_nested_level(SMARTCONTRACT_LEVEL) {
+			return len(f.Groups) != 0
+		}
+		return true
+	case SMARTCONTRACT_LEVEL:
+		if !f.has_nested_level(FULL_LEVEL) {
+			return len(f.Smartcontracts) != 0
+		}
+		return true
+	case FULL_LEVEL:
+		return len(f.Events) != 0
+	}
+	return false
 }
 
 // Convert the topic filter object to the topic filter string.
 func (t *TopicFilter) ToString() TopicString {
 	str := ""
 	if len(t.Organizations) > 0 {
-		str += "o:" + list(t.Organizations) + ";"
+		str += "o:" + reduce_properties(t.Organizations)
+		if t.has_nested_level(ORGANIZATION_LEVEL) {
+			str += ";"
+		}
 	}
 	if len(t.Projects) > 0 {
-		str += "p:" + list(t.Projects) + ";"
+		str += "p:" + reduce_properties(t.Projects)
+		if t.has_nested_level(PROJECT_LEVEL) {
+			str += ";"
+		}
 	}
 	if len(t.NetworkIds) > 0 {
-		str += "n:" + list(t.NetworkIds) + ";"
+		str += "n:" + reduce_properties(t.NetworkIds)
+		if t.has_nested_level(NETWORK_ID_LEVEL) {
+			str += ";"
+		}
 	}
 	if len(t.Groups) > 0 {
-		str += "g:" + list(t.Groups) + ";"
+		str += "g:" + reduce_properties(t.Groups)
+		if t.has_nested_level(GROUP_LEVEL) {
+			str += ";"
+		}
 	}
 	if len(t.Smartcontracts) > 0 {
-		str += "s:" + list(t.Smartcontracts) + ";"
+		str += "s:" + reduce_properties(t.Smartcontracts)
+		if t.has_nested_level(SMARTCONTRACT_LEVEL) {
+			str += ";"
+		}
 	}
 	if len(t.Events) > 0 {
-		str += "e:" + list(t.Events) + ";"
+		str += "e:" + reduce_properties(t.Events)
 	}
 
 	return TopicString(str)
 }
 
+// If the given key value has a "topic_filter" key
+// then the value should be topic filter
 func NewFromKeyValueParameter(parameters key_value.KeyValue) (*TopicFilter, error) {
 	topic_filter_map, err := parameters.GetKeyValue("topic_filter")
 	if err != nil {
 		return nil, fmt.Errorf("missing `topic_filter` parameter")
 	}
 
-	return NewFromKeyValue(topic_filter_map), nil
-}
+	var topic_filter TopicFilter
+	err = topic_filter_map.ToInterface(&topic_filter)
 
-// Converts the JSON object to the topic.TopicFilter
-func NewFromKeyValue(parameters key_value.KeyValue) *TopicFilter {
-	topic_filter := TopicFilter{
-		Organizations:  []string{},
-		Projects:       []string{},
-		NetworkIds:     []string{},
-		Groups:         []string{},
-		Smartcontracts: []string{},
-		Events:         []string{},
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert the value to TopicFilter: %w", err)
 	}
 
-	organizations, err := parameters.GetStringList("o")
-	if err == nil {
-		topic_filter.Organizations = organizations
-	}
-	projects, err := parameters.GetStringList("p")
-	if err == nil {
-		topic_filter.Projects = projects
-	}
-	network_ids, err := parameters.GetStringList("n")
-	if err == nil {
-		topic_filter.NetworkIds = network_ids
-	}
-	groups, err := parameters.GetStringList("g")
-	if err == nil {
-		topic_filter.Groups = groups
-	}
-	smartcontracts, err := parameters.GetStringList("s")
-	if err == nil {
-		topic_filter.Smartcontracts = smartcontracts
-	}
-	logs, err := parameters.GetStringList("e")
-	if err == nil {
-		topic_filter.Events = logs
-	}
-
-	return &topic_filter
+	return &topic_filter, nil
 }
