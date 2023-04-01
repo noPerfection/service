@@ -12,8 +12,8 @@ type Parameters struct {
 }
 
 type Message struct {
-	Status     string `json:"status"`
-	Message    string `json:"message,omitempty"`
+	Status     message.ReplyStatus `json:"status"`
+	Message    string              `json:"message,omitempty"`
 	Parameters Parameters
 }
 
