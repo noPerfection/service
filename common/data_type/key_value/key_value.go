@@ -197,9 +197,9 @@ func (k KeyValue) ToInterface(i interface{}) error {
 	if err != nil {
 		return fmt.Errorf("k.ToBytes of %v: '%w'", k, err)
 	}
-	err = json.Unmarshal(bytes, &i)
+	err = json.Unmarshal(bytes, i)
 	if err != nil {
-		return fmt.Errorf("json.deserialize of %s to %T: '%w'", bytes, i, err)
+		return fmt.Errorf("json.deserialize(%s to %T): '%w'", bytes, i, err)
 	}
 
 	return nil
