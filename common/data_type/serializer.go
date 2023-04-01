@@ -15,8 +15,10 @@ func Serialize(body interface{}) ([]byte, error) {
 	return bytes, nil
 }
 
+// Deserialize the given string to the map, slice
+// or struct.
 func Deserialize(bytes []byte, body interface{}) error {
-	err := json.Unmarshal(bytes, &body)
+	err := json.Unmarshal(bytes, body)
 
 	if err != nil {
 		return fmt.Errorf("json: '%w'", err)
