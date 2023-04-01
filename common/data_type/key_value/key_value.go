@@ -10,7 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 )
 
-// identical to the golang map
+// identical to the golang map but with the helper
+// functions.
+// no value could be `nil`.
 type KeyValue map[string]interface{}
 
 // Converts the map to the key-value data type
@@ -73,21 +75,93 @@ func (k KeyValue) no_nil_value() error {
 		}
 
 		nested_kv, ok := value.(KeyValue)
-		if !ok {
+
+		if ok {
+			err := nested_kv.no_nil_value()
+			if err != nil {
+				return fmt.Errorf("key %s nested value nil: %w", key, err)
+			}
+
 			continue
 		}
 
-		err := nested_kv.no_nil_value()
-		if err != nil {
-			return fmt.Errorf("key %s nested value nil: %w", key, err)
+		nested_map, ok := value.(map[string]interface{})
+
+		if ok {
+			nested_kv = New(nested_map)
+
+			err := nested_kv.no_nil_value()
+			if err != nil {
+				return fmt.Errorf("key %s nested value nil: %w", key, err)
+			}
 		}
 	}
 
 	return nil
 }
 
+// It sets the numbers in a string format.
+// The string format for the number means a json number
+func (k KeyValue) set_number() {
+	for key, value := range k {
+		if value == nil {
+			continue
+		}
+
+		big_num, err := k.GetBigNumber(key)
+		if err == nil {
+			delete(k, key)
+
+			json_number := json.Number(big_num.String())
+			k.Set(key, json_number)
+			continue
+		}
+
+		float_num, err := k.GetFloat64(key)
+		if err == nil {
+			delete(k, key)
+
+			json_number := json.Number(strconv.FormatFloat(float_num, 'G', -1, 64))
+			k.Set(key, json_number)
+			continue
+		}
+
+		num, err := k.GetUint64(key)
+		if err == nil {
+			delete(k, key)
+
+			json_number := json.Number(strconv.FormatUint(num, 10))
+			k.Set(key, json_number)
+			continue
+		}
+
+		nested_kv, ok := value.(KeyValue)
+		if ok {
+			nested_kv.set_number()
+
+			delete(k, key)
+			k.Set(key, nested_kv)
+			continue
+		}
+
+		nested_map, ok := value.(map[string]interface{})
+		if ok {
+			nested_kv = New(nested_map)
+			// ToMap will call set_number()
+			nested_map = nested_kv.ToMap()
+
+			delete(k, key)
+			k.Set(key, nested_map)
+			continue
+		}
+	}
+
+	return
+}
+
 // Converts the key-valueto the golang map
 func (k KeyValue) ToMap() map[string]interface{} {
+	k.set_number()
 	return map[string]interface{}(k)
 }
 
@@ -97,6 +171,8 @@ func (k KeyValue) ToBytes() ([]byte, error) {
 	if err != nil {
 		return []byte{}, fmt.Errorf("nil value: %w", err)
 	}
+	k.set_number()
+
 	bytes, err := json.Marshal(k)
 	if err != nil {
 		return []byte{}, fmt.Errorf("json.serialize: '%w'", err)
