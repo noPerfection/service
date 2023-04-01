@@ -1,7 +1,6 @@
 package key_value
 
 import (
-	"fmt"
 	"testing"
 
 	"encoding/json"
@@ -164,15 +163,15 @@ func (suite *TestKeyValueSuite) TestToInterface() {
 		Param3 Nested `json:"param_3"`
 	}
 	var new_temp Temp
-	err := suite.key.ToInterface(new_temp)
+	err := suite.key.ToInterface(&new_temp)
 	suite.Require().NoError(err)
 
 	// Can not convert to the scalar format
 	// But it will be empty
+	// since its not passed by a pointer
 	var invalid_temp string
 	err = suite.key.ToInterface(invalid_temp)
-	fmt.Println(invalid_temp)
-	suite.Require().NoError(err)
+	suite.Require().Error(err)
 
 	// Can convert with the wrong type
 	// But check it in the struct
@@ -182,21 +181,20 @@ func (suite *TestKeyValueSuite) TestToInterface() {
 		Param3 Nested `json:"param_3"`
 	}
 	var no_json_temp InvalidTemp
-	err = suite.key.ToInterface(no_json_temp)
+	err = suite.key.ToInterface(&no_json_temp)
 	suite.Require().NoError(err)
 
 	// Can convert to another type
-	// But the data will be nullified
-	// set to 0, "", or nil
+	// with the invalid parameter type.
+	// The map's param_2 is a string.
 	type InvalidType struct {
 		Param1 uint64 `json:"param_1"`
 		Param2 uint64 `json:"param_2"`
 		Param3 Nested `json:"param_3"`
 	}
 	var has_more_temp InvalidType
-	err = suite.key.ToInterface(has_more_temp)
-	fmt.Println(has_more_temp)
-	suite.Require().NoError(err)
+	err = suite.key.ToInterface(&has_more_temp)
+	suite.Require().Error(err)
 }
 
 // In order for 'go test' to run this suite, we need to create
