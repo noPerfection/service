@@ -40,8 +40,14 @@ func (q *Queue) IsFull() bool {
 	return q.l.Len() == q.length
 }
 
+// Adds the element to the queue.
+// If the element type is not the same as
+// the expected type, then
+// It will silently drop it.
 func (q *Queue) Push(item interface{}) {
-	q.l.PushBack(item)
+	if reflect.TypeOf(item) == q.element_type {
+		q.l.PushBack(item)
+	}
 }
 
 // Returns the first element without removing it from the queue
