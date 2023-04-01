@@ -21,7 +21,7 @@ type RawLog struct {
 	// Index of the log in the transaction's log list.
 	Index uint `json:"log_index"` // index
 	// Raw data of the log
-	Data string `json:"log_data"` // datatext data type
+	Data string `json:"log_data,omitempty"` // text data type
 	// Indexed data of the log
 	Topics []string `json:"log_topics,omitempty"` // topics
 }
