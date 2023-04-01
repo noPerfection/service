@@ -10,10 +10,20 @@ import (
 // Convert the JSON into spaghetti.Log
 // https://docs.soliditylang.org/en/v0.8.4/abi-spec.html?highlight=anonymous#json
 func New(parameters key_value.KeyValue) (*RawLog, error) {
+	err := parameters.Exist("log_index")
+	if err != nil {
+		return nil, fmt.Errorf("validation of log_index: %w", err)
+	}
+
 	var log RawLog
-	err := parameters.ToInterface(&log)
+	err = parameters.ToInterface(&log)
 	if err != nil {
 		return nil, fmt.Errorf("key-value convert: %w", err)
+	}
+
+	err = log.Transaction.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("transaction.Validate: %w", err)
 	}
 
 	return &log, nil

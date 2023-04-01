@@ -15,7 +15,7 @@ func New(parameters key_value.KeyValue) (*RawTransaction, error) {
 		return nil, fmt.Errorf("convert key value: %w", err)
 	}
 
-	err = transaction.validate()
+	err = transaction.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("validation: %w", err)
 	}

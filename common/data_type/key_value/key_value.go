@@ -223,7 +223,7 @@ func (k KeyValue) Set(name string, value interface{}) KeyValue {
 	return k
 }
 
-func (parameters KeyValue) exist(name string) error {
+func (parameters KeyValue) Exist(name string) error {
 	_, exists := parameters[name]
 	if !exists {
 		return fmt.Errorf("'%s' not found in %v", name, parameters)
@@ -234,7 +234,7 @@ func (parameters KeyValue) exist(name string) error {
 
 // Returns the parameter as an uint64
 func (parameters KeyValue) GetUint64(name string) (uint64, error) {
-	if err := parameters.exist(name); err != nil {
+	if err := parameters.Exist(name); err != nil {
 		return 0, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
@@ -273,7 +273,7 @@ func (parameters KeyValue) GetUint64(name string) (uint64, error) {
 }
 
 func (parameters KeyValue) GetFloat64(name string) (float64, error) {
-	if err := parameters.exist(name); err != nil {
+	if err := parameters.Exist(name); err != nil {
 		return 0, fmt.Errorf("exist: %w", err)
 
 	}
@@ -307,7 +307,7 @@ func (parameters KeyValue) GetFloat64(name string) (float64, error) {
 }
 
 func (parameters KeyValue) GetBoolean(name string) (bool, error) {
-	if err := parameters.exist(name); err != nil {
+	if err := parameters.Exist(name); err != nil {
 		return false, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
@@ -325,7 +325,7 @@ func (parameters KeyValue) GetBoolean(name string) (bool, error) {
 
 // Returns the parsed large number. If the number size is more than 64 bits.
 func (parameters KeyValue) GetBigNumber(name string) (*big.Int, error) {
-	if err := parameters.exist(name); err != nil {
+	if err := parameters.Exist(name); err != nil {
 		return nil, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
@@ -348,7 +348,7 @@ func (parameters KeyValue) GetBigNumber(name string) (*big.Int, error) {
 
 // Returns the paramater as a string
 func (parameters KeyValue) GetString(name string) (string, error) {
-	if err := parameters.exist(name); err != nil {
+	if err := parameters.Exist(name); err != nil {
 		return "", fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
@@ -366,7 +366,7 @@ func (parameters KeyValue) GetString(name string) (string, error) {
 
 // Returns list of strings
 func (parameters KeyValue) GetStringList(name string) ([]string, error) {
-	if err := parameters.exist(name); err != nil {
+	if err := parameters.Exist(name); err != nil {
 		return nil, fmt.Errorf("exist: '%w'", err)
 	}
 	raw := parameters[name]
@@ -398,7 +398,7 @@ func (parameters KeyValue) GetStringList(name string) ([]string, error) {
 //
 // []key_value.KeyValue
 func (parameters KeyValue) GetKeyValueList(name string) ([]KeyValue, error) {
-	if err := parameters.exist(name); err != nil {
+	if err := parameters.Exist(name); err != nil {
 		return nil, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]
@@ -430,7 +430,7 @@ func (parameters KeyValue) GetKeyValueList(name string) ([]KeyValue, error) {
 //
 // key_value.KeyValue
 func (parameters KeyValue) GetKeyValue(name string) (KeyValue, error) {
-	if err := parameters.exist(name); err != nil {
+	if err := parameters.Exist(name); err != nil {
 		return nil, fmt.Errorf("exist: %w", err)
 	}
 	raw := parameters[name]

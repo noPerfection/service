@@ -24,7 +24,8 @@ type RawTransaction struct {
 	Value            float64                   `json:"transaction_value,omitempty"` // valueValue attached with transaction
 }
 
-func (t *RawTransaction) validate() error {
+// Validate that parameters are not missing
+func (t *RawTransaction) Validate() error {
 	if len(t.SmartcontractKey.Address) == 0 {
 		return fmt.Errorf("smartcontract_key.address is empty")
 	}
@@ -48,7 +49,7 @@ func (t *RawTransaction) validate() error {
 
 // JSON string representation of the spaghetti.Transaction
 func (t *RawTransaction) ToString() (string, error) {
-	err := t.validate()
+	err := t.Validate()
 	if err != nil {
 		return "", fmt.Errorf("validation: %w", err)
 	}

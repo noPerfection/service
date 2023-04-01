@@ -28,6 +28,11 @@ type RawLog struct {
 
 // JSON string representation of the spaghetti.Log
 func (l *RawLog) ToString() (string, error) {
+	err := l.Transaction.Validate()
+	if err != nil {
+		return "", fmt.Errorf("transaction.Validate: %w", err)
+	}
+
 	kv, err := key_value.NewFromInterface(l)
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize spaghetti log to intermediate key-value %v: %v", l, err)
@@ -43,6 +48,8 @@ func (l *RawLog) ToString() (string, error) {
 
 // Serielizes the Log.Topics into the byte array
 // Reverse of log.ParseTopics()
+//
+// Needed to store in the database
 func (b *RawLog) TopicRaw() []byte {
 	byt, err := json.Marshal(b.Topics)
 	if err != nil {
@@ -54,6 +61,8 @@ func (b *RawLog) TopicRaw() []byte {
 
 // Converts the byte array into the topic list.
 // Reverse of log.TopicRaw()
+//
+// Needed to parse topics from the database
 func (b *RawLog) ParseTopics(raw []byte) error {
 	var topics []string
 	err := json.Unmarshal(raw, &topics)
