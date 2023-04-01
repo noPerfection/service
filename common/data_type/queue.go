@@ -2,17 +2,29 @@ package data_type
 
 import (
 	"container/list"
+	"reflect"
 )
 
 type Queue struct {
-	l      *list.List
-	length int
+	l            *list.List
+	length       int
+	element_type reflect.Type
 }
 
-func NewQueue() *Queue {
+const QUEUE_LENGTH = 10
+
+// Queue of the elements that could contain
+// maximum QUEUE_LENGTH amount of elements.
+//
+// The queue has a function that returns the first element
+// by taking it out from the list.
+//
+// The added elements attached after the last element.
+func NewQueue(element_type reflect.Type) *Queue {
 	return &Queue{
-		length: 10,
-		l:      list.New(),
+		element_type: element_type,
+		length:       QUEUE_LENGTH,
+		l:            list.New(),
 	}
 }
 
