@@ -1,8 +1,8 @@
 package provider
 
 import (
-	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
@@ -15,8 +15,23 @@ func New(data key_value.KeyValue) (Provider, error) {
 		return provider, fmt.Errorf("failed to convert key-value to provider.Provider: %v", err)
 	}
 
+	if len(provider.Url) == 0 {
+		return Provider{}, fmt.Errorf("empty url or its missing")
+	}
+
 	if provider.Length == 0 {
-		return Provider{}, errors.New("length of the provider can not be zero")
+		return Provider{}, fmt.Errorf("length of the provider can not be zero")
+	}
+	if provider.Length > PROVIDER_MAX_LENGTH {
+		return Provider{}, fmt.Errorf("the '%s' provider length '%d' exceeds the limit %d", provider.Url, provider.Length, PROVIDER_MAX_LENGTH)
+	}
+
+	u, err := url.ParseRequestURI(provider.Url)
+	if err != nil {
+		return Provider{}, fmt.Errorf("invalid '%s' provider url: %w", provider.Url, err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return Provider{}, fmt.Errorf("invalid '%s' provider protocol. Expected either 'http' or 'https'. But given '%s'", provider.Url, u.Scheme)
 	}
 
 	return provider, nil
