@@ -23,6 +23,9 @@ func New(raw key_value.KeyValue) (*Network, error) {
 	if err != nil {
 		return nil, fmt.Errorf("converting 'type' parameter '%v'; ", err)
 	}
+	if network_type == ALL {
+		return nil, fmt.Errorf("creating network with ALL is not valid")
+	}
 
 	raw_providers, err := raw.GetKeyValueList("providers")
 	if err != nil {
@@ -31,6 +34,9 @@ func New(raw key_value.KeyValue) (*Network, error) {
 	providers, err := provider.NewList(raw_providers)
 	if err != nil {
 		return nil, fmt.Errorf("convertings 'provider' parameter '%v'; ", err)
+	}
+	if len(providers) == 0 {
+		return nil, fmt.Errorf("atleast one provider should be given")
 	}
 
 	return &Network{

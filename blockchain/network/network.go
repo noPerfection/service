@@ -14,6 +14,8 @@ type Network struct {
 }
 
 // Returns the provider url
+// If there is no providers,
+// then returns an error.
 func (n *Network) GetFirstProviderUrl() (string, error) {
 	if len(n.Providers) == 0 {
 		return "", fmt.Errorf("there is no providers")
@@ -22,6 +24,8 @@ func (n *Network) GetFirstProviderUrl() (string, error) {
 }
 
 // Returns the block range length that is available for the first provider
+// If there is no providers,
+// then returns an error.
 func (n *Network) GetFirstProviderLength() (uint64, error) {
 	if len(n.Providers) == 0 {
 		return 0, fmt.Errorf("there is no providers")

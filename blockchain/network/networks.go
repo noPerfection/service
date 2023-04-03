@@ -21,15 +21,18 @@ func (networks Networks) Exist(network_id string) bool {
 
 // parses list of JSON objects into the list of Networks
 func NewNetworks(raw_networks []key_value.KeyValue) (Networks, error) {
-	networks := make(Networks, len(raw_networks))
+	networks := make(Networks, 0)
 
-	for i, raw := range raw_networks {
+	for _, raw := range raw_networks {
 		network, err := New(raw)
 		if err != nil {
-			return nil, fmt.Errorf("raw_networks[%d] New: %w", i, err)
+			return nil, fmt.Errorf("New: %w", err)
+		}
+		if networks.Exist(network.Id) {
+			return nil, fmt.Errorf("Exist: duplicate network id '%s'", network.Id)
 		}
 
-		networks[i] = network
+		networks = append(networks, network)
 	}
 
 	return networks, nil

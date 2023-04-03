@@ -19,8 +19,12 @@ const (
 
 // Returns list of the blockchain networks
 func GetNetworks(network_config *configuration.Config, network_type NetworkType) (Networks, error) {
-	network_config.SetDefault(SDS_BLOCKCHAIN_NETWORKS, DefaultConfiguration())
-
+	if !network_config.Exist(SDS_BLOCKCHAIN_NETWORKS) {
+		return nil, fmt.Errorf("missing '%s' in the configuration, atleast call config.SetDefault(network.SDS_BLOCKCHAIN_NETWORKS, network.DefaultConfiguration())", SDS_BLOCKCHAIN_NETWORKS)
+	}
+	if !network_type.valid() {
+		return nil, fmt.Errorf("unsupported network type %s", network_type.String())
+	}
 	env := network_config.GetString(SDS_BLOCKCHAIN_NETWORKS)
 	if len(env) == 0 {
 		return nil, errors.New("the environment variable 'SDS_BLOCKCHAIN_NETWORKS' is empty")
