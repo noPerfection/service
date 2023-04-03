@@ -59,32 +59,32 @@ func QueryFilterSmartcontract(t *topic.TopicFilter) (string, []string) {
 	query := ""
 	args := make([]string, 0)
 
-	l := t.Len(topic.ORGANIZATION_LEVEL)
+	l := len(t.Organizations)
 	if l > 0 {
 		query += ` AND static_configuration.organization IN (?` + strings.Repeat(",?", l-1) + `)`
 		args = append(args, t.Organizations...)
 	}
 
-	l = t.Len(topic.PROJECT_LEVEL)
+	l = len(t.Projects)
 	if l > 0 {
 		query += ` AND static_configuration.project IN (?` + strings.Repeat(",?", l-1) + `)`
 		args = append(args, t.Projects...)
 	}
 
-	l = t.Len(topic.NETWORK_ID_LEVEL)
+	l = len(t.NetworkIds)
 	if l > 0 {
 		query += ` AND static_configuration.network_id IN (?` + strings.Repeat(",?", l-1) + `)`
 		args = append(args, t.NetworkIds...)
 	}
 
-	l = t.Len(topic.GROUP_LEVEL)
-	if l > 0 {
+	l = len(t.Groups)
+	if len(t.Groups) > 0 {
 		query += ` AND static_configuration.group_name IN (?` + strings.Repeat(",?", l-1) + `)`
 		args = append(args, t.Groups...)
 	}
 
-	l = t.Len(topic.SMARTCONTRACT_LEVEL)
-	if l > 0 {
+	l = len(t.Smartcontracts)
+	if len(t.Smartcontracts) > 0 {
 		query += ` AND static_configuration.smartcontract_name IN (?` + strings.Repeat(",?", l-1) + `)`
 		args = append(args, t.Smartcontracts...)
 	}
