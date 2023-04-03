@@ -74,7 +74,7 @@ func transaction_deployed_get(request message.Request, logger log.Logger, parame
 	}
 
 	var blockchain_reply handler.LogFilterReply
-	err = handler.FILTER_LOG_COMMAND.Request(sock, req_parameters, &blockchain_reply)
+	err = handler.DEPLOYED_TRANSACTION_COMMAND.Request(sock, req_parameters, &blockchain_reply)
 	if err != nil {
 		return message.Fail("remote transaction_request: " + err.Error())
 	}
@@ -194,6 +194,13 @@ func Service() *service.Service {
 	return service
 }
 
+// Start the blockchain service.
+// The blockchain service has the three following parts:
+//   - networks to load the network parameters from configuration
+//   - blockchain client that connects SDS
+//     to the remote blockchain node
+//   - network worker for each network that consists the
+//     blockchain client and atleast categorizer.
 func Run(app_config *configuration.Config) {
 	logger, _ := log.New("blockchain", log.WITH_TIMESTAMP)
 
@@ -216,7 +223,9 @@ func Run(app_config *configuration.Config) {
 	}
 }
 
-// Start the workers for each blockchain
+// Start the workers for each blockchain network
+// It will initiate the categorizer along with
+// the client
 func run_networks(logger log.Logger, app_config *configuration.Config) error {
 	networks, err := network.GetNetworks(app_config, network.ALL)
 	if err != nil {
