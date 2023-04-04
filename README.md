@@ -441,6 +441,23 @@ Once you set the SDS, stop binary, and re-run to enable the new networks.
 
 # Testing
 
+> :warning: **Docker**
+> It requires docker and docker host exposing.
+> 
+> For Windows we need to expose the deamon
+> ![Expose the deamon](_assets/docker_desktop_host.png "Expose the deamon")
+> * Settings
+> * General
+> * Checkmark the *Expose Deamon*
+> * Restart the docker engine
+> 
+> Then you need to set the `DOCKER_HOST`.
+> On powershell
+>
+> ```powershell
+>  $env:DOCKER_HOST="tcp://localhost:2375"
+> ```
+
 Run recursively
 ```bash
 go test ./...
