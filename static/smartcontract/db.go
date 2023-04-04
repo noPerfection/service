@@ -11,7 +11,6 @@ import (
 
 // Whether the smartcontract address on network_id exist in database or not
 func ExistInDatabase(db *db.Database, key smartcontract_key.Key) bool {
-	fmt.Println("address ", key.Address, "network id", key.NetworkId)
 	var exists bool
 	err := db.Connection.QueryRow("SELECT IF(COUNT(address),'true','false') FROM static_smartcontract WHERE network_id = ? AND address = ?", key.NetworkId, key.Address).Scan(&exists)
 	if err != nil {
