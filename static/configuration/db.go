@@ -9,19 +9,28 @@ import (
 )
 
 // Inserts the configuration into the database
+// It doesn't validates the configuration.
+// Call conf.Validate() before calling this
 func SetInDatabase(db *db.Database, conf *Configuration) error {
-	_, err := db.Connection.Exec(`INSERT IGNORE INTO static_configuration (organization, project, network_id, group_name, smartcontract_name, address) VALUES (?, ?, ?, ?, ?, ?) `,
+	result, err := db.Connection.Exec(`INSERT IGNORE INTO static_configuration (organization, project, network_id, group_name, smartcontract_name, address) VALUES (?, ?, ?, ?, ?, ?) `,
 		conf.Topic.Organization, conf.Topic.Project, conf.Topic.NetworkId, conf.Topic.Group, conf.Topic.Smartcontract, conf.Address)
 	if err != nil {
 		fmt.Println("Failed to insert static configuration")
 		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking insert result: %w", err)
+	}
+	if affected != 1 {
+		return fmt.Errorf("expected to have 1 affected rows. Got %d", affected)
 	}
 
 	return nil
 
 }
 
-// Fills the static configuration parameters from database
+// Adds the address to the configuration
 func LoadDatabaseParts(db *db.Database, conf *Configuration) error {
 	var address string
 
@@ -40,12 +49,12 @@ func LoadDatabaseParts(db *db.Database, conf *Configuration) error {
 }
 
 // Whether the configuration exist in the database or not
-func ExistInDatabase(db *db.Database, conf *Configuration) bool {
+func ExistInDatabase(db *db.Database, topic *topic.Topic) bool {
 	var exists bool
 	err := db.Connection.QueryRow(`SELECT IF(COUNT(address),'true','false') FROM static_configuration WHERE 
 	organization = ? AND project = ? AND network_id = ? AND group_name = ? AND 
-	smartcontract_name = ? `, conf.Topic.Organization, conf.Topic.Project,
-		conf.Topic.NetworkId, conf.Topic.Group, conf.Topic.Smartcontract).Scan(&exists)
+	smartcontract_name = ? `, topic.Organization, topic.Project,
+		topic.NetworkId, topic.Group, topic.Smartcontract).Scan(&exists)
 	if err != nil {
 		fmt.Println("Static Configuration exists returned db error: ", err.Error())
 		return false

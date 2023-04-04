@@ -29,8 +29,11 @@ func ConfigurationRegister(request message.Request, logger log.Logger, parameter
 	if err != nil {
 		return message.Fail("failed to parse data")
 	}
+	if err := conf.Validate(); err != nil {
+		return message.Fail("validation: " + err.Error())
+	}
 
-	if configuration.ExistInDatabase(db_con, &conf) {
+	if configuration.ExistInDatabase(db_con, &conf.Topic) {
 		return message.Fail("Smartcontract found in the config")
 	}
 
@@ -58,8 +61,11 @@ func ConfigurationGet(request message.Request, _ log.Logger, parameters ...inter
 	if err != nil {
 		return message.Fail("failed to parse data")
 	}
+	if err := conf.Validate(); err != nil {
+		return message.Fail("validation: " + err.Error())
+	}
 
-	if !configuration.ExistInDatabase(db_con, &conf) {
+	if !configuration.ExistInDatabase(db_con, &conf.Topic) {
 		return message.Fail("Configuration not registered in the database")
 	}
 
