@@ -9,9 +9,16 @@ import (
 
 // Save the ABI in the Database
 func SetInDatabase(db *db.Database, a *Abi) error {
-	_, err := db.Connection.Exec(`INSERT IGNORE INTO static_abi (abi_id, body) VALUES (?, ?) `, a.Id, a.Bytes)
+	result, err := db.Connection.Exec(`INSERT IGNORE INTO static_abi (abi_id, body) VALUES (?, ?) `, a.Id, a.Bytes)
 	if err != nil {
 		return fmt.Errorf("abi setting db error: %v", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking insert result: %w", err)
+	}
+	if affected != 1 {
+		return fmt.Errorf("expected to have 1 affected rows. Got %d", affected)
 	}
 	return nil
 }
