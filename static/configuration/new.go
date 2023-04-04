@@ -8,10 +8,17 @@ import (
 )
 
 // Converts the Topic to the Configuration
-func NewFromTopic(t topic.Topic) (*Configuration, error) {
-	return &Configuration{
-		Topic: t,
-	}, nil
+// Note that you should set the address as well
+func NewFromTopic(t topic.Topic, address string) (*Configuration, error) {
+	c := &Configuration{
+		Topic:   t,
+		Address: address,
+	}
+	if err := c.Validate(); err != nil {
+		return nil, fmt.Errorf("Validate: %w", err)
+	}
+
+	return c, nil
 }
 
 // Creates a new static.Configuration class based on the given data
@@ -20,6 +27,10 @@ func New(parameters key_value.KeyValue) (*Configuration, error) {
 	err := parameters.ToInterface(&conf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert key-value of Configuration to interface %v", err)
+	}
+
+	if err := conf.Validate(); err != nil {
+		return nil, fmt.Errorf("Validate: %w", err)
 	}
 
 	return &conf, nil
