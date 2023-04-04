@@ -7,7 +7,6 @@ package categorizer
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 
@@ -66,14 +65,12 @@ func NewManager(parent log.Logger, network *network.Network, pusher *zmq.Socket,
 		return nil, fmt.Errorf("child logger: %w", err)
 	}
 
-	queue_type := reflect.TypeOf(&spaghetti_block.Block{})
-
 	manager := Manager{
 		Network: network,
 
 		old_categorizers: make(OldWorkerGroups, 0),
 
-		subscribed_blocks: *data_type.NewQueue(queue_type),
+		subscribed_blocks: *data_type.NewQueue(),
 
 		// consumes the data from the subscribed blocks
 		current_workers: make(smartcontract.EvmWorkers, 0),
