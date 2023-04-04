@@ -11,6 +11,7 @@ import (
 
 // Whether the smartcontract address on network_id exist in database or not
 func ExistInDatabase(db *db.Database, key smartcontract_key.Key) bool {
+	fmt.Println("address ", key.Address, "network id", key.NetworkId)
 	var exists bool
 	err := db.Connection.QueryRow("SELECT IF(COUNT(address),'true','false') FROM static_smartcontract WHERE network_id = ? AND address = ?", key.NetworkId, key.Address).Scan(&exists)
 	if err != nil {
@@ -22,7 +23,7 @@ func ExistInDatabase(db *db.Database, key smartcontract_key.Key) bool {
 }
 
 func SetInDatabase(db *db.Database, a *Smartcontract) error {
-	_, err := db.Connection.Exec(`
+	result, err := db.Connection.Exec(`
 		INSERT IGNORE INTO 
 			static_smartcontract (
 				network_id, 
@@ -45,9 +46,16 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 		a.Deployer,
 	)
 	if err != nil {
-		fmt.Println("Failed to insert static smartcontract at network id as address", a.SmartcontractKey.NetworkId, a.SmartcontractKey.Address)
-		return err
+		return fmt.Errorf("db.Insert network id = %s, address = %s: %w", a.SmartcontractKey.NetworkId, a.SmartcontractKey.Address, err)
 	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking insert result: %w", err)
+	}
+	if affected != 1 {
+		return fmt.Errorf("expected to have 1 affected rows. Got %d", affected)
+	}
+
 	return nil
 }
 
