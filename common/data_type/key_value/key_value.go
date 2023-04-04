@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/blocklords/sds/common/data_type"
 	"github.com/ethereum/go-ethereum/common/math"
 )
 
@@ -204,6 +205,9 @@ func (k KeyValue) ToString() (string, error) {
 
 // Returns the key-value as an interface
 func (k KeyValue) ToInterface(i interface{}) error {
+	if !data_type.IsPointer(i) {
+		return fmt.Errorf("interface wasn't passed by pointer")
+	}
 	bytes, err := k.ToBytes()
 	if err != nil {
 		return fmt.Errorf("k.ToBytes of %v: '%w'", k, err)
