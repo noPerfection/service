@@ -18,6 +18,16 @@ func New(kv key_value.KeyValue) (*Abi, error) {
 		return nil, fmt.Errorf("key_value.ToInterface(static/abi.Abi): %w", err)
 	}
 
+	if len(abi.Id) == 0 {
+		return nil, fmt.Errorf("missing `id` parameter")
+	}
+	if len(abi.Bytes) == 0 {
+		return nil, fmt.Errorf("missing `bytes` parameter")
+	}
+	if err := abi.format_bytes(); err != nil {
+		return nil, fmt.Errorf("format_bytes: %w", err)
+	}
+
 	return &abi, nil
 }
 
@@ -35,7 +45,10 @@ func NewFromInterface(body interface{}) (*Abi, error) {
 // but won't set it in the database.
 func NewFromBytes(bytes []byte) (*Abi, error) {
 	abi := Abi{Bytes: bytes}
-	abi.GenerateId()
+	err := abi.GenerateId()
+	if err != nil {
+		return nil, fmt.Errorf("GenerateId: %w", err)
+	}
 
 	return &abi, nil
 }

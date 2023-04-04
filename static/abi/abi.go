@@ -2,7 +2,7 @@ package abi
 
 import (
 	"encoding/base64"
-	"errors"
+	"fmt"
 
 	"github.com/blocklords/sds/common/data_type"
 )
@@ -12,23 +12,59 @@ type Abi struct {
 	Id    string `json:"id"`
 }
 
-// Returns the abi content as a string
+// Returns the abi content as a string.
+// The abi bytes are first formatted.
+// If the abi parameters are invalid, then
+// the ToString() returns empty string.
 func (abi *Abi) ToString() string {
+	if err := abi.format_bytes(); err != nil {
+		return ""
+	}
 	return string(abi.Bytes)
 }
 
 // Creates the abi hash from the abi body
-// The abi hash is the unique identifier of the abi
-func (abi *Abi) GenerateId() {
+// The Abi ID is the unique identifier of the abi
+//
+// The Abi ID is the first 8 characters of the base64
+// representation of the abi.
+//
+// If the bytes field is invalid, then the id will be empty
+func (abi *Abi) GenerateId() error {
+	abi.Id = ""
+
+	// re-serialize to remove the empty spaces
+	if err := abi.format_bytes(); err != nil {
+		return fmt.Errorf("format_bytes: %w", err)
+	}
 	encoded := base64.StdEncoding.EncodeToString(abi.Bytes)
 	abi.Id = encoded[0:8]
+
+	return nil
+}
+
+func (abi *Abi) format_bytes() error {
+	// re-serialize to remove the empty spaces
+	var json interface{}
+	err := abi.Interface(&json)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize: %w", err)
+	}
+	bytes, err := data_type.Serialize(json)
+	if err != nil {
+		return fmt.Errorf("failed to re-serialize: %w", err)
+	}
+	abi.Bytes = bytes
+
+	return nil
 }
 
 // Get the interface from the bytes
+// It converts the bytes into the JSON value
 func (abi *Abi) Interface(body interface{}) error {
-	err := data_type.Deserialize(abi.Bytes, &body)
+	err := data_type.Deserialize(abi.Bytes, body)
 	if err != nil {
-		return errors.New("failed to convert abi bytes to body interface")
+		return fmt.Errorf("data_type.Deserialize: %w", err)
 	}
 
 	return nil
