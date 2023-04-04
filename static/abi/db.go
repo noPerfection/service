@@ -30,35 +30,6 @@ func GetFromDatabaseByAbiId(db *db.Database, abi_id string) (*Abi, error) {
 	return built, err
 }
 
-// Returns the Abi by the smartcontract key (network id . address)
-func GetFromDatabase(db *db.Database, network_id string, address string) (*Abi, error) {
-	var bytes []byte
-	var abi_id string
-
-	err := db.Connection.QueryRow(`
-		SELECT 
-			static_abi.body,
-			static_abi.abi_id
-		FROM 
-			static_abi, static_smartcontract 
-		WHERE 
-			static_abi.abi_id = static_smartcontract.abi_id AND
-			static_smartcontract.network_id = ? AND
-			static_smartcontract.address = ?
-		`, network_id, address).Scan(&bytes, &abi_id)
-	if err != nil {
-		fmt.Println("Static Abi loading abi returned db error: ", err.Error())
-		return nil, err
-	}
-
-	built, err := NewFromBytes(bytes)
-	if err == nil {
-		built.Id = abi_id
-	}
-
-	return built, err
-}
-
 // Checks whether the Abi exists in the database or not
 func ExistInDatabase(db *db.Database, abi_id string) bool {
 	var exists bool
