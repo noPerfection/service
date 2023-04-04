@@ -3,7 +3,6 @@ package data_type
 import (
 	"testing"
 
-	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,7 +28,7 @@ func (suite *TestSerializerSuite) TestSerialization() {
 	}
 	sample := Item{Param1: "hello", Param2: uint64(5)}
 
-	body, err := Serialize(&sample)
+	body, err := Serialize(sample)
 	suite.Require().NoError(err)
 
 	expected := `{"param_1":"hello","param_2":5}`
@@ -39,14 +38,6 @@ func (suite *TestSerializerSuite) TestSerialization() {
 	err = Deserialize(body, &new_sample)
 	suite.Require().NoError(err)
 	suite.Require().EqualValues(new_sample, sample)
-
-	// try to serialize
-	var kv key_value.KeyValue
-	err = Deserialize(body, &kv)
-	suite.Require().NoError(err)
-	sample_kv, err := key_value.NewFromInterface(sample)
-	suite.Require().NoError(err)
-	suite.Require().EqualValues(kv, sample_kv)
 
 	// try to serialize without passing the reference
 	var no_ref Item

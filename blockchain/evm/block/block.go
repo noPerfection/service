@@ -1,6 +1,7 @@
 package block
 
 import (
+	"fmt"
 	"strings"
 
 	spaghetti_log "github.com/blocklords/sds/blockchain/event"
@@ -23,7 +24,10 @@ func SetLogs(block *Block, raw_logs []eth_types.Log) error {
 			continue
 		}
 
-		log := event.NewSpaghettiLog(block.NetworkId, block.Header.Timestamp, &rawLog)
+		log, err := event.NewSpaghettiLog(block.NetworkId, block.Header.Timestamp, &rawLog)
+		if err != nil {
+			return fmt.Errorf("event.NewSpaghettiLog: %w", err)
+		}
 		logs = append(logs, *log)
 	}
 

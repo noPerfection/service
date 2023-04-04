@@ -35,7 +35,7 @@ func (suite *TestLogSuite) SetupTest() {
 		NetworkId: "1",
 		Address:   "0xdead",
 	}
-	header := blockchain.NewHeader(uint64(1), uint64(2))
+	header, _ := blockchain.NewHeader(uint64(1), uint64(2))
 	tx_key := blockchain.TransactionKey{
 		Id:    "0x123213",
 		Index: 0,
@@ -71,7 +71,7 @@ func (suite *TestLogSuite) TestToString() {
 	suite.Require().NoError(err)
 	suite.Require().EqualValues(expected, actual)
 
-	header := blockchain.NewHeader(uint64(1), uint64(2))
+	header, _ := blockchain.NewHeader(uint64(1), uint64(2))
 	tx_key := blockchain.TransactionKey{
 		Id:    "0x123213",
 		Index: 0,
@@ -172,7 +172,7 @@ func (suite *TestLogSuite) TestNew() {
 		NetworkId: "1",
 		Address:   "0xdead",
 	}
-	header := blockchain.NewHeader(uint64(1), uint64(2))
+	header, _ := blockchain.NewHeader(uint64(1), uint64(2))
 	tx_key := blockchain.TransactionKey{
 		Id:    "0x123213",
 		Index: 0,
@@ -276,7 +276,7 @@ func (suite *TestLogSuite) TestLogList() {
 		NetworkId: "1",
 		Address:   "0x1",
 	}
-	header := blockchain.NewHeader(uint64(1), uint64(2))
+	header, _ := blockchain.NewHeader(uint64(1), uint64(2))
 	tx_key := blockchain.TransactionKey{
 		Id:    "0x123213",
 		Index: 0,
@@ -310,7 +310,7 @@ func (suite *TestLogSuite) TestLogList() {
 		NetworkId: "1",
 		Address:   "0x1",
 	}
-	header = blockchain.NewHeader(uint64(2), uint64(3))
+	header, _ = blockchain.NewHeader(uint64(2), uint64(3))
 	tx.BlockHeader = header
 	tx.SmartcontractKey = sm_key
 	log = RawLog{
@@ -329,7 +329,7 @@ func (suite *TestLogSuite) TestLogList() {
 		NetworkId: "1",
 		Address:   "0x2",
 	}
-	header = blockchain.NewHeader(uint64(3), uint64(4))
+	header, _ = blockchain.NewHeader(uint64(3), uint64(4))
 	tx.BlockHeader = header
 	tx.SmartcontractKey = sm_key
 	log = RawLog{
@@ -348,7 +348,7 @@ func (suite *TestLogSuite) TestLogList() {
 		NetworkId: "1",
 		Address:   "0x3",
 	}
-	latest_header := blockchain.NewHeader(uint64(4), uint64(5))
+	latest_header, _ := blockchain.NewHeader(uint64(4), uint64(5))
 	tx.BlockHeader = latest_header
 	tx.SmartcontractKey = sm_key
 	log = RawLog{
@@ -367,7 +367,7 @@ func (suite *TestLogSuite) TestLogList() {
 		NetworkId: "1",
 		Address:   "0x4",
 	}
-	header = blockchain.NewHeader(uint64(3), uint64(4))
+	header, _ = blockchain.NewHeader(uint64(3), uint64(4))
 	tx.BlockHeader = header
 	tx.SmartcontractKey = sm_key
 	log = RawLog{

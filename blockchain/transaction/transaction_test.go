@@ -35,7 +35,7 @@ func (suite *TestTransactionSuite) SetupTest() {
 		NetworkId: "1",
 		Address:   "0xdead",
 	}
-	header := blockchain.NewHeader(uint64(1), uint64(2))
+	header, _ := blockchain.NewHeader(uint64(1), uint64(2))
 	tx_key := blockchain.TransactionKey{
 		Id:    "0x123213",
 		Index: 0,
@@ -61,7 +61,7 @@ func (suite *TestTransactionSuite) TestToString() {
 	suite.Require().NoError(err)
 	suite.Require().EqualValues(expected, actual)
 
-	header := blockchain.NewHeader(uint64(1), uint64(2))
+	header, _ := blockchain.NewHeader(uint64(1), uint64(2))
 	tx_key := blockchain.TransactionKey{
 		Id:    "0x123213",
 		Index: 0,
@@ -129,7 +129,7 @@ func (suite *TestTransactionSuite) TestNew() {
 		NetworkId: "1",
 		Address:   "0xdead",
 	}
-	header := blockchain.NewHeader(uint64(1), uint64(2))
+	header, _ := blockchain.NewHeader(uint64(1), uint64(2))
 	tx_key := blockchain.TransactionKey{
 		Id:    "0x123213",
 		Index: 0,

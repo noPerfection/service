@@ -24,7 +24,7 @@ func (suite *TestKeySuite) SetupTest() {
 		Set("network_id", network_id).
 		Set("address", address)
 
-	key := New(network_id, address)
+	key, _ := New(network_id, address)
 	suite.Require().Equal(network_id, key.NetworkId)
 	suite.Require().Equal(address, key.Address)
 

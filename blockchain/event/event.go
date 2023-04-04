@@ -92,7 +92,7 @@ func FilterByAddress(all_logs []RawLog, address string) []RawLog {
 // within the log list.
 // Its tracked by the block timestamp
 func RecentBlock(all_logs []RawLog) blockchain.BlockHeader {
-	block := blockchain.NewHeader(0, 0)
+	var block blockchain.BlockHeader
 
 	for _, log := range all_logs {
 		if log.Transaction.BlockHeader.Number > block.Number {

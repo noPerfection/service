@@ -19,8 +19,14 @@ type Key struct {
 type KeyToTopicString map[Key]string
 
 // Creates a new smartcontract key
-func New(network_id string, address string) Key {
-	return Key{NetworkId: network_id, Address: address}
+func New(network_id string, address string) (Key, error) {
+	key := Key{NetworkId: network_id, Address: address}
+	err := key.Validate()
+	if err != nil {
+		return Key{}, fmt.Errorf("key.Validate: %w", err)
+	}
+
+	return key, nil
 }
 
 // Creates a new smartcontract key from the map
@@ -31,9 +37,9 @@ func NewFromKeyValue(parameters key_value.KeyValue) (Key, error) {
 		return Key{}, fmt.Errorf("failed to convert key-value to interface: %w", err)
 	}
 
-	if len(key.NetworkId) == 0 ||
-		len(key.Address) == 0 {
-		return Key{}, fmt.Errorf("missing parameter or empty parameter")
+	err = key.Validate()
+	if err != nil {
+		return Key{}, fmt.Errorf("key.Validate: %w", err)
 	}
 
 	return key, nil
@@ -51,11 +57,28 @@ func NewFromString(s string) (Key, error) {
 		return Key{}, fmt.Errorf("missing parameter or empty parameter")
 	}
 
-	return Key{NetworkId: str[0], Address: str[1]}, nil
+	key := Key{NetworkId: str[0], Address: str[1]}
+	err := key.Validate()
+	if err != nil {
+		return Key{}, fmt.Errorf("key.Validate: %w", err)
+	}
+
+	return key, nil
 }
 
 // Returns the key as a string
 // `<network_id>.<address>`
 func (k *Key) ToString() string {
 	return k.NetworkId + "." + k.Address
+}
+
+func (key *Key) Validate() error {
+	if len(key.NetworkId) == 0 {
+		return fmt.Errorf("missing network id")
+	}
+	if len(key.Address) == 0 {
+		return fmt.Errorf("missing address")
+	}
+
+	return nil
 }

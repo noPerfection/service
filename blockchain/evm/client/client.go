@@ -174,7 +174,10 @@ func (c *Client) GetTransaction(transaction_id string, app_config *configuration
 		return nil, fmt.Errorf("client.BlockByNumber (%d): %w", block.Number, err)
 	}
 	c.increase_rating()
-	block.Timestamp = blockchain.NewTimestamp(block_raw.Header().Time)
+	block.Timestamp, err = blockchain.NewTimestamp(block_raw.Header().Time)
+	if err != nil {
+		return nil, fmt.Errorf("blockchain.NewTimestamp (%d): %w", block.Number, err)
+	}
 
 	tx, parse_err := transaction.New("", block, receipt.TransactionIndex, transaction_raw)
 	if parse_err != nil {

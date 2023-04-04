@@ -186,12 +186,20 @@ func (worker *Manager) filter_log(parameters handler.FilterLog) message.Reply {
 		return message.Fail("multiple attempts were made : " + err.Error())
 	}
 
-	block_timestamp, err := worker.get_block_timestamp(blockchain.NewNumber(block_number_from))
+	block_number, err := blockchain.NewNumber(block_number_from)
+	if err != nil {
+		return message.Fail("blockchain.NewNumber: " + err.Error())
+	}
+
+	block_timestamp, err := worker.get_block_timestamp(block_number)
 	if err != nil {
 		return message.Fail("failed to get block timestamp from blockchain: " + err.Error())
 	}
 
-	logs := evm_log.NewSpaghettiLogs(network_id, block_timestamp, raw_logs)
+	logs, err := evm_log.NewSpaghettiLogs(network_id, block_timestamp, raw_logs)
+	if err != nil {
+		return message.Fail("evm.NewSpaghettiLogs: " + err.Error())
+	}
 
 	reply := message.Reply{
 		Status:  "OK",
@@ -245,7 +253,12 @@ func (worker *Manager) get_block_timestamp(block_number blockchain.Number) (bloc
 		return 0, fmt.Errorf("multiple attempts were made")
 	}
 
-	return blockchain.NewTimestamp(block_timestamp), nil
+	new_block_timestamp, err := blockchain.NewTimestamp(block_timestamp)
+	if err != nil {
+		return 0, fmt.Errorf("blockchain.NewTimestamp: %w", err)
+	}
+
+	return new_block_timestamp, nil
 }
 
 // Handle the deployed-transaction command
@@ -343,14 +356,19 @@ func (worker *Manager) get_recent_block() message.Reply {
 		return message.Fail("block number=confirmations")
 	}
 
-	recent_block := blockchain.NewHeader(0, 0)
-	recent_block.Number = blockchain.NewNumber(block_number)
+	recent_block_number, err := blockchain.NewNumber(block_number)
+	if err != nil {
+		return message.Fail("blockchain.NewNumber: " + err.Error())
+	}
 
-	block_timestamp, err := worker.get_block_timestamp(recent_block.Number)
+	block_timestamp, err := worker.get_block_timestamp(recent_block_number)
 	if err != nil {
 		return message.Fail("failed to get block timestamp from blockchain: " + err.Error())
 	}
-	recent_block.Timestamp = blockchain.Timestamp(block_timestamp)
+	recent_block := blockchain.BlockHeader{
+		Number:    recent_block_number,
+		Timestamp: block_timestamp,
+	}
 	recent_block_kv, _ := key_value.NewFromInterface(recent_block)
 
 	reply := message.Reply{

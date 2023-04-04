@@ -16,6 +16,16 @@ type BlockHeader struct {
 	Timestamp Timestamp `json:"block_timestamp"`
 }
 
+func (header *BlockHeader) Validate() error {
+	if err := header.Number.Validate(); err != nil {
+		return fmt.Errorf("Number.Validate: %w", err)
+	}
+	if err := header.Timestamp.Validate(); err != nil {
+		return fmt.Errorf("Timestamp.Validate: %w", err)
+	}
+	return nil
+}
+
 func (n Number) Increment() Number {
 	return n + Number(1)
 }
@@ -24,8 +34,22 @@ func (n Number) Value() uint64 {
 	return uint64(n)
 }
 
+func (n Number) Validate() error {
+	if n.Value() == 0 {
+		return fmt.Errorf("number is 0")
+	}
+	return nil
+}
+
 func (t Timestamp) Value() uint64 {
 	return uint64(t)
+}
+
+func (t Timestamp) Validate() error {
+	if t.Value() == 0 {
+		return fmt.Errorf("timestamp is 0")
+	}
+	return nil
 }
 
 // Extracts the block parameters from the given key value map
@@ -36,8 +60,8 @@ func NewHeaderFromKeyValueParameter(parameters key_value.KeyValue) (BlockHeader,
 		return block, fmt.Errorf("failed to convert key-value of Configuration to interface %v", err)
 	}
 
-	if block.Number.Value() == 0 || block.Timestamp.Value() == 0 {
-		return block, fmt.Errorf("one of the parameters is 0")
+	if err := block.Validate(); err != nil {
+		return block, fmt.Errorf("Validate: %w", err)
 	}
 
 	return block, nil
@@ -50,11 +74,7 @@ func NewNumberFromKeyValueParameter(parameters key_value.KeyValue) (Number, erro
 		return 0, fmt.Errorf("parameter.GetUint64: %w", err)
 	}
 
-	if number == 0 {
-		return 0, fmt.Errorf("parameter is 0")
-	}
-
-	return Number(number), nil
+	return NewNumber(number)
 }
 
 // Extracts the block timestamp from the key value map
@@ -64,24 +84,33 @@ func NewTimestampFromKeyValueParameter(parameters key_value.KeyValue) (Timestamp
 		return 0, fmt.Errorf("parameter.GetUint64: %w", err)
 	}
 
-	if block_timestamp == 0 {
-		return 0, fmt.Errorf("parameter is 0")
+	return NewTimestamp(block_timestamp)
+}
+
+func NewHeader(number uint64, timestmap uint64) (BlockHeader, error) {
+	header := BlockHeader{
+		Number:    Number(number),
+		Timestamp: Timestamp(timestmap),
+	}
+	if err := header.Validate(); err != nil {
+		return BlockHeader{}, fmt.Errorf("Validate: %w", err)
 	}
 
-	return Timestamp(block_timestamp), nil
+	return header, nil
 }
 
-func NewHeader(number uint64, timestmap uint64) BlockHeader {
-	return BlockHeader{
-		Number:    NewNumber(number),
-		Timestamp: NewTimestamp(timestmap),
+func NewTimestamp(v uint64) (Timestamp, error) {
+	n := Timestamp(v)
+	if err := n.Validate(); err != nil {
+		return 0, fmt.Errorf("Validate: %w", err)
 	}
+	return n, nil
 }
 
-func NewTimestamp(v uint64) Timestamp {
-	return Timestamp(v)
-}
-
-func NewNumber(v uint64) Number {
-	return Number(v)
+func NewNumber(v uint64) (Number, error) {
+	n := Number(v)
+	if err := n.Validate(); err != nil {
+		return 0, fmt.Errorf("Validate: %w", err)
+	}
+	return n, nil
 }

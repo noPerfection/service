@@ -109,8 +109,14 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
 			}
 
-			key := smartcontract_key.New(imx.NETWORK_ID, address)
-			block := blockchain.NewHeader(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
+			key, err := smartcontract_key.New(imx.NETWORK_ID, address)
+			if err != nil {
+				return nil, fmt.Errorf("smartcontract_key.New: %w", err)
+			}
+			block, err := blockchain.NewHeader(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
+			if err != nil {
+				return nil, fmt.Errorf("blockchain.NewHeader: %w", err)
+			}
 			tx_key := blockchain.TransactionKey{
 				Id:    strconv.Itoa(int(imxTx.TransactionId)),
 				Index: uint(i),
@@ -216,8 +222,14 @@ func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Durati
 				return nil, fmt.Errorf("failed to serialize the key-value to string: %w", err)
 			}
 
-			key := smartcontract_key.New(imx.NETWORK_ID, address)
-			block := blockchain.NewHeader(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
+			key, err := smartcontract_key.New(imx.NETWORK_ID, address)
+			if err != nil {
+				return nil, fmt.Errorf("smartcontract_key.New: %w", err)
+			}
+			block, err := blockchain.NewHeader(uint64(blockTime.UTC().Unix()), uint64(blockTime.UTC().Unix()))
+			if err != nil {
+				return nil, fmt.Errorf("blockchain.NewHeader: %w", err)
+			}
 			tx_key := blockchain.TransactionKey{
 				Id:    strconv.Itoa(int(imxTx.TransactionId)),
 				Index: uint(i),

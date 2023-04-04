@@ -57,14 +57,14 @@ func SmartcontractFilter(request message.Request, _ log.Logger, parameters ...in
 	if err != nil {
 		return message.Fail("failed to filter smartcontracts by the topic filter:" + err.Error())
 	} else if len(smartcontracts) == 0 {
-		return message.Fail("no matching smartcontracts for the topic filter " + topic_filter.ToString())
+		return message.Fail("no matching smartcontracts for the topic filter " + topic_filter.ToString().String())
 	}
 
 	// list of smartcontracts (map)
 	topic_strings := make([]string, len(smartcontracts))
 
 	for i := range smartcontracts {
-		topic_strings[i] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
+		topic_strings[i] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL).String()
 	}
 
 	reply := FilterSmartcontractsReply{
@@ -102,7 +102,7 @@ func SmartcontractKeyFilter(request message.Request, _ log.Logger, parameters ..
 
 	blob := make(map[string]string, len(smartcontract_keys))
 	for i, key := range smartcontract_keys {
-		blob[key.ToString()] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL)
+		blob[key.ToString()] = topics[i].ToString(topic.SMARTCONTRACT_LEVEL).String()
 	}
 
 	reply := FilterSmartcontractKeysReply{

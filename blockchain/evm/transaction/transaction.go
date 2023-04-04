@@ -27,7 +27,10 @@ func New(network_id string, block blockchain.BlockHeader, transaction_index uint
 		to = toAddr.Hex()
 	}
 
-	key := smartcontract_key.New(network_id, to)
+	key, err := smartcontract_key.New(network_id, to)
+	if err != nil {
+		return nil, fmt.Errorf("smartcontract_key.New: %w", err)
+	}
 	tx_key := blockchain.TransactionKey{
 		Id:    tx.Hash().String(),
 		Index: transaction_index,

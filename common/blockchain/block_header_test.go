@@ -34,13 +34,13 @@ func (suite *TestBlockHeaderSuite) SetupTest() {
 		Set("block_number", uint_number).
 		Set("block_timestamp", uint_timestamp)
 
-	header := NewHeader(uint_number, uint_timestamp)
+	header, _ := NewHeader(uint_number, uint_timestamp)
 	map_header, err := NewHeaderFromKeyValueParameter(uint_map)
 	suite.Require().NoError(err)
-	number := NewNumber(uint_number)
+	number, _ := NewNumber(uint_number)
 	map_number, err := NewNumberFromKeyValueParameter(uint_map)
 	suite.Require().NoError(err)
-	timestamp := NewTimestamp(uint_timestamp)
+	timestamp, _ := NewTimestamp(uint_timestamp)
 	map_timestamp, err := NewTimestampFromKeyValueParameter(uint_map)
 	suite.Require().NoError(err)
 
@@ -73,7 +73,8 @@ func (suite *TestBlockHeaderSuite) SetupTest() {
 }
 
 func (suite *TestBlockHeaderSuite) TestValueChange() {
-	suite.Equal(NewNumber(11), suite.header.Number.Increment())
+	number, _ := NewNumber(11)
+	suite.Equal(number, suite.header.Number.Increment())
 }
 
 // In order for 'go test' to run this suite, we need to create
