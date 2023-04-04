@@ -177,8 +177,8 @@ func is_literal(val string) bool {
 	return regexp.MustCompile(`^[A-Za-z0-9 _-]*$`).MatchString(val)
 }
 
-func (t *Topic) set_path(pathName string, val string) error {
-	switch pathName {
+func (t *Topic) set_path(path string, val string) error {
+	switch path {
 	case "o":
 		if len(t.Organization) > 0 {
 			return fmt.Errorf("the duplicate organization path name. already set as " + t.Organization)
@@ -261,6 +261,17 @@ func (t *Topic) validate_missing_level(level uint8) error {
 	default:
 		return fmt.Errorf("unsupported level")
 	}
+}
+
+func (t *Topic) Validate() error {
+	level := t.Level()
+	str := t.ToString(level)
+	_, err := ParseString(str)
+	if err != nil {
+		return fmt.Errorf("failed to validate: %w", err)
+	}
+
+	return nil
 }
 
 // This method converts Topic String to the Topic Struct.
