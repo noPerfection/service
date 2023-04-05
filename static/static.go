@@ -5,7 +5,9 @@ import (
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/static/abi"
 	"github.com/blocklords/sds/static/handler"
 )
 
@@ -37,7 +39,21 @@ func Run(_ *configuration.Config, db_connection *db.Database) {
 		logger.Fatal("reply controller", "message", err)
 	}
 
-	err = reply.Run(CommandHandlers, db_connection)
+	// the global parameters to reduce
+	// database queries
+	abis, err := abi.GetAllFromDatabase(db_connection)
+	if err != nil {
+		logger.Fatal("abi.GetAllFromDatabase: %w", err)
+	}
+	abi_list := key_value.NewList()
+	for _, abi := range abis {
+		err := abi_list.Add(abi.Id, abi)
+		if err != nil {
+			logger.Fatal("abi_list.Add: %w", err)
+		}
+	}
+
+	err = reply.Run(CommandHandlers, db_connection, abi_list)
 	if err != nil {
 		logger.Fatal("reply controller", "message", err)
 	}

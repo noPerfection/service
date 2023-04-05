@@ -26,7 +26,7 @@ const (
 // Return list of all commands and their handlers
 func CommandHandlers() command.Handlers {
 	return command.EmptyHandlers().
-		Add(GET_ABI, AbiGetBySmartcontractKey).
+		Add(GET_ABI, AbiGet).
 		Add(SET_ABI, AbiRegister).
 		Add(GET_SMARTCONTRACT, SmartcontractGet).
 		Add(SET_SMARTCONTRACT, SmartcontractRegister).

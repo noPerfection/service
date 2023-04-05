@@ -37,6 +37,35 @@ func GetFromDatabaseByAbiId(db *db.Database, abi_id string) (*Abi, error) {
 	return built, err
 }
 
+// Get all abis from database
+func GetAllFromDatabase(db *db.Database) ([]*Abi, error) {
+	rows, err := db.Connection.Query("SELECT body, abi_id FROM static_abi")
+	if err != nil {
+		return nil, fmt.Errorf("db: %w", err)
+	}
+
+	defer rows.Close()
+
+	abis := make([]*Abi, 0)
+
+	// Loop through rows, using Scan to assign column data to struct fields.
+	for rows.Next() {
+		var bytes []byte
+		var abi_id string
+
+		if err := rows.Scan(&bytes, &abi_id); err != nil {
+			return nil, fmt.Errorf("failed to scan database result: %w", err)
+		}
+		abi := Abi{
+			Bytes: bytes,
+			Id:    abi_id,
+		}
+
+		abis = append(abis, &abi)
+	}
+	return abis, err
+}
+
 // Checks whether the Abi exists in the database or not
 func ExistInDatabase(db *db.Database, abi_id string) bool {
 	var exists bool
