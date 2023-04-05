@@ -143,12 +143,6 @@ func (suite *TestSmartcontractDbSuite) TestSmartcontract() {
 	suite.Require().NoError(err)
 	suite.Require().Len(smartcontracts, 1)
 	suite.Require().EqualValues(suite.smartcontract, *smartcontracts[0])
-
-	// select abi that exists
-	db_sm, err := GetFromDatabase(suite.db_con, suite.smartcontract.SmartcontractKey)
-	suite.Require().NoError(err)
-
-	suite.Require().EqualValues(suite.smartcontract, *db_sm)
 }
 
 // In order for 'go test' to run this suite, we need to create

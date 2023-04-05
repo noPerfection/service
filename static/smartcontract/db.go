@@ -45,24 +45,6 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 	return nil
 }
 
-// Returns the smartcontract by address on network_id from database
-func GetFromDatabase(db *db.Database, key smartcontract_key.Key) (*Smartcontract, error) {
-	query := `SELECT abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract WHERE network_id = ? AND address = ?`
-
-	var s Smartcontract = Smartcontract{
-		SmartcontractKey: key,
-		TransactionKey:   blockchain.TransactionKey{},
-		BlockHeader:      blockchain.BlockHeader{},
-	}
-
-	row := db.Connection.QueryRow(query, key.NetworkId, key.Address)
-	if err := row.Scan(&s.AbiId, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.BlockHeader.Number, &s.BlockHeader.Timestamp, &s.Deployer); err != nil {
-		return nil, err
-	}
-
-	return &s, nil
-}
-
 func GetAllFromDatabase(db *db.Database) ([]*Smartcontract, error) {
 	rows, err := db.Connection.Query("SELECT network_id, address, abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract WHERE 1")
 	if err != nil {
