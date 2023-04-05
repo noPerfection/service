@@ -51,21 +51,6 @@ func LoadDatabaseParts(db *db.Database, conf *Configuration) error {
 	return nil
 }
 
-// Whether the configuration exist in the database or not
-func ExistInDatabase(db *db.Database, topic *topic.Topic) bool {
-	var exists bool
-	err := db.Connection.QueryRow(`SELECT IF(COUNT(address),'true','false') FROM static_configuration WHERE 
-	organization = ? AND project = ? AND network_id = ? AND group_name = ? AND 
-	smartcontract_name = ? `, topic.Organization, topic.Project,
-		topic.NetworkId, topic.Group, topic.Smartcontract).Scan(&exists)
-	if err != nil {
-		fmt.Println("Static Configuration exists returned db error: ", err.Error())
-		return false
-	}
-
-	return exists
-}
-
 // Creates a database query
 // against the topic filter
 func query_parameters(t *topic.TopicFilter) (string, []string) {

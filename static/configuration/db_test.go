@@ -182,14 +182,6 @@ func (suite *TestConfigurationDbSuite) TestConfiguration() {
 	}
 	err = SetInDatabase(suite.db_con, &configuration)
 	suite.Require().Error(err)
-
-	// should fail since we don't have this configuration
-	exist := ExistInDatabase(suite.db_con, &configuration.Topic)
-	suite.Require().False(exist)
-
-	// but the one we inserted should be
-	exist = ExistInDatabase(suite.db_con, &suite.configuration.Topic)
-	suite.True(exist)
 }
 
 // In order for 'go test' to run this suite, we need to create
