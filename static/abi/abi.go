@@ -1,7 +1,8 @@
 package abi
 
 import (
-	"encoding/base64"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/blocklords/sds/common/data_type"
@@ -26,7 +27,8 @@ func (abi *Abi) ToString() string {
 // Creates the abi hash from the abi body
 // The Abi ID is the unique identifier of the abi
 //
-// The Abi ID is the first 8 characters of the base64
+// The Abi ID is the first 8 characters of the
+// sha256 checksum
 // representation of the abi.
 //
 // If the bytes field is invalid, then the id will be empty
@@ -37,8 +39,8 @@ func (abi *Abi) GenerateId() error {
 	if err := abi.format_bytes(); err != nil {
 		return fmt.Errorf("format_bytes: %w", err)
 	}
-	encoded := base64.StdEncoding.EncodeToString(abi.Bytes)
-	abi.Id = encoded[0:8]
+	encoded := sha256.Sum256(abi.Bytes)
+	abi.Id = hex.EncodeToString(encoded[0:8])
 
 	return nil
 }
