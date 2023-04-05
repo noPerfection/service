@@ -74,6 +74,8 @@ func (q *List) Add(key interface{}, value interface{}) error {
 	if q.key_type == nil {
 		q.key_type = key_type
 		q.value_type = value_type
+	} else if _, ok := q.l[key]; ok {
+		return fmt.Errorf("the element exists")
 	}
 
 	if key_type == q.key_type && value_type == q.value_type {
