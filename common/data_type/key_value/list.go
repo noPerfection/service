@@ -45,6 +45,10 @@ func (q *List) IsFull() bool {
 	return q.length == LIST_LENGTH
 }
 
+func (q *List) List() map[interface{}]interface{} {
+	return q.l
+}
+
 // Adds the element to the queue.
 // If the element type is not the same as
 // the expected type, then
