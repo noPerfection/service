@@ -14,24 +14,9 @@ func New(parameters key_value.KeyValue) (*Smartcontract, error) {
 		return nil, err
 	}
 
-	err = sm.SmartcontractKey.Validate()
+	err = sm.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("SmartcontractKey.Validate: %w", err)
-	}
-
-	if len(sm.AbiId) == 0 {
-		return nil, fmt.Errorf("the AbiId is missing")
-	}
-	if len(sm.Deployer) == 0 {
-		return nil, fmt.Errorf("the Deployer is missing")
-	}
-
-	if err := sm.TransactionKey.Validate(); err != nil {
-		return nil, fmt.Errorf("TransactionKey.Validate: %w", err)
-	}
-
-	if err := sm.BlockHeader.Validate(); err != nil {
-		return nil, fmt.Errorf("BlockHeader.Validate: %w", err)
+		return nil, fmt.Errorf("Smartcontract.Validate: %w", err)
 	}
 
 	return &sm, nil
