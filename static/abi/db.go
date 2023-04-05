@@ -51,15 +51,3 @@ func GetAllFromDatabase(db *db.Database) ([]*Abi, error) {
 	}
 	return abis, err
 }
-
-// Checks whether the Abi exists in the database or not
-func ExistInDatabase(db *db.Database, abi_id string) bool {
-	var exists bool
-	err := db.Connection.QueryRow("SELECT IF(COUNT(abi_id),'true','false') FROM static_abi WHERE abi_id = ? ", abi_id).Scan(&exists)
-	if err != nil {
-		fmt.Println("Static Abi exists returned db error: ", err.Error())
-		return false
-	}
-
-	return exists
-}
