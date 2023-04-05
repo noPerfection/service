@@ -22,6 +22,10 @@ type SetAbiReply = abi.Abi
 
 // Returns an abi by abi id
 func AbiGet(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if len(parameters) < 2 {
+		return message.Fail("missing abi list")
+	}
+
 	var req_parameters GetAbiRequest
 	err := request.Parameters.ToInterface(&req_parameters)
 	if err != nil {
@@ -49,6 +53,10 @@ func AbiGet(request message.Request, _ log.Logger, parameters ...interface{}) me
 }
 
 func AbiRegister(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if len(parameters) < 2 {
+		return message.Fail("missing abi list")
+	}
+
 	var request_parameters SetAbiRequest
 	err := request.Parameters.ToInterface(&request_parameters)
 	if err != nil {

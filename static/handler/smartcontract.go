@@ -21,6 +21,10 @@ type GetSmartcontractReply = smartcontract.Smartcontract
 // static_smartcontract.
 // Requires abi_id parameter. First call abi_register method first.
 func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if len(parameters) < 3 {
+		return message.Fail("missing smartcontract list")
+	}
+
 	var sm SetSmartcontractRequest
 	err := request.Parameters.ToInterface(&sm)
 	if err != nil {
@@ -62,6 +66,10 @@ func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...
 
 // Returns configuration and smartcontract information related to the configuration
 func SmartcontractGet(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if len(parameters) < 3 {
+		return message.Fail("missing smartcontract list")
+	}
+
 	var key GetSmartcontractRequest
 	err := request.Parameters.ToInterface(&key)
 	if err != nil {

@@ -20,6 +20,14 @@ type SetConfigurationReply = configuration.Configuration
 // Register a new smartcontract in the configuration.
 // It requires smartcontract address. First call smartcontract_register command.
 func ConfigurationRegister(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	if len(parameters) < 4 {
+		return message.Fail("missing configuration list")
+	}
+	conf_list, ok := parameters[3].(*key_value.List)
+	if !ok {
+		return message.Fail("configuration list expected")
+	}
+
 	var conf SetConfigurationRequest
 	err := request.Parameters.ToInterface(&conf)
 	if err != nil {
@@ -27,11 +35,6 @@ func ConfigurationRegister(request message.Request, logger log.Logger, parameter
 	}
 	if err := conf.Validate(); err != nil {
 		return message.Fail("validation: " + err.Error())
-	}
-
-	conf_list, ok := parameters[3].(*key_value.List)
-	if !ok {
-		return message.Fail("missing configuration list")
 	}
 
 	conf_key := conf.Topic.ToString(conf.Topic.Level())
@@ -63,6 +66,14 @@ func ConfigurationRegister(request message.Request, logger log.Logger, parameter
 
 // Returns configuration and smartcontract information related to the configuration
 func ConfigurationGet(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if len(parameters) < 4 {
+		return message.Fail("missing configuration list")
+	}
+	conf_list, ok := parameters[3].(*key_value.List)
+	if !ok {
+		return message.Fail("configuration list expected")
+	}
+
 	var conf_topic GetConfigurationRequest
 	err := request.Parameters.ToInterface(&conf_topic)
 	if err != nil {
@@ -75,10 +86,6 @@ func ConfigurationGet(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("topic level is not at SMARTCONTRACT LEVEL")
 	}
 
-	conf_list, ok := parameters[3].(*key_value.List)
-	if !ok {
-		return message.Fail("missing configuration list")
-	}
 	conf_key := conf_topic.ToString(topic.SMARTCONTRACT_LEVEL)
 	conf_raw, err := conf_list.Get(conf_key)
 	if err != nil {
