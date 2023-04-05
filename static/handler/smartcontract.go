@@ -51,9 +51,7 @@ func SmartcontractFilter(request message.Request, _ log.Logger, parameters ...in
 		return message.Fail("failed to parse data")
 	}
 
-	query, query_parameters := configuration.QueryFilterSmartcontract(&topic_filter)
-
-	smartcontracts, topics, err := smartcontract.FilterFromDatabase(db_con, query, query_parameters)
+	smartcontracts, topics, err := configuration.FilterSmartcontracts(db_con, &topic_filter)
 	if err != nil {
 		return message.Fail("failed to filter smartcontracts by the topic filter:" + err.Error())
 	} else if len(smartcontracts) == 0 {
@@ -93,9 +91,7 @@ func SmartcontractKeyFilter(request message.Request, _ log.Logger, parameters ..
 	if err != nil {
 		return message.Fail("failed to parse data")
 	}
-	query, query_parameters := configuration.QueryFilterSmartcontract(&topic_filter)
-
-	smartcontract_keys, topics, err := smartcontract.FilterKeysFromDatabase(db_con, query, query_parameters)
+	smartcontract_keys, topics, err := configuration.FilterSmartcontractKeys(db_con, &topic_filter)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
