@@ -25,17 +25,6 @@ type Abi struct {
 	geth_abi   abi.ABI // interface
 }
 
-// Returns an abi.Method from geth
-func (a *Abi) GetMethod(method string) (*abi.Method, error) {
-	for _, m := range a.geth_abi.Methods {
-		if m.Name == method {
-			return &m, nil
-		}
-	}
-
-	return nil, fmt.Errorf("method %s not found in abi", method)
-}
-
 // Given the transaction data, returns a categorized variant.
 //
 // The first returning parameter is the method name, second parameter are the method arguments as map of
