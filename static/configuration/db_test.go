@@ -137,7 +137,6 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 		NetworkId:     "1",
 		Group:         "test-suite",
 		Smartcontract: "TestErc20",
-		Event:         "Transfer",
 	}
 	suite.configuration = Configuration{
 		Topic:   sample,
@@ -155,9 +154,17 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 }
 
 func (suite *TestConfigurationDbSuite) TestConfiguration() {
-	suite.T().Log("insert into the database")
-	err := SetInDatabase(suite.db_con, &suite.configuration)
+	configs, err := GetAllFromDatabase(suite.db_con)
 	suite.Require().NoError(err)
+	suite.Require().Len(configs, 0)
+
+	err = SetInDatabase(suite.db_con, &suite.configuration)
+	suite.Require().NoError(err)
+
+	configs, err = GetAllFromDatabase(suite.db_con)
+	suite.Require().NoError(err)
+	suite.Require().Len(configs, 1)
+	suite.Require().EqualValues(suite.configuration, *configs[0])
 
 	// inserting a configuration
 	// that links to the non existing smartcontract
