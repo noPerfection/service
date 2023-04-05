@@ -112,11 +112,15 @@ func (suite *TestSmartcontractDbSuite) SetupTest() {
 }
 
 func (suite *TestSmartcontractDbSuite) TestSmartcontract() {
+	smartcontracts, err := GetAllFromDatabase(suite.db_con)
+	suite.Require().NoError(err)
+	suite.Require().Len(smartcontracts, 0)
+
 	// Insert into the database
 	// it should fail, since the smartcontract depends on the
 	// abi
 	suite.T().Log("insert into the database")
-	err := SetInDatabase(suite.db_con, &suite.smartcontract)
+	err = SetInDatabase(suite.db_con, &suite.smartcontract)
 	suite.Require().Error(err)
 
 	sample_abi := abi.Abi{
@@ -129,6 +133,17 @@ func (suite *TestSmartcontractDbSuite) TestSmartcontract() {
 	// inserting a smartcontract should be successful
 	err = SetInDatabase(suite.db_con, &suite.smartcontract)
 	suite.Require().NoError(err)
+
+	// duplicate key in the database
+	// it should fail
+	err = SetInDatabase(suite.db_con, &suite.smartcontract)
+	suite.Require().Error(err)
+
+	// all from database
+	smartcontracts, err = GetAllFromDatabase(suite.db_con)
+	suite.Require().NoError(err)
+	suite.Require().Len(smartcontracts, 1)
+	suite.Require().EqualValues(suite.smartcontract, *smartcontracts[0])
 
 	// Check is abi exists in the database
 	key, err := smartcontract_key.New("offline", "noname")
