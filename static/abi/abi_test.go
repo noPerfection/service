@@ -618,7 +618,7 @@ func (suite *TestAbiSuite) SetupTest() {
 }
 
 func (suite *TestAbiSuite) TestId() {
-	id := `W3siaW5w`
+	id := `972a8818360c3c28`
 	err := suite.abi.GenerateId()
 	suite.Require().NoError(err)
 	suite.Equal(suite.abi.Id, id)
