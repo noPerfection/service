@@ -21,8 +21,7 @@ import (
 //
 // Its the wrapper over the SDS Static abi.
 type Abi struct {
-	static_abi *static_abi.Abi
-	geth_abi   abi.ABI // interface
+	abi abi.ABI // interface
 }
 
 // Given the transaction data, returns a categorized variant.
@@ -44,7 +43,7 @@ func (a *Abi) Categorize(data string) (string, map[string]interface{}, error) {
 	}
 
 	// recover Method from signature and ABI
-	method, err := a.geth_abi.MethodById(sig)
+	method, err := a.abi.MethodById(sig)
 	if err != nil {
 		return "", inputs, fmt.Errorf("failed to find a method by its signature. geth package error: %w", err)
 	}
@@ -65,11 +64,11 @@ func (a *Abi) Categorize(data string) (string, map[string]interface{}, error) {
 
 // Creates a categorizer abi.
 // It adds an ethereum abi layer on top of the static abi.
-func NewAbi(static_abi *static_abi.Abi) (*Abi, error) {
-	abi_obj := Abi{static_abi: static_abi}
+func NewFromStatic(static_abi *static_abi.Abi) (*Abi, error) {
+	abi_obj := Abi{}
 
-	if err := json.Unmarshal(static_abi.Bytes, &abi_obj.geth_abi); err != nil {
-		return nil, fmt.Errorf("failed to decompose abi to geth abi: %w", err)
+	if err := json.Unmarshal(static_abi.Bytes, &abi_obj.abi); err != nil {
+		return nil, fmt.Errorf("failed to decompose static abi to geth abi: %w", err)
 	}
 
 	return &abi_obj, nil
@@ -87,7 +86,7 @@ func get_indexed(inputs abi.Arguments) abi.Arguments {
 
 func (a *Abi) get_events(event_id string) []abi.Event {
 	events := make([]abi.Event, 0)
-	for _, event := range a.geth_abi.Events {
+	for _, event := range a.abi.Events {
 		if strings.EqualFold(event_id, event.ID.String()) {
 			events = append(events, event)
 		}

@@ -194,7 +194,7 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 			manager.logger.Fatal("remote static abi get", "error", err)
 		}
 
-		cat_abi, err := abi.NewAbi(&abi_data)
+		cat_abi, err := abi.NewFromStatic(&abi_data)
 		if err != nil {
 			manager.logger.Fatal("failed to decode", "index", i, "smartcontract", sm.SmartcontractKey.Address, "errr", err)
 		}
