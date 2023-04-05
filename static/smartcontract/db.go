@@ -76,7 +76,7 @@ func GetFromDatabase(db *db.Database, key smartcontract_key.Key) (*Smartcontract
 }
 
 func GetAllFromDatabase(db *db.Database) ([]*Smartcontract, error) {
-	rows, err := db.Connection.Query("SELECT abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract WHERE 1")
+	rows, err := db.Connection.Query("SELECT network_id, address, abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract WHERE 1")
 	if err != nil {
 		return nil, fmt.Errorf("db: %w", err)
 	}
@@ -93,7 +93,15 @@ func GetAllFromDatabase(db *db.Database) ([]*Smartcontract, error) {
 			BlockHeader:      blockchain.BlockHeader{},
 		}
 
-		if err := rows.Scan(&s.AbiId, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.BlockHeader.Number, &s.BlockHeader.Timestamp, &s.Deployer); err != nil {
+		if err := rows.Scan(
+			&s.SmartcontractKey.NetworkId,
+			&s.SmartcontractKey.Address,
+			&s.AbiId,
+			&s.TransactionKey.Id,
+			&s.TransactionKey.Index,
+			&s.BlockHeader.Number,
+			&s.BlockHeader.Timestamp,
+			&s.Deployer); err != nil {
 			return nil, fmt.Errorf("failed to scan database result: %w", err)
 		}
 
