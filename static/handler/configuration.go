@@ -37,13 +37,12 @@ func ConfigurationRegister(request message.Request, logger log.Logger, parameter
 		return message.Fail("validation: " + err.Error())
 	}
 
-	conf_key := conf.Topic.ToString(conf.Topic.Level())
-	_, err = conf_list.Get(conf_key)
-	if err != nil {
-		return message.Fail("failed to get smartcontract: " + err.Error())
+	_, err = conf_list.Get(conf.Topic)
+	if err == nil {
+		return message.Fail("configuration already added")
 	}
 
-	err = conf_list.Add(conf_key, &conf)
+	err = conf_list.Add(conf.Topic, &conf)
 	if err != nil {
 		return message.Fail("failed to add abi to abi list: " + err.Error())
 	}
@@ -86,13 +85,12 @@ func ConfigurationGet(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("topic level is not at SMARTCONTRACT LEVEL")
 	}
 
-	conf_key := conf_topic.ToString(topic.SMARTCONTRACT_LEVEL)
-	conf_raw, err := conf_list.Get(conf_key)
+	conf_raw, err := conf_list.Get(conf_topic)
 	if err != nil {
-		return message.Fail("failed to get configuration: " + err.Error())
+		return message.Fail("failed to get configuration or not found: " + err.Error())
 	}
 
-	var reply GetConfigurationReply = conf_raw.(configuration.Configuration)
+	var reply GetConfigurationReply = *conf_raw.(*configuration.Configuration)
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("failed to reply")

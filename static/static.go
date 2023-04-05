@@ -75,8 +75,7 @@ func Run(_ *configuration.Config, db_connection *db.Database) {
 	}
 	configurations_list := key_value.NewList()
 	for _, conf := range configurations {
-		key := conf.Topic.ToString(conf.Topic.Level())
-		err := configurations_list.Add(key, conf)
+		err := configurations_list.Add(conf.Topic, conf)
 		if err != nil {
 			logger.Fatal("configurations_list.Add: %w", err)
 		}
