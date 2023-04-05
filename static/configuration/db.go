@@ -33,24 +33,6 @@ func SetInDatabase(db *db.Database, conf *Configuration) error {
 
 }
 
-// Adds the address to the configuration
-func LoadDatabaseParts(db *db.Database, conf *Configuration) error {
-	var address string
-
-	err := db.Connection.QueryRow(`SELECT address FROM static_configuration WHERE 
-	organization = ? AND project = ? AND network_id = ? AND group_name = ? AND 
-	smartcontract_name = ? `, conf.Topic.Organization, conf.Topic.Project,
-		conf.Topic.NetworkId, conf.Topic.Group, conf.Topic.Smartcontract).Scan(&address)
-	if err != nil {
-		fmt.Println("Loading static configuration parts returned db error: ", err.Error())
-		return err
-	}
-
-	conf.Address = address
-
-	return nil
-}
-
 // Creates a database query
 // against the topic filter
 func query_parameters(t *topic.TopicFilter) (string, []string) {
