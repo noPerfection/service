@@ -119,7 +119,6 @@ func (suite *TestSmartcontractDbSuite) TestSmartcontract() {
 	// Insert into the database
 	// it should fail, since the smartcontract depends on the
 	// abi
-	suite.T().Log("insert into the database")
 	err = SetInDatabase(suite.db_con, &suite.smartcontract)
 	suite.Require().Error(err)
 
@@ -144,21 +143,6 @@ func (suite *TestSmartcontractDbSuite) TestSmartcontract() {
 	suite.Require().NoError(err)
 	suite.Require().Len(smartcontracts, 1)
 	suite.Require().EqualValues(suite.smartcontract, *smartcontracts[0])
-
-	// Check is abi exists in the database
-	key, err := smartcontract_key.New("offline", "noname")
-	suite.Require().NoError(err)
-	exist := ExistInDatabase(suite.db_con, key)
-	suite.Require().False(exist)
-
-	// but the one we inserted should be
-	exist = ExistInDatabase(suite.db_con, suite.smartcontract.SmartcontractKey)
-	suite.True(exist)
-
-	// Select abi from database
-	// should fail as abi doesn't exist
-	_, err = GetFromDatabase(suite.db_con, key)
-	suite.Require().Error(err)
 
 	// select abi that exists
 	db_sm, err := GetFromDatabase(suite.db_con, suite.smartcontract.SmartcontractKey)

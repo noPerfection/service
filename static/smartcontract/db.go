@@ -8,18 +8,6 @@ import (
 	"github.com/blocklords/sds/db"
 )
 
-// Whether the smartcontract address on network_id exist in database or not
-func ExistInDatabase(db *db.Database, key smartcontract_key.Key) bool {
-	var exists bool
-	err := db.Connection.QueryRow("SELECT IF(COUNT(address),'true','false') FROM static_smartcontract WHERE network_id = ? AND address = ?", key.NetworkId, key.Address).Scan(&exists)
-	if err != nil {
-		fmt.Println("Static Smartcontract exists returned db error: ", err.Error())
-		return false
-	}
-
-	return exists
-}
-
 func SetInDatabase(db *db.Database, a *Smartcontract) error {
 	result, err := db.Connection.Exec(`
 		INSERT IGNORE INTO 
