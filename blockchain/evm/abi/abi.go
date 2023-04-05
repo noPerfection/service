@@ -24,13 +24,29 @@ type Abi struct {
 	abi abi.ABI // interface
 }
 
+// Creates a categorizer abi.
+// It adds an ethereum abi layer on top of the static abi.
+func NewFromStatic(static_abi *static_abi.Abi) (*Abi, error) {
+	abi_obj := Abi{}
+
+	if err := json.Unmarshal(static_abi.Bytes, &abi_obj.abi); err != nil {
+		return nil, fmt.Errorf("failed to decompose static abi to geth abi: %w", err)
+	}
+
+	return &abi_obj, nil
+}
+
 // Given the transaction data, returns a categorized variant.
 //
-// The first returning parameter is the method name, second parameter are the method arguments as map of
-// argument name => value
+// Returns
+//   - the method name as a string.
+//   - method arguments as map of
+//     `argument name => value`
+//   - error if couldn't find decode transaction data
 func (a *Abi) Categorize(data string) (string, map[string]interface{}, error) {
 	inputs := map[string]interface{}{}
 
+	// data could be prefixed with 0x
 	offset := 0
 	if len(data) > 2 && data[:2] == "0x" || data[:2] == "0X" {
 		offset += 2
@@ -60,18 +76,6 @@ func (a *Abi) Categorize(data string) (string, map[string]interface{}, error) {
 	}
 
 	return method.Name, inputs, nil
-}
-
-// Creates a categorizer abi.
-// It adds an ethereum abi layer on top of the static abi.
-func NewFromStatic(static_abi *static_abi.Abi) (*Abi, error) {
-	abi_obj := Abi{}
-
-	if err := json.Unmarshal(static_abi.Bytes, &abi_obj.abi); err != nil {
-		return nil, fmt.Errorf("failed to decompose static abi to geth abi: %w", err)
-	}
-
-	return &abi_obj, nil
 }
 
 func get_indexed(inputs abi.Arguments) abi.Arguments {
