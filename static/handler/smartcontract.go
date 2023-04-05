@@ -1,296 +1,33 @@
 package handler
 
 import (
-	"fmt"
-
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/db"
-	"github.com/blocklords/sds/static/configuration"
 	"github.com/blocklords/sds/static/smartcontract"
 
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
-	"github.com/blocklords/sds/common/topic"
 
 	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/remote/message"
 )
-
-type FilterSmartcontractsRequest = topic.TopicFilter
-type FilterSmartcontractsReply struct {
-	Smartcontracts []*smartcontract.Smartcontract `json:"smartcontracts"`
-	TopicStrings   []topic.TopicString            `json:"topic_strings"`
-}
-
-type FilterSmartcontractKeysRequest = topic.TopicFilter
-type FilterSmartcontractKeysReply struct {
-	SmartcontractKeys []smartcontract_key.Key `json:"smartcontract_keys"`
-	TopicStrings      []topic.TopicString     `json:"topic_strings"`
-}
 
 type SetSmartcontractRequest = smartcontract.Smartcontract
 type SetSmartcontractReply = smartcontract.Smartcontract
 type GetSmartcontractRequest = smartcontract_key.Key
 type GetSmartcontractReply = smartcontract.Smartcontract
 
-func filter_organization(configurations *key_value.List, paths []string) *key_value.List {
-	filtered := key_value.NewList()
-	list := configurations.List()
-	for key, value := range list {
-		conf := value.(*configuration.Configuration)
-
-		for _, path := range paths {
-			if conf.Topic.Organization == path {
-				filtered.Add(key, value)
-				break
-			}
-		}
-	}
-
-	return filtered
-}
-
-func filter_project(configurations *key_value.List, paths []string) *key_value.List {
-	filtered := key_value.NewList()
-	list := configurations.List()
-	for key, value := range list {
-		conf := value.(*configuration.Configuration)
-
-		for _, path := range paths {
-			if conf.Topic.Project == path {
-				filtered.Add(key, value)
-				break
-			}
-		}
-	}
-
-	return filtered
-}
-
-func filter_network_id(configurations *key_value.List, paths []string) *key_value.List {
-	filtered := key_value.NewList()
-	list := configurations.List()
-	for key, value := range list {
-		conf := value.(*configuration.Configuration)
-
-		for _, path := range paths {
-			if conf.Topic.NetworkId == path {
-				filtered.Add(key, value)
-				break
-			}
-		}
-	}
-
-	return filtered
-}
-
-func filter_group(configurations *key_value.List, paths []string) *key_value.List {
-	filtered := key_value.NewList()
-	list := configurations.List()
-	for key, value := range list {
-		conf := value.(*configuration.Configuration)
-
-		for _, path := range paths {
-			if conf.Topic.Group == path {
-				filtered.Add(key, value)
-				break
-			}
-		}
-	}
-
-	return filtered
-}
-
-func filter_smartcontract_name(configurations *key_value.List, paths []string) *key_value.List {
-	filtered := key_value.NewList()
-	list := configurations.List()
-	for key, value := range list {
-		conf := value.(*configuration.Configuration)
-
-		for _, path := range paths {
-			if conf.Topic.Smartcontract == path {
-				filtered.Add(key, value)
-				break
-			}
-		}
-	}
-
-	return filtered
-}
-
-func filter_configuration(configuration_list *key_value.List, topic_filter *topic.TopicFilter) []*configuration.Configuration {
-	list := key_value.NewList()
-
-	if len(topic_filter.Organizations) != 0 {
-		list = filter_organization(configuration_list, topic_filter.Organizations)
-	}
-
-	if len(topic_filter.Projects) != 0 {
-		list = filter_project(list, topic_filter.Projects)
-	}
-
-	if len(topic_filter.NetworkIds) != 0 {
-		list = filter_network_id(list, topic_filter.NetworkIds)
-	}
-
-	if len(topic_filter.Groups) != 0 {
-		list = filter_group(list, topic_filter.Groups)
-	}
-
-	if len(topic_filter.Smartcontracts) != 0 {
-		list = filter_smartcontract_name(list, topic_filter.Smartcontracts)
-	}
-
-	configs := make([]*configuration.Configuration, list.Len())
-
-	i := 0
-	for _, value := range list.List() {
-		conf := value.(*configuration.Configuration)
-		configs[i] = conf
-		i++
-	}
-
-	return configs
-}
-
-func filter_smartcontract(
-	configurations []*configuration.Configuration,
-	list *key_value.List) ([]*smartcontract.Smartcontract, []topic.TopicString, error) {
-	i := 0
-	smartcontracts := make([]*smartcontract.Smartcontract, 0)
-	topic_string := make([]topic.TopicString, 0)
-
-	for _, conf := range configurations {
-		key, err := smartcontract_key.New(conf.Topic.NetworkId, conf.Address)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create smartcontract key: %w", err)
-		}
-
-		value, err := list.Get(key)
-		if err == nil {
-			continue
-		}
-		sm := value.(*smartcontract.Smartcontract)
-
-		smartcontracts[i] = sm
-		topic_string[i] = conf.Topic.ToString(topic.SMARTCONTRACT_LEVEL)
-
-		i++
-	}
-
-	return smartcontracts, topic_string, nil
-}
-
-/*
-Return list of smartcontracts by given filter topic.
-
-Algorithm
-
- 1. the Package configuration has a function that returns amount of
-    smartcontracts that matches the filter.
- 2. If the amount is 0, then return empty result.
- 3. the smartcontract package has a function that returns
-    list of smartcontracts by filter.
-    The smartcontract package accepts the db_query from configuration config.
- 4. return list of smartcontracts back
-*/
-func SmartcontractFilter(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	var topic_filter FilterSmartcontractKeysRequest
-	err := request.Parameters.ToInterface(&topic_filter)
-	if err != nil {
-		return message.Fail("failed to parse data")
-	}
-
-	all_configurations := parameters[3].(*key_value.List)
-	configurations := filter_configuration(all_configurations, &topic_filter)
-	if len(configurations) == 0 {
-		reply := FilterSmartcontractsReply{
-			Smartcontracts: []*smartcontract.Smartcontract{},
-			TopicStrings:   []topic.TopicString{},
-		}
-		reply_message, err := command.Reply(&reply)
-		if err != nil {
-			return message.Fail("failed to reply: " + err.Error())
-		}
-		return reply_message
-	}
-
-	all_smartcontracts := parameters[2].(*key_value.List)
-	smartcontracts, topic_strings, err := filter_smartcontract(configurations, all_smartcontracts)
-	if err != nil {
-		return message.Fail("failed to reply: " + err.Error())
-	}
-
-	reply := FilterSmartcontractsReply{
-		Smartcontracts: smartcontracts,
-		TopicStrings:   topic_strings,
-	}
-	reply_message, err := command.Reply(&reply)
-	if err != nil {
-		return message.Fail("failed to reply: " + err.Error())
-	}
-	return reply_message
-}
-
-// returns smartcontract keys and topic of the smartcontract
-// by given topic filter
-//
-//	returns {
-//			"smartcontract_keys" (where key is smartcontract key, value is a topic string)
-//	}
-func SmartcontractKeyFilter(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	var topic_filter FilterSmartcontractKeysRequest
-	err := request.Parameters.ToInterface(&topic_filter)
-	if err != nil {
-		return message.Fail("failed to parse data")
-	}
-
-	all_configurations := parameters[3].(*key_value.List)
-	configurations := filter_configuration(all_configurations, &topic_filter)
-	if len(configurations) == 0 {
-		reply := FilterSmartcontractKeysReply{
-			SmartcontractKeys: []smartcontract_key.Key{},
-			TopicStrings:      []topic.TopicString{},
-		}
-		reply_message, err := command.Reply(&reply)
-		if err != nil {
-			return message.Fail("failed to reply: " + err.Error())
-		}
-		return reply_message
-	}
-
-	all_smartcontracts := parameters[2].(*key_value.List)
-	smartcontracts, topic_strings, err := filter_smartcontract(configurations, all_smartcontracts)
-	if err != nil {
-		return message.Fail("failed to reply: " + err.Error())
-	}
-
-	keys := make([]smartcontract_key.Key, len(smartcontracts))
-	for i, smartcontract := range smartcontracts {
-		keys[i] = smartcontract.SmartcontractKey
-	}
-
-	reply := FilterSmartcontractKeysReply{
-		SmartcontractKeys: keys,
-		TopicStrings:      topic_strings,
-	}
-	reply_message, err := command.Reply(&reply)
-	if err != nil {
-		return message.Fail("failed to reply: " + err.Error())
-	}
-	return reply_message
-}
-
 // Register a new smartcontract. It means we are adding smartcontract parameters into
 // static_smartcontract.
 // Requires abi_id parameter. First call abi_register method first.
 func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	db_con := parameters[0].(*db.Database)
-
 	var sm SetSmartcontractRequest
 	err := request.Parameters.ToInterface(&sm)
 	if err != nil {
 		return message.Fail("failed to parse data")
+	}
+	if err := sm.Validate(); err != nil {
+		return message.Fail("failed to validate: " + err.Error())
 	}
 
 	var reply SetSmartcontractReply = sm
@@ -299,10 +36,13 @@ func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...
 		return message.Fail("failed to reply")
 	}
 
-	sm_list := parameters[2].(*key_value.List)
+	sm_list, ok := parameters[2].(*key_value.List)
+	if !ok {
+		return message.Fail("no smartcontract list")
+	}
 	_, err = sm_list.Get(sm.SmartcontractKey)
-	if err != nil {
-		return message.Fail("failed to get abi: " + err.Error())
+	if err == nil {
+		return message.Fail("smartcontract already registered")
 	}
 
 	err = sm_list.Add(sm.SmartcontractKey, &sm)
@@ -310,8 +50,11 @@ func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...
 		return message.Fail("failed to add abi to abi list: " + err.Error())
 	}
 
-	if err = smartcontract.SetInDatabase(db_con, &sm); err != nil {
-		return message.Fail("Smartcontract saving in the database failed: " + err.Error())
+	db_con, ok := parameters[0].(*db.Database)
+	if ok {
+		if err = smartcontract.SetInDatabase(db_con, &sm); err != nil {
+			return message.Fail("Smartcontract saving in the database failed: " + err.Error())
+		}
 	}
 
 	return reply_message
@@ -328,13 +71,16 @@ func SmartcontractGet(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("key.Validate: " + err.Error())
 	}
 
-	sm_list := parameters[2].(*key_value.List)
+	sm_list, ok := parameters[2].(*key_value.List)
+	if !ok {
+		return message.Fail("no smartcontract list")
+	}
 	sm_raw, err := sm_list.Get(key)
 	if err != nil {
 		return message.Fail("failed to get smartcontract: " + err.Error())
 	}
 
-	var reply SetSmartcontractReply = sm_raw.(smartcontract.Smartcontract)
+	var reply SetSmartcontractReply = *sm_raw.(*smartcontract.Smartcontract)
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("failed to reply")
