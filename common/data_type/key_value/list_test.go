@@ -90,8 +90,6 @@ func (suite *TestListQueue) TestAddGet() {
 	_, err = suite.list.Get(1)
 	suite.Require().Error(err)
 
-	// should fail to get data from empty list
-
 }
 
 func (suite *TestListQueue) TestListLimit() {
