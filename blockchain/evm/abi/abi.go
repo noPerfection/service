@@ -14,13 +14,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
-// //////////////////////////////////////////////////////////////////////////
-//
 // Abi struct is used for EVM based categorizer.
-// it has the smartcontract interface to parse the raw spaghetti data into categorized data.
-// its the wrapper over the SDS Static abi.
 //
-// //////////////////////////////////////////////////////////////////////////
+// It has the utility function specific for EVM to decode.
+// raw data from blockchain into categorized data.
+//
+// Its the wrapper over the SDS Static abi.
 type Abi struct {
 	static_abi *static_abi.Abi
 	geth_abi   abi.ABI // interface
@@ -75,7 +74,8 @@ func (a *Abi) Categorize(data string) (string, map[string]interface{}, error) {
 	return method.Name, inputs, nil
 }
 
-// it adds an ethereum abi layer on top of the static abi
+// Creates a categorizer abi.
+// It adds an ethereum abi layer on top of the static abi.
 func NewAbi(static_abi *static_abi.Abi) (*Abi, error) {
 	abi_obj := Abi{static_abi: static_abi}
 
@@ -107,6 +107,7 @@ func (a *Abi) get_events(event_id string) []abi.Event {
 	return events
 }
 
+// Parse the data and indexed data (topics) to key-value
 func (a *Abi) DecodeLog(topics []string, data string) (string, map[string]interface{}, error) {
 	if len(topics) == 0 {
 		return "", nil, fmt.Errorf("anonymous events are not supported")

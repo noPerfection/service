@@ -13,6 +13,8 @@ import (
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
 
+// Creates blockchain/transaction.RawTransaction based on Ethereum Transaction.
+// the blockchain/transaction.RawTransaction is blockchain agnostic
 func New(network_id string, block blockchain.BlockHeader, transaction_index uint, tx *eth_types.Transaction) (*transaction.RawTransaction, error) {
 	msg, err := tx.AsMessage(eth_types.LatestSignerForChainID(tx.ChainId()), tx.GasPrice())
 	if err != nil {

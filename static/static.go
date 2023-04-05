@@ -31,8 +31,6 @@ func Service() *service.Service {
 func Run(_ *configuration.Config, db_connection *db.Database) {
 	logger, _ := log.New("static", log.WITH_TIMESTAMP)
 
-	logger.Info("starting")
-
 	// Getting the services which has access to the SDS Static
 	static_env := Service()
 
