@@ -8,6 +8,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/abi"
+	static_conf "github.com/blocklords/sds/static/configuration"
 	"github.com/blocklords/sds/static/handler"
 	"github.com/blocklords/sds/static/smartcontract"
 )
@@ -57,7 +58,7 @@ func Run(_ *configuration.Config, db_connection *db.Database) {
 	// static smartcontracts
 	smartcontracts, err := smartcontract.GetAllFromDatabase(db_connection)
 	if err != nil {
-		logger.Fatal("abi.GetAllFromDatabase: %w", err)
+		logger.Fatal("smartcontract.GetAllFromDatabase: %w", err)
 	}
 	smartcontracts_list := key_value.NewList()
 	for _, sm := range smartcontracts {
@@ -67,11 +68,26 @@ func Run(_ *configuration.Config, db_connection *db.Database) {
 		}
 	}
 
+	// static configurations
+	configurations, err := static_conf.GetAllFromDatabase(db_connection)
+	if err != nil {
+		logger.Fatal("configuration.GetAllFromDatabase: %w", err)
+	}
+	configurations_list := key_value.NewList()
+	for _, conf := range configurations {
+		key := conf.Topic.ToString(conf.Topic.Level())
+		err := configurations_list.Add(key, conf)
+		if err != nil {
+			logger.Fatal("configurations_list.Add: %w", err)
+		}
+	}
+
 	err = reply.Run(
 		CommandHandlers,
 		db_connection,
 		abi_list,
 		smartcontracts_list,
+		configurations_list,
 	)
 	if err != nil {
 		logger.Fatal("reply controller", "message", err)

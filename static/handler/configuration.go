@@ -2,10 +2,9 @@ package handler
 
 import (
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/common/smartcontract_key"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/configuration"
-	"github.com/blocklords/sds/static/smartcontract"
 
 	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/remote/message"
@@ -13,10 +12,7 @@ import (
 
 type GetConfigurationRequest = configuration.Configuration
 type SetConfigurationRequest = configuration.Configuration
-type GetConfigurationReply struct {
-	Configuration configuration.Configuration `json:"configuration"`
-	Smartcontract smartcontract.Smartcontract `json:"smartcontract"`
-}
+type GetConfigurationReply = configuration.Configuration
 type SetConfigurationReply = configuration.Configuration
 
 // Register a new smartcontract in the configuration.
@@ -33,17 +29,23 @@ func ConfigurationRegister(request message.Request, logger log.Logger, parameter
 		return message.Fail("validation: " + err.Error())
 	}
 
-	if configuration.ExistInDatabase(db_con, &conf.Topic) {
-		return message.Fail("Smartcontract found in the config")
+	conf_list := parameters[3].(*key_value.List)
+	conf_key := conf.Topic.ToString(conf.Topic.Level())
+	_, err = conf_list.Get(conf_key)
+	if err != nil {
+		return message.Fail("failed to get smartcontract: " + err.Error())
+	}
+
+	err = conf_list.Add(conf_key, &conf)
+	if err != nil {
+		return message.Fail("failed to add abi to abi list: " + err.Error())
 	}
 
 	if err = configuration.SetInDatabase(db_con, &conf); err != nil {
 		return message.Fail("Configuration saving in the database failed: " + err.Error())
 	}
 
-	reply := GetConfigurationReply{
-		Configuration: conf,
-	}
+	var reply GetConfigurationReply = conf
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("failed to reply")
@@ -54,39 +56,23 @@ func ConfigurationRegister(request message.Request, logger log.Logger, parameter
 
 // Returns configuration and smartcontract information related to the configuration
 func ConfigurationGet(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	db_con := parameters[0].(*db.Database)
-
 	var conf GetConfigurationRequest
 	err := request.Parameters.ToInterface(&conf)
 	if err != nil {
 		return message.Fail("failed to parse data")
 	}
-	if err := conf.Validate(); err != nil {
-		return message.Fail("validation: " + err.Error())
+	if err := conf.Topic.Validate(); err != nil {
+		return message.Fail("invalid topic: " + err.Error())
 	}
 
-	if !configuration.ExistInDatabase(db_con, &conf.Topic) {
-		return message.Fail("Configuration not registered in the database")
-	}
-
-	err = configuration.LoadDatabaseParts(db_con, &conf)
+	conf_list := parameters[3].(*key_value.List)
+	conf_key := conf.Topic.ToString(conf.Topic.Level())
+	conf_raw, err := conf_list.Get(conf_key)
 	if err != nil {
-		return message.Fail("Configuration loading in the database failed: " + err.Error())
+		return message.Fail("failed to get configuration: " + err.Error())
 	}
 
-	sm_key, err := smartcontract_key.New(conf.Topic.NetworkId, conf.Address)
-	if err != nil {
-		return message.Fail("smartcontract_key.New: " + err.Error())
-	}
-	s, getErr := smartcontract.GetFromDatabase(db_con, sm_key)
-	if getErr != nil {
-		return message.Fail("Failed to get smartcontract from database: " + getErr.Error())
-	}
-
-	reply := GetConfigurationReply{
-		Configuration: conf,
-		Smartcontract: *s,
-	}
+	var reply GetConfigurationReply = conf_raw.(configuration.Configuration)
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("failed to reply")

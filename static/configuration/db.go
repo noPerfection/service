@@ -213,3 +213,29 @@ func FilterSmartcontractKeys(con *db.Database, topic_filter *topic.TopicFilter) 
 	}
 	return smartcontracts, topics, nil
 }
+
+func GetAllFromDatabase(db *db.Database) ([]*Configuration, error) {
+	rows, err := db.Connection.Query("SELECT organization, project, network_id, group_name, smartcontract_name, address FROM static_configuration WHERE 1")
+	if err != nil {
+		return nil, fmt.Errorf("db: %w", err)
+	}
+
+	defer rows.Close()
+
+	configurations := make([]*Configuration, 0)
+
+	// Loop through rows, using Scan to assign column data to struct fields.
+	for rows.Next() {
+		var s Configuration = Configuration{
+			Topic:   topic.Topic{},
+			Address: "",
+		}
+
+		if err := rows.Scan(&s.Topic.Organization, &s.Topic.Project, &s.Topic.NetworkId, &s.Topic.Group, &s.Topic.Smartcontract, &s.Address); err != nil {
+			return nil, fmt.Errorf("failed to scan database result: %w", err)
+		}
+
+		configurations = append(configurations, &s)
+	}
+	return configurations, err
+}
