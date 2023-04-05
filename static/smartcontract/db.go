@@ -74,3 +74,30 @@ func GetFromDatabase(db *db.Database, key smartcontract_key.Key) (*Smartcontract
 
 	return &s, nil
 }
+
+func GetAllFromDatabase(db *db.Database) ([]*Smartcontract, error) {
+	rows, err := db.Connection.Query("SELECT abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract WHERE 1")
+	if err != nil {
+		return nil, fmt.Errorf("db: %w", err)
+	}
+
+	defer rows.Close()
+
+	smartcontracts := make([]*Smartcontract, 0)
+
+	// Loop through rows, using Scan to assign column data to struct fields.
+	for rows.Next() {
+		var s Smartcontract = Smartcontract{
+			SmartcontractKey: smartcontract_key.Key{},
+			TransactionKey:   blockchain.TransactionKey{},
+			BlockHeader:      blockchain.BlockHeader{},
+		}
+
+		if err := rows.Scan(&s.AbiId, &s.TransactionKey.Id, &s.TransactionKey.Index, &s.BlockHeader.Number, &s.BlockHeader.Timestamp, &s.Deployer); err != nil {
+			return nil, fmt.Errorf("failed to scan database result: %w", err)
+		}
+
+		smartcontracts = append(smartcontracts, &s)
+	}
+	return smartcontracts, err
+}

@@ -6,6 +6,7 @@ import (
 	"github.com/blocklords/sds/static/configuration"
 	"github.com/blocklords/sds/static/smartcontract"
 
+	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
 
@@ -130,8 +131,15 @@ func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...
 		return message.Fail("failed to reply")
 	}
 
-	if smartcontract.ExistInDatabase(db_con, sm.SmartcontractKey) {
-		return reply_message
+	sm_list := parameters[2].(*key_value.List)
+	_, err = sm_list.Get(sm.SmartcontractKey)
+	if err != nil {
+		return message.Fail("failed to get abi: " + err.Error())
+	}
+
+	err = sm_list.Add(sm.SmartcontractKey, &sm)
+	if err != nil {
+		return message.Fail("failed to add abi to abi list: " + err.Error())
 	}
 
 	if err = smartcontract.SetInDatabase(db_con, &sm); err != nil {
@@ -143,20 +151,22 @@ func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...
 
 // Returns configuration and smartcontract information related to the configuration
 func SmartcontractGet(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	db_con := parameters[0].(*db.Database)
-
 	var key GetSmartcontractRequest
 	err := request.Parameters.ToInterface(&key)
 	if err != nil {
 		return message.Fail("failed to parse data")
 	}
-
-	sm, err := smartcontract.GetFromDatabase(db_con, key)
-	if err != nil {
-		return message.Fail("Failed to get smartcontract from database: " + err.Error())
+	if err := key.Validate(); err != nil {
+		return message.Fail("key.Validate: " + err.Error())
 	}
 
-	var reply SetSmartcontractReply = *sm
+	sm_list := parameters[2].(*key_value.List)
+	sm_raw, err := sm_list.Get(key)
+	if err != nil {
+		return message.Fail("failed to get smartcontract: " + err.Error())
+	}
+
+	var reply SetSmartcontractReply = sm_raw.(smartcontract.Smartcontract)
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("failed to reply")

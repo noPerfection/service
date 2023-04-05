@@ -9,6 +9,7 @@ import (
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/abi"
 	"github.com/blocklords/sds/static/handler"
+	"github.com/blocklords/sds/static/smartcontract"
 )
 
 // Return the list of command handlers for this service
@@ -53,7 +54,25 @@ func Run(_ *configuration.Config, db_connection *db.Database) {
 		}
 	}
 
-	err = reply.Run(CommandHandlers, db_connection, abi_list)
+	// static smartcontracts
+	smartcontracts, err := smartcontract.GetAllFromDatabase(db_connection)
+	if err != nil {
+		logger.Fatal("abi.GetAllFromDatabase: %w", err)
+	}
+	smartcontracts_list := key_value.NewList()
+	for _, sm := range smartcontracts {
+		err := smartcontracts_list.Add(sm.SmartcontractKey, sm)
+		if err != nil {
+			logger.Fatal("smartcontracts_list.Add: %w", err)
+		}
+	}
+
+	err = reply.Run(
+		CommandHandlers,
+		db_connection,
+		abi_list,
+		smartcontracts_list,
+	)
 	if err != nil {
 		logger.Fatal("reply controller", "message", err)
 	}
