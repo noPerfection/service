@@ -46,13 +46,20 @@ import (
 // this function returns the smartcontract deployer, deployed block number
 // and block timestamp by a transaction hash of the smartcontract deployment.
 func transaction_deployed_get(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
-	var request_parameters handler.DeployedTransaction
+	if len(parameters) < 1 {
+		return message.Fail("missing app configuration")
+	}
+
+	var request_parameters handler.DeployedTransactionRequest
 	err := request.Parameters.ToInterface(&request_parameters)
 	if err != nil {
 		return message.Fail("failed to parse request parameters " + err.Error())
 	}
 
-	app_config := parameters[0].(*configuration.Config)
+	app_config, ok := parameters[0].(*configuration.Config)
+	if !ok {
+		return message.Fail("the parameter is not app config")
+	}
 	networks, err := network.GetNetworks(app_config, network.ALL)
 	if err != nil {
 		return message.Fail("network: " + err.Error())
@@ -89,19 +96,26 @@ func transaction_deployed_get(request message.Request, logger log.Logger, parame
 
 // Returns Network
 func get_network(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
+	if len(app_parameters) < 1 {
+		return message.Fail("missing app configuration")
+	}
+
 	command_logger, err := logger.ChildWithoutReport("network-get-command")
 	if err != nil {
 		return message.Fail("network-get-command: " + err.Error())
 	}
 	command_logger.Info("incoming request", "parameters", request.Parameters)
 
-	var request_parameters handler.NetworkId
+	var request_parameters handler.GetNetworkRequest
 	err = request.Parameters.ToInterface(&request_parameters)
 	if err != nil {
 		return message.Fail("failed to parse request parameters " + err.Error())
 	}
 
-	app_config := app_parameters[0].(*configuration.Config)
+	app_config, ok := app_parameters[0].(*configuration.Config)
+	if !ok {
+		return message.Fail("the parameter is not app config")
+	}
 	networks, err := network.GetNetworks(app_config, request_parameters.NetworkType)
 	if err != nil {
 		return message.Fail(err.Error())
@@ -112,9 +126,7 @@ func get_network(request message.Request, logger log.Logger, app_parameters ...i
 		return message.Fail(err.Error())
 	}
 
-	reply := handler.NetworkReply{
-		Network: *n,
-	}
+	var reply handler.GetNetworkReply = *n
 	reply_message, err := command.Reply(reply)
 	if err != nil {
 		return message.Fail("failed to reply: " + err.Error())
@@ -125,21 +137,26 @@ func get_network(request message.Request, logger log.Logger, app_parameters ...i
 
 // Returns an abi by the smartcontract key.
 func get_network_ids(request message.Request, _ log.Logger, app_parameters ...interface{}) message.Reply {
-	var parameters handler.NetworkIds
-	err := request.Parameters.ToInterface(&parameters)
+	if len(app_parameters) < 1 {
+		return message.Fail("missing app configuration")
+	}
+
+	var network_type handler.GetNetworkIdsRequest
+	err := request.Parameters.ToInterface(&network_type)
 	if err != nil {
 		return message.Fail("invalid parameters: " + err.Error())
 	}
 
-	app_config := app_parameters[0].(*configuration.Config)
-	network_ids, err := network.GetNetworkIds(app_config, parameters.NetworkType)
+	app_config, ok := app_parameters[0].(*configuration.Config)
+	if !ok {
+		return message.Fail("the parameter is not app config")
+	}
+	network_ids, err := network.GetNetworkIds(app_config, network_type)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	reply := handler.NetworkIdsReply{
-		NetworkIds: network_ids,
-	}
+	var reply handler.GetNetworkIdsReply = network_ids
 	reply_message, err := command.Reply(reply)
 	if err != nil {
 		return message.Fail("failed to reply: " + err.Error())
@@ -150,27 +167,32 @@ func get_network_ids(request message.Request, _ log.Logger, app_parameters ...in
 
 // Returns an abi by the smartcontract key.
 func get_all_networks(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
+	if len(app_parameters) < 1 {
+		return message.Fail("missing app configuration")
+	}
+
 	command_logger, err := logger.ChildWithoutReport("network-get-all-command")
 	if err != nil {
 		return message.Fail("network-get-all-command: " + err.Error())
 	}
 	command_logger.Info("incoming request", "parameters", request.Parameters)
 
-	var parameters handler.NetworkIds
-	err = request.Parameters.ToInterface(&parameters)
+	var network_type handler.GetNetworksRequest
+	err = request.Parameters.ToInterface(&network_type)
 	if err != nil {
 		return message.Fail("invalid parameters: " + err.Error())
 	}
 
-	app_config := app_parameters[0].(*configuration.Config)
-	networks, err := network.GetNetworks(app_config, parameters.NetworkType)
+	app_config, ok := app_parameters[0].(*configuration.Config)
+	if !ok {
+		return message.Fail("the parameter is not app config")
+	}
+	networks, err := network.GetNetworks(app_config, network_type)
 	if err != nil {
 		return message.Fail("blockchain " + err.Error())
 	}
 
-	reply := handler.NetworksReply{
-		Networks: networks,
-	}
+	var reply handler.GetNetworksReply = networks
 	reply_message, err := command.Reply(reply)
 	if err != nil {
 		return message.Fail("failed to reply: " + err.Error())
@@ -203,8 +225,6 @@ func Service() *service.Service {
 //     blockchain client and atleast categorizer.
 func Run(app_config *configuration.Config) {
 	logger, _ := log.New("blockchain", log.WITH_TIMESTAMP)
-
-	logger.Info("starting")
 
 	this_service := Service()
 	reply, err := controller.NewReply(this_service, logger)

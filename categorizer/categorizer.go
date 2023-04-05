@@ -80,10 +80,8 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	logger.Info("retreive networks", "network-type", network.ALL)
 
-	request_parameters := blockchain_command.NetworkIds{
-		NetworkType: network.ALL,
-	}
-	var parameters blockchain_command.NetworksReply
+	var request_parameters blockchain_command.GetNetworksRequest = network.ALL
+	var parameters blockchain_command.GetNetworksReply
 	err = blockchain_command.NETWORKS_COMMAND.Request(blockchain_socket, request_parameters, &parameters)
 	blockchain_socket.Close()
 	if err != nil {
@@ -92,9 +90,9 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	logger.Info("networks retreived")
 
-	pushers := make(map[string]*zmq.Socket, len(parameters.Networks))
+	pushers := make(map[string]*zmq.Socket, len(parameters))
 
-	for _, the_network := range parameters.Networks {
+	for _, the_network := range parameters {
 		pusher, err := categorizer_process.CategorizerManagerSocket(the_network.Id)
 		if err != nil {
 			logger.Fatal("categorizer_process.CategorizerManagerSocket: %w", err)
