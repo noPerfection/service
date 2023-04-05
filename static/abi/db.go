@@ -23,20 +23,6 @@ func SetInDatabase(db *db.Database, a *Abi) error {
 	return nil
 }
 
-// Returns the Abi from database by its abi_id
-func GetFromDatabaseByAbiId(db *db.Database, abi_id string) (*Abi, error) {
-	var bytes []byte
-	abi := Abi{}
-	abi.Id = abi_id
-	err := db.Connection.QueryRow("SELECT body FROM static_abi WHERE abi_id = ? ", abi_id).Scan(&bytes)
-	if err != nil {
-		return nil, fmt.Errorf("db: %w", err)
-	}
-
-	built, err := NewFromBytes(bytes)
-	return built, err
-}
-
 // Get all abis from database
 func GetAllFromDatabase(db *db.Database) ([]*Abi, error) {
 	rows, err := db.Connection.Query("SELECT body, abi_id FROM static_abi")
