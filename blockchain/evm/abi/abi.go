@@ -94,7 +94,7 @@ func (a *Abi) DecodeLog(topics []string, data string) (string, map[string]interf
 			if len(data) > 0 {
 				bytes, err := hex.DecodeString(data)
 				if err != nil {
-					return "", nil, fmt.Errorf("error decoding data strin to bytes: %w", err)
+					return "", nil, fmt.Errorf("error decoding data string to bytes: %w", err)
 				}
 				err = event.Inputs.NonIndexed().UnpackIntoMap(data_outputs, bytes)
 				if err != nil {

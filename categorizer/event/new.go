@@ -7,7 +7,8 @@ import (
 )
 
 // Call categorizer.NewLog().AddMetadata().AddSmartcontractData()
-// DON'T call it as a single function
+// DON'T call it as a single function otherwise
+// there is no guarantee that event is valid
 func New(event_name string, parameters key_value.KeyValue) *Log {
 	return &Log{
 		Name:       event_name,
