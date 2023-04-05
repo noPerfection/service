@@ -232,7 +232,15 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 		return fmt.Errorf("gosds/blockchain: failed to get networks: %v", err)
 	}
 
-	imx_network_found := false
+	for _, new_network := range networks {
+		if new_network.Type == network.IMX {
+			err = imx.ValidateEnv(app_config)
+			if err != nil {
+				return fmt.Errorf("gosds/blockchain: failed to validate IMX specific config: %v", err)
+			}
+			break
+		}
+	}
 
 	// if there are some logs, we should broadcast them to the SDS Categorizer
 	pusher, err := categorizer.NewCategorizerPusher()
@@ -261,8 +269,6 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 			}
 			go categorizer.Start()
 		} else if new_network.Type == network.IMX {
-			imx_network_found = true
-
 			new_client := imx_client.New(new_network)
 
 			new_worker := imx_worker.New(app_config, new_client, worker_logger)
@@ -275,13 +281,6 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 			go imx_manager.Start()
 		} else {
 			return fmt.Errorf("no blockchain handler for network_type %v", new_network.Type)
-		}
-	}
-
-	if imx_network_found {
-		err = imx.ValidateEnv(app_config)
-		if err != nil {
-			return fmt.Errorf("gosds/blockchain: failed to validate IMX specific config: %v", err)
 		}
 	}
 
