@@ -47,7 +47,7 @@ func NewReply(s *service.Service, logger log.Logger) (*Controller, error) {
 }
 
 func (c *Controller) is_repliable() bool {
-	return c.socket_type != zmq.PULL
+	return c.socket_type == zmq.REP
 }
 
 // If controller type supports, then it will reply back to requester
