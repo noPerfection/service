@@ -42,6 +42,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/blocklords/sds/app/command"
+	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/service"
 
 	"github.com/blocklords/sds/app/remote/message"
@@ -50,6 +52,8 @@ import (
 
 	zmq "github.com/pebbe/zmq4"
 )
+
+const NEW_MESSAGE command.Command = "new-message"
 
 // Broadcast
 type Broadcast struct {
@@ -133,8 +137,6 @@ func ConnectionSocket(service *service.Service) (*zmq.Socket, error) {
 //
 // use controller.Controller through controller.NewPull
 func (b *Broadcast) Run() {
-	var mu sync.Mutex
-
 	// Socket to talk to clients
 	broadcast_socket, err := zmq.NewSocket(zmq.PUB)
 	if err != nil {
@@ -147,29 +149,60 @@ func (b *Broadcast) Run() {
 		b.logger.Fatal("could not listen to publisher", "broadcast_url", b.service.Url(), "message", err)
 	}
 
-	sock, err := zmq.NewSocket(zmq.PULL)
-	if err != nil {
-		b.logger.Fatal("could not create pull socket", "message", err)
-	}
-
 	url := ConnectionUrl(b.service)
-	if err := sock.Connect(url); err != nil {
-		b.logger.Fatal("socket binding to %s: %w", url, err)
+	pull_service, err := service.InprocessFromUrl(url)
+	if err != nil {
+		b.logger.Fatal("could not create inprocess service for broadcast", "broadcast url", b.service.Url(), "puller url", url, "error", err)
+	}
+	pull, err := controller.NewPull(pull_service, b.logger)
+	if err != nil {
+		b.logger.Fatal("could not pull controller for broadcast", "broadcast url", b.service.Url(), "puller url", url, "error", err)
 	}
 
-	b.logger.Info("waiting for new messages...", "url", url)
+	handlers := command.EmptyHandlers().
+		Add(NEW_MESSAGE, on_new_message)
 
-	for {
-		// Wait for reply.
-		msgs, _ := sock.RecvMessage(0)
-		broadcast, _ := message.ParseBroadcast(msgs)
-		b.logger.Info("broadcast a new message", "topic", broadcast.Topic)
-
-		mu.Lock()
-		_, err = b.socket.SendMessage(broadcast.Topic, broadcast.ToBytes())
-		mu.Unlock()
-		if err != nil {
-			b.logger.Fatal("socket error to send message", "message", err)
-		}
+	err = pull.Run(handlers, b)
+	if err != nil {
+		b.logger.Fatal("pull.Run", "broadcast url", b.service.Url(), "puller url", url, "error", err)
 	}
+}
+
+func on_new_message(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if parameters == nil || len(parameters) < 1 {
+		return message.Fail("invalid parameters were given atleast broadcast should be passed")
+	}
+
+	broadcast, ok := parameters[0].(*Broadcast)
+	if !ok {
+		return message.Fail("missing Manager in the parameters")
+	}
+
+	topic, err := request.Parameters.GetString("topic")
+	if err != nil {
+		return message.Fail("parameters.GetString(`topic`):" + err.Error())
+	}
+
+	reply_parameters, err := request.Parameters.GetKeyValue("reply_parameters")
+	if err != nil {
+		return message.Fail("parameters.GetString(`topic`):" + err.Error())
+	}
+
+	reply := message.Reply{
+		Status:     message.OK,
+		Message:    "",
+		Parameters: reply_parameters,
+	}
+	broadcast_message := message.NewBroadcast(topic, reply)
+
+	var mu sync.Mutex
+	broadcast_bytes := broadcast_message.ToBytes()
+	mu.Lock()
+	_, err = broadcast.socket.SendMessage(topic, broadcast_bytes)
+	mu.Unlock()
+	if err != nil {
+		broadcast.logger.Fatal("socket error to send message", "message", err)
+	}
+
+	return reply
 }
