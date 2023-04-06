@@ -12,15 +12,16 @@ import (
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/blockchain/transaction"
 
+	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	eth_types "github.com/ethereum/go-ethereum/core/types"
-
-	zmq "github.com/pebbe/zmq4"
 )
 
 const (
@@ -69,66 +70,51 @@ func (m *Manager) stable_clients() []*Client {
 }
 
 // Sets up the socket to interact with other packages within SDS
+// Call it with goroutine, otherwise we won't assure freezing of the app
+// and thread safety issues.
 func (worker *Manager) SetupSocket() {
-	sock, err := zmq.NewSocket(zmq.REP)
-	if err != nil {
-		worker.logger.Fatal("trying to create new reply socket for network id %s: %v", worker.network.Id, err)
-	}
-
 	url := blockchain_proc.ClientEndpoint(worker.network.Id)
-	if err := sock.Bind(url); err != nil {
-		worker.logger.Fatal("trying to create categorizer for network id %s: %v", worker.network.Id, err)
+	service, err := service.InprocessFromUrl(url)
+	if err != nil {
+		worker.logger.Fatal("service.InprocessFromUrl", "error", err)
 	}
-	worker.logger.Info("reply controller waiting for messages", "url", url)
-	defer sock.Close()
+	reply, err := controller.NewReply(service, worker.logger)
+	if err != nil {
+		worker.logger.Fatal("controller.NewReply", "error", err)
+	}
 
-	for {
-		// Wait for reply.
-		msgs, _ := sock.RecvMessage(0)
-		request, _ := message.ParseRequest(msgs)
+	handlers := command.EmptyHandlers().
+		Add(handler.FILTER_LOG_COMMAND, on_filter_log).
+		Add(handler.TRANSACTION_COMMAND, on_transaction).
+		Add(handler.RECENT_BLOCK_NUMBER, on_recent_block)
 
-		var reply message.Reply
-		var err error = nil
-		if request.Command == handler.FILTER_LOG_COMMAND.String() {
-			var request_parameters handler.FilterLog
-			err = request.Parameters.ToInterface(&request_parameters)
-			if err == nil {
-				reply = worker.filter_log(request_parameters)
-			}
-		} else if request.Command == handler.TRANSACTION_COMMAND.String() {
-			var request_parameters handler.Transaction
-			err = request.Parameters.ToInterface(&request_parameters)
-			if err == nil {
-				reply = worker.get_transaction(request_parameters)
-			}
-		} else if request.Command == handler.TRANSACTION_COMMAND.String() {
-			reply = worker.get_recent_block()
-		} else {
-			reply = message.Fail("unsupported command: " + request.Command)
-		}
-		if err != nil {
-			reply = message.Fail("request parameter: " + err.Error())
-		}
-
-		reply_string, err := reply.ToString()
-		if err != nil {
-			if _, err := sock.SendMessage(err.Error()); err != nil {
-				worker.logger.Fatal("reply.ToString error to send message for network id %s error: %w", worker.network.Id, err)
-			}
-		} else {
-			if _, err := sock.SendMessage(reply_string); err != nil {
-				worker.logger.Fatal("failed to reply: %w", err)
-			}
-		}
+	err = reply.Run(handlers, worker)
+	if err != nil {
+		worker.logger.Fatal("controller.Run", "error", err)
 	}
 }
 
 // Handle the filter-log command
 // Returns the smartcontract event logs filtered by the smartcontract addresses
-func (worker *Manager) filter_log(parameters handler.FilterLog) message.Reply {
+func on_filter_log(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if parameters == nil || len(parameters) < 1 {
+		return message.Fail("invalid parameters were given atleast manager should be passed")
+	}
+
+	worker, ok := parameters[0].(*Manager)
+	if !ok {
+		return message.Fail("missing Manager in the parameters")
+	}
+
+	var request_parameters handler.FilterLog
+	err := request.Parameters.ToInterface(&request_parameters)
+	if err != nil {
+		return message.Fail("failed to parse request parameters: %w" + err.Error())
+	}
+
 	network_id := worker.network.Id
-	block_number_from := parameters.BlockFrom.Value()
-	addresses := parameters.Addresses
+	block_number_from := request_parameters.BlockFrom.Value()
+	addresses := request_parameters.Addresses
 
 	length, err := worker.network.GetFirstProviderLength()
 	if err != nil {
@@ -263,9 +249,23 @@ func (worker *Manager) get_block_timestamp(block_number blockchain.Number) (bloc
 
 // Handle the deployed-transaction command
 // Returns the transaction information from blockchain
-func (worker *Manager) get_transaction(parameters handler.Transaction) message.Reply {
+func on_transaction(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if parameters == nil || len(parameters) < 1 {
+		return message.Fail("invalid parameters were given atleast manager should be passed")
+	}
+
+	worker, ok := parameters[0].(*Manager)
+	if !ok {
+		return message.Fail("missing Manager in the parameters")
+	}
+
+	var request_parameters handler.Transaction
+	err := request.Parameters.ToInterface(&request_parameters)
+	if err != nil {
+		return message.Fail("failed to parse request parameters: %w" + err.Error())
+	}
+
 	var tx *transaction.RawTransaction = nil
-	var err error
 	clients := worker.stable_clients()
 	if len(clients) == 0 {
 		return message.Fail("no stable clients found")
@@ -276,7 +276,7 @@ func (worker *Manager) get_transaction(parameters handler.Transaction) message.R
 
 		attempt := ATTEMPT_AMOUNT
 		for {
-			fetched_tx, err = client.GetTransaction(parameters.TransactionId, worker.app_config)
+			fetched_tx, err = client.GetTransaction(request_parameters.TransactionId, worker.app_config)
 			if err == nil {
 				break
 			}
@@ -310,16 +310,25 @@ func (worker *Manager) get_transaction(parameters handler.Transaction) message.R
 
 // Handle the get-recent-block-number command
 // Returns the most recent block number and its timestamp
-func (worker *Manager) get_recent_block() message.Reply {
+func on_recent_block(_ message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if parameters == nil || len(parameters) < 1 {
+		return message.Fail("invalid parameters were given atleast manager should be passed")
+	}
+
+	worker, ok := parameters[0].(*Manager)
+	if !ok {
+		return message.Fail("missing Manager in the parameters")
+	}
+
 	confirmations := uint64(12)
 
 	var block_number uint64 = 0
-	var err error
 	clients := worker.stable_clients()
 	if len(clients) == 0 {
 		return message.Fail("no stable clients found")
 	}
 	attempt_failed := 0
+	var err error
 	for _, client := range clients {
 		var fetched_block_number uint64
 
