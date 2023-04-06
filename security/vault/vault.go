@@ -6,14 +6,15 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	hashicorp "github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/api/auth/approle"
-
-	zmq "github.com/pebbe/zmq4"
 )
 
 type Vault struct {
@@ -118,55 +119,52 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 //
 // use controller.Controller through controller.NewReply()
 func (v *Vault) RunController() {
-	// Socket to talk to clients
-	socket, err := zmq.NewSocket(zmq.REP)
+	service, err := service.InprocessFromUrl(VaultEndpoint())
 	if err != nil {
-		v.logger.Fatal("failed to create a new socket", "error", err.Error())
+		v.logger.Fatal("service.InprocessFromUrl", "error", err.Error())
+	}
+	reply, err := controller.NewReply(service, v.logger)
+	if err != nil {
+		v.logger.Fatal("controller.NewReply", "error", err.Error())
 	}
 
-	if err := socket.Bind(VaultEndpoint()); err != nil {
-		v.logger.Fatal("failed to bind to socket", "error", err.Error())
+	handlers := command.EmptyHandlers().Add(GET_STRING, on_get_string)
+
+	reply.Run(handlers, v)
+}
+
+func on_get_string(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
+	bucket, err := request.Parameters.GetString("bucket")
+	if err != nil {
+		return message.Fail("missing bucket parameter")
+	}
+	key, err := request.Parameters.GetString("key")
+	if err != nil {
+		return message.Fail("missing key parameter")
+	}
+	if parameters == nil || len(parameters) < 1 {
+		return message.Fail("atleast vault should be given, no parameters")
+	}
+	v, ok := parameters[0].(*Vault)
+	if !ok {
+		return message.Fail("parameter is not a vault")
 	}
 
-	for {
-		msgs, _ := socket.RecvMessage(0)
+	value, err := v.get_string(bucket, key)
 
-		// All request types derive from the basic request.
-		// We first attempt to parse basic request from the raw message
-		request, _ := message.ParseRequest(msgs)
-
-		bucket, _ := request.Parameters.GetString("bucket")
-		key, _ := request.Parameters.GetString("key")
-
-		if request.Command == "GetString" {
-			value, err := v.get_string(bucket, key)
-
-			if err != nil {
-				fail := message.Fail("invalid smartcontract developer request " + err.Error())
-				reply_string, _ := fail.ToString()
-				if _, err := socket.SendMessage(reply_string); err != nil {
-					v.logger.Fatal("failed send", "error", err.Error())
-				}
-			} else {
-				reply := message.Reply{
-					Status:  "OK",
-					Message: "",
-					Parameters: map[string]interface{}{
-						"value": value,
-					},
-				}
-
-				reply_string, _ := reply.ToString()
-				if _, err := socket.SendMessage(reply_string); err != nil {
-					v.logger.Fatal("failed send", "error", err.Error())
-				}
-			}
-		} else {
-			if _, err := socket.SendMessage("vault doesnt support this kind of command"); err != nil {
-				v.logger.Fatal("failed send", "error", err.Error())
-			}
-		}
+	if err != nil {
+		fail := message.Fail("invalid smartcontract developer request " + err.Error())
+		return fail
 	}
+
+	reply := message.Reply{
+		Status:  message.OK,
+		Message: "",
+		Parameters: key_value.Empty().
+			Set("value", value),
+	}
+
+	return reply
 }
 
 // A combination of a RoleID and a SecretID is required to log into Vault
