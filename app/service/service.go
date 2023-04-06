@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/security/credentials"
@@ -34,14 +35,23 @@ func Inprocess(service_type ServiceType) (*Service, error) {
 }
 
 // Creates the inprocess service by url.
-// Url will be the name of the service.
+// The name of the service is custom. With this function you can create
+// services that are not registered in the service type.
 //
 // Url should include inproc:// protocol prefix
-func InprocessFromUrl(url string) (*Service, error) {
+func InprocessFromUrl(endpoint string) (*Service, error) {
+	u, err := url.ParseRequestURI(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("invalid endpoint '%s': %w", endpoint, err)
+	}
+	if u.Scheme != "inproc" {
+		return nil, fmt.Errorf("invalid '%s' provider protocol. Expected either 'inproc'. But given '%s'", endpoint, u.Scheme)
+	}
+
 	s := Service{
-		Name:   url,
+		Name:   u.Hostname(),
 		inproc: true,
-		url:    url,
+		url:    endpoint,
 		limit:  THIS,
 	}
 
