@@ -33,6 +33,21 @@ func Inprocess(service_type ServiceType) (*Service, error) {
 	return &s, nil
 }
 
+// Creates the inprocess service by url.
+// Url will be the name of the service.
+//
+// Url should include inproc:// protocol prefix
+func InprocessFromUrl(url string) (*Service, error) {
+	s := Service{
+		Name:   url,
+		inproc: true,
+		url:    url,
+		limit:  THIS,
+	}
+
+	return &s, nil
+}
+
 // Creates the service with the parameters but without any information
 func NewExternal(service_type ServiceType, limit Limit, app_config *configuration.Config) (*Service, error) {
 	if app_config == nil {
