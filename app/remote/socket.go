@@ -29,6 +29,7 @@ type Socket struct {
 	// its used as a clarification
 	remote_service     *service.Service
 	client_credentials *credentials.Credentials
+	server_public_key  string
 	poller             *zmq.Poller
 	socket             *zmq.Socket
 	protocol           string
@@ -80,7 +81,7 @@ func (socket *Socket) reconnect() error {
 	}
 
 	if socket.client_credentials != nil {
-		socket.client_credentials.SetClientAuthCurve(socket.socket, socket.remote_service.Credentials.PublicKey)
+		socket.client_credentials.SetClientAuthCurve(socket.socket, socket.server_public_key)
 		if err != nil {
 			return fmt.Errorf("credentials.SetClientAuthCurve: %w", err)
 		}
@@ -161,6 +162,19 @@ func (socket *Socket) Close() error {
 func (socket *Socket) RequestRouter(service_type service.ServiceType, request *message.Request) (key_value.KeyValue, error) {
 	request_timeout := parameter.RequestTimeout(socket.app_config)
 
+	if socket.remote_service.IsInproc() {
+		err := socket.inproc_reconnect()
+		if err != nil {
+			return nil, fmt.Errorf("socket connection: %w", err)
+		}
+
+	} else {
+		err := socket.reconnect()
+		if err != nil {
+			return nil, fmt.Errorf("socket connection: %w", err)
+		}
+	}
+
 	request_string, err := request.ToString()
 	if err != nil {
 		return nil, fmt.Errorf("request.ToString: %w", err)
@@ -229,6 +243,19 @@ func (socket *Socket) RequestRouter(service_type service.ServiceType, request *m
 // Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
 // In case of successful request, the function returns reply parameters.
 func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
+	if socket.remote_service.IsInproc() {
+		err := socket.inproc_reconnect()
+		if err != nil {
+			return nil, fmt.Errorf("socket connection: %w", err)
+		}
+
+	} else {
+		err := socket.reconnect()
+		if err != nil {
+			return nil, fmt.Errorf("socket connection: %w", err)
+		}
+	}
+
 	request_timeout := parameter.RequestTimeout(socket.app_config)
 
 	request_string, err := request.ToString()
@@ -295,9 +322,17 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 	}
 }
 
+// almost identical except that it will add security parameters
+func (socket *Socket) SetSecurity(server_public_key string, client *credentials.Credentials) *Socket {
+	socket.server_public_key = server_public_key
+	socket.client_credentials = client
+
+	return socket
+}
+
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.REQ
-func NewTcpSocket(remote_service *service.Service, client *credentials.Credentials, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
+func NewTcpSocket(remote_service *service.Service, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
 	if app_config == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}
@@ -320,15 +355,11 @@ func NewTcpSocket(remote_service *service.Service, client *credentials.Credentia
 
 	new_socket := Socket{
 		remote_service:     remote_service,
-		client_credentials: client,
+		client_credentials: nil,
 		socket:             sock,
 		protocol:           "tcp",
 		logger:             logger,
 		app_config:         app_config,
-	}
-	err = new_socket.reconnect()
-	if err != nil {
-		return nil, fmt.Errorf("reconnect: %w", err)
 	}
 
 	return &new_socket, nil
@@ -369,17 +400,13 @@ func InprocRequestSocket(url string, parent log.Logger, app_config *configuratio
 		logger:             logger,
 		app_config:         app_config,
 	}
-	err = new_socket.inproc_reconnect()
-	if err != nil {
-		return nil, fmt.Errorf("new_socket.inproc_reconnect: %w", err)
-	}
 
 	return &new_socket, nil
 }
 
 // Create a new Socket on TCP protocol otherwise exit from the program
 // The socket is the wrapper over zmq.SUB
-func NewTcpSubscriber(e *service.Service, client *credentials.Credentials, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
+func NewTcpSubscriber(e *service.Service, server_public_key string, client *credentials.Credentials, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
 	if app_config == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}
@@ -416,6 +443,7 @@ func NewTcpSubscriber(e *service.Service, client *credentials.Credentials, paren
 		remote_service:     e,
 		socket:             socket,
 		client_credentials: client,
+		server_public_key:  server_public_key,
 		protocol:           "tcp",
 		logger:             logger,
 		app_config:         app_config,
