@@ -51,10 +51,8 @@ type Manager struct {
 	static            *remote.Socket           // return the abi from static for decoding event logs
 	app_config        *configuration.Config    // configuration used to create new sockets
 	logger            log.Logger               // print the debug parameters
-	old_categorizers  OldWorkerGroups          // smartcontracts to categorize from archived nodes
 	current_workers   smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
 	subscribed_blocks data_type.Queue          // we keep recent blocks from blockchain
-
 }
 
 // Creates a new manager for the given EVM Network
@@ -74,7 +72,6 @@ func NewManager(
 
 	manager := Manager{
 		Network:           network,
-		old_categorizers:  make(OldWorkerGroups, 0),
 		subscribed_blocks: *data_type.NewQueue(),
 		current_workers:   make(smartcontract.EvmWorkers, 0),
 		logger:            logger,
@@ -91,10 +88,6 @@ func NewManager(
 func (manager *Manager) GetSmartcontracts() []categorizer_smartcontract.Smartcontract {
 	smartcontracts := make([]categorizer_smartcontract.Smartcontract, 0)
 
-	for _, group := range manager.old_categorizers {
-		smartcontracts = append(smartcontracts, group.workers.GetSmartcontracts()...)
-	}
-
 	smartcontracts = append(smartcontracts, manager.current_workers.GetSmartcontracts()...)
 
 	return smartcontracts
@@ -105,11 +98,6 @@ func (manager *Manager) GetSmartcontracts() []categorizer_smartcontract.Smartcon
 // and the ones that are syncing from the up-to-date blocks.
 func (manager *Manager) GetSmartcontractAddresses() []string {
 	addresses := make([]string, 0)
-
-	for _, group := range manager.old_categorizers {
-		addresses = append(addresses, group.workers.GetSmartcontractAddresses()...)
-	}
-
 	addresses = append(addresses, manager.current_workers.GetSmartcontractAddresses()...)
 
 	return addresses
