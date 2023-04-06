@@ -10,6 +10,10 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+func VaultEndpoint() string {
+	return "inproc://sds_vault"
+}
+
 // Get the string value from the vault
 func GetStringFromVault(bucket string, key string) (string, error) {
 	// Socket to talk to clients
@@ -18,7 +22,7 @@ func GetStringFromVault(bucket string, key string) (string, error) {
 		return "", err
 	}
 
-	if err := socket.Connect("inproc://sds_vault"); err != nil {
+	if err := socket.Connect(VaultEndpoint()); err != nil {
 		return "", fmt.Errorf("error to bind socket for: " + err.Error())
 	}
 

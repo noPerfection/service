@@ -124,7 +124,7 @@ func (v *Vault) RunController() {
 		v.logger.Fatal("failed to create a new socket", "error", err.Error())
 	}
 
-	if err := socket.Bind("inproc://sds_vault"); err != nil {
+	if err := socket.Bind(VaultEndpoint()); err != nil {
 		v.logger.Fatal("failed to bind to socket", "error", err.Error())
 	}
 
