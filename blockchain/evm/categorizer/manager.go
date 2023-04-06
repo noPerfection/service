@@ -8,8 +8,12 @@ package categorizer
 import (
 	"fmt"
 
+	"github.com/blocklords/sds/app/command"
+	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 
 	client_thread "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
@@ -23,7 +27,6 @@ import (
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 
-	"github.com/blocklords/sds/app/remote/message"
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -133,28 +136,24 @@ func (manager *Manager) start_old() error {
 // The categorizer receives new smartcontracts
 // to categorize from SDS Categorizer.
 func (manager *Manager) start_puller() {
-	sock, err := zmq.NewSocket(zmq.PULL)
-	if err != nil {
-		manager.logger.Fatal("new manager pull socket", "message", err)
-	}
-
 	url := client_thread.CategorizerEndpoint(manager.Network.Id)
-	if err := sock.Bind(url); err != nil {
-		manager.logger.Fatal("trying to create categorizer for network id %s: %v", url, err)
+	service, err := service.InprocessFromUrl(url)
+	if err != nil {
+		manager.logger.Fatal("failed to create inproc service from url", "error", err)
+	}
+	reply, err := controller.NewPull(service, manager.logger)
+	if err != nil {
+		manager.logger.Fatal("failed to create pull controller", "error", err)
 	}
 
-	for {
-		// Wait for reply.
-		msgs, _ := sock.RecvMessage(0)
-		request, _ := message.ParseRequest(msgs)
-
-		if request.Command == handler.NEW_CATEGORIZED_SMARTCONTRACTS.String() {
-			manager.on_new_smartcontracts(request.Parameters)
-		}
+	handlers := command.EmptyHandlers().Add(handler.NEW_CATEGORIZED_SMARTCONTRACTS, on_new_smartcontracts)
+	err = reply.Run(handlers, manager)
+	if err != nil {
+		manager.logger.Fatal("failed to run reply controller", "error", err)
 	}
 }
 
-// Returns the most recent block number that manager synced to.
+// Returns the most recent block number from recent manager through the socket.
 //
 // Algorithm to get block number by priority
 // - from blockchain
@@ -174,14 +173,23 @@ func (manager *Manager) remote_recent_block_number() (blockchain.Number, error) 
 }
 
 // Categorizer manager received new smartcontracts along with their ABI
-func (manager *Manager) on_new_smartcontracts(parameters key_value.KeyValue) {
+func on_new_smartcontracts(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if parameters == nil || len(parameters) < 1 {
+		return message.Fail("invalid parameters were given atleast manager should be passed")
+	}
+
+	manager, ok := parameters[0].(*Manager)
+	if !ok {
+		return message.Fail("missing Manager in the parameters")
+	}
+
 	manager.logger.Info("add new smartcontracts to the manager")
 
-	raw_smartcontracts, _ := parameters.GetKeyValueList("smartcontracts")
+	raw_smartcontracts, _ := request.Parameters.GetKeyValueList("smartcontracts")
 
 	block_number, err := manager.remote_recent_block_number()
 	if err != nil {
-		manager.logger.Fatal("recent block number empty, its unexpected")
+		return message.Fail("recent block number empty, its unexpected: " + err.Error())
 	}
 
 	new_workers := make(smartcontract.EvmWorkers, len(raw_smartcontracts))
@@ -198,12 +206,18 @@ func (manager *Manager) on_new_smartcontracts(parameters key_value.KeyValue) {
 
 	if len(old_workers) > 0 {
 		err := manager.push_old_workers(old_workers)
-		manager.logger.Fatal("push_old_workers", "error", err)
+		return message.Fail("push_old_workers: " + err.Error())
 	}
 
 	if len(recent_workers) > 0 {
 		err := manager.push_recent_workers(recent_workers)
-		manager.logger.Fatal("push_recent_workers", "error", err)
+		return message.Fail("push_recent_workers: " + err.Error())
+	}
+
+	return message.Reply{
+		Status:     message.OK,
+		Message:    "",
+		Parameters: key_value.Empty(),
 	}
 }
 
