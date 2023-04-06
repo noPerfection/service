@@ -6,11 +6,13 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// The ZAP curve for authentication of the users
 type Credentials struct {
 	PublicKey   string
 	private_key string
 }
 
+// Returns the credentials with public key and private key
 func NewPrivateKey(private_key string, public_key string) *Credentials {
 	return &Credentials{
 		PublicKey:   public_key,
@@ -26,11 +28,13 @@ func New(public_key string) *Credentials {
 	}
 }
 
+// Whether the credentials include the private key or not
 func (c *Credentials) HasPrivateKey() bool {
 	return len(c.private_key) > 0
 }
 
-// Sets the private key to the socket on a given domain
+// Sets the private key to the socket on a given domain.
+// Call it for controllers.
 func (c *Credentials) SetSocketAuthCurve(socket *zmq.Socket, domain string) error {
 	if len(c.private_key) == 0 {
 		return fmt.Errorf("no private key")
