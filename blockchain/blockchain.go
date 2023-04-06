@@ -69,7 +69,7 @@ func transaction_deployed_get(request message.Request, logger log.Logger, parame
 		return message.Fail("unsupported network id")
 	}
 
-	url := blockchain_process.BlockchainManagerUrl(request_parameters.NetworkId)
+	url := blockchain_process.ClientEndpoint(request_parameters.NetworkId)
 	sock, err := remote.InprocRequestSocket(url, logger, app_config)
 	if err != nil {
 		return message.Fail("blockchain request error: " + err.Error())

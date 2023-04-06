@@ -35,7 +35,7 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 	}
 
 	logger.Info("all smartcontracts returned", "network_id", network.Id, "smartcontract amount", len(smartcontracts))
-	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id, "url", categorizer_process.CategorizerManagerUrl(network.Id))
+	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id, "url", categorizer_process.CategorizerEndpoint(network.Id))
 
 	request := blockchain_command.PushNewSmartcontracts{
 		Smartcontracts: smartcontracts,

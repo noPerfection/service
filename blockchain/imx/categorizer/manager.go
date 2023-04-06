@@ -46,7 +46,7 @@ func (manager *Manager) Start() {
 		manager.logger.Fatal("new pull socket", "error", err)
 	}
 
-	url := blockchai_process.CategorizerManagerUrl(manager.network.Id)
+	url := blockchai_process.CategorizerEndpoint(manager.network.Id)
 	if err := sock.Connect(url); err != nil {
 		manager.logger.Fatal("socket.Connect", "error", err)
 	}

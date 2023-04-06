@@ -15,7 +15,7 @@ import (
 
 	"time"
 
-	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
+	client_thread "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
 
 	"github.com/blocklords/sds/app/configuration"
@@ -43,47 +43,45 @@ const RUNNING = "running"
 
 // Categorization of the smartcontracts on the specific EVM blockchain
 type Manager struct {
-	pusher     *zmq.Socket
-	static     *remote.Socket
-	Network    *network.Network
-	app_config *configuration.Config
+	Network *network.Network // blockchain information of the manager
 
-	logger log.Logger
-
-	old_categorizers OldWorkerGroups
-
-	current_workers smartcontract.EvmWorkers
-
-	subscribed_blocks data_type.Queue
+	pusher            *zmq.Socket              // send through this socket updated datat to SDS Core
+	static            *remote.Socket           // return the abi from static for decoding event logs
+	app_config        *configuration.Config    // configuration used to create new sockets
+	logger            log.Logger               // print the debug parameters
+	old_categorizers  OldWorkerGroups          // smartcontracts to categorize from archived nodes
+	current_workers   smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
+	subscribed_blocks data_type.Queue          // we keep recent blocks from blockchain
 }
 
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
-func NewManager(parent log.Logger, network *network.Network, pusher *zmq.Socket, app_config *configuration.Config) (*Manager, error) {
+func NewManager(
+	parent log.Logger,
+	network *network.Network,
+	pusher *zmq.Socket,
+	app_config *configuration.Config) (*Manager, error) {
 	logger, err := parent.ChildWithTimestamp("categorizer")
 	if err != nil {
 		return nil, fmt.Errorf("child logger: %w", err)
 	}
 
 	manager := Manager{
-		Network: network,
-
-		old_categorizers: make(OldWorkerGroups, 0),
-
+		Network:           network,
+		old_categorizers:  make(OldWorkerGroups, 0),
 		subscribed_blocks: *data_type.NewQueue(),
-
-		// consumes the data from the subscribed blocks
-		current_workers: make(smartcontract.EvmWorkers, 0),
-
-		logger:     logger,
-		pusher:     pusher,
-		app_config: app_config,
+		current_workers:   make(smartcontract.EvmWorkers, 0),
+		logger:            logger,
+		pusher:            pusher,
+		app_config:        app_config,
 	}
 
 	return &manager, nil
 }
 
-// Returns all smartcontracts from all types of workers
+// Returns all smartcontracts
+// those that are synced from archived blocks
+// and the ones that are syncing from the up-to-date blocks.
 func (manager *Manager) GetSmartcontracts() []categorizer_smartcontract.Smartcontract {
 	smartcontracts := make([]categorizer_smartcontract.Smartcontract, 0)
 
@@ -96,6 +94,9 @@ func (manager *Manager) GetSmartcontracts() []categorizer_smartcontract.Smartcon
 	return smartcontracts
 }
 
+// Returns all smartcontract address
+// those that are synced from archived blocks
+// and the ones that are syncing from the up-to-date blocks.
 func (manager *Manager) GetSmartcontractAddresses() []string {
 	addresses := make([]string, 0)
 
@@ -108,7 +109,12 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 	return addresses
 }
 
-// Same as Run. Run it as a goroutine
+// Same as Run.
+//
+// Run it as a goroutine. Otherwise there is no guarantee that
+// manager would connect to the blockchain/client and SDS Core correctly.
+//
+// Because, the sockets are not thread-safe.
 func (manager *Manager) Start() {
 	static_env, err := service.Inprocess(service.STATIC)
 	if err != nil {
@@ -129,7 +135,7 @@ func (manager *Manager) Start() {
 		manager.logger.Fatal("new manager pull socket", "message", err)
 	}
 
-	url := blockchain_proc.CategorizerManagerUrl(manager.Network.Id)
+	url := client_thread.CategorizerEndpoint(manager.Network.Id)
 	if err := sock.Connect(url); err != nil {
 		manager.logger.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
 	}
@@ -141,7 +147,7 @@ func (manager *Manager) Start() {
 		msgs, _ := sock.RecvMessage(0)
 		request, _ := message.ParseRequest(msgs)
 
-		if request.Command == "new-smartcontracts" {
+		if request.Command == handler.NEW_CATEGORIZED_SMARTCONTRACTS.String() {
 			manager.new_smartcontracts(request.Parameters)
 		}
 	}
@@ -154,21 +160,20 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 
 	raw_smartcontracts, _ := parameters.GetKeyValueList("smartcontracts")
 
-	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
-	blockchain_socket, err := remote.InprocRequestSocket(url, manager.logger, manager.app_config)
+	url := client_thread.ClientEndpoint(manager.Network.Id)
+	blockchain_client_socket, err := remote.InprocRequestSocket(url, manager.logger, manager.app_config)
 	if err != nil {
 		manager.logger.Fatal("remote.InprocRequest", "url", url, "error", err)
 	}
 
-	block_number, err := recent_block_number(blockchain_socket)
+	block_number, err := recent_block_number(blockchain_client_socket)
 	if err != nil {
 		manager.logger.Fatal("recent-block-number", "message", err)
 	}
-	err = blockchain_socket.Close()
+	err = blockchain_client_socket.Close()
 	if err != nil {
 		manager.logger.Fatal("close socket", "message", err)
 	}
-
 	manager.logger.Info("recent block determined, splitting smartcontracts to old and current")
 
 	new_workers := make(smartcontract.EvmWorkers, len(raw_smartcontracts))
@@ -178,7 +183,7 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 		mu.Lock()
 		var sm_req static_command.GetSmartcontractRequest = sm.SmartcontractKey
 		var sm_reply static_command.GetSmartcontractReply
-		err := static_command.GET_ABI.Request(manager.static, sm_req, &sm_reply)
+		err := static_command.GET_SMARTCONTRACT.Request(manager.static, sm_req, &sm_reply)
 		if err != nil {
 			mu.Unlock()
 			manager.logger.Fatal("remote static smartcontract get", "error", err)
@@ -229,6 +234,7 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 }
 
 // Categorization of the smartcontracts that are super old.
+// Categorize them with the data from archived nodes.
 //
 // Get List of smartcontract addresses
 // Get Log for the smartcontracts.
@@ -238,12 +244,12 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		manager.logger.Fatal("failed to create child logger", "message", err)
 	}
 
-	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
-	blockchain_socket, err := remote.InprocRequestSocket(url, old_logger, manager.app_config)
+	url := client_thread.ClientEndpoint(manager.Network.Id)
+	blockchain_client_socket, err := remote.InprocRequestSocket(url, old_logger, manager.app_config)
 	if err != nil {
 		manager.logger.Fatal("remote.InprocRequest", "url", url, "error", err)
 	}
-	defer blockchain_socket.Close()
+	defer blockchain_client_socket.Close()
 
 	old_logger.Info("starting categorization of old smartcontracts.", "blockchain client manager", url)
 
@@ -259,7 +265,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		}
 
 		var parameters handler.LogFilterReply
-		err = handler.FILTER_LOG_COMMAND.Request(blockchain_socket, req_parameters, &parameters)
+		err = handler.FILTER_LOG_COMMAND.Request(blockchain_client_socket, req_parameters, &parameters)
 
 		if err != nil {
 			old_logger.Warn("SKIP, blockchain manager returned an error for block number %d and addresses %v: %w", block_number_from, addresses, err)
@@ -339,7 +345,7 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 	old_logger.Info("finished!")
 }
 
-// Move recent to consuming
+// Add new smartcontracts to the current workers.
 func (manager *Manager) add_current_workers(workers smartcontract.EvmWorkers) {
 	manager.current_workers = append(manager.current_workers, workers...)
 }
@@ -414,6 +420,7 @@ func (manager *Manager) categorize_current_smartcontracts() {
 	}
 }
 
+// Returns the most recent block number from blockchain.
 func recent_block_number(socket *remote.Socket) (blockchain.Number, error) {
 	var recent_request handler.RecentBlockRequest = key_value.Empty()
 	var recent_reply handler.RecentBlockReply
@@ -435,12 +442,12 @@ func (manager *Manager) queue_recent_blocks() {
 		manager.logger.Fatal("failed to create child log", "error", err)
 	}
 
-	url := blockchain_proc.BlockchainManagerUrl(manager.Network.Id)
-	blockchain_socket, err := remote.InprocRequestSocket(url, sub_logger, manager.app_config)
+	url := client_thread.ClientEndpoint(manager.Network.Id)
+	blockchain_client_socket, err := remote.InprocRequestSocket(url, sub_logger, manager.app_config)
 	if err != nil {
 		manager.logger.Fatal("remote.InprocRequest", "url", url, "error", err)
 	}
-	block_number, err := recent_block_number(blockchain_socket)
+	block_number, err := recent_block_number(blockchain_client_socket)
 	if err != nil {
 		sub_logger.Fatal("recent-block-number", "message", err)
 	}
@@ -461,7 +468,7 @@ func (manager *Manager) queue_recent_blocks() {
 		}
 
 		var parameters handler.LogFilterReply
-		err = handler.FILTER_LOG_COMMAND.Request(blockchain_socket, req_parameters, &parameters)
+		err = handler.FILTER_LOG_COMMAND.Request(blockchain_client_socket, req_parameters, &parameters)
 		if err != nil {
 			sub_logger.Warn("failed to get the log filters [trying in 10 seconds]", "message", err)
 			continue

@@ -21,7 +21,7 @@ import (
 
 // Run the goroutine for each Imx smartcontract.
 func (manager *Manager) categorize(sm *smartcontract.Smartcontract) {
-	url := blockchain_process.BlockchainManagerUrl(manager.network.Id)
+	url := blockchain_process.ClientEndpoint(manager.network.Id)
 	sock, err := remote.InprocRequestSocket(url, manager.logger, manager.app_config)
 	if err != nil {
 		manager.logger.Fatal("remote.InprocRequest", "url", url, "error", err)

@@ -75,7 +75,7 @@ func (worker *Manager) SetupSocket() {
 		worker.logger.Fatal("trying to create new reply socket for network id %s: %v", worker.network.Id, err)
 	}
 
-	url := blockchain_proc.BlockchainManagerUrl(worker.network.Id)
+	url := blockchain_proc.ClientEndpoint(worker.network.Id)
 	if err := sock.Bind(url); err != nil {
 		worker.logger.Fatal("trying to create categorizer for network id %s: %v", worker.network.Id, err)
 	}
