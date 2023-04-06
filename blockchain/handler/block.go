@@ -9,5 +9,5 @@ import (
 //
 // Used to inform a new block number to
 // categorizer manager and old categorizer manager.
-type RecentBlockHeaderRequest = struct{}
+type RecentBlockHeaderRequest = blockchain.BlockHeader
 type RecentBlockHeaderReply = blockchain.BlockHeader

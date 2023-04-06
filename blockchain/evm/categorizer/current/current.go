@@ -51,6 +51,8 @@ type Manager struct {
 	logger            log.Logger               // print the debug parameters
 	current_workers   smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
 	subscribed_blocks data_type.Queue          // we keep recent blocks from blockchain
+	main_manager      *zmq.Socket
+	old_manager       *zmq.Socket
 }
 
 // Creates a new manager for the given EVM Network
@@ -59,14 +61,13 @@ func NewManager(
 	parent log.Logger,
 	network *network.Network,
 	pusher *zmq.Socket,
+	old_manager *zmq.Socket,
 	app_config *configuration.Config) (*Manager, error) {
 
 	logger, err := parent.ChildWithTimestamp("categorizer")
 	if err != nil {
 		return nil, fmt.Errorf("child logger: %w", err)
 	}
-
-	// create a new current nodes
 
 	manager := Manager{
 		Network:           network,
@@ -75,6 +76,7 @@ func NewManager(
 		logger:            logger,
 		pusher:            pusher,
 		app_config:        app_config,
+		old_manager:       old_manager,
 	}
 
 	return &manager, nil
@@ -118,6 +120,12 @@ func (manager *Manager) Start() {
 		manager.logger.Fatal("remote.InprocRequest", "url", static_env.Url(), "error", err)
 	}
 	manager.static = static_socket
+
+	current_pusher, err := client_thread.CategorizerManagerSocket(manager.Network.Id)
+	if err != nil {
+		manager.logger.Fatal("new old manager push socket", "error", err)
+	}
+	manager.main_manager = current_pusher
 
 	manager.logger.Info("starting categorization")
 	go manager.queue_recent_blocks()
@@ -310,6 +318,20 @@ func (manager *Manager) recent_block_number(client_socket *remote.Socket) (block
 	return recent_reply.Number, nil
 }
 
+func (manager *Manager) push_recent_block_number(block_header blockchain.BlockHeader) error {
+	err := handler.RECENT_BLOCK_NUMBER.Push(manager.main_manager, block_header)
+	if err != nil {
+		return fmt.Errorf("main_manager.RemoteRequest: %w", err)
+	}
+
+	err = handler.RECENT_BLOCK_NUMBER.Push(manager.old_manager, block_header)
+	if err != nil {
+		return fmt.Errorf("main_manager.RemoteRequest: %w", err)
+	}
+
+	return nil
+}
+
 // returns the block's logs
 func (manager *Manager) get_filtered_block(sub_logger log.Logger, client_socket *remote.Socket, block_number blockchain.Number) (*spaghetti_block.Block, error) {
 	req_parameters := handler.FilterLog{
@@ -412,6 +434,10 @@ func (manager *Manager) queue_recent_blocks() {
 		}
 
 		block_number = block.Header.Number.Increment()
+		err = manager.push_recent_block_number(block.Header)
+		if err != nil {
+			sub_logger.Fatal("push_recent_block_number", "error", err)
+		}
 		time.Sleep(10 * time.Second)
 	}
 }

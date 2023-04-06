@@ -43,13 +43,14 @@ const RUNNING = "running"
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
-	old_pusher        *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
-	current_pusher    *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
-	pusher            *zmq.Socket              // send through this socket updated datat to SDS Core
-	app_config        *configuration.Config    // configuration used to create new sockets
-	logger            log.Logger               // print the debug parameters
-	current_workers   smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
-	subscribed_blocks data_type.Queue          // we keep recent blocks from blockchain
+	old_pusher           *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
+	current_pusher       *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
+	pusher               *zmq.Socket              // send through this socket updated datat to SDS Core
+	app_config           *configuration.Config    // configuration used to create new sockets
+	logger               log.Logger               // print the debug parameters
+	current_workers      smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
+	subscribed_blocks    data_type.Queue          // we keep recent blocks from blockchain
+	current_block_number blockchain.Number
 }
 
 // Creates a new manager for the given EVM Network
@@ -101,6 +102,7 @@ func (manager *Manager) start_current() {
 		manager.logger,
 		manager.Network,
 		manager.pusher,
+		manager.old_pusher,
 		manager.app_config,
 	)
 	if err != nil {
@@ -161,28 +163,26 @@ func (manager *Manager) start_puller() {
 
 		if request.Command == handler.NEW_CATEGORIZED_SMARTCONTRACTS.String() {
 			manager.on_new_smartcontracts(request.Parameters)
+		} else if request.Command == handler.RECENT_BLOCK_NUMBER.String() {
+			manager.on_current_block_number(request.Parameters)
 		}
 	}
 }
 
-// Returns the recent block number.
-//
-// If we have new block to consume, then we pick the first.
-// If we don't have new blocks but we have some current
-// workers then we get the first current worker's number.
-//
-// Otherwise we returns 0.
-func (manager *Manager) current_block_number() blockchain.Number {
-	if !manager.subscribed_blocks.IsEmpty() {
-		recent_block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).Header.Number
-		return recent_block_number
+// Categorizer manager received new smartcontracts along with their ABI
+func (manager *Manager) on_current_block_number(parameters key_value.KeyValue) {
+	manager.logger.Info("add new smartcontracts to the manager")
+
+	var recent_request handler.RecentBlockHeaderRequest
+	err := parameters.ToInterface(&recent_request)
+	if err != nil {
+		manager.logger.Fatal("failed to receive current block number", "error", err)
+	}
+	if err := recent_request.Validate(); err != nil {
+		manager.logger.Fatal("recent_request.Validate", "error", err)
 	}
 
-	if num := manager.current_workers.EarliestBlockNumber(); num != 0 {
-		return num
-	}
-
-	return 0
+	manager.current_block_number = recent_request.Number
 }
 
 // Categorizer manager received new smartcontracts along with their ABI
@@ -192,7 +192,7 @@ func (manager *Manager) on_new_smartcontracts(parameters key_value.KeyValue) {
 	raw_smartcontracts, _ := parameters.GetKeyValueList("smartcontracts")
 
 	// make sure that it works with the current
-	block_number := manager.current_block_number()
+	block_number := manager.current_block_number
 	if err := block_number.Validate(); err != nil {
 		manager.logger.Fatal("current block number empty, its unexpected")
 	}

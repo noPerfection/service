@@ -139,13 +139,31 @@ func (manager *Manager) Start() {
 		request, _ := message.ParseRequest(msgs)
 
 		if request.Command == handler.NEW_CATEGORIZED_SMARTCONTRACTS.String() {
-			manager.new_smartcontracts(request.Parameters)
+			manager.on_new_smartcontracts(request.Parameters)
+		} else if request.Command == handler.RECENT_BLOCK_NUMBER.String() {
+			manager.on_current_block_number(request.Parameters)
 		}
 	}
 }
 
 // Categorizer manager received new smartcontracts along with their ABI
-func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
+func (manager *Manager) on_current_block_number(parameters key_value.KeyValue) {
+	manager.logger.Info("add new smartcontracts to the manager")
+
+	var recent_request handler.RecentBlockHeaderRequest
+	err := parameters.ToInterface(&recent_request)
+	if err != nil {
+		manager.logger.Fatal("failed to receive current block number", "error", err)
+	}
+	if err := recent_request.Validate(); err != nil {
+		manager.logger.Fatal("recent_request.Validate", "error", err)
+	}
+
+	manager.current_block_number = recent_request.Number
+}
+
+// Categorizer manager received new smartcontracts along with their ABI
+func (manager *Manager) on_new_smartcontracts(parameters key_value.KeyValue) {
 	var mu sync.Mutex
 	manager.logger.Info("add new smartcontracts to the manager")
 
