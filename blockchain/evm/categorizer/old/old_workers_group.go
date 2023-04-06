@@ -1,4 +1,4 @@
-package categorizer
+package old
 
 import (
 	"github.com/blocklords/sds/blockchain/evm/categorizer/smartcontract"
