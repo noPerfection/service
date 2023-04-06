@@ -71,32 +71,6 @@ func NewManager(l log.Logger, n *network.Network, c *configuration.Config) (*Man
 	return &manager, nil
 }
 
-// Returns all smartcontracts
-// those that are synced from archived blocks
-// and the ones that are syncing from the up-to-date blocks.
-func (manager *Manager) GetSmartcontracts() []categorizer_smartcontract.Smartcontract {
-	smartcontracts := make([]categorizer_smartcontract.Smartcontract, 0)
-
-	for _, group := range manager.old_categorizers {
-		smartcontracts = append(smartcontracts, group.workers.GetSmartcontracts()...)
-	}
-
-	return smartcontracts
-}
-
-// Returns all smartcontract address
-// those that are synced from archived blocks
-// and the ones that are syncing from the up-to-date blocks.
-func (manager *Manager) GetSmartcontractAddresses() []string {
-	addresses := make([]string, 0)
-
-	for _, group := range manager.old_categorizers {
-		addresses = append(addresses, group.workers.GetSmartcontractAddresses()...)
-	}
-
-	return addresses
-}
-
 // Returns the most recent block number that manager synced to.
 //
 // Algorithm to get block number by priority

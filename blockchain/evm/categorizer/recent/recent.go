@@ -76,28 +76,6 @@ func NewManager(l log.Logger, n *network.Network, c *configuration.Config) (*Man
 	return &manager, nil
 }
 
-// Returns all smartcontracts
-// those that are synced from archived blocks
-// and the ones that are syncing from the up-to-date blocks.
-func (manager *Manager) GetSmartcontracts() []categorizer_smartcontract.Smartcontract {
-	smartcontracts := make([]categorizer_smartcontract.Smartcontract, 0)
-
-	smartcontracts = append(smartcontracts, manager.workers.GetSmartcontracts()...)
-
-	return smartcontracts
-}
-
-// Returns all smartcontract address
-// those that are synced from archived blocks
-// and the ones that are syncing from the up-to-date blocks.
-func (manager *Manager) GetSmartcontractAddresses() []string {
-	addresses := make([]string, 0)
-
-	addresses = append(addresses, manager.workers.GetSmartcontractAddresses()...)
-
-	return addresses
-}
-
 // Same as Run.
 //
 // Run it as a goroutine. Otherwise there is no guarantee that
