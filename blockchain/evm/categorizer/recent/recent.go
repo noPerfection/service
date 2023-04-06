@@ -467,10 +467,6 @@ func (manager *Manager) queue_recent_blocks() {
 		}
 
 		block_number = block.Header.Number.Increment()
-		err = manager.push_recent_block_number(block.Header)
-		if err != nil {
-			sub_logger.Fatal("push_recent_block_number", "error", err)
-		}
 		time.Sleep(10 * time.Second)
 	}
 }
