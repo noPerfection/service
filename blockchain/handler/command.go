@@ -22,9 +22,9 @@ const (
 	//
 	// This command used by two packages.
 	//
-	//  1. evm/categorizer/current uses it to fetch the most block number
+	//  1. evm/categorizer/recent uses it to fetch the most block number
 	//     from blockchain client.
-	//  2. evm/categorizer/current uses it to push new current block number
+	//  2. evm/categorizer/recent uses it to push new recent block number
 	//     to old categorizer and categorizer manager.
 	RECENT_BLOCK_NUMBER command.Command = "recent-block-number"
 	// Internal from SDS Categorizer service to SDS Blockchain service

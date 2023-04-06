@@ -13,10 +13,10 @@ func ClientEndpoint(network_id string) string {
 	return "inproc://spaghetti_" + network_id
 }
 
-// Returns the current smartcontract categorizer
+// Returns the recent smartcontract categorizer
 // manager url
-func CurrentCategorizerEndpoint(network_id string) string {
-	return "inproc://cat_current_" + network_id
+func RecentCategorizerEndpoint(network_id string) string {
+	return "inproc://cat_recent_" + network_id
 }
 
 // Returns the old smartcontract categorizer
@@ -30,13 +30,13 @@ func CategorizerEndpoint(network_id string) string {
 	return "inproc://cat_" + network_id
 }
 
-func CurrentCategorizerManagerSocket(network_id string) (*zmq.Socket, error) {
+func RecentCategorizerManagerSocket(network_id string) (*zmq.Socket, error) {
 	sock, err := zmq.NewSocket(zmq.PUSH)
 	if err != nil {
 		return nil, fmt.Errorf("zmq error for new push socket: %w", err)
 	}
 
-	url := CurrentCategorizerEndpoint(network_id)
+	url := RecentCategorizerEndpoint(network_id)
 	if err := sock.Bind(url); err != nil {
 		return nil, fmt.Errorf("trying to create categorizer for network id %s: %v", network_id, err)
 	}

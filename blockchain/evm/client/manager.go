@@ -245,7 +245,7 @@ func (worker *Manager) get_block_timestamp(block_number blockchain.Number) (bloc
 		if block_timestamp == 0 {
 			block_timestamp = fetched_block_timestamp
 		} else if block_timestamp != fetched_block_timestamp {
-			worker.logger.Warn("the clients returned unmatching block timetstamp", "client", client.provider.Url, "block_number", block_number, "current_block_timestamp", block_timestamp, "fetched_block_timestamp", fetched_block_timestamp)
+			worker.logger.Warn("the clients returned unmatching block timetstamp", "client", client.provider.Url, "block_number", block_number, "recent_block_timestamp", block_timestamp, "fetched_block_timestamp", fetched_block_timestamp)
 			continue
 		}
 	}

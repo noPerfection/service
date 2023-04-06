@@ -44,12 +44,12 @@ type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
 	pusher               *zmq.Socket           // send through this socket updated data to SDS Core
-	current_pusher       *zmq.Socket           // send
+	recent_manager       *zmq.Socket           // send
 	static               *remote.Socket        // return the abi from static for decoding event logs
 	app_config           *configuration.Config // configuration used to create new sockets
 	logger               log.Logger            // print the debug parameters
 	old_categorizers     OldWorkerGroups       // smartcontracts to categorize from archived nodes
-	current_block_number blockchain.Number
+	recent_block_number blockchain.Number
 }
 
 // Creates a new manager for the given EVM Network
@@ -58,7 +58,7 @@ func NewManager(
 	parent log.Logger,
 	network *network.Network,
 	pusher *zmq.Socket,
-	current_pusher *zmq.Socket,
+	recent_manager *zmq.Socket,
 	app_config *configuration.Config) (*Manager, error) {
 
 	logger, err := parent.ChildWithTimestamp("old")
@@ -71,7 +71,7 @@ func NewManager(
 		old_categorizers: make(OldWorkerGroups, 0),
 		logger:           logger,
 		pusher:           pusher,
-		current_pusher:   current_pusher,
+		recent_manager:   recent_manager,
 		app_config:       app_config,
 	}
 
@@ -141,25 +141,25 @@ func (manager *Manager) Start() {
 		if request.Command == handler.NEW_CATEGORIZED_SMARTCONTRACTS.String() {
 			manager.on_new_smartcontracts(request.Parameters)
 		} else if request.Command == handler.RECENT_BLOCK_NUMBER.String() {
-			manager.on_current_block_number(request.Parameters)
+			manager.on_recent_block_number(request.Parameters)
 		}
 	}
 }
 
 // Categorizer manager received new smartcontracts along with their ABI
-func (manager *Manager) on_current_block_number(parameters key_value.KeyValue) {
+func (manager *Manager) on_recent_block_number(parameters key_value.KeyValue) {
 	manager.logger.Info("add new smartcontracts to the manager")
 
 	var recent_request handler.RecentBlockHeaderRequest
 	err := parameters.ToInterface(&recent_request)
 	if err != nil {
-		manager.logger.Fatal("failed to receive current block number", "error", err)
+		manager.logger.Fatal("failed to receive recent block number", "error", err)
 	}
 	if err := recent_request.Validate(); err != nil {
 		manager.logger.Fatal("recent_request.Validate", "error", err)
 	}
 
-	manager.current_block_number = recent_request.Number
+	manager.recent_block_number = recent_request.Number
 }
 
 // Categorizer manager received new smartcontracts along with their ABI
@@ -308,13 +308,13 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			old_logger.Fatal("send to SDS Categorizer", "message", err)
 		}
 
-		left := manager.current_block_number.Value() - parameters.BlockTo
+		left := manager.recent_block_number.Value() - parameters.BlockTo
 		old_logger.Info("categorized certain blocks", "block_number_left", left, "block_number_to", parameters.BlockTo, "subscribed", recent_block_number)
 		group.block_number = block_to.Number
 
-		if parameters.BlockTo >= manager.current_block_number.Value() {
-			old_logger.Info("catched the current blocks")
-			manager.push_current_workers(group.workers)
+		if parameters.BlockTo >= manager.recent_block_number.Value() {
+			old_logger.Info("catched the recent blocks")
+			manager.push_recent_workers(group.workers)
 			break
 		}
 
@@ -327,11 +327,11 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 	old_logger.Info("finished!")
 }
 
-func (manager *Manager) push_current_workers(workers smartcontract.EvmWorkers) error {
+func (manager *Manager) push_recent_workers(workers smartcontract.EvmWorkers) error {
 	push := handler.PushNewSmartcontracts{
 		Smartcontracts: workers.GetSmartcontracts(),
 	}
-	err := handler.NEW_CATEGORIZED_SMARTCONTRACTS.Push(manager.current_pusher, push)
+	err := handler.NEW_CATEGORIZED_SMARTCONTRACTS.Push(manager.recent_manager, push)
 	if err != nil {
 		return fmt.Errorf("failed to send to old categorizer: %w", err)
 	}

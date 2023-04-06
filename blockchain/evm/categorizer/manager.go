@@ -14,8 +14,8 @@ import (
 	"github.com/blocklords/sds/blockchain/network"
 
 	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/blockchain/evm/categorizer/current"
 	"github.com/blocklords/sds/blockchain/evm/categorizer/old"
+	"github.com/blocklords/sds/blockchain/evm/categorizer/recent"
 	"github.com/blocklords/sds/blockchain/evm/categorizer/smartcontract"
 	"github.com/blocklords/sds/blockchain/handler"
 	categorizer_smartcontract "github.com/blocklords/sds/categorizer/smartcontract"
@@ -34,13 +34,13 @@ const RUNNING = "running"
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
-	old_pusher           *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
-	current_pusher       *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
-	app_config           *configuration.Config    // configuration used to create new sockets
-	logger               log.Logger               // print the debug parameters
-	current_workers      smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
-	subscribed_blocks    data_type.Queue          // we keep recent blocks from blockchain
-	current_block_number blockchain.Number
+	old_pusher          *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
+	recent_manager      *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
+	app_config          *configuration.Config    // configuration used to create new sockets
+	logger              log.Logger               // print the debug parameters
+	recent_workers      smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
+	subscribed_blocks   data_type.Queue          // we keep recent blocks from blockchain
+	recent_block_number blockchain.Number
 }
 
 // Creates a new manager for the given EVM Network
@@ -58,7 +58,7 @@ func NewManager(
 	manager := Manager{
 		Network:           network,
 		subscribed_blocks: *data_type.NewQueue(),
-		current_workers:   make(smartcontract.EvmWorkers, 0),
+		recent_workers:    make(smartcontract.EvmWorkers, 0),
 		logger:            logger,
 		app_config:        app_config,
 	}
@@ -73,11 +73,11 @@ func NewManager(
 //
 // Because, the sockets are not thread-safe.
 func (manager *Manager) Start(categorizer_pusher *zmq.Socket) {
-	current_pusher, err := client_thread.CurrentCategorizerManagerSocket(manager.Network.Id)
+	recent_manager, err := client_thread.RecentCategorizerManagerSocket(manager.Network.Id)
 	if err != nil {
-		manager.logger.Fatal("new current manager push socket", "error", err)
+		manager.logger.Fatal("new recent manager push socket", "error", err)
 	}
-	manager.current_pusher = current_pusher
+	manager.recent_manager = recent_manager
 
 	old_pusher, err := client_thread.OldCategorizerManagerSocket(manager.Network.Id)
 	if err != nil {
@@ -85,7 +85,7 @@ func (manager *Manager) Start(categorizer_pusher *zmq.Socket) {
 	}
 	manager.old_pusher = old_pusher
 
-	if err := manager.start_current(categorizer_pusher); err != nil {
+	if err := manager.start_recent(categorizer_pusher); err != nil {
 		manager.logger.Fatal("new manager push socket", "error", err)
 	}
 	if err := manager.start_old(categorizer_pusher); err != nil {
@@ -97,8 +97,8 @@ func (manager *Manager) Start(categorizer_pusher *zmq.Socket) {
 
 // The categorizer receives new smartcontracts
 // to categorize from SDS Categorizer.
-func (manager *Manager) start_current(categorizer_pusher *zmq.Socket) error {
-	current_manager, err := current.NewManager(
+func (manager *Manager) start_recent(categorizer_pusher *zmq.Socket) error {
+	recent_manager, err := recent.NewManager(
 		manager.logger,
 		manager.Network,
 		categorizer_pusher,
@@ -106,9 +106,9 @@ func (manager *Manager) start_current(categorizer_pusher *zmq.Socket) error {
 		manager.app_config,
 	)
 	if err != nil {
-		return fmt.Errorf("current.NewManager: %w", err)
+		return fmt.Errorf("recent.NewManager: %w", err)
 	}
-	go current_manager.Start()
+	go recent_manager.Start()
 
 	return nil
 }
@@ -120,7 +120,7 @@ func (manager *Manager) start_old(categorizer_pusher *zmq.Socket) error {
 		manager.logger,
 		manager.Network,
 		categorizer_pusher,
-		manager.current_pusher,
+		manager.recent_manager,
 		manager.app_config,
 	)
 	if err != nil {
@@ -154,25 +154,25 @@ func (manager *Manager) start_puller() {
 		if request.Command == handler.NEW_CATEGORIZED_SMARTCONTRACTS.String() {
 			manager.on_new_smartcontracts(request.Parameters)
 		} else if request.Command == handler.RECENT_BLOCK_NUMBER.String() {
-			manager.on_current_block_number(request.Parameters)
+			manager.on_recent_block_number(request.Parameters)
 		}
 	}
 }
 
 // Categorizer manager received new smartcontracts along with their ABI
-func (manager *Manager) on_current_block_number(parameters key_value.KeyValue) {
+func (manager *Manager) on_recent_block_number(parameters key_value.KeyValue) {
 	manager.logger.Info("add new smartcontracts to the manager")
 
 	var recent_request handler.RecentBlockHeaderRequest
 	err := parameters.ToInterface(&recent_request)
 	if err != nil {
-		manager.logger.Fatal("failed to receive current block number", "error", err)
+		manager.logger.Fatal("failed to receive recent block number", "error", err)
 	}
 	if err := recent_request.Validate(); err != nil {
 		manager.logger.Fatal("recent_request.Validate", "error", err)
 	}
 
-	manager.current_block_number = recent_request.Number
+	manager.recent_block_number = recent_request.Number
 }
 
 // Categorizer manager received new smartcontracts along with their ABI
@@ -181,10 +181,10 @@ func (manager *Manager) on_new_smartcontracts(parameters key_value.KeyValue) {
 
 	raw_smartcontracts, _ := parameters.GetKeyValueList("smartcontracts")
 
-	// make sure that it works with the current
-	block_number := manager.current_block_number
+	// make sure that it works with the recent
+	block_number := manager.recent_block_number
 	if err := block_number.Validate(); err != nil {
-		manager.logger.Fatal("current block number empty, its unexpected")
+		manager.logger.Fatal("recent block number empty, its unexpected")
 	}
 
 	new_workers := make(smartcontract.EvmWorkers, len(raw_smartcontracts))
@@ -196,17 +196,17 @@ func (manager *Manager) on_new_smartcontracts(parameters key_value.KeyValue) {
 
 	manager.logger.Info("information about workers", "block_number", block_number, "amount of workers", len(new_workers))
 
-	old_workers, current_workers := new_workers.Sort().Split(block_number)
-	manager.logger.Info("splitting to old and new workers", "old amount", len(old_workers), "new amount", len(current_workers))
+	old_workers, recent_workers := new_workers.Sort().Split(block_number)
+	manager.logger.Info("splitting to old and new workers", "old amount", len(old_workers), "new amount", len(recent_workers))
 
 	if len(old_workers) > 0 {
 		err := manager.push_old_workers(old_workers)
 		manager.logger.Fatal("push_old_workers", "error", err)
 	}
 
-	if len(current_workers) > 0 {
-		err := manager.push_current_workers(current_workers)
-		manager.logger.Fatal("push_current_workers", "error", err)
+	if len(recent_workers) > 0 {
+		err := manager.push_recent_workers(recent_workers)
+		manager.logger.Fatal("push_recent_workers", "error", err)
 	}
 }
 
@@ -222,11 +222,11 @@ func (manager *Manager) push_old_workers(workers smartcontract.EvmWorkers) error
 	return nil
 }
 
-func (manager *Manager) push_current_workers(workers smartcontract.EvmWorkers) error {
+func (manager *Manager) push_recent_workers(workers smartcontract.EvmWorkers) error {
 	push := handler.PushNewSmartcontracts{
 		Smartcontracts: workers.GetSmartcontracts(),
 	}
-	err := handler.NEW_CATEGORIZED_SMARTCONTRACTS.Push(manager.current_pusher, push)
+	err := handler.NEW_CATEGORIZED_SMARTCONTRACTS.Push(manager.recent_manager, push)
 	if err != nil {
 		return fmt.Errorf("failed to send to old categorizer: %w", err)
 	}
