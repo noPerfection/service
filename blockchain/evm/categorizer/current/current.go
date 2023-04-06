@@ -299,8 +299,8 @@ func (manager *Manager) categorize_current_smartcontracts() {
 // Algorithm to get block number by priority
 // - from blockchain
 func (manager *Manager) recent_block_number(client_socket *remote.Socket) (blockchain.Number, error) {
-	var recent_request handler.RecentBlockRequest = key_value.Empty()
-	var recent_reply handler.RecentBlockReply
+	recent_request := handler.RecentBlockHeaderRequest{}
+	var recent_reply handler.RecentBlockHeaderReply
 
 	err := handler.RECENT_BLOCK_NUMBER.Request(client_socket, recent_request, &recent_reply)
 	if err != nil {

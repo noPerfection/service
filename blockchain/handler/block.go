@@ -2,8 +2,12 @@ package handler
 
 import (
 	"github.com/blocklords/sds/common/blockchain"
-	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-type RecentBlockRequest = key_value.KeyValue
-type RecentBlockReply = blockchain.BlockHeader
+// Used to fetch block number from
+// blockchain client
+//
+// Used to inform a new block number to
+// categorizer manager and old categorizer manager.
+type RecentBlockHeaderRequest = struct{}
+type RecentBlockHeaderReply = blockchain.BlockHeader

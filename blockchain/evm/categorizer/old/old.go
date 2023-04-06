@@ -323,8 +323,8 @@ func (manager *Manager) push_current_workers(workers smartcontract.EvmWorkers) e
 
 // Returns the most recent block number from blockchain.
 func recent_block_number(socket *remote.Socket) (blockchain.Number, error) {
-	var recent_request handler.RecentBlockRequest = key_value.Empty()
-	var recent_reply handler.RecentBlockReply
+	recent_request := handler.RecentBlockHeaderRequest{}
+	var recent_reply handler.RecentBlockHeaderReply
 
 	err := handler.RECENT_BLOCK_NUMBER.Request(socket, recent_request, &recent_reply)
 	if err != nil {
