@@ -5,7 +5,6 @@ It acts as the input receiver for other services or for external users.
 package controller
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/blocklords/sds/app/command"
@@ -17,9 +16,10 @@ import (
 )
 
 type Controller struct {
-	service *service.Service
-	socket  *zmq.Socket
-	logger  log.Logger
+	service     *service.Service
+	socket      *zmq.Socket
+	logger      log.Logger
+	socket_type zmq.Type
 }
 
 // Creates a synchrounous Reply controller.
@@ -39,10 +39,37 @@ func NewReply(s *service.Service, logger log.Logger) (*Controller, error) {
 	}
 
 	return &Controller{
-		socket:  socket,
-		service: s,
-		logger:  controller_logger,
+		socket:      socket,
+		service:     s,
+		logger:      controller_logger,
+		socket_type: zmq.REP,
 	}, nil
+}
+
+func (c *Controller) is_repliable() bool {
+	return c.socket_type != zmq.PULL
+}
+
+// If controller type supports, then it will reply back to requester
+// the message.
+//
+// If controller doesn't support replying, then it returns nil.
+func (c *Controller) reply(message message.Reply) error {
+	if !c.is_repliable() {
+		return nil
+	}
+
+	reply, _ := message.ToString()
+	if _, err := c.socket.SendMessage(reply); err != nil {
+		return fmt.Errorf("recv error replying error %w" + err.Error())
+	}
+
+	return nil
+}
+
+// Calls controller.reply() with the error message.
+func (c *Controller) reply_error(err error) error {
+	return c.reply(message.Fail(err.Error()))
 }
 
 // Controllers started to receive messages
@@ -55,22 +82,20 @@ func (c *Controller) Run(handlers command.Handlers, parameters ...interface{}) e
 	for {
 		msg_raw, metadata, err := c.socket.RecvMessageWithMetadata(0, "pub_key")
 		if err != nil {
-			fail := message.Fail("socket error to receive message " + err.Error())
-			reply, _ := fail.ToString()
-			if _, err := c.socket.SendMessage(reply); err != nil {
-				return errors.New("recv error replying error %w" + err.Error())
+			new_err := fmt.Errorf("socket.recvMessageWithMetadata: %w", err)
+			if err := c.reply_error(new_err); err != nil {
+				return err
 			}
-			continue
+			return new_err
 		}
 
 		// All request types derive from the basic request.
 		// We first attempt to parse basic request from the raw message
 		request, err := message.ParseRequest(msg_raw)
 		if err != nil {
-			fail := message.Fail(err.Error())
-			reply, _ := fail.ToString()
-			if _, err := c.socket.SendMessage(reply); err != nil {
-				return errors.New("parsing error replying error: %w" + err.Error())
+			new_err := fmt.Errorf("message.ParseRequest: %w", err)
+			if err := c.reply_error(new_err); err != nil {
+				return err
 			}
 			continue
 		}
@@ -80,25 +105,20 @@ func (c *Controller) Run(handlers command.Handlers, parameters ...interface{}) e
 
 		// Any request types is compatible with the Request.
 		if !handlers.Exist(request_command) {
-			fail := message.Fail("unsupported command " + request.Command)
-			reply, _ := fail.ToString()
-			if _, err := c.socket.SendMessage(reply); err != nil {
-				return errors.New("invalid command message replying error: %w" + err.Error())
+			new_err := fmt.Errorf("handler not found for command: %s", request.Command)
+			if err := c.reply_error(new_err); err != nil {
+				return err
 			}
 			continue
 		}
 
+		// for puller's it returns an error that occured on the blockchain.
 		reply := handlers[request_command](request, c.logger, parameters...)
-
-		reply_string, err := reply.ToString()
-		if err != nil {
-			if _, err := c.socket.SendMessage(err.Error()); err != nil {
-				return errors.New("converting reply to string %w" + err.Error())
-			}
-		} else {
-			if _, err := c.socket.SendMessage(reply_string); err != nil {
-				return errors.New("replying error %w" + err.Error())
-			}
+		if err := c.reply(reply); err != nil {
+			return err
+		}
+		if !reply.IsOK() && !c.is_repliable() {
+			c.logger.Warn("handler replied an error", "command", request.Command, "request parameters", request.Parameters, "error message", reply.Message)
 		}
 	}
 }
