@@ -145,26 +145,20 @@ func on_recent_block_number(request message.Request, _ log.Logger, parameters ..
 // The categorizer receives new smartcontracts
 // to categorize from SDS Categorizer.
 func (manager *Manager) start_puller() {
-	sock, err := zmq.NewSocket(zmq.PULL)
-	if err != nil {
-		manager.logger.Fatal("new manager pull socket", "message", err)
-	}
-
 	url := client_thread.RecentCategorizerEndpoint(manager.Network.Id)
-	if err := sock.Bind(url); err != nil {
-		manager.logger.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
+	service, err := service.InprocessFromUrl(url)
+	if err != nil {
+		manager.logger.Fatal("failed to create inproc service from url", "error", err)
+	}
+	reply, err := controller.NewPull(service, manager.logger)
+	if err != nil {
+		manager.logger.Fatal("failed to create pull controller", "error", err)
 	}
 
-	manager.logger.Info("waiting for the messages at", "url", url)
-
-	for {
-		// Wait for reply.
-		msgs, _ := sock.RecvMessage(0)
-		request, _ := message.ParseRequest(msgs)
-
-		if request.Command == handler.NEW_CATEGORIZED_SMARTCONTRACTS.String() {
-			manager.on_new_smartcontracts(request.Parameters)
-		}
+	handlers := command.EmptyHandlers().Add(handler.NEW_CATEGORIZED_SMARTCONTRACTS, on_new_smartcontracts)
+	err = reply.Run(handlers, manager)
+	if err != nil {
+		manager.logger.Fatal("failed to run reply controller", "error", err)
 	}
 }
 
@@ -207,15 +201,24 @@ func (manager *Manager) recent_block_number() blockchain.Number {
 }
 
 // Categorizer manager received new smartcontracts along with their ABI
-func (manager *Manager) on_new_smartcontracts(parameters key_value.KeyValue) {
+func on_new_smartcontracts(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if parameters == nil || len(parameters) < 1 {
+		return message.Fail("invalid parameters were given atleast manager should be passed")
+	}
+
+	manager, ok := parameters[0].(*Manager)
+	if !ok {
+		return message.Fail("missing Manager in the parameters")
+	}
+
 	var mu sync.Mutex
 	manager.logger.Info("add new smartcontracts to the manager")
 
-	raw_smartcontracts, _ := parameters.GetKeyValueList("smartcontracts")
+	raw_smartcontracts, _ := request.Parameters.GetKeyValueList("smartcontracts")
 
 	block_number := manager.recent_block_number()
 	if err := block_number.Validate(); err != nil {
-		manager.logger.Fatal("recent block number empty, its unexpected")
+		return message.Fail("recent block number empty, its unexpected: " + err.Error())
 	}
 
 	workers := make(smartcontract.EvmWorkers, len(raw_smartcontracts))
@@ -228,7 +231,7 @@ func (manager *Manager) on_new_smartcontracts(parameters key_value.KeyValue) {
 		err := static_command.GET_SMARTCONTRACT.Request(manager.static, sm_req, &sm_reply)
 		if err != nil {
 			mu.Unlock()
-			manager.logger.Fatal("remote static smartcontract get", "error", err)
+			return message.Fail("remote static smartcontract get: " + err.Error())
 		}
 
 		req := static_command.GetAbiRequest{
@@ -238,12 +241,12 @@ func (manager *Manager) on_new_smartcontracts(parameters key_value.KeyValue) {
 		err = static_command.GET_ABI.Request(manager.static, req, &abi_data)
 		mu.Unlock()
 		if err != nil {
-			manager.logger.Fatal("remote static abi get", "error", err)
+			return message.Fail("remote static abi get: " + err.Error())
 		}
 
 		cat_abi, err := abi.NewFromStatic(&abi_data)
 		if err != nil {
-			manager.logger.Fatal("failed to decode", "index", i, "smartcontract", sm.SmartcontractKey.Address, "errr", err)
+			return message.Fail("failed to decode static abi into categorizer abi: " + err.Error())
 		}
 		manager.logger.Info("add a new worker", "number", i+1, "total", len(workers))
 		workers[i] = smartcontract.New(sm, cat_abi)
@@ -254,6 +257,12 @@ func (manager *Manager) on_new_smartcontracts(parameters key_value.KeyValue) {
 	workers = workers.Sort()
 
 	manager.workers = append(manager.workers, workers...)
+
+	return message.Reply{
+		Status:     message.OK,
+		Message:    "",
+		Parameters: key_value.Empty(),
+	}
 }
 
 // categorizes each consumed block against manager.Workers
