@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/blocklords/sds/app/command"
+	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/categorizer"
@@ -137,6 +139,45 @@ func (manager *Manager) Start() {
 	go manager.queue_recent_blocks()
 }
 
+// Returns the most recent block number.
+// If there is no block number then it returns error
+func on_recent_block_number(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	var request_parameters handler.RecentBlockHeaderRequest
+	err := request.Parameters.ToInterface(&request_parameters)
+	if err != nil {
+		return message.Fail("invalid request parameters:" + err.Error())
+	}
+	if err := request_parameters.Validate(); err != nil {
+		return message.Fail("request parameters validate:" + err.Error())
+	}
+
+	if parameters == nil || len(parameters) < 1 {
+		return message.Fail("invalid parameters were given atleast manager should be passed")
+	}
+
+	manager, ok := parameters[0].(*Manager)
+	if !ok {
+		return message.Fail("missing Manager in the parameters")
+	}
+	block_number := manager.recent_block_number()
+	if err := block_number.Validate(); err != nil {
+		return message.Fail("missing recent block number")
+	}
+
+	reply, err := blockchain.NewHeader(block_number.Value(), block_number.Value())
+	if err != nil {
+		return message.Fail("blockchain.NewHeader:" + err.Error())
+	}
+
+	var reply_parameters handler.RecentBlockHeaderReply = reply
+	message_reply, err := command.Reply(&reply_parameters)
+	if err != nil {
+		return message.Fail("blockchain.NewHeader:" + err.Error())
+	}
+
+	return message_reply
+}
+
 // The categorizer receives new smartcontracts
 // to categorize from SDS Categorizer.
 func (manager *Manager) start_puller() {
@@ -160,6 +201,24 @@ func (manager *Manager) start_puller() {
 		if request.Command == handler.NEW_CATEGORIZED_SMARTCONTRACTS.String() {
 			manager.on_new_smartcontracts(request.Parameters)
 		}
+	}
+}
+
+func (manager *Manager) start_req_reply() {
+	url := client_thread.RecentCategorizerReplyEndpoint(manager.Network.Id)
+	service, err := service.InprocessFromUrl(url)
+	if err != nil {
+		manager.logger.Fatal("failed to create inproc service from url", "error", err)
+	}
+	reply, err := controller.NewReply(service, manager.logger)
+	if err != nil {
+		manager.logger.Fatal("failed to create reply controller", "error", err)
+	}
+
+	handlers := command.EmptyHandlers().Add(handler.RECENT_BLOCK_NUMBER, on_recent_block_number)
+	err = reply.Run(handlers, manager)
+	if err != nil {
+		manager.logger.Fatal("failed to run reply controller", "error", err)
 	}
 }
 
@@ -430,6 +489,7 @@ func (manager *Manager) queue_recent_blocks() {
 
 		if puller_off {
 			go manager.start_puller()
+			go manager.start_req_reply()
 			go manager.categorize()
 			puller_off = false
 		}

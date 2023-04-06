@@ -19,6 +19,11 @@ func RecentCategorizerEndpoint(network_id string) string {
 	return "inproc://cat_recent_" + network_id
 }
 
+// Reply controller running in the recent categorizer
+func RecentCategorizerReplyEndpoint(network_id string) string {
+	return "inproc://cat_recent_rep_" + network_id
+}
+
 // Returns the old smartcontract categorizer
 // manager url
 func OldCategorizerEndpoint(network_id string) string {
