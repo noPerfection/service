@@ -44,13 +44,13 @@ const RUNNING = "running"
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
-	pusher              *zmq.Socket           // send through this socket updated data to SDS Core
-	recent_manager      *zmq.Socket           // send
-	static              *remote.Socket        // return the abi from static for decoding event logs
-	app_config          *configuration.Config // configuration used to create new sockets
-	logger              log.Logger            // print the debug parameters
-	old_categorizers    OldWorkerGroups       // smartcontracts to categorize from archived nodes
-	recent_block_number blockchain.Number
+	pusher                *zmq.Socket // send through this socket updated data to SDS Core
+	recent_request_socket *remote.Socket
+	recent_manager        *zmq.Socket           // send
+	static                *remote.Socket        // return the abi from static for decoding event logs
+	app_config            *configuration.Config // configuration used to create new sockets
+	logger                log.Logger            // print the debug parameters
+	old_categorizers      OldWorkerGroups       // smartcontracts to categorize from archived nodes
 }
 
 // Creates a new manager for the given EVM Network
@@ -97,6 +97,25 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 	return addresses
 }
 
+// Returns the most recent block number that manager synced to.
+//
+// Algorithm to get block number by priority
+// - from blockchain
+func (manager *Manager) remote_recent_block_number() (blockchain.Number, error) {
+	recent_request := handler.RecentBlockHeaderRequest{}
+	var reply handler.RecentBlockHeaderReply
+
+	err := handler.RECENT_BLOCK_NUMBER.Request(manager.recent_request_socket, recent_request, &reply)
+	if err != nil {
+		return 0, fmt.Errorf("RemoteRequest: %w", err)
+	}
+	if err := reply.Validate(); err != nil {
+		return 0, fmt.Errorf("reply.Validate: %w", err)
+	}
+
+	return reply.Number, nil
+}
+
 // Same as Run.
 //
 // Run it as a goroutine. Otherwise there is no guarantee that
@@ -138,6 +157,13 @@ func (manager *Manager) Start() {
 	}
 	manager.recent_manager = recent_manager
 
+	reply_url := client_thread.RecentCategorizerReplyEndpoint(manager.Network.Id)
+	recent_request_socket, err := remote.InprocRequestSocket(reply_url, manager.logger, manager.app_config)
+	if err != nil {
+		manager.logger.Fatal("new recent manager push socket", "error", err)
+	}
+	manager.recent_request_socket = recent_request_socket
+
 	for {
 		// Wait for reply.
 		msgs, _ := sock.RecvMessage(0)
@@ -145,26 +171,8 @@ func (manager *Manager) Start() {
 
 		if request.Command == handler.NEW_CATEGORIZED_SMARTCONTRACTS.String() {
 			manager.on_new_smartcontracts(request.Parameters)
-		} else if request.Command == handler.RECENT_BLOCK_NUMBER.String() {
-			manager.on_recent_block_number(request.Parameters)
 		}
 	}
-}
-
-// Categorizer manager received new smartcontracts along with their ABI
-func (manager *Manager) on_recent_block_number(parameters key_value.KeyValue) {
-	manager.logger.Info("add new smartcontracts to the manager")
-
-	var recent_request handler.RecentBlockHeaderRequest
-	err := parameters.ToInterface(&recent_request)
-	if err != nil {
-		manager.logger.Fatal("failed to receive recent block number", "error", err)
-	}
-	if err := recent_request.Validate(); err != nil {
-		manager.logger.Fatal("recent_request.Validate", "error", err)
-	}
-
-	manager.recent_block_number = recent_request.Number
 }
 
 // Categorizer manager received new smartcontracts along with their ABI
@@ -310,14 +318,18 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 		}
 		err = categorizer_command.CATEGORIZATION.Push(manager.pusher, request)
 		if err != nil {
-			old_logger.Fatal("send to SDS Categorizer", "message", err)
+			old_logger.Fatal("send to SDS Categorizer", "error", err)
 		}
 
-		left := manager.recent_block_number.Value() - parameters.BlockTo
+		recent_block_number, err := manager.remote_recent_block_number()
+		if err != nil {
+			old_logger.Fatal("remote_recent_block_number", "error", err)
+		}
+		left := recent_block_number.Value() - parameters.BlockTo
 		old_logger.Info("categorized certain blocks", "block_number_left", left, "block_number_to", parameters.BlockTo, "subscribed", recent_block_number)
 		group.block_number = block_to.Number
 
-		if parameters.BlockTo >= manager.recent_block_number.Value() {
+		if parameters.BlockTo >= recent_block_number.Value() {
 			old_logger.Info("catched the recent blocks")
 			manager.push_recent_workers(group.workers)
 			break
@@ -342,17 +354,4 @@ func (manager *Manager) push_recent_workers(workers smartcontract.EvmWorkers) er
 	}
 
 	return nil
-}
-
-// Returns the most recent block number from blockchain.
-func recent_block_number(socket *remote.Socket) (blockchain.Number, error) {
-	recent_request := handler.RecentBlockHeaderRequest{}
-	var recent_reply handler.RecentBlockHeaderReply
-
-	err := handler.RECENT_BLOCK_NUMBER.Request(socket, recent_request, &recent_reply)
-	if err != nil {
-		return 0, fmt.Errorf("RemoteRequest: %w", err)
-	}
-
-	return recent_reply.Number, nil
 }

@@ -54,9 +54,7 @@ type Manager struct {
 	workers           smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
 	subscribed_blocks data_type.Queue          // we keep recent blocks from blockchain
 
-	pusher       *zmq.Socket // send through this socket updated datat to SDS Core
-	main_manager *zmq.Socket
-	old_manager  *zmq.Socket
+	pusher *zmq.Socket // send through this socket updated datat to SDS Core
 }
 
 // Creates a new manager for the given EVM Network
@@ -116,18 +114,6 @@ func (manager *Manager) Start() {
 		manager.logger.Fatal("remote.InprocRequest", "url", static_env.Url(), "error", err)
 	}
 	manager.static = static_socket
-
-	main_manager, err := client_thread.CategorizerManagerSocket(manager.Network.Id)
-	if err != nil {
-		manager.logger.Fatal("new old manager push socket", "error", err)
-	}
-	manager.main_manager = main_manager
-
-	old_manager, err := client_thread.OldCategorizerManagerSocket(manager.Network.Id)
-	if err != nil {
-		manager.logger.Fatal("new old manager push socket", "error", err)
-	}
-	manager.old_manager = old_manager
 
 	categorizer_pusher, err := categorizer.NewCategorizerPusher()
 	if err != nil {
@@ -376,20 +362,6 @@ func (manager *Manager) remote_recent_block_number(client_socket *remote.Socket)
 	}
 
 	return recent_reply.Number, nil
-}
-
-func (manager *Manager) push_recent_block_number(block_header blockchain.BlockHeader) error {
-	err := handler.RECENT_BLOCK_NUMBER.Push(manager.main_manager, block_header)
-	if err != nil {
-		return fmt.Errorf("main_manager.RemoteRequest: %w", err)
-	}
-
-	err = handler.RECENT_BLOCK_NUMBER.Push(manager.old_manager, block_header)
-	if err != nil {
-		return fmt.Errorf("main_manager.RemoteRequest: %w", err)
-	}
-
-	return nil
 }
 
 // returns the block's logs

@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/remote"
 
 	client_thread "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
@@ -33,12 +34,11 @@ const RUNNING = "running"
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
-	old_manager         *zmq.Socket           // send through this socket updated datat to old smartcontract categorizer
-	recent_manager      *zmq.Socket           // send through this socket updated datat to old smartcontract categorizer
-	app_config          *configuration.Config // configuration used to create new sockets
-	logger              log.Logger            // print the debug parameters
-	recent_block_number blockchain.Number     // recent block number where recent manager goes on.
-	// TODO: remove recent_block_number, and add req-reply to recent manager.
+	old_manager           *zmq.Socket // send through this socket updated datat to old smartcontract categorizer
+	recent_manager        *zmq.Socket // send through this socket updated datat to old smartcontract categorizer
+	recent_request_socket *remote.Socket
+	app_config            *configuration.Config // configuration used to create new sockets
+	logger                log.Logger            // print the debug parameters
 }
 
 // Creates a new manager for the given EVM Network
@@ -74,6 +74,13 @@ func (manager *Manager) Start() {
 		manager.logger.Fatal("new recent manager push socket", "error", err)
 	}
 	manager.recent_manager = recent_manager
+
+	reply_url := client_thread.RecentCategorizerReplyEndpoint(manager.Network.Id)
+	recent_request_socket, err := remote.InprocRequestSocket(reply_url, manager.logger, manager.app_config)
+	if err != nil {
+		manager.logger.Fatal("new recent manager push socket", "error", err)
+	}
+	manager.recent_request_socket = recent_request_socket
 
 	old_manager, err := client_thread.OldCategorizerManagerSocket(manager.Network.Id)
 	if err != nil {
@@ -143,26 +150,27 @@ func (manager *Manager) start_puller() {
 
 		if request.Command == handler.NEW_CATEGORIZED_SMARTCONTRACTS.String() {
 			manager.on_new_smartcontracts(request.Parameters)
-		} else if request.Command == handler.RECENT_BLOCK_NUMBER.String() {
-			manager.on_recent_block_number(request.Parameters)
 		}
 	}
 }
 
-// Categorizer manager received new smartcontracts along with their ABI
-func (manager *Manager) on_recent_block_number(parameters key_value.KeyValue) {
-	manager.logger.Info("add new smartcontracts to the manager")
+// Returns the most recent block number that manager synced to.
+//
+// Algorithm to get block number by priority
+// - from blockchain
+func (manager *Manager) remote_recent_block_number() (blockchain.Number, error) {
+	recent_request := handler.RecentBlockHeaderRequest{}
+	var reply handler.RecentBlockHeaderReply
 
-	var recent_request handler.RecentBlockHeaderRequest
-	err := parameters.ToInterface(&recent_request)
+	err := handler.RECENT_BLOCK_NUMBER.Request(manager.recent_request_socket, recent_request, &reply)
 	if err != nil {
-		manager.logger.Fatal("failed to receive recent block number", "error", err)
+		return 0, fmt.Errorf("RemoteRequest: %w", err)
 	}
-	if err := recent_request.Validate(); err != nil {
-		manager.logger.Fatal("recent_request.Validate", "error", err)
+	if err := reply.Validate(); err != nil {
+		return 0, fmt.Errorf("reply.Validate: %w", err)
 	}
 
-	manager.recent_block_number = recent_request.Number
+	return reply.Number, nil
 }
 
 // Categorizer manager received new smartcontracts along with their ABI
@@ -171,9 +179,8 @@ func (manager *Manager) on_new_smartcontracts(parameters key_value.KeyValue) {
 
 	raw_smartcontracts, _ := parameters.GetKeyValueList("smartcontracts")
 
-	// make sure that it works with the recent
-	block_number := manager.recent_block_number
-	if err := block_number.Validate(); err != nil {
+	block_number, err := manager.remote_recent_block_number()
+	if err != nil {
 		manager.logger.Fatal("recent block number empty, its unexpected")
 	}
 
