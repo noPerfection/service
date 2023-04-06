@@ -11,12 +11,29 @@ import (
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
 
+// EVM Block with the raw logs.
+//
+// It doesn't include the transactions.
+// Since transactions are not supported by SDS.
 type Block struct {
+	// SDS network id to which this
+	// block belongs
 	NetworkId string
-	Header    blockchain.BlockHeader
-	RawLogs   []spaghetti_log.RawLog
+	// Block number and timestamp
+	Header blockchain.BlockHeader
+	// List of event logs
+	RawLogs []spaghetti_log.RawLog
 }
 
+// Converts ethereum logs into SDS raw log.
+// Then sets them as block logs.
+// If the block has already logs, then
+// they will be overwritten.
+//
+// It doesn't check for duplicate logs.
+//
+// Returns an error if failed to convert
+// ethereum log to SDS raw log.
 func SetLogs(block *Block, raw_logs []eth_types.Log) error {
 	var logs []spaghetti_log.RawLog
 	for _, rawLog := range raw_logs {
@@ -36,9 +53,8 @@ func SetLogs(block *Block, raw_logs []eth_types.Log) error {
 	return nil
 }
 
-// Returns the smartcontract information
-// Todo Get the logs for the blockchain
-// Rather than getting transactions
+// Returns the raw logs from block
+// that are sent to the address.
 func (block *Block) GetForSmartcontract(address string) []spaghetti_log.RawLog {
 	logs := make([]spaghetti_log.RawLog, 0)
 
