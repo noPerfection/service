@@ -12,6 +12,8 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+const GET_STRING command.Command = "get-string"
+
 func VaultEndpoint() string {
 	return "inproc://sds_vault"
 }
@@ -46,7 +48,7 @@ func GetStringFromVault(bucket string, key string) (string, error) {
 	}
 
 	request := message.Request{
-		Command: "GetString",
+		Command: GET_STRING.String(),
 		Parameters: map[string]interface{}{
 			"bucket": bucket,
 			"key":    key,
