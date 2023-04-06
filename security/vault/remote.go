@@ -5,13 +5,32 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/security/credentials"
 
 	zmq "github.com/pebbe/zmq4"
 )
 
 func VaultEndpoint() string {
 	return "inproc://sds_vault"
+}
+
+// Fetch the given credentials from the Vault.
+// It fetches the private key from the vault.
+// Then gets the public key from it
+func GetCredentials(bucket string, key string) (*credentials.Credentials, error) {
+	private_key, err := GetStringFromVault(bucket, key)
+	if err != nil {
+		return nil, fmt.Errorf("vault: %w", err)
+	}
+
+	pub_key, err := zmq.AuthCurvePublic(private_key)
+	if err != nil {
+		return nil, fmt.Errorf("zmq.Convert Secret to Pub: %w", err)
+	}
+
+	return credentials.NewPrivateKey(private_key, pub_key), nil
 }
 
 // Get the string value from the vault
