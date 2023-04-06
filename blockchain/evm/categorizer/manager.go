@@ -20,7 +20,6 @@ import (
 	"github.com/blocklords/sds/blockchain/handler"
 	categorizer_smartcontract "github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
-	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 
 	"github.com/blocklords/sds/app/remote/message"
@@ -34,13 +33,12 @@ const RUNNING = "running"
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
-	old_manager         *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
-	recent_manager      *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
-	app_config          *configuration.Config    // configuration used to create new sockets
-	logger              log.Logger               // print the debug parameters
-	recent_workers      smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
-	subscribed_blocks   data_type.Queue          // we keep recent blocks from blockchain
-	recent_block_number blockchain.Number
+	old_manager         *zmq.Socket           // send through this socket updated datat to old smartcontract categorizer
+	recent_manager      *zmq.Socket           // send through this socket updated datat to old smartcontract categorizer
+	app_config          *configuration.Config // configuration used to create new sockets
+	logger              log.Logger            // print the debug parameters
+	recent_block_number blockchain.Number     // recent block number where recent manager goes on.
+	// TODO: remove recent_block_number, and add req-reply to recent manager.
 }
 
 // Creates a new manager for the given EVM Network
@@ -56,11 +54,9 @@ func NewManager(
 	}
 
 	manager := Manager{
-		Network:           network,
-		subscribed_blocks: *data_type.NewQueue(),
-		recent_workers:    make(smartcontract.EvmWorkers, 0),
-		logger:            logger,
-		app_config:        app_config,
+		Network:    network,
+		logger:     logger,
+		app_config: app_config,
 	}
 
 	return &manager, nil
@@ -140,11 +136,9 @@ func (manager *Manager) start_puller() {
 	}
 
 	url := client_thread.CategorizerEndpoint(manager.Network.Id)
-	if err := sock.Connect(url); err != nil {
-		manager.logger.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
+	if err := sock.Bind(url); err != nil {
+		manager.logger.Fatal("trying to create categorizer for network id %s: %v", url, err)
 	}
-
-	manager.logger.Info("waiting for the messages at", "url", url)
 
 	for {
 		// Wait for reply.

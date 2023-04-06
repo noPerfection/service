@@ -139,8 +139,8 @@ func (manager *Manager) start_puller() {
 		manager.logger.Fatal("new manager pull socket", "message", err)
 	}
 
-	url := client_thread.CategorizerEndpoint(manager.Network.Id)
-	if err := sock.Connect(url); err != nil {
+	url := client_thread.RecentCategorizerEndpoint(manager.Network.Id)
+	if err := sock.Bind(url); err != nil {
 		manager.logger.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
 	}
 

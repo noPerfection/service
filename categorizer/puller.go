@@ -12,14 +12,15 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// To connect to the categorizer
+// to update data on the database.
 func NewCategorizerPusher() (*zmq.Socket, error) {
 	sock, err := zmq.NewSocket(zmq.PUSH)
 	if err != nil {
 		return nil, err
 	}
 
-	url := "cat"
-	if err := sock.Bind("inproc://" + url); err != nil {
+	if err := sock.Connect("inproc://cat"); err != nil {
 		return nil, fmt.Errorf("trying to create categorizer connecting pusher: %v", err)
 	}
 
@@ -41,7 +42,7 @@ func RunPuller(cat_logger log.Logger, database *db.Database) {
 	}
 
 	url := "inproc://cat"
-	if err := sock.Connect(url); err != nil {
+	if err := sock.Bind(url); err != nil {
 		logger.Fatal("trying to create categorizer socket: %v", "url", url, "error", err)
 	}
 

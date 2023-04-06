@@ -43,12 +43,12 @@ const RUNNING = "running"
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
-	pusher               *zmq.Socket           // send through this socket updated data to SDS Core
-	recent_manager       *zmq.Socket           // send
-	static               *remote.Socket        // return the abi from static for decoding event logs
-	app_config           *configuration.Config // configuration used to create new sockets
-	logger               log.Logger            // print the debug parameters
-	old_categorizers     OldWorkerGroups       // smartcontracts to categorize from archived nodes
+	pusher              *zmq.Socket           // send through this socket updated data to SDS Core
+	recent_manager      *zmq.Socket           // send
+	static              *remote.Socket        // return the abi from static for decoding event logs
+	app_config          *configuration.Config // configuration used to create new sockets
+	logger              log.Logger            // print the debug parameters
+	old_categorizers    OldWorkerGroups       // smartcontracts to categorize from archived nodes
 	recent_block_number blockchain.Number
 }
 
@@ -126,8 +126,8 @@ func (manager *Manager) Start() {
 		manager.logger.Fatal("new manager pull socket", "message", err)
 	}
 
-	url := client_thread.CategorizerEndpoint(manager.Network.Id)
-	if err := sock.Connect(url); err != nil {
+	url := client_thread.OldCategorizerEndpoint(manager.Network.Id)
+	if err := sock.Bind(url); err != nil {
 		manager.logger.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
 	}
 

@@ -90,6 +90,8 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	logger.Info("networks retreived")
 
+	// TODO: create inside the handlers
+	// don't pass as global variable
 	pushers := make(map[string]*zmq.Socket, len(parameters))
 
 	for _, the_network := range parameters {
