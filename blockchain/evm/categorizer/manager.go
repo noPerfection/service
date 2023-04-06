@@ -34,7 +34,7 @@ const RUNNING = "running"
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
-	old_pusher          *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
+	old_manager         *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
 	recent_manager      *zmq.Socket              // send through this socket updated datat to old smartcontract categorizer
 	app_config          *configuration.Config    // configuration used to create new sockets
 	logger              log.Logger               // print the debug parameters
@@ -79,11 +79,11 @@ func (manager *Manager) Start(categorizer_pusher *zmq.Socket) {
 	}
 	manager.recent_manager = recent_manager
 
-	old_pusher, err := client_thread.OldCategorizerManagerSocket(manager.Network.Id)
+	old_manager, err := client_thread.OldCategorizerManagerSocket(manager.Network.Id)
 	if err != nil {
 		manager.logger.Fatal("new old manager push socket", "error", err)
 	}
-	manager.old_pusher = old_pusher
+	manager.old_manager = old_manager
 
 	if err := manager.start_recent(categorizer_pusher); err != nil {
 		manager.logger.Fatal("new manager push socket", "error", err)
@@ -102,7 +102,7 @@ func (manager *Manager) start_recent(categorizer_pusher *zmq.Socket) error {
 		manager.logger,
 		manager.Network,
 		categorizer_pusher,
-		manager.old_pusher,
+		manager.old_manager,
 		manager.app_config,
 	)
 	if err != nil {
@@ -214,7 +214,7 @@ func (manager *Manager) push_old_workers(workers smartcontract.EvmWorkers) error
 	push := handler.PushNewSmartcontracts{
 		Smartcontracts: workers.GetSmartcontracts(),
 	}
-	err := handler.NEW_CATEGORIZED_SMARTCONTRACTS.Push(manager.old_pusher, push)
+	err := handler.NEW_CATEGORIZED_SMARTCONTRACTS.Push(manager.old_manager, push)
 	if err != nil {
 		return fmt.Errorf("failed to send to old categorizer: %w", err)
 	}
