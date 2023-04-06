@@ -12,6 +12,7 @@ import (
 
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/categorizer"
 
 	"time"
 
@@ -54,25 +55,17 @@ type Manager struct {
 
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
-func NewManager(
-	parent log.Logger,
-	network *network.Network,
-	pusher *zmq.Socket,
-	recent_manager *zmq.Socket,
-	app_config *configuration.Config) (*Manager, error) {
-
-	logger, err := parent.ChildWithTimestamp("old")
+func NewManager(l log.Logger, n *network.Network, c *configuration.Config) (*Manager, error) {
+	logger, err := l.ChildWithTimestamp("old")
 	if err != nil {
 		return nil, fmt.Errorf("child logger: %w", err)
 	}
 
 	manager := Manager{
-		Network:          network,
+		Network:          n,
 		old_categorizers: make(OldWorkerGroups, 0),
 		logger:           logger,
-		pusher:           pusher,
-		recent_manager:   recent_manager,
-		app_config:       app_config,
+		app_config:       c,
 	}
 
 	return &manager, nil
@@ -127,11 +120,23 @@ func (manager *Manager) Start() {
 	}
 
 	url := client_thread.OldCategorizerEndpoint(manager.Network.Id)
-	if err := sock.Bind(url); err != nil {
+	if err := sock.Connect(url); err != nil {
 		manager.logger.Fatal("trying to create categorizer for network id %s: %v", manager.Network.Id, err)
 	}
 
 	manager.logger.Info("waiting for the messages at", "url", url)
+
+	categorizer_pusher, err := categorizer.NewCategorizerPusher()
+	if err != nil {
+		manager.logger.Fatal("v.NewCategorizerPusher", "error", err)
+	}
+	manager.pusher = categorizer_pusher
+
+	recent_manager, err := client_thread.RecentCategorizerManagerSocket(manager.Network.Id)
+	if err != nil {
+		manager.logger.Fatal("client_thread.RecentCategorizerManagerSocket", "error", err)
+	}
+	manager.recent_manager = recent_manager
 
 	for {
 		// Wait for reply.

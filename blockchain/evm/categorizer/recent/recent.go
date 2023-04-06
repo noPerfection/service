@@ -12,6 +12,7 @@ import (
 
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/categorizer"
 
 	"time"
 
@@ -45,38 +46,31 @@ const RUNNING = "running"
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
-	pusher            *zmq.Socket              // send through this socket updated datat to SDS Core
 	static            *remote.Socket           // return the abi from static for decoding event logs
 	app_config        *configuration.Config    // configuration used to create new sockets
 	logger            log.Logger               // print the debug parameters
 	workers           smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
 	subscribed_blocks data_type.Queue          // we keep recent blocks from blockchain
-	main_manager      *zmq.Socket
-	old_manager       *zmq.Socket
+
+	pusher       *zmq.Socket // send through this socket updated datat to SDS Core
+	main_manager *zmq.Socket
+	old_manager  *zmq.Socket
 }
 
 // Creates a new manager for the given EVM Network
 // New manager runs in the background.
-func NewManager(
-	parent log.Logger,
-	network *network.Network,
-	pusher *zmq.Socket,
-	old_manager *zmq.Socket,
-	app_config *configuration.Config) (*Manager, error) {
-
-	logger, err := parent.ChildWithTimestamp("categorizer")
+func NewManager(l log.Logger, n *network.Network, c *configuration.Config) (*Manager, error) {
+	logger, err := l.ChildWithTimestamp("recent")
 	if err != nil {
 		return nil, fmt.Errorf("child logger: %w", err)
 	}
 
 	manager := Manager{
-		Network:           network,
+		Network:           n,
 		subscribed_blocks: *data_type.NewQueue(),
 		workers:           make(smartcontract.EvmWorkers, 0),
 		logger:            logger,
-		pusher:            pusher,
-		app_config:        app_config,
-		old_manager:       old_manager,
+		app_config:        c,
 	}
 
 	return &manager, nil
@@ -126,6 +120,18 @@ func (manager *Manager) Start() {
 		manager.logger.Fatal("new old manager push socket", "error", err)
 	}
 	manager.main_manager = main_manager
+
+	old_manager, err := client_thread.OldCategorizerManagerSocket(manager.Network.Id)
+	if err != nil {
+		manager.logger.Fatal("new old manager push socket", "error", err)
+	}
+	manager.old_manager = old_manager
+
+	categorizer_pusher, err := categorizer.NewCategorizerPusher()
+	if err != nil {
+		manager.logger.Fatal("new old manager push socket", "error", err)
+	}
+	manager.pusher = categorizer_pusher
 
 	manager.logger.Info("starting categorization")
 	go manager.queue_recent_blocks()

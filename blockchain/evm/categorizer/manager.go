@@ -68,7 +68,7 @@ func NewManager(
 // manager would connect to the blockchain/client and SDS Core correctly.
 //
 // Because, the sockets are not thread-safe.
-func (manager *Manager) Start(categorizer_pusher *zmq.Socket) {
+func (manager *Manager) Start() {
 	recent_manager, err := client_thread.RecentCategorizerManagerSocket(manager.Network.Id)
 	if err != nil {
 		manager.logger.Fatal("new recent manager push socket", "error", err)
@@ -81,10 +81,10 @@ func (manager *Manager) Start(categorizer_pusher *zmq.Socket) {
 	}
 	manager.old_manager = old_manager
 
-	if err := manager.start_recent(categorizer_pusher); err != nil {
+	if err := manager.start_recent(); err != nil {
 		manager.logger.Fatal("new manager push socket", "error", err)
 	}
-	if err := manager.start_old(categorizer_pusher); err != nil {
+	if err := manager.start_old(); err != nil {
 		manager.logger.Fatal("new manager push socket", "error", err)
 	}
 
@@ -93,12 +93,10 @@ func (manager *Manager) Start(categorizer_pusher *zmq.Socket) {
 
 // The categorizer receives new smartcontracts
 // to categorize from SDS Categorizer.
-func (manager *Manager) start_recent(categorizer_pusher *zmq.Socket) error {
+func (manager *Manager) start_recent() error {
 	recent_manager, err := recent.NewManager(
 		manager.logger,
 		manager.Network,
-		categorizer_pusher,
-		manager.old_manager,
 		manager.app_config,
 	)
 	if err != nil {
@@ -111,12 +109,10 @@ func (manager *Manager) start_recent(categorizer_pusher *zmq.Socket) error {
 
 // The categorizer receives new smartcontracts
 // to categorize from SDS Categorizer.
-func (manager *Manager) start_old(categorizer_pusher *zmq.Socket) error {
+func (manager *Manager) start_old() error {
 	old_manager, err := old.NewManager(
 		manager.logger,
 		manager.Network,
-		categorizer_pusher,
-		manager.recent_manager,
 		manager.app_config,
 	)
 	if err != nil {

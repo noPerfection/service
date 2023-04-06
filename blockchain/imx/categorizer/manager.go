@@ -8,6 +8,7 @@ import (
 	"github.com/blocklords/sds/app/remote/message"
 	blockchai_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
+	"github.com/blocklords/sds/categorizer"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 
 	zmq "github.com/pebbe/zmq4"
@@ -22,7 +23,7 @@ type Manager struct {
 	app_config     *configuration.Config
 }
 
-func NewManager(parent log.Logger, app_config *configuration.Config, network *network.Network, pusher *zmq.Socket) (*Manager, error) {
+func NewManager(parent log.Logger, app_config *configuration.Config, network *network.Network) (*Manager, error) {
 	logger, err := parent.ChildWithTimestamp("categorizer")
 	if err != nil {
 		return nil, fmt.Errorf("child logger: %w", err)
@@ -31,7 +32,6 @@ func NewManager(parent log.Logger, app_config *configuration.Config, network *ne
 	manager := &Manager{
 		network:        network,
 		smartcontracts: make([]*smartcontract.Smartcontract, 0),
-		pusher:         pusher,
 		logger:         logger,
 		app_config:     app_config,
 	}
@@ -47,9 +47,16 @@ func (manager *Manager) Start() {
 	}
 
 	url := blockchai_process.CategorizerEndpoint(manager.network.Id)
-	if err := sock.Connect(url); err != nil {
+	if err := sock.Bind(url); err != nil {
 		manager.logger.Fatal("socket.Connect", "error", err)
 	}
+
+	// if there are some logs, we should broadcast them to the SDS Categorizer
+	pusher, err := categorizer.NewCategorizerPusher()
+	if err != nil {
+		manager.logger.Fatal("create a pusher to SDS Categorizer", "message", err)
+	}
+	manager.pusher = pusher
 
 	for {
 		// Wait for reply.

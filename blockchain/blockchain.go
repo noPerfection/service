@@ -14,7 +14,6 @@ import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/blockchain/handler"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
-	"github.com/blocklords/sds/categorizer"
 
 	"github.com/blocklords/sds/blockchain/network"
 
@@ -262,12 +261,6 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 		}
 	}
 
-	// if there are some logs, we should broadcast them to the SDS Categorizer
-	pusher, err := categorizer.NewCategorizerPusher()
-	if err != nil {
-		logger.Fatal("create a pusher to SDS Categorizer", "message", err)
-	}
-
 	for _, new_network := range networks {
 		worker_logger, err := logger.ChildWithTimestamp(new_network.Type.String() + "_network_id_" + new_network.Id)
 		if err != nil {
@@ -287,14 +280,14 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 			if err != nil {
 				worker_logger.Fatal("evm categorizer manager", "error", err)
 			}
-			go categorizer.Start(pusher)
+			go categorizer.Start()
 		} else if new_network.Type == network.IMX {
 			new_client := imx_client.New(new_network)
 
 			new_worker := imx_worker.New(app_config, new_client, worker_logger)
 			go new_worker.SetupSocket()
 
-			imx_manager, err := imx_categorizer.NewManager(worker_logger, app_config, new_network, pusher)
+			imx_manager, err := imx_categorizer.NewManager(worker_logger, app_config, new_network)
 			if err != nil {
 				worker_logger.Fatal("imx.NewManager", "error", err)
 			}
