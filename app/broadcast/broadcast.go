@@ -129,7 +129,9 @@ func ConnectionSocket(service *service.Service) (*zmq.Socket, error) {
 // It assumes that the another package is starting an authentication layer of zmq:
 // ZAP.
 //
-// If some error is encountered, then this package panics
+// # If some error is encountered, then this package panics
+//
+// use controller.Controller through controller.NewPull
 func (b *Broadcast) Run() {
 	var mu sync.Mutex
 
