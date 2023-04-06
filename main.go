@@ -95,16 +95,9 @@ func main() {
 	//
 	/////////////////////////////////////////////////////////////////////////
 	var core_service *service.Service
-	if app_config.Plain {
-		core_service, err = service.NewExternal(service.CORE, service.THIS, app_config)
-		if err != nil {
-			logger.Fatal("external core service error", "message", err)
-		}
-	} else {
-		core_service, err = service.NewSecure(service.CORE, service.THIS, app_config)
-		if err != nil {
-			logger.Fatal("external core service error", "message", err)
-		}
+	core_service, err = service.NewExternal(service.CORE, service.THIS, app_config)
+	if err != nil {
+		logger.Fatal("external core service error", "message", err)
 	}
 
 	// Prepare the external message receiver
@@ -113,6 +106,15 @@ func main() {
 	if err != nil {
 		logger.Fatal("controller new router", "error", err)
 	}
+
+	// todo add SetSecurity for router
+	// if !app_config.Plain {
+	// 	creds, err := service_credentials.ServiceCredentials(service.CORE, service.THIS, app_config)
+	// 	if err != nil {
+	// 		logger.Fatal("controller new router", "error", err)
+	// 	}
+	// 	router.SetCreds(creds)
+	// }
 
 	// Prepare the list of core services that
 	// The router will redirect the data to the services

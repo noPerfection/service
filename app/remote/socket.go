@@ -423,7 +423,7 @@ func NewTcpSubscriber(e *service.Service, server_public_key string, client *cred
 	}
 
 	if client != nil {
-		err := client.SetClientAuthCurve(socket, e.Credentials.PublicKey)
+		err := client.SetClientAuthCurve(socket, server_public_key)
 		if err != nil {
 			return nil, fmt.Errorf("credentials.SetClientAuthCurve: %w", err)
 		}

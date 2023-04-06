@@ -5,6 +5,7 @@ import (
 
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/security/credentials"
 
 	zmq "github.com/pebbe/zmq4"
 )
@@ -21,8 +22,8 @@ func WhitelistAccess(logger log.Logger, spaghetti_env *service.Service, public_k
 
 // Set the private key, so connected clients can identify this controller
 // You call it before running the controller
-func (c *Controller) SetControllerPrivateKey() error {
-	err := c.service.Credentials.SetSocketAuthCurve(c.socket, c.service.Name)
+func (c *Controller) SetControllerPrivateKey(service_credentials *credentials.Credentials) error {
+	err := service_credentials.SetSocketAuthCurve(c.socket, c.service.Name)
 	if err == nil {
 		return nil
 	}
