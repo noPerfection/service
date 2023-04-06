@@ -480,7 +480,11 @@ func (manager *Manager) queue_recent_blocks() {
 			continue
 		}
 
-		new_block := spaghetti_block.NewBlock(manager.Network.Id, block_to, parameters.RawLogs)
+		new_block := spaghetti_block.Block{
+			NetworkId: manager.Network.Id,
+			Header:    block_to,
+			RawLogs:   parameters.RawLogs,
+		}
 
 		sub_logger.Info("add a block to consume", "block_number", block_to, "event log amount", len(parameters.RawLogs))
 		manager.subscribed_blocks.Push(new_block)
