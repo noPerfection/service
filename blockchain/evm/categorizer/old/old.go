@@ -26,13 +26,11 @@ import (
 	categorizer_command "github.com/blocklords/sds/categorizer/handler"
 	categorizer_smartcontract "github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
-	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	static_command "github.com/blocklords/sds/static/handler"
 
 	"github.com/blocklords/sds/app/remote/message"
 	spaghetti_log "github.com/blocklords/sds/blockchain/event"
-	spaghetti_block "github.com/blocklords/sds/blockchain/evm/block"
 	zmq "github.com/pebbe/zmq4"
 
 	"github.com/blocklords/sds/app/remote"
@@ -45,13 +43,13 @@ const RUNNING = "running"
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
-	pusher            *zmq.Socket              // send through this socket updated datat to SDS Core
-	static            *remote.Socket           // return the abi from static for decoding event logs
-	app_config        *configuration.Config    // configuration used to create new sockets
-	logger            log.Logger               // print the debug parameters
-	old_categorizers  OldWorkerGroups          // smartcontracts to categorize from archived nodes
-	current_workers   smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
-	subscribed_blocks data_type.Queue          // we keep recent blocks from blockchain
+	pusher               *zmq.Socket           // send through this socket updated data to SDS Core
+	current_pusher       *zmq.Socket           // send
+	static               *remote.Socket        // return the abi from static for decoding event logs
+	app_config           *configuration.Config // configuration used to create new sockets
+	logger               log.Logger            // print the debug parameters
+	old_categorizers     OldWorkerGroups       // smartcontracts to categorize from archived nodes
+	current_block_number blockchain.Number
 }
 
 // Creates a new manager for the given EVM Network
@@ -60,21 +58,21 @@ func NewManager(
 	parent log.Logger,
 	network *network.Network,
 	pusher *zmq.Socket,
+	current_pusher *zmq.Socket,
 	app_config *configuration.Config) (*Manager, error) {
 
-	logger, err := parent.ChildWithTimestamp("categorizer")
+	logger, err := parent.ChildWithTimestamp("old")
 	if err != nil {
 		return nil, fmt.Errorf("child logger: %w", err)
 	}
 
 	manager := Manager{
-		Network:           network,
-		old_categorizers:  make(OldWorkerGroups, 0),
-		subscribed_blocks: *data_type.NewQueue(),
-		current_workers:   make(smartcontract.EvmWorkers, 0),
-		logger:            logger,
-		pusher:            pusher,
-		app_config:        app_config,
+		Network:          network,
+		old_categorizers: make(OldWorkerGroups, 0),
+		logger:           logger,
+		pusher:           pusher,
+		current_pusher:   current_pusher,
+		app_config:       app_config,
 	}
 
 	return &manager, nil
@@ -90,8 +88,6 @@ func (manager *Manager) GetSmartcontracts() []categorizer_smartcontract.Smartcon
 		smartcontracts = append(smartcontracts, group.workers.GetSmartcontracts()...)
 	}
 
-	smartcontracts = append(smartcontracts, manager.current_workers.GetSmartcontracts()...)
-
 	return smartcontracts
 }
 
@@ -104,8 +100,6 @@ func (manager *Manager) GetSmartcontractAddresses() []string {
 	for _, group := range manager.old_categorizers {
 		addresses = append(addresses, group.workers.GetSmartcontractAddresses()...)
 	}
-
-	addresses = append(addresses, manager.current_workers.GetSmartcontractAddresses()...)
 
 	return addresses
 }
@@ -126,10 +120,6 @@ func (manager *Manager) Start() {
 		manager.logger.Fatal("remote.InprocRequest", "url", static_env.Url(), "error", err)
 	}
 	manager.static = static_socket
-
-	manager.logger.Info("starting categorization")
-	go manager.queue_recent_blocks()
-	go manager.categorize_current_smartcontracts()
 
 	sock, err := zmq.NewSocket(zmq.PULL)
 	if err != nil {
@@ -161,23 +151,7 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 
 	raw_smartcontracts, _ := parameters.GetKeyValueList("smartcontracts")
 
-	url := client_thread.ClientEndpoint(manager.Network.Id)
-	blockchain_client_socket, err := remote.InprocRequestSocket(url, manager.logger, manager.app_config)
-	if err != nil {
-		manager.logger.Fatal("remote.InprocRequest", "url", url, "error", err)
-	}
-
-	block_number, err := recent_block_number(blockchain_client_socket)
-	if err != nil {
-		manager.logger.Fatal("recent-block-number", "message", err)
-	}
-	err = blockchain_client_socket.Close()
-	if err != nil {
-		manager.logger.Fatal("close socket", "message", err)
-	}
-	manager.logger.Info("recent block determined, splitting smartcontracts to old and current")
-
-	new_workers := make(smartcontract.EvmWorkers, len(raw_smartcontracts))
+	old_workers := make(smartcontract.EvmWorkers, len(raw_smartcontracts))
 	for i, raw_sm := range raw_smartcontracts {
 		sm, _ := categorizer_smartcontract.New(raw_sm)
 
@@ -204,16 +178,12 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 		if err != nil {
 			manager.logger.Fatal("failed to decode", "index", i, "smartcontract", sm.SmartcontractKey.Address, "errr", err)
 		}
-		manager.logger.Info("add a new worker", "number", i+1, "total", len(new_workers))
-		new_workers[i] = smartcontract.New(sm, cat_abi)
+		manager.logger.Info("add a new worker", "number", i+1, "total", len(old_workers))
+		old_workers[i] = smartcontract.New(sm, cat_abi)
 	}
 
-	manager.logger.Info("information about workers", "block_number", block_number, "amount of workers", len(new_workers))
-
-	old_workers, current_workers := new_workers.Sort().Split(block_number)
 	old_block_number := old_workers.EarliestBlockNumber()
 
-	manager.logger.Info("splitting to old and new workers", "old amount", len(old_workers), "new amount", len(current_workers))
 	manager.logger.Info("old workers information", "earliest_block_number", old_block_number)
 
 	if len(old_workers) > 0 {
@@ -228,10 +198,6 @@ func (manager *Manager) new_smartcontracts(parameters key_value.KeyValue) {
 			group.add_workers(old_workers)
 		}
 	}
-
-	manager.logger.Info("add current workers")
-
-	manager.add_current_workers(current_workers)
 }
 
 // Categorization of the smartcontracts that are super old.
@@ -324,17 +290,14 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 			old_logger.Fatal("send to SDS Categorizer", "message", err)
 		}
 
-		if !manager.subscribed_blocks.IsEmpty() {
-			recent_block_number := manager.subscribed_blocks.First().(*spaghetti_block.Block).Header.Number
-			left := recent_block_number.Value() - parameters.BlockTo
-			old_logger.Info("categorized certain blocks", "block_number_left", left, "block_number_to", parameters.BlockTo, "subscribed", recent_block_number)
-			group.block_number = block_to.Number
+		left := manager.current_block_number.Value() - parameters.BlockTo
+		old_logger.Info("categorized certain blocks", "block_number_left", left, "block_number_to", parameters.BlockTo, "subscribed", recent_block_number)
+		group.block_number = block_to.Number
 
-			if parameters.BlockTo >= recent_block_number.Value() {
-				old_logger.Info("catched the current blocks")
-				manager.add_current_workers(group.workers)
-				break
-			}
+		if parameters.BlockTo >= manager.current_block_number.Value() {
+			old_logger.Info("catched the current blocks")
+			manager.push_current_workers(group.workers)
+			break
 		}
 
 		// do not pressure the backend
@@ -346,79 +309,16 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 	old_logger.Info("finished!")
 }
 
-// Add new smartcontracts to the current workers.
-func (manager *Manager) add_current_workers(workers smartcontract.EvmWorkers) {
-	manager.current_workers = append(manager.current_workers, workers...)
-}
-
-// Consume each received block from SDS Spaghetti broadcast
-func (manager *Manager) categorize_current_smartcontracts() {
-	current_logger, err := manager.logger.ChildWithTimestamp("current")
+func (manager *Manager) push_current_workers(workers smartcontract.EvmWorkers) error {
+	push := handler.PushNewSmartcontracts{
+		Smartcontracts: workers.GetSmartcontracts(),
+	}
+	err := handler.NEW_CATEGORIZED_SMARTCONTRACTS.Push(manager.current_pusher, push)
 	if err != nil {
-		manager.logger.Fatal("failed to create child logger", "error", err)
+		return fmt.Errorf("failed to send to old categorizer: %w", err)
 	}
 
-	current_logger.Info("starting to consume subscribed blocks...")
-
-	for {
-		time.Sleep(time.Second * time.Duration(1))
-
-		if len(manager.current_workers) == 0 || manager.subscribed_blocks.IsEmpty() {
-			continue
-		}
-
-		// consume each block by workers
-		for {
-			raw_block := manager.subscribed_blocks.Pop().(*spaghetti_block.Block)
-
-			decoded_logs := make([]categorizer_event.Log, 0)
-
-			// decode the logs
-			for _, raw_log := range raw_block.RawLogs {
-				for _, worker := range manager.current_workers {
-					if worker.Smartcontract.SmartcontractKey.Address != raw_log.Transaction.SmartcontractKey.Address {
-						continue
-					}
-
-					decoded_log, err := worker.DecodeLog(&raw_log)
-					if err != nil {
-						current_logger.Error("worker.DecodeLog", "smartcontract", worker.Smartcontract.SmartcontractKey.Address, "message", err)
-						continue
-					}
-
-					decoded_logs = append(decoded_logs, decoded_log)
-				}
-			}
-
-			// update the categorization state for the smartcontract
-			smartcontracts := manager.current_workers.GetSmartcontracts()
-			for _, smartcontract := range smartcontracts {
-				new_block := raw_block.Header
-
-				for _, decoded_log := range decoded_logs {
-					if strings.EqualFold(decoded_log.SmartcontractKey.Address, smartcontract.SmartcontractKey.Address) {
-						new_block = decoded_log.BlockHeader
-					}
-				}
-				smartcontract.SetBlockHeader(new_block)
-			}
-
-			current_logger.Info("send a notification to SDS Categorizer", "logs_amount", len(decoded_logs))
-
-			request := categorizer_command.PushCategorization{
-				Smartcontracts: smartcontracts,
-				Logs:           decoded_logs,
-			}
-			err = categorizer_command.CATEGORIZATION.Push(manager.pusher, request)
-			if err != nil {
-				current_logger.Fatal("sending notification to SDS Categorizer", "message", err)
-			}
-
-			if len(manager.current_workers) == 0 || manager.subscribed_blocks.IsEmpty() {
-				break
-			}
-		}
-	}
+	return nil
 }
 
 // Returns the most recent block number from blockchain.
@@ -432,71 +332,4 @@ func recent_block_number(socket *remote.Socket) (blockchain.Number, error) {
 	}
 
 	return recent_reply.Number, nil
-}
-
-// We start to consume the block information from SDS Spaghetti
-// And put it in the queue.
-// The worker will start to consume them one by one.
-func (manager *Manager) queue_recent_blocks() {
-	sub_logger, err := manager.logger.ChildWithoutReport("recent_block_queue")
-	if err != nil {
-		manager.logger.Fatal("failed to create child log", "error", err)
-	}
-
-	url := client_thread.ClientEndpoint(manager.Network.Id)
-	blockchain_client_socket, err := remote.InprocRequestSocket(url, sub_logger, manager.app_config)
-	if err != nil {
-		manager.logger.Fatal("remote.InprocRequest", "url", url, "error", err)
-	}
-	block_number, err := recent_block_number(blockchain_client_socket)
-	if err != nil {
-		sub_logger.Fatal("recent-block-number", "message", err)
-	}
-
-	sub_logger.Info("recent-block-number", "block_number", block_number)
-	sub_logger.Info("pause 10 seconds before each log filter")
-
-	for {
-		time.Sleep(10 * time.Second)
-		if manager.subscribed_blocks.IsFull() {
-			sub_logger.Warn("subscribed block is full. Start to consume them [trying in 10 seconds]", "message", err)
-			continue
-		}
-
-		req_parameters := handler.FilterLog{
-			BlockFrom: block_number,
-			Addresses: []string{},
-		}
-
-		var parameters handler.LogFilterReply
-		err = handler.FILTER_LOG_COMMAND.Request(blockchain_client_socket, req_parameters, &parameters)
-		if err != nil {
-			sub_logger.Warn("failed to get the log filters [trying in 10 seconds]", "message", err)
-			continue
-		}
-
-		if len(parameters.RawLogs) == 0 {
-			sub_logger.Warn("no logs were found", "block_number", block_number)
-			continue
-		}
-
-		block_to := spaghetti_log.RecentBlock(parameters.RawLogs)
-
-		// we already accumulated the logs
-		if block_to.Number == block_number {
-			sub_logger.Warn("reached out to the most recent logs", "block_number", block_number)
-			continue
-		}
-
-		new_block := spaghetti_block.Block{
-			NetworkId: manager.Network.Id,
-			Header:    block_to,
-			RawLogs:   parameters.RawLogs,
-		}
-
-		sub_logger.Info("add a block to consume", "block_number", block_to, "event log amount", len(parameters.RawLogs))
-		manager.subscribed_blocks.Push(new_block)
-
-		block_number = block_to.Number.Increment()
-	}
 }
