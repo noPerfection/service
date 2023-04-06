@@ -146,7 +146,8 @@ func (manager *Manager) start_puller() {
 		manager.logger.Fatal("failed to create pull controller", "error", err)
 	}
 
-	handlers := command.EmptyHandlers().Add(handler.NEW_CATEGORIZED_SMARTCONTRACTS, on_new_smartcontracts)
+	handlers := command.EmptyHandlers().
+		Add(handler.NEW_CATEGORIZED_SMARTCONTRACTS, on_new_smartcontracts)
 	err = reply.Run(handlers, manager)
 	if err != nil {
 		manager.logger.Fatal("failed to run reply controller", "error", err)

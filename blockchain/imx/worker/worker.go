@@ -1,21 +1,21 @@
 package worker
 
 import (
-	"errors"
 	"time"
 
 	"github.com/blocklords/sds/blockchain/handler"
 	"github.com/blocklords/sds/blockchain/imx"
 	blockchain_proc "github.com/blocklords/sds/blockchain/inproc"
 
+	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 	spaghetti_log "github.com/blocklords/sds/blockchain/event"
 	"github.com/blocklords/sds/blockchain/imx/client"
 	"github.com/blocklords/sds/common/data_type/key_value"
-
-	zmq "github.com/pebbe/zmq4"
 )
 
 // the global variables that we pass between functions in this worker.
@@ -39,54 +39,43 @@ func New(app_config *configuration.Config, client *client.Client, logger log.Log
 
 // Sets up the socket to interact with the clients
 func (worker *Manager) SetupSocket() {
-	sock, err := zmq.NewSocket(zmq.REP)
-	if err != nil {
-		panic(err)
-	}
-
 	url := blockchain_proc.ClientEndpoint(worker.client.Network.Id)
-	if err := sock.Bind(url); err != nil {
-		worker.logger.Fatal("trying to create categorizer for network id %s: %v", worker.client.Network.Id, err)
+	service, err := service.InprocessFromUrl(url)
+	if err != nil {
+		worker.logger.Fatal("service.InprocessFromUrl", "error", err)
+	}
+	reply, err := controller.NewReply(service, worker.logger)
+	if err != nil {
+		worker.logger.Fatal("controller.NewReply", "error", err)
 	}
 
-	worker.logger.Info("reply controller waiting for messages", "url", url)
+	handlers := command.EmptyHandlers().
+		Add(handler.FILTER_LOG_COMMAND, on_filter_log)
 
-	for {
-		// Wait for reply.
-		msgs, _ := sock.RecvMessage(0)
-		request, _ := message.ParseRequest(msgs)
-
-		var reply message.Reply
-
-		if request.Command == handler.FILTER_LOG_COMMAND.String() {
-			var request_parameters handler.FilterLog
-			err := request.Parameters.ToInterface(&request_parameters)
-			if err != nil {
-				reply = message.Fail("request parameter: " + err.Error())
-			} else {
-				reply = worker.filter_log(request_parameters)
-			}
-		} else {
-			reply = message.Fail("unsupported command " + request.Command)
-		}
-
-		reply_string, err := reply.ToString()
-		if err != nil {
-			if _, err := sock.SendMessage(err.Error()); err != nil {
-				panic(err)
-			}
-		} else {
-			if _, err := sock.SendMessage(reply_string); err != nil {
-				panic(errors.New("failed to reply: %w" + err.Error()))
-			}
-		}
+	err = reply.Run(handlers, worker)
+	if err != nil {
+		worker.logger.Fatal("controller.Run", "error", err)
 	}
 }
 
-func (worker *Manager) filter_log(parameters handler.FilterLog) message.Reply {
-	address := parameters.Addresses[0]
+func on_filter_log(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if parameters == nil || len(parameters) < 1 {
+		return message.Fail("invalid parameters were given atleast manager should be passed")
+	}
 
-	block_timestamp := parameters.BlockFrom
+	worker, ok := parameters[0].(*Manager)
+	if !ok {
+		return message.Fail("missing Manager in the parameters")
+	}
+
+	var request_parameters handler.FilterLog
+	err := request.Parameters.ToInterface(&request_parameters)
+	if err != nil {
+		return message.Fail("failed to parse request parameters: %w" + err.Error())
+	}
+
+	address := request_parameters.Addresses[0]
+	block_timestamp := request_parameters.BlockFrom
 	timestamp := time.Unix(int64(block_timestamp), 0).UTC().Format(time.RFC3339)
 
 	block_timestamp_to := uint64(block_timestamp)

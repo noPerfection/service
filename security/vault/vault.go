@@ -115,6 +115,8 @@ func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
 
 // The vault runs on its own thread.
 // The controller is for other threads that wants to read data from the vault
+//
+// use controller.Controller through controller.NewReply()
 func (v *Vault) RunController() {
 	// Socket to talk to clients
 	socket, err := zmq.NewSocket(zmq.REP)
