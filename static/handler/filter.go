@@ -28,7 +28,15 @@ type FilterSmartcontractKeysReply struct {
 }
 
 func filter_organization(configurations *key_value.List, paths []string) *key_value.List {
+	if len(paths) == 0 {
+		return configurations
+	}
+
 	filtered := key_value.NewList()
+	if configurations == nil {
+		return filtered
+	}
+
 	list := configurations.List()
 	for key, value := range list {
 		conf := value.(*configuration.Configuration)
@@ -45,7 +53,15 @@ func filter_organization(configurations *key_value.List, paths []string) *key_va
 }
 
 func filter_project(configurations *key_value.List, paths []string) *key_value.List {
+	if len(paths) == 0 {
+		return configurations
+	}
+
 	filtered := key_value.NewList()
+	if configurations == nil {
+		return filtered
+	}
+
 	list := configurations.List()
 	for key, value := range list {
 		conf := value.(*configuration.Configuration)
@@ -62,7 +78,15 @@ func filter_project(configurations *key_value.List, paths []string) *key_value.L
 }
 
 func filter_network_id(configurations *key_value.List, paths []string) *key_value.List {
+	if len(paths) == 0 {
+		return configurations
+	}
+
 	filtered := key_value.NewList()
+	if configurations == nil {
+		return filtered
+	}
+
 	list := configurations.List()
 	for key, value := range list {
 		conf := value.(*configuration.Configuration)
@@ -79,7 +103,15 @@ func filter_network_id(configurations *key_value.List, paths []string) *key_valu
 }
 
 func filter_group(configurations *key_value.List, paths []string) *key_value.List {
+	if len(paths) == 0 {
+		return configurations
+	}
+
 	filtered := key_value.NewList()
+	if configurations == nil {
+		return filtered
+	}
+
 	list := configurations.List()
 	for key, value := range list {
 		conf := value.(*configuration.Configuration)
@@ -96,7 +128,15 @@ func filter_group(configurations *key_value.List, paths []string) *key_value.Lis
 }
 
 func filter_smartcontract_name(configurations *key_value.List, paths []string) *key_value.List {
+	if len(paths) == 0 {
+		return configurations
+	}
+
 	filtered := key_value.NewList()
+	if configurations == nil {
+		return filtered
+	}
+
 	list := configurations.List()
 	for key, value := range list {
 		conf := value.(*configuration.Configuration)
