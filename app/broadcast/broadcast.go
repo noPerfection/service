@@ -122,7 +122,7 @@ func ConnectionSocket(service *service.Service) (*zmq.Socket, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ConnectionUrl: %w", err)
 	}
-	if err := sock.Bind(url); err != nil {
+	if err := sock.Connect(url); err != nil {
 		return nil, fmt.Errorf("trying to create a connection socket: %w", err)
 	}
 
