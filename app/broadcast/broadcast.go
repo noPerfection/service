@@ -155,18 +155,20 @@ func (b *Broadcast) Run() {
 	if err != nil {
 		b.logger.Fatal("could not create inprocess service for broadcast", "broadcast url", b.service.Url(), "puller url", url, "error", err)
 	}
-	pull, err := controller.NewPull(pull_service, b.logger)
-	if err != nil {
-		b.logger.Fatal("could not pull controller for broadcast", "broadcast url", b.service.Url(), "puller url", url, "error", err)
-	}
+	go func() {
+		pull, err := controller.NewPull(pull_service, b.logger)
+		if err != nil {
+			b.logger.Fatal("could not pull controller for broadcast", "broadcast url", b.service.Url(), "puller url", url, "error", err)
+		}
 
-	handlers := command.EmptyHandlers().
-		Add(NEW_MESSAGE, on_new_message)
+		handlers := command.EmptyHandlers().
+			Add(NEW_MESSAGE, on_new_message)
 
-	err = pull.Run(handlers, b)
-	if err != nil {
-		b.logger.Fatal("pull.Run", "broadcast url", b.service.Url(), "puller url", url, "error", err)
-	}
+		err = pull.Run(handlers, b)
+		if err != nil {
+			b.logger.Fatal("pull.Run", "broadcast url", b.service.Url(), "puller url", url, "error", err)
+		}
+	}()
 }
 
 func on_new_message(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
