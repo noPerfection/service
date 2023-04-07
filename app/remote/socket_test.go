@@ -67,9 +67,10 @@ func (suite *TestSocketSuite) TestNewSockets() {
 	// We can't initiate with the empty service
 	_, err = InprocRequestSocket("inproc://a", logger, nil)
 	suite.Require().Error(err)
-	// We can't initiate with the empty service
+	// We can initiate with the empty service
+	// but connnecting will fail during request
 	_, err = InprocRequestSocket("inproc://", logger, app_config)
-	suite.Require().Error(err)
+	suite.Require().NoError(err)
 	// We can't initiate with the non inproc url
 	_, err = InprocRequestSocket(categorizer_service.Url(), logger, app_config)
 	suite.Require().Error(err)
