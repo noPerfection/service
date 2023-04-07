@@ -6,6 +6,7 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/security/credentials"
+	"github.com/blocklords/sds/security/vault"
 )
 
 // Gets the credentials for the service type
@@ -23,7 +24,7 @@ func ServiceCredentials(service_type service.ServiceType, limit service.Limit, a
 	case service.THIS:
 		bucket, key_name := service_type.SecretKeyPath()
 
-		creds, err := credentials.NewFromVault(bucket, key_name)
+		creds, err := vault.GetCredentials(bucket, key_name)
 		if err != nil {
 			return nil, fmt.Errorf("vault.GetString for %s service secret key: %w", name, err)
 		}
@@ -38,7 +39,7 @@ func ServiceCredentials(service_type service.ServiceType, limit service.Limit, a
 	case service.BROADCAST:
 		bucket, key_name := service_type.BroadcastSecretKeyPath()
 
-		creds, err := credentials.NewFromVault(bucket, key_name)
+		creds, err := vault.GetCredentials(bucket, key_name)
 		if err != nil {
 			return nil, fmt.Errorf("vault.GetString for %s service secret key: %w", name, err)
 		}

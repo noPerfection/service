@@ -79,7 +79,7 @@ func (suite *TestRouterSuite) SetupTest() {
 	suite.tcp_router = &tcp_router
 
 	// Client
-	tcp_client_socket, err := remote.NewTcpSocket(client_service, nil, logger, app_config)
+	tcp_client_socket, err := remote.NewTcpSocket(client_service, logger, app_config)
 	suite.Require().NoError(err, "failed to create subscriber socket")
 	suite.tcp_client = tcp_client_socket
 

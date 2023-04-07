@@ -39,7 +39,7 @@ func (suite *TestSocketSuite) TestNewSockets() {
 
 	inproc_categorizer_service, err := service.Inprocess(service.CATEGORIZER)
 	suite.Require().NoError(err)
-	_, err = NewTcpSocket(inproc_categorizer_service, nil, logger, app_config)
+	_, err = NewTcpSocket(inproc_categorizer_service, logger, app_config)
 	suite.Require().Error(err)
 
 	categorizer_service, err := service.NewExternal(service.CATEGORIZER, service.THIS, app_config)
@@ -50,15 +50,15 @@ func (suite *TestSocketSuite) TestNewSockets() {
 	suite.Require().NoError(err)
 
 	// We can't initiate the socket with the THIS limit
-	_, err = NewTcpSocket(categorizer_service, nil, logger, app_config)
+	_, err = NewTcpSocket(categorizer_service, logger, app_config)
 	suite.Require().Error(err)
 	// We can't initiate with the empty service
-	_, err = NewTcpSocket(client_service, nil, logger, nil)
+	_, err = NewTcpSocket(client_service, logger, nil)
 	suite.Require().Error(err)
 	// We can't initiate with the empty service
-	_, err = NewTcpSocket(nil, nil, logger, app_config)
+	_, err = NewTcpSocket(nil, logger, app_config)
 	suite.Require().Error(err)
-	_, err = NewTcpSocket(client_service, nil, logger, app_config)
+	_, err = NewTcpSocket(client_service, logger, app_config)
 	suite.Require().NoError(err)
 
 	// We can't initiate the socket with the THIS limit
@@ -77,15 +77,15 @@ func (suite *TestSocketSuite) TestNewSockets() {
 	suite.Require().NoError(err)
 
 	// We can't initiate the socket with the non SUBSCRIBE limit
-	_, err = NewTcpSubscriber(categorizer_service, nil, logger, app_config)
+	_, err = NewTcpSubscriber(categorizer_service, "", nil, logger, app_config)
 	suite.Require().Error(err)
 	// We can't initiate with the empty service
-	_, err = NewTcpSubscriber(subscriber_service, nil, logger, nil)
+	_, err = NewTcpSubscriber(subscriber_service, "", nil, logger, nil)
 	suite.Require().Error(err)
 	// We can't initiate with the empty service
-	_, err = NewTcpSubscriber(nil, nil, logger, app_config)
+	_, err = NewTcpSubscriber(nil, "", nil, logger, app_config)
 	suite.Require().Error(err)
-	_, err = NewTcpSubscriber(subscriber_service, nil, logger, app_config)
+	_, err = NewTcpSubscriber(subscriber_service, "", nil, logger, app_config)
 	suite.Require().NoError(err)
 }
 

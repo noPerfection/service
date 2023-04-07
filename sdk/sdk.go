@@ -66,11 +66,13 @@ import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/service"
+	service_credentials "github.com/blocklords/sds/app/service/credentials"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/sdk/reader"
 	"github.com/blocklords/sds/sdk/subscriber"
 	"github.com/blocklords/sds/sdk/writer"
 	"github.com/blocklords/sds/security/credentials"
+	"github.com/blocklords/sds/security/vault"
 )
 
 var Version string = "Seascape GoSDS version: 0.0.8"
@@ -97,9 +99,16 @@ func (sdk *Sdk) NewReader(address string) (*reader.Reader, error) {
 		return nil, err
 	}
 
-	gatewaySocket, err := remote.NewTcpSocket(e, creds, sdk.logger, sdk.config)
+	gatewaySocket, err := remote.NewTcpSocket(e, sdk.logger, sdk.config)
 	if err != nil {
 		return nil, err
+	}
+	if creds != nil {
+		service_creds, err := service_credentials.ServiceCredentials(service.GATEWAY, service.REMOTE, sdk.config)
+		if err != nil {
+			return nil, err
+		}
+		gatewaySocket.SetSecurity(service_creds.PublicKey, creds)
 	}
 
 	return reader.NewReader(gatewaySocket, address), nil
@@ -116,9 +125,16 @@ func (sdk *Sdk) NewWriter(address string) (*writer.Writer, error) {
 		return nil, err
 	}
 
-	gatewaySocket, err := remote.NewTcpSocket(e, creds, sdk.logger, sdk.config)
+	gatewaySocket, err := remote.NewTcpSocket(e, sdk.logger, sdk.config)
 	if err != nil {
 		return nil, err
+	}
+	if creds != nil {
+		service_creds, err := service_credentials.ServiceCredentials(service.GATEWAY, service.REMOTE, sdk.config)
+		if err != nil {
+			return nil, err
+		}
+		gatewaySocket.SetSecurity(service_creds.PublicKey, creds)
 	}
 
 	return writer.NewWriter(gatewaySocket, address), nil
@@ -155,7 +171,7 @@ func (sdk *Sdk) gateway_service() (*service.Service, error) {
 	var serv *service.Service
 	var err error
 	if !sdk.config.Plain {
-		serv, err = service.NewSecure(service.GATEWAY, service.REMOTE, sdk.config)
+		serv, err = service.NewExternal(service.GATEWAY, service.REMOTE, sdk.config)
 		if err != nil {
 			return nil, fmt.Errorf("service.NewSecure: %w", err)
 		}
@@ -186,7 +202,7 @@ func NewSdk() (*Sdk, error) {
 }
 
 func developer_credentials() (*credentials.Credentials, error) {
-	creds, err := credentials.NewFromVault("curves", "DEVELOPER_SECRET_KEY")
+	creds, err := vault.GetCredentials("SDS", "DEVELOPER_SECRET_KEY")
 	if err != nil {
 		return nil, err
 	}

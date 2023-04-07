@@ -17,6 +17,7 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
+	service_credentials "github.com/blocklords/sds/app/service/credentials"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
@@ -106,10 +107,18 @@ func (s *Subscriber) start() {
 
 	fmt.Println("start::new tcp socket", s.gateway.Url(), "credentials", credentials)
 
-	socket, err := remote.NewTcpSocket(s.gateway, credentials, s.logger, s.config)
+	socket, err := remote.NewTcpSocket(s.gateway, s.logger, s.config)
 	if err != nil {
 		s.Channel <- NewErrorMessage("socket_init: " + err.Error())
 		return
+	}
+	if credentials != nil {
+		service_creds, err := service_credentials.ServiceCredentials(service.GATEWAY, service.REMOTE, s.config)
+		if err != nil {
+			s.Channel <- NewErrorMessage("set_service_credentials: " + err.Error())
+			return
+		}
+		socket.SetSecurity(service_creds.PublicKey, credentials)
 	}
 
 	block_timestamp, err := s.recent_subscriber_state(socket)

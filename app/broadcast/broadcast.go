@@ -45,6 +45,7 @@ import (
 	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/security/credentials"
 
 	"github.com/blocklords/sds/app/remote/message"
 
@@ -95,8 +96,8 @@ func AddWhitelistedAccounts(s *service.Service, public_keys []string) {
 
 // Set the private key, so connected clients can identify this controller
 // You call it before running the controller
-func (c *Broadcast) SetPrivateKey() error {
-	err := c.service.Credentials.SetSocketAuthCurve(c.socket, broadcast_domain(c.service))
+func (c *Broadcast) SetPrivateKey(service_credentials *credentials.Credentials) error {
+	err := service_credentials.SetSocketAuthCurve(c.socket, broadcast_domain(c.service))
 	if err != nil {
 		return fmt.Errorf("socket.ServerAuthCurve: %w", err)
 	}
