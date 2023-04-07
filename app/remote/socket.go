@@ -162,7 +162,7 @@ func (socket *Socket) Close() error {
 func (socket *Socket) RequestRouter(service_type service.ServiceType, request *message.Request) (key_value.KeyValue, error) {
 	request_timeout := parameter.RequestTimeout(socket.app_config)
 
-	if socket.remote_service.IsInproc() {
+	if socket.protocol == "inproc" {
 		err := socket.inproc_reconnect()
 		if err != nil {
 			return nil, fmt.Errorf("socket connection: %w", err)
@@ -243,7 +243,7 @@ func (socket *Socket) RequestRouter(service_type service.ServiceType, request *m
 // Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
 // In case of successful request, the function returns reply parameters.
 func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
-	if socket.remote_service.IsInproc() {
+	if socket.protocol == "inproc" {
 		err := socket.inproc_reconnect()
 		if err != nil {
 			return nil, fmt.Errorf("socket connection: %w", err)
