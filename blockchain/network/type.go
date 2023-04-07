@@ -4,7 +4,7 @@ import "fmt"
 
 // Keeps track of the network types
 // That SDS supports.
-// 
+//
 // Refer to the constants
 type NetworkType string
 

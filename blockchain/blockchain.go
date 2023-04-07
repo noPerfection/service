@@ -125,7 +125,7 @@ func get_network(request message.Request, logger log.Logger, app_parameters ...i
 		return message.Fail(err.Error())
 	}
 
-	var reply handler.GetNetworkReply = *n
+	var reply = *n
 	reply_message, err := command.Reply(reply)
 	if err != nil {
 		return message.Fail("failed to reply: " + err.Error())
@@ -155,7 +155,7 @@ func get_network_ids(request message.Request, _ log.Logger, app_parameters ...in
 		return message.Fail(err.Error())
 	}
 
-	var reply handler.GetNetworkIdsReply = network_ids
+	var reply = network_ids
 	reply_message, err := command.Reply(reply)
 	if err != nil {
 		return message.Fail("failed to reply: " + err.Error())
@@ -191,7 +191,7 @@ func get_all_networks(request message.Request, logger log.Logger, app_parameters
 		return message.Fail("blockchain " + err.Error())
 	}
 
-	var reply handler.GetNetworksReply = networks
+	var reply = networks
 	reply_message, err := command.Reply(reply)
 	if err != nil {
 		return message.Fail("failed to reply: " + err.Error())

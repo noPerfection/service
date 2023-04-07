@@ -22,12 +22,12 @@ type TestAccountSuite struct {
 func (suite *TestAccountSuite) SetupTest() {
 	// The public key is derived from the following public key
 	// private_key := "ndQu.hg=f#P+i+r<.^x-S:oNuEt(?obKd/zD+AjV"
-	public_key := "t)fBitv:t=7zX=qzB/.0bOP->YIr[hsw{J*BBh[H"
+	var publicKey = "t)fBitv:t=7zX=qzB/.0bOP->YIr[hsw{J*BBh[H"
 	nonce := uint64(time.Now().UnixNano())
 	organization := "test_org"
 
-	suite.AccountFromDb = New(public_key, nonce, organization)
-	suite.AccountWithPublicKey = NewFromPublicKey(public_key)
+	suite.AccountFromDb = New(publicKey, nonce, organization)
+	suite.AccountWithPublicKey = NewFromPublicKey(publicKey)
 	suite.organization = organization
 }
 
@@ -49,11 +49,11 @@ func (suite *TestAccountSuite) TestAccounts() {
 	accounts := NewAccounts(suite.AccountFromDb, suite.AccountWithPublicKey)
 	suite.Len(accounts, 2, "accounts should have two elements")
 
-	new_account := NewFromPublicKey("no_public_key")
-	accounts = accounts.Add(new_account)
+	newAccount := NewFromPublicKey("no_public_key")
+	accounts = accounts.Add(newAccount)
 	suite.Len(accounts, 3, "accounts should have added elements")
 
-	accounts = accounts.Remove(new_account)
+	accounts = accounts.Remove(newAccount)
 	suite.Len(accounts, 2, "accounts should remove the new element")
 }
 

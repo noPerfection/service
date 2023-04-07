@@ -1,9 +1,5 @@
 /*
-The Broadcast messages from a service,
-subscribe to consume them.
-
-The Broadcast depends on the service.Service
-with the service.BROADCAST limit.
+Package broadcast creates a sub process that can publish data to the blockchain.
 
 The service.BROADCAST limit requires SERVICE_BROADCAST_PORT
 and SERVICE_BROADCAST_HOST configuration parameters.
@@ -56,7 +52,7 @@ import (
 
 const NEW_MESSAGE command.Command = "new-message"
 
-// Broadcast
+// Broadcast socket and the service for which the publisher was created
 type Broadcast struct {
 	service *service.Service
 	socket  *zmq.Socket

@@ -170,7 +170,7 @@ func on_new_smartcontracts(request message.Request, _ log.Logger, parameters ...
 		sm, _ := categorizer_smartcontract.New(raw_sm)
 
 		mu.Lock()
-		var sm_req static_command.GetSmartcontractRequest = sm.SmartcontractKey
+		var sm_req = sm.SmartcontractKey
 		var sm_reply static_command.GetSmartcontractReply
 		err := static_command.GET_SMARTCONTRACT.Request(manager.static, sm_req, &sm_reply)
 		if err != nil {

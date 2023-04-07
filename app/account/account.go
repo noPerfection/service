@@ -1,7 +1,7 @@
-// Handles the user's authentication
+// Package account handles the user's authentication
 package account
 
-// Requester to the SDS Service. It's either a developer or another SDS service.
+// Account is the developer that accessed to the SDS Service.
 type Account struct {
 	PublicKey      string `json:"public_key"`      // Public Key for authentication.
 	Organization   string `json:"organization"`    // Organization
@@ -10,20 +10,20 @@ type Account struct {
 
 type Accounts []*Account
 
-// Creates the account from the public key
-func NewFromPublicKey(public_key string) *Account {
+// NewFromPublicKey creates the account from the public key
+func NewFromPublicKey(publicKey string) *Account {
 	return &Account{
-		PublicKey:      public_key,
+		PublicKey:      publicKey,
 		Organization:   "",
 		NonceTimestamp: 0,
 	}
 }
 
-// Creates a new Account for a developer.
-func New(public_key string, nonce_timestamp uint64, organization string) *Account {
+// New Account from the fields
+func New(publicKey string, nonceTimestamp uint64, organization string) *Account {
 	return &Account{
-		PublicKey:      public_key,
-		NonceTimestamp: nonce_timestamp,
+		PublicKey:      publicKey,
+		NonceTimestamp: nonceTimestamp,
 		Organization:   organization,
 	}
 }
@@ -34,33 +34,41 @@ func New(public_key string, nonce_timestamp uint64, organization string) *Accoun
 //
 ///////////////////////////////////////////////////////////
 
-func NewAccounts(new_accounts ...*Account) Accounts {
-	accounts := make(Accounts, len(new_accounts))
-	copy(accounts, new_accounts)
+// NewAccounts converts list of accounts into Accounts
+func NewAccounts(newAccounts ...*Account) Accounts {
+	accounts := make(Accounts, len(newAccounts))
+	copy(accounts, newAccounts)
 
 	return accounts
 }
 
+// PublicKeys of the accounts
 func (accounts Accounts) PublicKeys() []string {
-	public_keys := make([]string, len(accounts))
+	publicKeys := make([]string, len(accounts))
 
 	for i, account := range accounts {
-		public_keys[i] = account.PublicKey
+		publicKeys[i] = account.PublicKey
 	}
 
-	return public_keys
+	return publicKeys
 }
 
-func (accounts Accounts) Add(new_accounts ...*Account) Accounts {
-	for _, account := range new_accounts {
+// Add newAccounts to the list of Accounts
+//
+// Example:
+//
+//		accounts.Add(acc_1, acc_2).
+//	 	Add(acc_3, acc_4)
+func (accounts Accounts) Add(newAccounts ...*Account) Accounts {
+	for _, account := range newAccounts {
 		accounts = append(accounts, account)
 	}
 
 	return accounts
 }
 
-func (accounts Accounts) Remove(new_accounts ...*Account) Accounts {
-	for _, account := range new_accounts {
+func (accounts Accounts) Remove(newAccounts ...*Account) Accounts {
+	for _, account := range newAccounts {
 		for i := range accounts {
 			if account.PublicKey == accounts[i].PublicKey {
 				accounts = append(accounts[:i], accounts[i+1:]...)

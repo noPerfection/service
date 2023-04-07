@@ -41,7 +41,7 @@ func GetAllFromDatabase(db *db.Database) ([]*Configuration, error) {
 
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for rows.Next() {
-		var s Configuration = Configuration{
+		var s = Configuration{
 			Topic:   topic.Topic{},
 			Address: "",
 		}

@@ -57,7 +57,7 @@ func GetAllFromDatabase(db *db.Database) ([]*Smartcontract, error) {
 
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for rows.Next() {
-		var s Smartcontract = Smartcontract{
+		var s = Smartcontract{
 			SmartcontractKey: smartcontract_key.Key{},
 			TransactionKey:   blockchain.TransactionKey{},
 			BlockHeader:      blockchain.BlockHeader{},

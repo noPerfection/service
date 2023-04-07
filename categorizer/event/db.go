@@ -28,7 +28,7 @@ func Save(db *db.Database, t *Log) error {
 
 // returns list of logs for smartcontracts
 func GetLogsFromDb(con *db.Database, smartcontracts []smartcontract_key.Key, block_timestamp blockchain.Timestamp, limit uint64) ([]Log, error) {
-	var logs []Log = make([]Log, 0)
+	var logs = make([]Log, 0)
 	sm_amount := len(smartcontracts)
 
 	if sm_amount == 0 {

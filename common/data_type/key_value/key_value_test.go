@@ -46,8 +46,8 @@ func (suite *TestKeyValueSuite) SetupTest() {
 	suite.Require().NoError(err)
 	map_key := str_kv.ToMap()
 
-	var num_2 json.Number = json.Number("2")
-	var num_5 json.Number = json.Number("5")
+	var num_2 = json.Number("2")
+	var num_5 = json.Number("5")
 
 	str_map := map[string]interface{}{
 		"param_1": num_2,

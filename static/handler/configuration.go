@@ -54,7 +54,7 @@ func ConfigurationRegister(request message.Request, logger log.Logger, parameter
 		}
 	}
 
-	var reply GetConfigurationReply = conf
+	var reply = conf
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("failed to reply")
@@ -90,7 +90,7 @@ func ConfigurationGet(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("failed to get configuration or not found: " + err.Error())
 	}
 
-	var reply GetConfigurationReply = *conf_raw.(*configuration.Configuration)
+	var reply = *conf_raw.(*configuration.Configuration)
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("failed to reply")

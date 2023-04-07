@@ -34,7 +34,7 @@ func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...
 		return message.Fail("failed to validate: " + err.Error())
 	}
 
-	var reply SetSmartcontractReply = sm
+	var reply = sm
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("failed to reply")
@@ -88,7 +88,7 @@ func SmartcontractGet(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("failed to get smartcontract: " + err.Error())
 	}
 
-	var reply SetSmartcontractReply = *sm_raw.(*smartcontract.Smartcontract)
+	var reply = *sm_raw.(*smartcontract.Smartcontract)
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("failed to reply")

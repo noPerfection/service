@@ -80,7 +80,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	logger.Info("retreive networks", "network-type", network.ALL)
 
-	var request_parameters blockchain_command.GetNetworksRequest = network.ALL
+	var request_parameters = network.ALL
 	var parameters blockchain_command.GetNetworksReply
 	err = blockchain_command.NETWORKS_COMMAND.Request(blockchain_socket, request_parameters, &parameters)
 	blockchain_socket.Close()

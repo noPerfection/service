@@ -75,7 +75,7 @@ import (
 	"github.com/blocklords/sds/security/vault"
 )
 
-var Version string = "Seascape GoSDS version: 0.0.8"
+var Version = "Seascape GoSDS version: 0.0.8"
 
 type Sdk struct {
 	logger log.Logger

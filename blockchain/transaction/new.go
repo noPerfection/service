@@ -24,7 +24,7 @@ func New(parameters key_value.KeyValue) (*RawTransaction, error) {
 }
 
 func NewTransactions(txs []interface{}) ([]*RawTransaction, error) {
-	var transactions []*RawTransaction = make([]*RawTransaction, len(txs))
+	var transactions = make([]*RawTransaction, len(txs))
 	for i, raw := range txs {
 		if raw == nil {
 			continue
