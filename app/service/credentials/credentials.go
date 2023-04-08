@@ -1,3 +1,5 @@
+// Package credentials defines the functions that prepares the curve key pair
+// for the service.
 package credentials
 
 import (
