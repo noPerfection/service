@@ -21,7 +21,8 @@ import (
 // any blockchain's wallet
 type CurveType = uint8
 
-// Used in Ethereum and Ethereum based blockchains.
+// ECDSA CurveType is the public/private key algorithm
+// used in Ethereum and other EVM based blockchains.
 const ECDSA CurveType = 1
 
 // Smartcontract developer uses Ecdsapublic key
@@ -52,6 +53,8 @@ func NewEcdsaPrivateKey(private_key *ecdsa.PrivateKey) *SmartcontractDeveloper {
 	}
 }
 
+// PublicKeyToAddress is a utility function for SmartcontractDeveloper accounts.
+// It derives the address from the public key in ECDSA algorithm.
 func PublicKeyToAddress(public_key *ecdsa.PublicKey) string {
 	return crypto.PubkeyToAddress(*public_key).Hex()
 }
@@ -76,7 +79,6 @@ func VerifySignature(request *message.SmartcontractDeveloperRequest) error {
 //
 // Call this function after VerifySignature()
 // Because it doesn't check for errors
-
 func GetPublicKeyAccount(request *message.SmartcontractDeveloperRequest) (*SmartcontractDeveloper, error) {
 	// without 0x prefix
 	signature, err := hexutil.Decode(request.Signature)
@@ -109,7 +111,7 @@ func GetPublicKeyAccount(request *message.SmartcontractDeveloperRequest) (*Smart
 	return NewEcdsaPublicKey(ecdsa_public_key), nil
 }
 
-// Encrypts the given data with a public key
+// Encrypt the given data with a public key
 // The result could be decrypted by the private key
 //
 // If the account has a private key, then the public key derived from it would be used
@@ -137,6 +139,9 @@ func (account *SmartcontractDeveloper) Encrypt(plain_text []byte) ([]byte, error
 	return cipher_text, nil
 }
 
+// Decrypt the given cipher text to the plain text by SmartcontractDeveloper account.
+//
+// The smartcontract developer account must be with the private key.
 func (account *SmartcontractDeveloper) Decrypt(cipher_text []byte) ([]byte, error) {
 	if account.AccountType != ECDSA {
 		return []byte{}, errors.New("only ECDSA is supported")

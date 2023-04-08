@@ -1,4 +1,10 @@
-// Package account handles the user's authentication
+// Package account handles the user information for authentication that accessed
+// to SDS Service.
+//
+// It has two types of accounts:
+//   - Account for developers, it uses CurveZMQ for the authentication.
+//   - SmartcontractDeveloper for smartcontract developers.
+//     It uses blockchain public/private key for authentication.
 package account
 
 // Account is the developer that accessed to the SDS Service.

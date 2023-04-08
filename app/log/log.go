@@ -1,3 +1,8 @@
+// Package log defines the logger engine.
+// The unique feature is that it can create a child logger derived from the parent logger.
+// Each logger defines a unique color style for the message outputs.
+//
+// Create a child logger for the packages that the service is calling.
 package log
 
 import (
@@ -11,11 +16,14 @@ import (
 	"github.com/muesli/gamut"
 )
 
+// Logger is the wrapper over the logger and keeps the style.
+// The style is generated randomly.
 type Logger struct {
 	logger log.Logger
 	style  LoggerStyle
 }
 
+// LoggerStyle defines the various colors for each log parts.
 type LoggerStyle struct {
 	error_style lipgloss.Style
 	info_style  lipgloss.Style
@@ -131,7 +139,8 @@ func (style LoggerStyle) set_primary() LoggerStyle {
 	return style
 }
 
-// Create a new logger with the report caller, and timestamp
+// New logger with the prefix and timestamp.
+// It generates the random color style.
 func New(prefix string, timestamp bool) (Logger, error) {
 	random_style, err := random_style()
 	if err != nil {
@@ -151,32 +160,53 @@ func New(prefix string, timestamp bool) (Logger, error) {
 	return new_logger, nil
 }
 
-// Replace the `panic`
+// Fatal calls the Error, then os.Exit()
 func Fatal(title string, keyval ...interface{}) {
 	log.Fatal(title, keyval...)
 }
 
+// Info prints the information
 func (logger *Logger) Info(title string, keyval ...interface{}) {
 	logger.style.info()
 	logger.logger.Info(title, keyval...)
 }
 
+// Fatal prints the error message and then calls the os.Exit()
 func (logger *Logger) Fatal(title string, keyval ...interface{}) {
 	logger.style.fatal()
 	logger.logger.Fatal(title, keyval...)
 }
 
+// Warn prints the warning message
 func (logger *Logger) Warn(title string, keyval ...interface{}) {
 	logger.style.warn()
 	logger.logger.Warn(title, keyval...)
 }
 
+// Error prints the error message
 func (logger *Logger) Error(title string, keyval ...interface{}) {
 	logger.style.error()
 	logger.logger.Error(title, keyval...)
 }
 
-// Create a new child from the parent
+// Child logger from the parent with its own color style.
+//
+// When to use it?
+//
+// For example:
+//
+//	parent, _ := log.New("main", false)
+//	db_log, _ := parent.Child("database")
+//	reply, _ := parent.Child("controller")
+//
+//	parent.Info("starting", "security_enabled", true)
+//	db_log.Info("starting")
+//	reply.Info("starting", "port", 443)
+//
+//	// prints the following
+//	// INFO main: starting: security_enabled=true
+//	// INFO main::database: starting
+//	// INFO main::controller: starting, port=443
 func (parent *Logger) Child(prefix string, timestamp bool) (Logger, error) {
 	random_style, err := random_style()
 	if err != nil {
@@ -194,6 +224,7 @@ func (parent *Logger) Child(prefix string, timestamp bool) (Logger, error) {
 	}, nil
 }
 
+// Same as Child but without printing timestamps
 func (parent *Logger) ChildWithoutReport(prefix string) (Logger, error) {
 	child, err := parent.Child(prefix, WITHOUT_TIMESTAMP)
 	if err != nil {
@@ -203,6 +234,7 @@ func (parent *Logger) ChildWithoutReport(prefix string) (Logger, error) {
 	return child, nil
 }
 
+// Same as Child but prints the timestamps
 func (parent *Logger) ChildWithTimestamp(prefix string) (Logger, error) {
 	child, err := parent.Child(prefix, WITH_TIMESTAMP)
 	if err != nil {
@@ -219,5 +251,8 @@ func to_hex(col color.Color) string {
 	return fmt.Sprintf("#%02x%02x%02x", uint8(float32(r)*255.0+0.5), uint8(float32(g)*255.0+0.5), uint8(float32(b)*255.0+0.5))
 }
 
+// Flag to include the timestamps
 const WITH_TIMESTAMP = true
+
+// Flag to exclude the timestamps
 const WITHOUT_TIMESTAMP = false

@@ -1,4 +1,4 @@
-// Application's command line arguments
+// Package argument is used to read command line arguments of the application.
 package argument
 
 import (

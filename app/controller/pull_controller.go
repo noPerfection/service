@@ -1,6 +1,13 @@
 /*
-Controller package is the interface of the module.
-It acts as the input receiver for other services or for external users.
+Package controller defines the data type of the various server sockets.
+
+Using the controller package, you can turn application to the servers.
+
+The following types of controllers are supported:
+
+  - Pull creates a puller for the service. Puller enables the inputs, but doesn't responds back.
+  - Reply creates a replier for the service. Reply executes the messages and replies back to the caller.
+  - Router creates a proxy/broker for the service. Router forwards the requests to other Router/Reply or Pull
 */
 package controller
 
@@ -13,7 +20,7 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// Creates a synchrounous Reply controller.
+// NewPull creates a pull controller for the service.
 func NewPull(s *service.Service, logger log.Logger) (*Controller, error) {
 	if !s.IsThis() && !s.IsInproc() {
 		return nil, fmt.Errorf("service should be limited to service.THIS or inproc type")

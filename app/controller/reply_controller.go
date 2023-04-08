@@ -1,7 +1,3 @@
-/*
-Controller package is the interface of the module.
-It acts as the input receiver for other services or for external users.
-*/
 package controller
 
 import (
@@ -15,6 +11,7 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// Controller is the socket wrapper for the service.
 type Controller struct {
 	service     *service.Service
 	socket      *zmq.Socket
@@ -22,7 +19,7 @@ type Controller struct {
 	socket_type zmq.Type
 }
 
-// Creates a synchrounous Reply controller.
+// NewReply creates a new synchrounous Reply controller.
 func NewReply(s *service.Service, logger log.Logger) (*Controller, error) {
 	if !s.IsThis() && !s.IsInproc() {
 		return nil, fmt.Errorf("service should be limited to service.THIS or inproc type")
@@ -50,10 +47,10 @@ func (c *Controller) is_repliable() bool {
 	return c.socket_type == zmq.REP
 }
 
-// If controller type supports, then it will reply back to requester
-// the message.
+// reply sends to the caller the message.
 //
-// If controller doesn't support replying, then it returns nil.
+// If controller doesn't support replying (for example PULL controller)
+// then it returns success.
 func (c *Controller) reply(message message.Reply) error {
 	if !c.is_repliable() {
 		return nil
@@ -72,7 +69,16 @@ func (c *Controller) reply_error(err error) error {
 	return c.reply(message.Fail(err.Error()))
 }
 
-// Controllers started to receive messages
+// Run the controller.
+//
+// It will bind itself to the socket endpoint and waits for the message.Request.
+// If message.Request.Command is defined in the handlers, then executes it.
+//
+// Valid call:
+//
+//		reply, _ := controller.NewReply(service, reply)
+//	 	go reply.Run(handlers, database) // or reply.Run(handlers)
+//
 // The parameters are the list of parameters that are passed to the command handlers
 func (c *Controller) Run(handlers command.Handlers, parameters ...interface{}) error {
 	if err := c.socket.Bind(c.service.Url()); err != nil {

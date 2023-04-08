@@ -4,7 +4,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-// Default configurations for the given package
+// Default configuration for the package
 type DefaultConfig struct {
 	Title      string             // package title
 	Parameters key_value.KeyValue // parameters

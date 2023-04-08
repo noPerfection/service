@@ -1,3 +1,4 @@
+// Package env was created for one purpose only: LoadAnyEnv
 package env
 
 import (
@@ -7,7 +8,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Load all *.env files
+// LoadAnyEnv gets the list of all .env file paths in the command line argument.
+// Then loads them up to the application's environment variables.
+//
+// The values later will be availble via app/configuration.Config.
 func LoadAnyEnv() error {
 	opts := argument.GetEnvPaths()
 

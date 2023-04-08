@@ -1,5 +1,5 @@
 /*
-Package broadcast creates a sub process that can publish data to the blockchain.
+Package broadcast creates a sub process that can publish data to the external world.
 
 The service.BROADCAST limit requires SERVICE_BROADCAST_PORT
 and SERVICE_BROADCAST_HOST configuration parameters.
@@ -50,9 +50,11 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// NEW_MESSAGE is the command that broadcast accepts within the app.
+// Then the message that it accept it will broadcast to the external world.
 const NEW_MESSAGE command.CommandName = "new-message"
 
-// Broadcast socket and the service for which the publisher was created
+// Broadcast keeps the Service and PUB socket.
 type Broadcast struct {
 	service *service.Service
 	socket  *zmq.Socket
@@ -64,9 +66,7 @@ func broadcast_domain(s *service.Service) string {
 	return s.Name + "_broadcast"
 }
 
-// Starts a new broadcaster in the background
-// The first parameter is the way to publish the messages.
-// The second parameter starts the message
+// New Broadcast for the given s service.Service.
 func New(s *service.Service, logger log.Logger) (*Broadcast, error) {
 	if !s.IsBroadcast() {
 		return nil, fmt.Errorf("the service is not limited to BROADCAST. run service.NewExternal(type, service.BROADCAST)")
@@ -85,13 +85,13 @@ func New(s *service.Service, logger log.Logger) (*Broadcast, error) {
 	return &broadcast, nil
 }
 
-// We set the whitelisted accounts that has access to this controller
+// Security: we set the whitelisted account public keys that can subscribe to Broadcast
 func AddWhitelistedAccounts(s *service.Service, public_keys []string) {
 	zmq.AuthCurveAdd(broadcast_domain(s), public_keys...)
 }
 
-// Set the private key, so connected clients can identify this controller
-// You call it before running the controller
+// Security: Set the CURVE private key for this broadcast.
+// Run this function before you call broadcast.Run()
 func (c *Broadcast) SetPrivateKey(service_credentials *credentials.Credentials) error {
 	err := service_credentials.SetSocketAuthCurve(c.socket, broadcast_domain(c.service))
 	if err != nil {
@@ -100,14 +100,14 @@ func (c *Broadcast) SetPrivateKey(service_credentials *credentials.Credentials) 
 	return nil
 }
 
-// Returns the connection url if
-// Broadcast is running.
+// ConnectionUrl returns url endpoint of broadcaast thread.
+// Send the request with NEW_MESSAGE command to broadcast new message to the external world.
 func ConnectionUrl(service *service.Service) string {
 	return "inproc://broadcast_" + service.Name
 }
 
-// Creates a socket that will send to the
-// Broadcaster a new message.
+// ConnectionSocket returns a socket that accessed to the broadcast thread.
+// Send the NEW_MESSAGE command to this socket to broadcaster a new message to the external world.
 func ConnectionSocket(service *service.Service) (*zmq.Socket, error) {
 	sock, err := zmq.NewSocket(zmq.PUSH)
 	if err != nil {
@@ -125,14 +125,23 @@ func ConnectionSocket(service *service.Service) (*zmq.Socket, error) {
 	return sock, nil
 }
 
-// Run a new broadcaster
+// Run Broadcast will create two sockets.
+//   - PUB to publish the messages to the external world.
+//     The parameters of the PUB is derived from Service when Broadcast was created.
+//   - PULL is the controller binded to the ConnectionUrl endpoint.
+//     This controller is used to accept the messages from other threads.
+//     Once the messages are received, the Broadcast will redirect them to PUB socket.
 //
-// It assumes that the another package is starting an authentication layer of zmq:
-// ZAP.
+// In case of error, it will exit entire application.
 //
-// # If some error is encountered, then this package panics
+// Run it as a goroutine.
 //
-// use controller.Controller through controller.NewPull
+// Example:
+//
+//	// valid way to call
+//	go b.Run()
+//	// invalid way to call
+//	b.Run()
 func (b *Broadcast) Run() {
 	// Socket to talk to clients
 	broadcast_socket, err := zmq.NewSocket(zmq.PUB)

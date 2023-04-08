@@ -1,6 +1,9 @@
-// The app configuration package is the wrapper around Viper.
-// It's the way to work with environment variables.
-// It also provides the default parameters.
+// Package configuration defines a configuration engine for the entire app.
+//
+// The configuration features:
+//   - reads the command line arguments for the app such as authentication enabled or not.
+//   - automatically loads the environment variables files.
+//   - allows setting default variables if user didn't define them.
 package configuration
 
 import (
@@ -12,16 +15,18 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Configuration Engine
+// Configuration Engine based on viper.Viper
 type Config struct {
 	viper *viper.Viper // used to keep default values
 
-	Plain         bool        // if true then no security
-	DebugSecurity bool        // if true then we print the security layer logs
+	Plain         bool        // Passed as --plain command line argument. If its passed then authentication is switched off.
+	DebugSecurity bool        // Passed as --debug-security command line argument. If true then app prints the security logs.
 	logger        *log.Logger // debug purpose only
 }
 
-// Create a global configuration for the entire application
+// NewAppConfig creates a global configuration for the entire application.
+// Automatically reads the command line arguments.
+// Loads the environment variables.
 func NewAppConfig(logger log.Logger) (*Config, error) {
 	config_logger, err := logger.Child("app-config", log.WITHOUT_TIMESTAMP)
 	if err != nil {
@@ -54,7 +59,7 @@ func NewAppConfig(logger log.Logger) (*Config, error) {
 	return &conf, nil
 }
 
-// Populates the app configuration with the default vault configuration parameters.
+// Set the default configuration parameters.
 func (config *Config) SetDefaults(default_config DefaultConfig) {
 	if config.logger != nil {
 		config.logger.Info("Set the default config parameters for", "title", default_config.Title)
@@ -71,13 +76,14 @@ func (config *Config) SetDefaults(default_config DefaultConfig) {
 	}
 }
 
-// Sets the default value
+// Sets the default configuration name to the value
 func (c *Config) SetDefault(name string, value interface{}) {
 	// log.Printf("\tdefault config %s=%v", name, value)
 	c.viper.SetDefault(name, value)
 }
 
 // Checks whether the configuration variable exists or not
+// If the configuration exists or its default value exists, then returns true.
 func (c *Config) Exist(name string) bool {
 	value := c.viper.GetString(name)
 	return len(value) > 0
@@ -89,7 +95,7 @@ func (c *Config) GetString(name string) string {
 	return value
 }
 
-// Returns the configuration parameter as a number
+// Returns the configuration parameter as an unsigned 64 bit number
 func (c *Config) GetUint64(name string) uint64 {
 	value := c.viper.GetUint64(name)
 	return value

@@ -12,21 +12,37 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// CommandName is the string
+// Its included in the message.Request when another thread or user requests
+// the SDS Service
 type CommandName string
 
+// String representation of the CommandName
 func (c CommandName) String() string {
 	return string(c)
 }
 
+// Converts the given string to the CommandName
 func New(value string) CommandName {
 	return CommandName(value)
 }
 
-// Makes a remote request with the @request parameters
-// And then returns the @reply.
+// Request the command to the remote thread or service with the
+// given request parameters via the socket.
 //
-// Both request and reply are the message parameters.
-func (command CommandName) Request(socket *remote.Socket, request interface{}, reply interface{}) error {
+// The response of the remote service is assigned to the reply.
+//
+// The reply should be passed by pointer.
+//
+// Example:
+//
+//		request_parameters := key_value.Empty()
+//		var reply_parameters key_value.Empty()
+//		ping_command := New("PING") // create a command
+//	    // Send PING command to the socket.
+//		_ := ping_command.Request(socket, request_parameters, &reply_parameters)
+//		pong, _ := reply_parameters.GetString("pong")
+func (command CommandName) Request(socket *remote.ClientSocket, request interface{}, reply interface{}) error {
 	_, ok := request.(message.Request)
 	if ok {
 		return fmt.Errorf("the request can not be of message.Request type")
@@ -64,10 +80,19 @@ func (command CommandName) Request(socket *remote.Socket, request interface{}, r
 	return err
 }
 
-// Makes a remote request with the @request parameters
-// And then returns the @reply.
+// Push the command to the remote thread or service with the
+// given request parameters via the socket.
 //
-// Both request and reply are the message parameters.
+// The Push is equavilanet of Request without waiting for the remote socket's response.
+//
+// Example:
+//
+//			request_parameters := key_value.Empty().
+//	         Set("timestamp", 1)
+//			heartbeat := New("HEARTBEAT") // create a command
+//		    // Send HEARTBEAT command to the socket.
+//			_ := heartbeat.Request(socket, request_parameters)
+//			server_timestamp, _ := reply_parameters.GetUint64("server_timestamp")
 func (command CommandName) Push(socket *zmq.Socket, request interface{}) error {
 	socket_type, err := socket.GetType()
 	if err != nil {
@@ -112,7 +137,24 @@ func (command CommandName) Push(socket *zmq.Socket, request interface{}) error {
 	return nil
 }
 
-func (command CommandName) RequestRouter(socket *remote.Socket, service_type service.ServiceType, request interface{}, reply interface{}) error {
+// RequestRouter sends the command to the remote thread or service that over the proxy.
+// The socket parameter is the proxy/broker socket.
+// The service type is the service name that will accept the requests and response the reply.
+//
+// The reply parameter must be passed by pointer.
+//
+// In SeascapeSDS terminology, we call the proxy/broker as Router.
+//
+// Example:
+//
+//	        var reply key_value.KeyValue
+//			request_parameters := key_value.Empty().
+//		        Set("gold", 123)
+//			set := New("SET") // create a command
+//	        db_service := service.DB
+//			// Send SET command to the database via the authentication proxy.
+//			_ := set.RequestRouter(auth_socket, db_service, request_parameters, &reply_parameters)
+func (command CommandName) RequestRouter(socket *remote.ClientSocket, service_type service.ServiceType, request interface{}, reply interface{}) error {
 	_, ok := request.(message.Request)
 	if ok {
 		return fmt.Errorf("the request can not be of message.Request type")
@@ -150,6 +192,7 @@ func (command CommandName) RequestRouter(socket *remote.Socket, service_type ser
 	return err
 }
 
+// Reply creates a successful message.Reply with the given reply parameters.
 func Reply(reply interface{}) (message.Reply, error) {
 	reply_parameters, err := key_value.NewFromInterface(reply)
 	if err != nil {
