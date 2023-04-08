@@ -1,4 +1,6 @@
-// EVM blockchain worker
+// Package smartcontract binds the abi and smartcontract parameters.
+// The aim of package is to decode the smartcontract event logs for the smartcontract
+// using the abi.
 package smartcontract
 
 import (
@@ -11,14 +13,14 @@ import (
 	spaghetti_log "github.com/blocklords/sds/blockchain/event"
 )
 
-// For EVM based smartcontracts
+// EvmWorker decodes the smartcontract event logs by abi.
 type EvmWorker struct {
 	abi *abi.Abi
 	// todo remove from struct
 	Smartcontract categorizer_smartcontract.Smartcontract
 }
 
-// Wraps the Worker with the EVM related data and returns the wrapped Worker as EvmWorker
+// New EvmWorker for the smartcontract.
 func New(sm *categorizer_smartcontract.Smartcontract, abi *abi.Abi) *EvmWorker {
 	return &EvmWorker{
 		abi:           abi,
@@ -26,7 +28,7 @@ func New(sm *categorizer_smartcontract.Smartcontract, abi *abi.Abi) *EvmWorker {
 	}
 }
 
-// Categorize the blocks for this smartcontract
+// DecodeLog categorizes raw event information based on the abi.
 func (worker *EvmWorker) DecodeLog(raw_log *spaghetti_log.RawLog) (event.Log, error) {
 	log_name, outputs, err := worker.abi.DecodeLog(raw_log.Topics, raw_log.Data)
 	if err != nil {

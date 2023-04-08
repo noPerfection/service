@@ -1,3 +1,8 @@
+// Package block defines the collection of the smartcontract event logs
+// for the given block or block range.
+//
+// If the raw logs are given for the block range, then the [Block.Header] will
+// keep the values of the most recent raw log.
 package block
 
 import (

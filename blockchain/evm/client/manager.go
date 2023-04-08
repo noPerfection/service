@@ -1,5 +1,3 @@
-// Spaghetti Worker connects to the blockchain over the loop.
-// Worker is running per blockchain network with VM.
 package client
 
 import (
@@ -29,9 +27,13 @@ const (
 	ATTEMPT_DELAY  = time.Duration(time.Second)
 )
 
-// The manager of the client.
-// Manager encapsulates the client.
-// All other services can send data through the manager.
+// Manager of the Client.
+//
+// Don't use client.Client to interact with the blockchain RPC node.
+//
+// Rather use the manager.
+// The manager keeps the multiple clients, and handles their rating.
+// If the client is not stable, then manager can request the RPC call using other client.
 type Manager struct {
 	logger     log.Logger
 	clients    []*Client
@@ -39,9 +41,7 @@ type Manager struct {
 	network    *network.Network
 }
 
-// A wrapper around Blockchain Client
-// This wrapper sets the connection between blockchain client and SDS.
-// All other parts of the SDS interacts with the client through this
+// NewManager returns the manager of the clients for all [network.Providers]
 func NewManager(network *network.Network, logger log.Logger, app_config *configuration.Config) (*Manager, error) {
 	clients, err := new_clients(network.Providers)
 	if err != nil {
@@ -56,7 +56,7 @@ func NewManager(network *network.Network, logger log.Logger, app_config *configu
 	}, nil
 }
 
-// Return the list of clients that has success rating more than 5 percent
+// stable_clients returns the list of clients that has success rating more than 5 percent
 func (m *Manager) stable_clients() []*Client {
 	clients := make([]*Client, 0)
 
@@ -69,9 +69,11 @@ func (m *Manager) stable_clients() []*Client {
 	return clients
 }
 
-// Sets up the socket to interact with other packages within SDS
-// Call it with goroutine, otherwise we won't assure freezing of the app
-// and thread safety issues.
+// SetupSocket sets up the Reply controller for the clients.
+//
+// Other services within SDS will request a message to this controller.
+//
+// Recommended to call it as a goroutine.
 func (worker *Manager) SetupSocket() {
 	url := blockchain_proc.ClientEndpoint(worker.network.Id)
 	service, err := service.InprocessFromUrl(url)

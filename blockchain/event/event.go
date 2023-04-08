@@ -1,4 +1,4 @@
-/*Spaghetti transaction without method name and without clear input parameters*/
+// Package event defines the smartcontract event in a blockchain agnostic way.
 package event
 
 import (

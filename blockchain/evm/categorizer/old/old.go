@@ -1,8 +1,8 @@
-// EVM blockchain worker's manager
-// For every blockchain we have one manager.
-// Manager keeps the list of the smartcontract workers:
-// - list of workers for up to date smartcontracts
-// - list of workers for categorization outdated smartcontracts
+// Package old defines the sub service for EVM blockchain
+// that categorizes smartcontracts from the archived networks.
+//
+// If the smartcontract is not synced up to the most recent block,
+// then SDS will use old sub service to categorize it from old networks.
 package old
 
 import (
@@ -39,23 +39,20 @@ import (
 	"github.com/blocklords/sds/app/remote"
 )
 
-const IDLE = "idle"
-const RUNNING = "running"
-
-// Categorization of the smartcontracts on the specific EVM blockchain
+// Manager of the old categorizer
 type Manager struct {
-	Network *network.Network // blockchain information of the manager
+	Network *network.Network // network for which this categorizer is running
 
-	pusher                *zmq.Socket // send through this socket updated data to SDS Core
-	recent_request_socket *remote.ClientSocket
-	recent_manager        *zmq.Socket           // send
-	static                *remote.ClientSocket  // return the abi from static for decoding event logs
+	pusher                *zmq.Socket           // client socket to push updated categoization to SDS Categorizer
+	recent_request_socket *remote.ClientSocket  // request client socket to [github.com/blocklords/sds/blockchain/evm/categorizer/recent].
+	recent_manager        *zmq.Socket           // client socket to push the synced smartcontracts to the recent smartcontract manager
+	static                *remote.ClientSocket  // client socket to SDS Static to get the abi of the smartcontract.
 	app_config            *configuration.Config // configuration used to create new sockets
 	logger                log.Logger            // print the debug parameters
 	old_categorizers      OldWorkerGroups       // smartcontracts to categorize from archived nodes
 }
 
-// Creates a new manager for the given EVM Network
+// NewManager returns the old smartcontract categizer
 // New manager runs in the background.
 func NewManager(l log.Logger, n *network.Network, c *configuration.Config) (*Manager, error) {
 	logger, err := l.ChildWithTimestamp("old")
@@ -92,7 +89,7 @@ func (manager *Manager) remote_recent_block_number() (blockchain.Number, error) 
 	return reply.Number, nil
 }
 
-// Same as Run.
+// Start the old categorizer
 //
 // Run it as a goroutine. Otherwise there is no guarantee that
 // manager would connect to the blockchain/client and SDS Core correctly.
@@ -131,6 +128,7 @@ func (manager *Manager) Start() {
 	manager.start_puller()
 }
 
+// start_puller runs the controller that will listen for new smartcontracts.
 func (manager *Manager) start_puller() {
 	url := client_thread.OldCategorizerEndpoint(manager.Network.Id)
 	service, err := service.InprocessFromUrl(url)
@@ -333,6 +331,8 @@ func (manager *Manager) categorize_old_smartcontracts(group *OldWorkerGroup) {
 	old_logger.Info("finished!")
 }
 
+// push_recent_workers sends the smartcontracts to the recent categorizer
+// It happens if the old manager catches the recent blocks on blockchain network.
 func (manager *Manager) push_recent_workers(workers smartcontract.EvmWorkers) error {
 	push := handler.PushNewSmartcontracts{
 		Smartcontracts: workers.GetSmartcontracts(),

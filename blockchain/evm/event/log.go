@@ -1,5 +1,7 @@
-// This package converts the
-// ethereum logs to sds/blockchain/event.Log
+// Pacakge event has the converter of ethereum event to SDS Event.
+// SDS is blockchain agnostic.
+//
+// SDS Event: [github.com/blocklords/sds/blockchain/event.RawLog]
 package event
 
 import (
@@ -14,7 +16,7 @@ import (
 	eth_types "github.com/ethereum/go-ethereum/core/types"
 )
 
-// Converts the ethereum's log to SeascapeSDS Spaghetti Log type
+// NewSpaghettiLog converts the ethereum's log to SeascapeSDS Spaghetti Log type
 func NewSpaghettiLog(
 	network_id string,
 	block_timestamp blockchain.Timestamp,

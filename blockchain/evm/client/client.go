@@ -1,6 +1,7 @@
-// The EVM blockchain client
-// Any reply from client is validated.
-// Then the reply is converted into the internal data type.
+// Package client defines the RPC client that's connected to the Blockchain network.
+//
+// The client is the wrapper around [github.com/blocklords/sds/blockchain/network/provider]
+// with the rating.
 package client
 
 import (
@@ -25,15 +26,18 @@ import (
 )
 
 const (
-	DECREASE_VALUE = 0.1
-	INCREASE_VALUE = 0.1
-	DEFAULT_RATING = 100.0
-	MAX_RATING_CAP = 1000.0
-	MIN_RATING_CAP = 0.0
-	STABLE_RATING  = 50.0
+	DECREASE_VALUE = 0.1    // The weight to decrease from the rating of the client if provider connection failed
+	INCREASE_VALUE = 0.1    // The weight to increase to the rating of the client if the provider connection was successful
+	DEFAULT_RATING = 100.0  // Initial rating
+	MAX_RATING_CAP = 1000.0 // Increase the rating up until to this level
+	MIN_RATING_CAP = 0.0    // Decrease the rating till this value
+	STABLE_RATING  = 50.0   // Defines the rating weight when the client is considered unstable and won't be used anymore.
 )
 
-// todo any call should be with a context and repititon
+// Client is the wrapper around ethereum RPC client with the rating.
+// Don't use this directly, rather use it with the [client.Manager]
+//
+// The manager will use the stable clients automatically.
 type Client struct {
 	client   *ethclient.Client
 	ctx      context.Context
@@ -76,25 +80,22 @@ func new_clients(providers []provider.Provider) ([]*Client, error) {
 	return network_clients, nil
 }
 
+// Increase the rating, means the provider url is stable
 func (c *Client) increase_rating() {
 	if c.Rating < MAX_RATING_CAP {
 		c.Rating += INCREASE_VALUE
 	}
 }
 
+// Decrease the rating, means the provider url is unstable
 func (c *Client) decrease_rating() {
 	if c.Rating > MIN_RATING_CAP {
 		c.Rating -= INCREASE_VALUE
 	}
 }
 
-//////////////////////////////////////////////////////////
-//
-// Blockchain related functions
-//
-/////////////////////////////////////////////////////////
-
-// Returns the block timestamp from the blockchain
+// GetBlockTimestamp returns the timestamp of the block number from
+// remote blockchain node
 func (c *Client) GetBlockTimestamp(block_number uint64, app_config *configuration.Config) (uint64, error) {
 	request_timeout := parameter.RequestTimeout(app_config)
 
@@ -111,7 +112,8 @@ func (c *Client) GetBlockTimestamp(block_number uint64, app_config *configuratio
 	return header.Time, nil
 }
 
-// Returns the most recent block number from blockchain
+// GetRecentBlockNumber returns the current block number of the EVM blockchain from
+// remote blockchain node.
 func (c *Client) GetRecentBlockNumber(app_config *configuration.Config) (uint64, error) {
 	request_timeout := parameter.RequestTimeout(app_config)
 
@@ -128,11 +130,11 @@ func (c *Client) GetRecentBlockNumber(app_config *configuration.Config) (uint64,
 	return block_number, nil
 }
 
-// Returns the information about the specific transaction from the blockchain
-// The transaction is converted into the gosds/spaghetti/transaction.Transaction data type
+// GetTransaction returns the transaction parameters from the remote blockchain node.
 //
-// Spaghetti Transaction requires network_id, but client doesn't have it.
-// TODO: add network id from the caller
+// Example of calling is when a new Smartcontract is registered on SDS, using this function
+// we get the information about the deployment, such as the first block number from which
+// we begin the smartcontract categorization.
 func (c *Client) GetTransaction(transaction_id string, app_config *configuration.Config) (*spaghetti_transaction.RawTransaction, error) {
 	request_timeout := parameter.RequestTimeout(app_config)
 
@@ -190,7 +192,7 @@ func (c *Client) GetTransaction(transaction_id string, app_config *configuration
 	return tx, nil
 }
 
-// Returns the block logs
+// GetBlockLogs returns the smartcontract logs in the block number.
 func (c *Client) GetBlockLogs(block_number uint64, app_config *configuration.Config) ([]eth_types.Log, error) {
 	big_int := big.NewInt(int64(block_number))
 
@@ -209,7 +211,7 @@ func (c *Client) GetBlockLogs(block_number uint64, app_config *configuration.Con
 	return raw_logs, nil
 }
 
-// Returns the logs for a block range
+// GetBlockRangeLogs returns the smartcontract logs between the block number range.
 func (c *Client) GetBlockRangeLogs(block_number_from uint64, block_number_to uint64, addresses []string, app_config *configuration.Config) ([]eth_types.Log, error) {
 	big_from := big.NewInt(int64(block_number_from))
 	big_to := big.NewInt(int64(block_number_to))

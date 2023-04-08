@@ -1,8 +1,9 @@
-// EVM blockchain worker's manager
-// For every blockchain we have one manager.
-// Manager keeps the list of the smartcontract workers:
-// - list of workers for up to date smartcontracts
-// - list of workers for categorization outdated smartcontracts
+// Package recent defines the sub service for the EVM blockchain
+// that categorizes the smartcontracts with the current blockchain block.
+//
+// The recent package listens for the minted blocks on the blockchain,
+// then if the smartcontracts in this package exists in the block, it will categorize them.
+// The categorized smartcontracts will be sent to SDS Categorizer.
 package recent
 
 import (
@@ -41,10 +42,7 @@ import (
 	"github.com/blocklords/sds/app/remote"
 )
 
-const IDLE = "idle"
-const RUNNING = "running"
-
-// Categorization of the smartcontracts on the specific EVM blockchain
+// Manager of the smartcontracts that are categorized by the recent block
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
@@ -57,8 +55,7 @@ type Manager struct {
 	pusher *zmq.Socket // send through this socket updated datat to SDS Core
 }
 
-// Creates a new manager for the given EVM Network
-// New manager runs in the background.
+// NewManager returns the new manager for the given EVM Network
 func NewManager(l log.Logger, n *network.Network, c *configuration.Config) (*Manager, error) {
 	logger, err := l.ChildWithTimestamp("recent")
 	if err != nil {
@@ -76,7 +73,7 @@ func NewManager(l log.Logger, n *network.Network, c *configuration.Config) (*Man
 	return &manager, nil
 }
 
-// Same as Run.
+// Start the manager.
 //
 // Run it as a goroutine. Otherwise there is no guarantee that
 // manager would connect to the blockchain/client and SDS Core correctly.

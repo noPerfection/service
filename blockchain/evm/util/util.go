@@ -1,3 +1,4 @@
+// Package util has the additonal functions specific to EVM blockchains only.
 package util
 
 import (
@@ -8,11 +9,25 @@ import (
 	eth_parameters "github.com/ethereum/go-ethereum/params"
 )
 
+// Converts the number in WEI format to ETH format.
+//
+// 1 ETH = 1e18 WEI.
+//
+// https://eth-converter.com/
 // https://github.com/ethereum/go-ethereum/issues/21221
+//
+// Example:
+//
+//		wei := big.NewInt(100000000000000000)
+//		eth := WeiToEther(wei)
+//		// prints 0.1
+//	 	fmt.Println(eth.Float64())
 func WeiToEther(wei *big.Int) *big.Float {
-	return new(big.Float).Quo(new(big.Float).SetInt(wei), big.NewFloat(eth_parameters.Ether))
+	eth := new(big.Float).Quo(new(big.Float).SetInt(wei), big.NewFloat(eth_parameters.Ether))
+	return eth
 }
 
+// EtherToWei is opposite of WeiToEther it converts the ETH to WEI format.
 func EtherToWei(eth *big.Float) *big.Int {
 	truncInt, _ := eth.Int(nil)
 	truncInt = new(big.Int).Mul(truncInt, big.NewInt(eth_parameters.Ether))
@@ -23,7 +38,9 @@ func EtherToWei(eth *big.Float) *big.Int {
 	return wei
 }
 
-// parse_big_float parse string value to big.Float
+// ParseBigFloat parses the string value to big.Float
+//
+// Useful to track the attached ETH to the transactions when they are saved in the SDS Database.
 func ParseBigFloat(value string) (*big.Float, error) {
 	f := new(big.Float)
 	f.SetPrec(236) //  IEEE 754 octuple-precision binary floating-point format: binary256

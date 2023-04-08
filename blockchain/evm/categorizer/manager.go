@@ -1,8 +1,13 @@
-// EVM blockchain worker's manager
-// For every blockchain we have one manager.
-// Manager keeps the list of the smartcontract workers:
-// - list of workers for up to date smartcontracts
-// - list of workers for categorization outdated smartcontracts
+// Package categorizer defines the SDS Categorizer service
+// specific for the EVM blockchains.
+//
+// This categorizer runs the manager along with two child sub services.
+// The child sub services are:
+//   - old categorizer [old]
+//   - recent categorizer [recent]
+//
+// This package then acts as the gateway for between sub services and
+// SDS Categorizer core service.
 package categorizer
 
 import (
@@ -30,10 +35,16 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-const IDLE = "idle"
-const RUNNING = "running"
-
-// Categorization of the smartcontracts on the specific EVM blockchain
+// Manager acts as the gateway for the evm and SDS Categorizer.
+// It keeps the link to the old smartcontract categorizer and
+// recent smartcontract categorizer.
+//
+// When a new smartcontract is registered for categorization,
+// the SDS Categorizer will send to the blockchain's sub categorizer.
+//
+// If the smartcontract is for the network that matches [Manager.Network.Id]
+// then this package will redirect it either to old or recent smartcontract
+// manager.
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
@@ -44,8 +55,7 @@ type Manager struct {
 	logger                log.Logger            // print the debug parameters
 }
 
-// Creates a new manager for the given EVM Network
-// New manager runs in the background.
+// NewManager for the given EVM Network
 func NewManager(
 	parent log.Logger,
 	network *network.Network,
@@ -65,7 +75,7 @@ func NewManager(
 	return &manager, nil
 }
 
-// Same as Run.
+// Start the categorizer process.
 //
 // Run it as a goroutine. Otherwise there is no guarantee that
 // manager would connect to the blockchain/client and SDS Core correctly.

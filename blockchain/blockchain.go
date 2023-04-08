@@ -1,12 +1,9 @@
-// The SDS Spaghetti module fetches the blockchain data and converts it into the internal format
-// All other SDS Services are connecting to SDS Spaghetti.
+// Package blockchain defines core service that acts as the gateway
+// between SDS and blockchain network.
+// All accesses to the blockchain network within SDS goes through blockchain service.
 //
-// We have multiple workers.
-// Atleast one worker for each network.
-// This workers are called recent workers.
-//
-// Categorizer checks whether the cached block returned or not.
-// If its a cached block, then switches to the block_range
+// All blockchain specific reading/writing and categorizing the smartcontracts or any
+// other feature are defined in this package as a sub package.
 package blockchain
 
 import (
@@ -200,7 +197,17 @@ func get_all_networks(request message.Request, logger log.Logger, app_parameters
 	return reply_message
 }
 
-// Return the list of command handlers for this service
+// CommandHandlers returns the list of commands and their handlers for SDS Spaghetti reply
+// contorller. That means it will expose the following commands.
+//
+// SDS Spaghetti defines has the following commands:
+//
+//   - handler.DEPLOYED_TRANSACTION_COMMAND
+//   - handler.NETWORK_IDS_COMMAND
+//   - handler.NETWORKS_COMMAND
+//   - handler NETWORK_COMMAND
+//
+// Check out "handler" sub package for the description of each command.
 func CommandHandlers() command.Handlers {
 	return command.EmptyHandlers().
 		Add(handler.DEPLOYED_TRANSACTION_COMMAND, transaction_deployed_get).
@@ -209,19 +216,18 @@ func CommandHandlers() command.Handlers {
 		Add(handler.NETWORK_COMMAND, get_network)
 }
 
-// Returns this service's configuration
+// Returns the parameter of the SDS Spaghetti
 func Service() *service.Service {
 	service, _ := service.Inprocess(service.SPAGHETTI)
 	return service
 }
 
-// Start the blockchain service.
-// The blockchain service has the three following parts:
-//   - networks to load the network parameters from configuration
-//   - blockchain client that connects SDS
-//     to the remote blockchain node
-//   - network worker for each network that consists the
-//     blockchain client and atleast categorizer.
+// Run the SDS Spaghetti service.
+// The SDS Spaghetti will load the all supported networks from configuration.
+//
+// Then create the sub processes for each blockchain network.
+//
+// And finally enables the reply controller waiting for CommandHandlers
 func Run(app_config *configuration.Config) {
 	logger, _ := log.New("blockchain", log.WITH_TIMESTAMP)
 

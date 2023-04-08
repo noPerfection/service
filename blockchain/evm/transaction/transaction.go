@@ -1,3 +1,5 @@
+// Package transaction converts the ethereum transaction to the SDS Transaction
+// SDS Transaction: [github.com/blocklords/sds/blockchain/transaction.RawTransaction]
 package transaction
 
 import (
