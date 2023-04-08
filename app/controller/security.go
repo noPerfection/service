@@ -5,6 +5,8 @@ import (
 
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/service"
+
+	// move out security/credentials dependency
 	"github.com/blocklords/sds/security/credentials"
 
 	zmq "github.com/pebbe/zmq4"

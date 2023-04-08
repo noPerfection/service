@@ -1,3 +1,4 @@
+// Package configuration defines the link between smartcontract and topic.
 package configuration
 
 import (

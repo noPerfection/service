@@ -1,3 +1,11 @@
+// Package key_value defines the custom map and its additional functions.
+//
+// The package defines two different data types:
+//   - [KeyValue] is the map where the key is a string, and value could be anything.
+//     It defines additional functions that returns the value converted to the desired type.
+//   - [List] is the list of elements but based on the map.
+//     For the user the list acts as the array.
+//     However internal it uses map for optimization.
 package key_value
 
 import (

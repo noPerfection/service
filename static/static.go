@@ -1,3 +1,10 @@
+// Package static defines the service
+// that handles the data processing and storing in the database.
+//
+// The static works with the three kind of data:
+//   - abi of the smartcontract
+//   - smartcontract is the smartcontract linked to the abi.
+//   - configuration is the Topic linked to the smartcontract.
 package static
 
 import (

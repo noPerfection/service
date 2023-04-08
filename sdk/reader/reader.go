@@ -1,3 +1,5 @@
+// Package reader allows the user to read smartcontract information
+// from blockchain using smartcontract Topic, rather than address.
 package reader
 
 import (

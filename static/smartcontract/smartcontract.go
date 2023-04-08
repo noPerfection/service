@@ -1,3 +1,4 @@
+// Package smartcontract defines the smartcontract data and the link to the abi
 package smartcontract
 
 import (

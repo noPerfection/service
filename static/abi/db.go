@@ -1,4 +1,3 @@
-// The db.go contains the database related functions of the ABI
 package abi
 
 import (

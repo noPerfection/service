@@ -1,4 +1,4 @@
-/*Categorized log containing log name and output parameters*/
+// Package event defines the decoded smartcontract event
 package event
 
 import (
@@ -9,14 +9,14 @@ import (
 	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
-// The Decoded smartcontract event log
+// Log of smartcontract event after decoding
 type Log struct {
 	SmartcontractKey smartcontract_key.Key     `json:"smartcontract_key"`
 	TransactionKey   blockchain.TransactionKey `json:"transaction_key"`
 	BlockHeader      blockchain.BlockHeader    `json:"block_header"`
 	Index            uint                      `json:"log_index"`      // Log index in the block
-	Name             string                    `json:"log_name"`       // Log                 // Event log name
-	Parameters       key_value.KeyValue        `json:"log_parameters"` // Event log parameters
+	Name             string                    `json:"log_name"`       // Event name
+	Parameters       key_value.KeyValue        `json:"log_parameters"` // Decoded log parameters
 }
 
 // Add the metadata such as transaction id, block header and log index from raw event log

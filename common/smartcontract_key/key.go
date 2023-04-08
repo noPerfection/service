@@ -1,5 +1,7 @@
-// Smartcontract key is the unique identifier within the SeascapeSDS
-// Its composed as network_id + "." + address
+// Package smartcontract_key defines the unique
+// smartcontract id within SeascapeSDS
+//
+// The [smartcontract_key.Key] is composed from a string: network_id + "." + address
 package smartcontract_key
 
 import (
@@ -9,7 +11,8 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-// network id + "." + address
+// Key of smartcontract composed from network id + "." + address.
+// Any smartcontract should have one unique key.
 type Key struct {
 	NetworkId string `json:"network_id"`
 	Address   string `json:"address"`

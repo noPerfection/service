@@ -1,3 +1,5 @@
+// Package credentials defines the CURVE public/private key
+// used for authentication in the sockets.
 package credentials
 
 import (

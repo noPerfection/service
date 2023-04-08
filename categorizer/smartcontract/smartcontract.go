@@ -1,3 +1,6 @@
+// Package smartcontract defines the smartcontract's categorization state.
+//
+// It's tracked on the database.
 package smartcontract
 
 import (

@@ -1,3 +1,22 @@
+// Package topic defines the special kind of data type called topic and topic filter.
+// The topics are replacing the smartcontract addresses in order to detect the smartcontract
+// that user wants to interact with.
+//
+// For example, if the user wants to interact with Crowns crypto currency
+// on Ethereum network, then user will need to know the Crowns ABI interface,
+// as well as the smartcontract address.
+//
+// In SDS its replaced with the Topic.
+// Define the topic something like:
+//
+//		topic := topic.Topic{
+//			Organization: "seascape",
+//	     	NetworkId: "1",
+//	     	Smartcontract: "Crowns"
+//		}
+//
+// For example, use the topic in SDK to read the data from categorizer.
+// Viola, we don't need to remember smartcontract address.
 package topic
 
 import (
@@ -7,6 +26,9 @@ import (
 )
 
 // Filter unlike Topic can omit the parameters
+// Allows to define list of smartcontracts that match the topic filter.
+//
+// Which means users can interact with multiple smartcontracts at once.
 type TopicFilter struct {
 	Organizations  []string `json:"o,omitempty"`
 	Projects       []string `json:"p,omitempty"`
@@ -16,6 +38,7 @@ type TopicFilter struct {
 	Events         []string `json:"e,omitempty"`
 }
 
+// NewFilterTopic from the given parameters
 func NewFilterTopic(o []string, p []string, n []string, g []string, s []string, e []string) TopicFilter {
 	return TopicFilter{
 		Organizations:  o,

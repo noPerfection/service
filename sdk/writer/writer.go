@@ -1,3 +1,6 @@
+// Package writer defines the socket and message
+// that user can use to send a transaction to the blockchain with
+// smartcontract topic, not by its address.
 package writer
 
 import (

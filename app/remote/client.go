@@ -1,4 +1,4 @@
-// The remote defines the data types, and methods around sockets. The sockets are used to interact with or between services.
+// Package remote defines client socket that can access to the remote service.
 package remote
 
 import (
@@ -10,6 +10,8 @@ import (
 	"github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
+
+	// move out dependency from security/credentials
 	"github.com/blocklords/sds/security/credentials"
 	zmq "github.com/pebbe/zmq4"
 )

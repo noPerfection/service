@@ -1,3 +1,4 @@
+// Package blockchain defines the transaction key and block header
 package blockchain
 
 import (

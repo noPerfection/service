@@ -10,11 +10,11 @@ import (
 )
 
 type (
-	// Topic Key is the
-	// string represantion of the topic
-	// or topic filter
+	// Topic String is the string represantion of
+	// the topic or topic filter
 	TopicString string
-	Topic       struct {
+	// Topic defines the smartcontract path in SDS
+	Topic struct {
 		Organization  string `json:"o,omitempty"`
 		Project       string `json:"p,omitempty"`
 		NetworkId     string `json:"n,omitempty"`
@@ -24,14 +24,17 @@ type (
 	}
 )
 
+// Converts the string to the TopicString
 func AsTopicString(topic_string string) TopicString {
 	return TopicString(topic_string)
 }
 
+// Convert the TopicString to string
 func (topic_string TopicString) String() string {
 	return string(topic_string)
 }
 
+// New topic from the parameters
 func New(o string, p string, n string, g string, s string, e string) Topic {
 	return Topic{
 		Organization:  o,
@@ -263,6 +266,13 @@ func (t *Topic) validate_missing_level(level uint8) error {
 	}
 }
 
+// Validate the topic for empty values, for valid names.
+// The topic parameters should be defined as literals in popular programming languages.
+// Finally the path of topic if it's converted to the TopicString should be valid as well.
+//
+// That means, if user wants to create a topic to access t.Project, then it's upper parent
+// the t.Organization should be defined as well.
+// But other topic parameters could be left as empty.
 func (t *Topic) Validate() error {
 	level := t.Level()
 	str := t.ToString(level)

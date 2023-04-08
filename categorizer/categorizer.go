@@ -1,3 +1,20 @@
+// Package categorizer defines the service that
+// decodes the raw smartcontract events based on the abi.
+//
+// The decoded parameters are then saved in the database.
+//
+// This package defines the reply controller that allows external users
+// to request decoded smartcontract event logs.
+//
+// Categorizer is part of SDS Core.
+//
+// Note that this package doesn't connect to the remote blockchain node to fetch the smartcontract logs.
+//
+// Rather it works with the blockchain/<network type>/categorizer sub processes.
+// The categorizer sub processes in the the blockchain service will do all the work and
+// notify this package with the ready to use event logs.
+//
+// This package will saves them in the database and allows users to fetch them.
 package categorizer
 
 import (

@@ -1,3 +1,11 @@
+// Package data_type defines the generic data types used in SDS.
+//
+// Supported data types are:
+//   - Queue is the list where the new element is added to the end,
+//     but when element is taken its taken from the top.
+//     Queue doesn't allow addition of any kind of element. All elements should have the same type.
+//   - key_value different kind of maps
+//   - serialize functions to serialize any structure to the bytes and vice versa.
 package data_type
 
 import (

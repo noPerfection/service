@@ -17,12 +17,18 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// CategorizerPullEndpoint returns the endpoint of the pull controller
+// that is connected by the blockchain sub processes.
 func CategorizerPullEndpoint() string {
 	return "inproc://cat"
 }
 
-// To connect to the categorizer
-// to update data on the database.
+// NewCategorizerPusher creates a client socket that is
+// connected to the categorizer pull controller
+//
+// Its intended to be used by blockchain sub services which are categorizing.
+// Once the smartcontract event log is decoded, they will notify categorizer using
+// this socket.
 func NewCategorizerPusher() (*zmq.Socket, error) {
 	sock, err := zmq.NewSocket(zmq.PUSH)
 	if err != nil {
@@ -36,7 +42,7 @@ func NewCategorizerPusher() (*zmq.Socket, error) {
 	return sock, nil
 }
 
-// Opens up the socket to receive decoded event logs.
+// RunPuller Opens up the socket to receive decoded event logs from blockchain sub categorizer services.
 // The received data stored in the database.
 // This socket receives messages from blockchain/categorizers.
 func RunPuller(cat_logger log.Logger, database *db.Database) {

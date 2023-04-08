@@ -41,6 +41,8 @@ import (
 	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/service"
+
+	// remove the dependency on security/credentials
 	"github.com/blocklords/sds/security/credentials"
 
 	"github.com/blocklords/sds/app/remote/message"
