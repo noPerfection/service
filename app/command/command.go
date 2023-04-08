@@ -7,6 +7,7 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 
 	zmq "github.com/pebbe/zmq4"
@@ -59,6 +60,9 @@ func (command CommandName) Request(socket *remote.ClientSocket, request interfac
 	_, ok = reply.(message.Broadcast)
 	if ok {
 		return fmt.Errorf("the reply can not be of message.Broadcast type")
+	}
+	if !data_type.IsPointer(reply) {
+		return fmt.Errorf("the reply is not passed by pointer")
 	}
 
 	request_parameters, err := key_value.NewFromInterface(request)
@@ -171,6 +175,9 @@ func (command CommandName) RequestRouter(socket *remote.ClientSocket, service_ty
 	_, ok = reply.(message.Broadcast)
 	if ok {
 		return fmt.Errorf("the reply can not be of message.Broadcast type")
+	}
+	if !data_type.IsPointer(reply) {
+		return fmt.Errorf("the reply must be passed by pointer")
 	}
 
 	request_parameters, err := key_value.NewFromInterface(request)
