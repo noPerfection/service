@@ -190,9 +190,9 @@ func filter_configuration(configuration_list *key_value.List, topic_filter *topi
 func filter_smartcontract(
 	configurations []*configuration.Configuration,
 	list *key_value.List) ([]*smartcontract.Smartcontract, []topic.TopicString, error) {
-	i := 0
+
 	smartcontracts := make([]*smartcontract.Smartcontract, 0)
-	topic_string := make([]topic.TopicString, 0)
+	topic_strings := make([]topic.TopicString, 0)
 
 	for _, conf := range configurations {
 		key, err := smartcontract_key.New(conf.Topic.NetworkId, conf.Address)
@@ -200,19 +200,19 @@ func filter_smartcontract(
 			return nil, nil, fmt.Errorf("failed to create smartcontract key: %w", err)
 		}
 
+
 		value, err := list.Get(key)
-		if err == nil {
+		if err != nil {
+			fmt.Println("not found")
 			continue
 		}
 		sm := value.(*smartcontract.Smartcontract)
 
-		smartcontracts[i] = sm
-		topic_string[i] = conf.Topic.ToString(topic.SMARTCONTRACT_LEVEL)
-
-		i++
+		smartcontracts = append(smartcontracts, sm)
+		topic_strings = append(topic_strings, conf.Topic.ToString(topic.SMARTCONTRACT_LEVEL))
 	}
 
-	return smartcontracts, topic_string, nil
+	return smartcontracts, topic_strings, nil
 }
 
 /*

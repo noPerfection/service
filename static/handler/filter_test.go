@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/static/configuration"
+	"github.com/blocklords/sds/static/smartcontract"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -20,7 +21,9 @@ type TestFilterSuite struct {
 	suite.Suite
 	logger    log.Logger
 	conf      configuration.Configuration
+	sm        smartcontract.Smartcontract
 	conf_list *key_value.List
+	sm_list   *key_value.List
 }
 
 /*
@@ -35,6 +38,31 @@ func (suite *TestFilterSuite) SetupTest() {
 	logger, err := log.New("test", log.WITH_TIMESTAMP)
 	suite.Require().NoError(err)
 	suite.logger = logger
+
+	sm_0 := smartcontract.Smartcontract{
+		SmartcontractKey: smartcontract_key.Key{
+			NetworkId: "test_1",
+			Address:   "0xaddr_0",
+		},
+		AbiId: "abi",
+	}
+	suite.sm = sm_0
+
+	sm_1 := smartcontract.Smartcontract{
+		SmartcontractKey: smartcontract_key.Key{
+			NetworkId: "test_1",
+			Address:   "0xaddr_1",
+		},
+		AbiId: "abi",
+	}
+
+	sm_2 := smartcontract.Smartcontract{
+		SmartcontractKey: smartcontract_key.Key{
+			NetworkId: "test_2",
+			Address:   "0xaddr_2",
+		},
+		AbiId: "abi",
+	}
 
 	conf_0 := configuration.Configuration{
 		Topic: topic.Topic{
@@ -69,7 +97,6 @@ func (suite *TestFilterSuite) SetupTest() {
 		},
 		Address: "0xaddr_2",
 	}
-	suite.conf = conf_0
 
 	list := key_value.NewList()
 	err = list.Add(conf_0.Topic, &conf_0)
@@ -82,6 +109,18 @@ func (suite *TestFilterSuite) SetupTest() {
 	err = list.Add(conf_2.Topic, &conf_2)
 	suite.Require().NoError(err)
 	suite.conf_list = list
+
+	sm_list := key_value.NewList()
+	err = sm_list.Add(sm_0.SmartcontractKey, &sm_0)
+	suite.Require().NoError(err)
+
+	err = sm_list.Add(sm_1.SmartcontractKey, &sm_1)
+	suite.Require().NoError(err)
+
+	err = sm_list.Add(sm_2.SmartcontractKey, &sm_2)
+	suite.Require().NoError(err)
+
+	suite.sm_list = sm_list
 }
 
 func (suite *TestFilterSuite) TestOrganizationFilter() {
@@ -162,119 +201,28 @@ func (suite *TestFilterSuite) TestNetworkIdFilter() {
 	suite.Require().False(new_list.IsEmpty())
 }
 
-func (suite *TestFilterSuite) TestGet() {
-	// valid request
-	valid_kv, err := key_value.NewFromInterface(suite.conf.Topic)
-	suite.Require().NoError(err)
-
-	request := message.Request{
-		Command:    "",
-		Parameters: valid_kv,
+func (suite *TestFilterSuite) TestConfigurationFiltering() {
+	topic_filter := topic.TopicFilter{
+		Organizations: []string{"test_org"},
+		NetworkIds:    []string{"test_1"},
 	}
-	reply := ConfigurationGet(request, suite.logger, nil, nil, nil, suite.conf_list)
-	suite.Require().True(reply.IsOK())
-
-	var replied_sm GetConfigurationReply
-	err = reply.Parameters.ToInterface(&replied_sm)
-	suite.Require().NoError(err)
-
-	suite.Require().EqualValues(suite.conf, replied_sm)
-
-	// request with empty parameter should fail
-	request = message.Request{
-		Command:    "",
-		Parameters: key_value.Empty(),
-	}
-	reply = ConfigurationGet(request, suite.logger, nil, nil, nil, suite.conf_list)
-	suite.Require().False(reply.IsOK())
-
-	// request of configuration that
-	// doesn't exist in the list
-	// should fail
-	no_topic := topic.Topic{
-		Organization:  "test_org_2",
-		Project:       "test_proj_2",
-		NetworkId:     "test_1",
-		Group:         "test_group_2",
-		Smartcontract: "test_name_2",
-	}
-	topic_kv, err := key_value.NewFromInterface(no_topic)
-	suite.Require().NoError(err)
-
-	request = message.Request{
-		Command:    "",
-		Parameters: topic_kv,
-	}
-	reply = ConfigurationGet(request, suite.logger, nil, nil, nil, suite.conf_list)
-	suite.Require().False(reply.IsOK())
-
-	// requesting with invalid type for abi id should fail
-	no_topic = topic.Topic{
-		Organization: "test_org_2",
-		Project:      "test_proj_2",
-		NetworkId:    "test_1",
-		Group:        "test_group_2",
-	}
-	topic_kv, err = key_value.NewFromInterface(no_topic)
-	suite.Require().NoError(err)
-	request = message.Request{
-		Command:    "",
-		Parameters: topic_kv,
-	}
-	reply = ConfigurationGet(request, suite.logger, nil, nil, nil, suite.conf_list)
-	suite.Require().False(reply.IsOK())
+	new_list := filter_configuration(suite.conf_list, &topic_filter)
+	suite.Require().Len(new_list, 1)
 }
 
-func (suite *TestFilterSuite) TestSet() {
-	// valid request
-	no_topic := topic.Topic{
-		Organization:  "test_org_2",
-		Project:       "test_proj_2",
-		NetworkId:     "test_1",
-		Group:         "test_group_2",
-		Smartcontract: "test_name_2",
+func (suite *TestFilterSuite) TestSmartcontractFiltering() {
+	topic_filter := topic.TopicFilter{
+		Organizations: []string{"test_org"},
+		NetworkIds:    []string{"test_1"},
 	}
-	valid_request := configuration.Configuration{
-		Topic:   no_topic,
-		Address: "0xaddress_3",
-	}
-	valid_kv, err := key_value.NewFromInterface(valid_request)
+	new_list := filter_configuration(suite.conf_list, &topic_filter)
+
+	suite.T().Log("configs", new_list[0])
+
+	filtered_sm, filtered_topics, err := filter_smartcontract(new_list, suite.sm_list)
 	suite.Require().NoError(err)
-
-	request := message.Request{
-		Command:    "",
-		Parameters: valid_kv,
-	}
-	reply := ConfigurationRegister(request, suite.logger, nil, nil, nil, suite.conf_list)
-	suite.T().Log(reply.Message)
-	suite.Require().True(reply.IsOK())
-
-	var replied_sm GetConfigurationReply
-	err = reply.Parameters.ToInterface(&replied_sm)
-	suite.Require().NoError(err)
-	suite.Require().EqualValues(valid_request, replied_sm)
-
-	// the abi list should have the item
-	sm_in_list, err := suite.conf_list.Get(replied_sm.Topic)
-	suite.Require().NoError(err)
-	suite.Require().EqualValues(&replied_sm, sm_in_list)
-
-	// registering with empty parameter should fail
-	request = message.Request{
-		Command:    "",
-		Parameters: key_value.Empty(),
-	}
-	reply = ConfigurationRegister(request, suite.logger, nil, nil, nil, suite.conf_list)
-	suite.Require().False(reply.IsOK())
-
-	// registering of abi that already exist in the list
-	// should fail
-	request = message.Request{
-		Command:    "",
-		Parameters: valid_kv,
-	}
-	reply = ConfigurationRegister(request, suite.logger, nil, nil, nil, suite.conf_list)
-	suite.Require().False(reply.IsOK())
+	suite.Require().NotEmpty(filtered_sm)
+	suite.Require().EqualValues(suite.conf.Topic.ToString(topic.SMARTCONTRACT_LEVEL), filtered_topics[0])
 }
 
 // In order for 'go test' to run this suite, we need to create
