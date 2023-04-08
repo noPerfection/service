@@ -6,7 +6,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-// The SDS Service will accepts the Request message.
+// Request message sent by Client socket and accepted by Controller socket.
 type Request struct {
 	Command    string             `json:"command"`
 	Parameters key_value.KeyValue `json:"parameters"`
@@ -23,7 +23,7 @@ func (request *Request) valid_command() error {
 	return nil
 }
 
-// Request message as a  sequence of bytes
+// ToBytes converts the message to the sequence of bytes
 func (request *Request) ToBytes() ([]byte, error) {
 	err := request.valid_command()
 	if err != nil {
@@ -43,15 +43,17 @@ func (request *Request) ToBytes() ([]byte, error) {
 	return bytes, nil
 }
 
+// For security; Work in Progress.
 func (request *Request) SetPublicKey(public_key string) {
 	request.public_key = public_key
 }
 
+// For security; Work in Progress.
 func (request *Request) GetPublicKey() string {
 	return request.public_key
 }
 
-// Convert Request message to the string
+// ToString the message
 func (request *Request) ToString() (string, error) {
 	bytes, err := request.ToBytes()
 	if err != nil {
@@ -61,7 +63,7 @@ func (request *Request) ToString() (string, error) {
 	return string(bytes), nil
 }
 
-// Messages from zmq concatenated
+// ToString into the single string the array of zeromq messages
 func ToString(msgs []string) string {
 	msg := ""
 	for _, v := range msgs {
@@ -70,7 +72,7 @@ func ToString(msgs []string) string {
 	return msg
 }
 
-// Parse the messages from zeromq into the Request
+// ParseRequest from the zeromq messages
 func ParseRequest(msgs []string) (Request, error) {
 	msg := ToString(msgs)
 

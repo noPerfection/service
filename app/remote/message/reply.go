@@ -6,6 +6,8 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
+// ReplyStatus can be only as "OK" or "fail"
+// It indicates whether the reply message is correct or not.
 type ReplyStatus string
 
 const (
@@ -15,12 +17,12 @@ const (
 
 // SDS Service returns the reply. Anyone who sends a request to the SDS Service gets this message.
 type Reply struct {
-	Status     ReplyStatus        `json:"status"`
-	Message    string             `json:"message"`
-	Parameters key_value.KeyValue `json:"parameters"`
+	Status     ReplyStatus        `json:"status"`     // message.OK or message.FAIL
+	Message    string             `json:"message"`    // If Status is fail, then field will contain error message.
+	Parameters key_value.KeyValue `json:"parameters"` // If Status is OK, then field will contain the parameters.
 }
 
-// Create a new Reply as a failure
+// Fail creates a new Reply as a failure
 // It accepts the error message that explains the reason of the failure.
 func Fail(message string) Reply {
 	return Reply{Status: FAIL, Message: message, Parameters: key_value.Empty()}
@@ -46,10 +48,10 @@ func (reply *Reply) valid_fail() error {
 	return nil
 }
 
-// Is SDS Service returned a successful reply
+// IsOK returnes the Status of the message.
 func (r *Reply) IsOK() bool { return r.Status == OK }
 
-// Convert the reply to the string format
+// ToString converts the Reply to the string format
 func (reply *Reply) ToString() (string, error) {
 	bytes, err := reply.ToBytes()
 	if err != nil {
@@ -59,7 +61,7 @@ func (reply *Reply) ToString() (string, error) {
 	return string(bytes), nil
 }
 
-// Reply as a sequence of bytes
+// ToBytes converts Reply to the sequence of bytes
 func (reply *Reply) ToBytes() ([]byte, error) {
 	err := reply.valid_fail()
 	if err != nil {
@@ -83,7 +85,7 @@ func (reply *Reply) ToBytes() ([]byte, error) {
 	return bytes, nil
 }
 
-// Zeromq received raw strings converted to the Reply message.
+// ParseReply decodes the Zeromq messages into the Reply.
 func ParseReply(msgs []string) (Reply, error) {
 	msg := ToString(msgs)
 	data, err := key_value.NewFromString(msg)
@@ -99,7 +101,7 @@ func ParseReply(msgs []string) (Reply, error) {
 	return reply, nil
 }
 
-// Create 'Reply' message from a key value
+// ParseJsonReply creates the 'Reply' message from a key value
 func ParseJsonReply(dat key_value.KeyValue) (Reply, error) {
 	var reply Reply
 	err := dat.ToInterface(&reply)

@@ -108,8 +108,8 @@ func (sm_req *SmartcontractDeveloperRequest) message_hash() ([]byte, error) {
 	return hash.Bytes(), nil
 }
 
-// Gets the digested message with a prefix
-// For ethereum the prefix is "\x19Ethereum Signed Message:\n"
+// Gets the digested message with a prefix that is ready to sign or verify.
+// For ethereum blockchain accounts it also adds the prefix "\x19Ethereum Signed Message:\n"
 func (request *SmartcontractDeveloperRequest) DigestedMessage() ([]byte, error) {
 	message_hash, err := request.message_hash()
 	if err != nil {

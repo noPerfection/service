@@ -1,9 +1,23 @@
-// The message package contains the message data types used between SDS Services.
+// Package message contains the messages that services are exchanging
+// Via the sockets.
 //
 // The message types are:
-//   - Broadcast
-//   - Request
-//   - Reply
+//
+//   - Broadcast message sent by broadcas.Broadcast and received by the Subscriber.
+//
+//   - Request message sent by the client sockets to the remote services.
+//
+//   - Reply message sent back to clients by the Controller socket.
+//
+//   - SmartcontractDeveloperRequest message sent by client sockets to the Controller.
+//     Its similar to the Request message, but includes the authentication parameters based on
+//     Blockchain public/private keys.
+//
+//     This message is intended to be sent to the controller that has no CURVE authentication.
+//     So the smartcontract developers can use their own private keys rather than keeping two
+//     different types of keys.
+//
+// If the socket sent Request, and it will receive Reply.
 package message
 
 import (
@@ -13,14 +27,15 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-// The broadcasters sends to all subscribers this message.
-// The reply and the topic
+// Broadcast is the message that is submitted by Broadcast and received by Subscriber.
 type Broadcast struct {
-	Reply Reply  `json:"reply"`
+	// The parameters of the broadcasted message and its status.
+	Reply Reply `json:"reply"`
+	// The topic to filter the incoming messages by the Subscriber.
 	Topic string `json:"topic"`
 }
 
-// Create a new broadcast
+// NewBroadcast creates the Broadcast from the fields.
 func NewBroadcast(topic string, reply Reply) Broadcast {
 	return Broadcast{
 		Topic: topic,
@@ -28,10 +43,10 @@ func NewBroadcast(topic string, reply Reply) Broadcast {
 	}
 }
 
-// Is OK
+// Broadcast was successful? Call it in the subscriber to verify the message state.
 func (r *Broadcast) IsOK() bool { return r.Reply.IsOK() }
 
-// Reply as a sequence of bytes
+// ToBytes returns bytes representation of the Broadcast
 func (b *Broadcast) ToBytes() []byte {
 	kv, err := key_value.NewFromInterface(b)
 	if err != nil {
@@ -43,7 +58,7 @@ func (b *Broadcast) ToBytes() []byte {
 	return bytes
 }
 
-// Parse the zeromq messages into a broadcast
+// ParseBroadcast creates the Broadcast from the zeromq messages.
 func ParseBroadcast(msgs []string) (Broadcast, error) {
 	msg := ToString(msgs)
 	i := strings.Index(msg, "{")
