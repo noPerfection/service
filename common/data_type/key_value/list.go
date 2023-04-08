@@ -93,6 +93,26 @@ func (q *List) Add(key interface{}, value interface{}) error {
 	)
 }
 
+func (q *List) Exist(key interface{}) bool {
+	if data_type.IsNil(key) ||
+		data_type.IsPointer(key) ||
+		q.IsEmpty() {
+		return false
+	}
+
+	key_type := reflect.TypeOf(key)
+	if key_type != q.key_type {
+		return false
+	}
+
+	_, ok := q.l[key]
+	if !ok {
+		return false
+	}
+
+	return true
+}
+
 // Returns the element in the list to the value.
 // The value should be passed by pointer
 func (q *List) Get(key interface{}) (interface{}, error) {
