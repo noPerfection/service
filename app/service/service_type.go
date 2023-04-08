@@ -3,6 +3,7 @@ package service
 import "fmt"
 
 // ServiceType defines the name of the service that is defined in the SDS.
+// If you are creating a new service, then define the constant value here.
 type ServiceType string
 
 const (
@@ -45,6 +46,7 @@ func (s ServiceType) valid() error {
 	return fmt.Errorf("the '%s' service type not registered", s.ToString())
 }
 
+// Returns all registered services
 func service_types() []ServiceType {
 	return []ServiceType{
 		CORE,

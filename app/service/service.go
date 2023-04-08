@@ -7,7 +7,7 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 )
 
-// Environment variables for each SDS Service
+// Service defines the parameters of the service.
 type Service struct {
 	Name   string // Service name
 	inproc bool
@@ -15,7 +15,7 @@ type Service struct {
 	limit  Limit
 }
 
-// Creates the service with the parameters but without any information
+// Inprocess creates the service with the parameters but without any information
 func Inprocess(service_type ServiceType) (*Service, error) {
 	if err := service_type.valid(); err != nil {
 		return nil, fmt.Errorf("valid: %w", err)
@@ -56,7 +56,7 @@ func InprocessFromUrl(endpoint string) (*Service, error) {
 	return &s, nil
 }
 
-// Creates the service with the parameters but without any information
+// NewExternal creates the service with the parameters but without any information
 func NewExternal(service_type ServiceType, limit Limit, app_config *configuration.Config) (*Service, error) {
 	if app_config == nil {
 		return nil, fmt.Errorf("missing app config")
@@ -97,35 +97,38 @@ func NewExternal(service_type ServiceType, limit Limit, app_config *configuratio
 	return &s, nil
 }
 
-// Returns the request-reply url as a host:port
+// Returns the endpoint of the service.
+// The sockets are using this parameter.
 func (e *Service) Url() string {
 	return e.url
 }
 
-// Whether the service defined for this machine as a broadcaster.
+// IsBroadcast defines whether the service defined for this machine as a broadcaster.
 // If so, then URL host will be a '*' wildcard.
 func (e *Service) IsBroadcast() bool {
 	return e.limit == BROADCAST && !e.inproc
 }
 
-// Whether the service defined for the remote broadcaster.
+// IsSubscribe defines whether the service defined for the remote broadcaster.
 // If so, then URL will have host:port.
 func (e *Service) IsSubscribe() bool {
 	return e.limit == SUBSCRIBE && !e.inproc
 }
 
-// Whether the service defined for the remote machine.
+// IsRemote defines whether the service defined for the remote machine.
 // If so, then URL will have host:port.
 func (e *Service) IsRemote() bool {
 	return e.limit == REMOTE && !e.inproc
 }
 
-// Whether the service defined for this machine.
+// IsThis defines whether the service defined for this machine.
 // If so, then URL will have * wildcard for the host.
 func (e *Service) IsThis() bool {
 	return e.limit == THIS && !e.inproc
 }
 
+// IsInproc defines whether the protocol of service is "inproc".
+// Incase of "tcp" protocol it will return false.
 func (e *Service) IsInproc() bool {
 	return e.inproc
 }
