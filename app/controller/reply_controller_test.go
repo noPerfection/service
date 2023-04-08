@@ -22,8 +22,8 @@ type TestReplyControllerSuite struct {
 	suite.Suite
 	tcp_controller    *Controller
 	inproc_controller *Controller
-	tcp_client        *remote.Socket
-	inproc_client     *remote.Socket
+	tcp_client        *remote.ClientSocket
+	inproc_client     *remote.ClientSocket
 	commands          []command.CommandName
 }
 

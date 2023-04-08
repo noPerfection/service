@@ -1,12 +1,4 @@
-// This package defines the data types, and methods that interact with a remote SDS service.
-//
-// The request reply socket follows the Lazy Pirate pattern.
-//
-// Example using pebbe/zmq4 is here:
-// https://github.com/pebbe/zmq4/blob/83013091510dd1275bbf0b9a302533cadc17d392/examples/lpclient.go
-//
-// The Lazy Pirate pattern is described in the ZMQ guide:
-// https://zguide.zeromq.org/docs/chapter4/#Client-Side-Reliability-Lazy-Pirate-Pattern
+// The remote defines the data types, and methods around sockets. The sockets are used to interact with or between services.
 package remote
 
 import (
@@ -22,9 +14,9 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// Over the socket the remote call is happening.
-// This is the wrapper of zeromq socket. Wrapper enables to create larger network patterns.
-type Socket struct {
+// ClientSocket is the wrapper around zeromq's socket.
+// The socket is the client's socket that will try to interact with the remote service.
+type ClientSocket struct {
 	// The name of remote SDS service and its URL
 	// its used as a clarification
 	remote_service     *service.Service
@@ -43,7 +35,7 @@ type Socket struct {
 // Then creates a new socket.
 //
 // If no socket is given, then initiates a zmq.REQ socket.
-func (socket *Socket) reconnect() error {
+func (socket *ClientSocket) reconnect() error {
 	var socket_ctx *zmq.Context
 	var socket_type zmq.Type
 
@@ -97,7 +89,9 @@ func (socket *Socket) reconnect() error {
 	return nil
 }
 
-func (socket *Socket) inproc_reconnect() error {
+// Attempts to connect to the endpoint.
+// The difference from socket.reconnect() is that it will not authenticate if security is enabled.
+func (socket *ClientSocket) inproc_reconnect() error {
 	var socket_ctx *zmq.Context
 	var socket_type zmq.Type
 
@@ -144,8 +138,8 @@ func (socket *Socket) inproc_reconnect() error {
 	return nil
 }
 
-// Close the remote connection
-func (socket *Socket) Close() error {
+// Close the socket free the port and resources.
+func (socket *ClientSocket) Close() error {
 	err := socket.socket.Close()
 	if err != nil {
 		return fmt.Errorf("error closing socket: %w", err)
@@ -154,12 +148,13 @@ func (socket *Socket) Close() error {
 	return nil
 }
 
-// Send a command to the remote SDS service via the router.
-// Both inproc and tcp
-// Router identifies the redirecting rule based on service_type.
-// Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
-// In case of successful request, the function returns reply parameters.
-func (socket *Socket) RequestRouter(service_type service.ServiceType, request *message.Request) (key_value.KeyValue, error) {
+// RequestRouter sends request message to the router. Then router will redirect it to the controller
+// defined in the service_type.
+//
+// Supports both inproc and TCP protocols.
+//
+// The socket should be the router's socket.
+func (socket *ClientSocket) RequestRouter(service_type service.ServiceType, request *message.Request) (key_value.KeyValue, error) {
 	request_timeout := parameter.RequestTimeout(socket.app_config)
 
 	if socket.protocol == "inproc" {
@@ -239,10 +234,15 @@ func (socket *Socket) RequestRouter(service_type service.ServiceType, request *m
 	}
 }
 
-// Send a command to the remote SDS service. Both for inproc and tcp
-// Note that it converts the failure reply into an error. Rather than replying reply itself back to user.
-// In case of successful request, the function returns reply parameters.
-func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
+// RequestRemoteService sends the request message to the socket.
+// Returns the message.Reply.Parameters in case of success.
+//
+// Error is returned in other cases.
+//
+// If the remote service returned failure message its converted into an error.
+//
+// The socket type should be REQ or PUSH.
+func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
 	if socket.protocol == "inproc" {
 		err := socket.inproc_reconnect()
 		if err != nil {
@@ -322,17 +322,18 @@ func (socket *Socket) RequestRemoteService(request *message.Request) (key_value.
 	}
 }
 
-// almost identical except that it will add security parameters
-func (socket *Socket) SetSecurity(server_public_key string, client *credentials.Credentials) *Socket {
+// SetSecurity will set the curve credentials in the socket to authenticate with the remote service.
+func (socket *ClientSocket) SetSecurity(server_public_key string, client *credentials.Credentials) *ClientSocket {
 	socket.server_public_key = server_public_key
 	socket.client_credentials = client
 
 	return socket
 }
 
-// Create a new Socket on TCP protocol otherwise exit from the program
-// The socket is the wrapper over zmq.REQ
-func NewTcpSocket(remote_service *service.Service, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
+// NewTcpSocket creates a new client socket over TCP protocol.
+//
+// The returned socket client then can send message to controller.Router and controller.Reply
+func NewTcpSocket(remote_service *service.Service, parent log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
 	if app_config == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}
@@ -353,7 +354,7 @@ func NewTcpSocket(remote_service *service.Service, parent log.Logger, app_config
 		return nil, fmt.Errorf("logger: %w", err)
 	}
 
-	new_socket := Socket{
+	new_socket := ClientSocket{
 		remote_service:     remote_service,
 		client_credentials: nil,
 		socket:             sock,
@@ -365,12 +366,11 @@ func NewTcpSocket(remote_service *service.Service, parent log.Logger, app_config
 	return &new_socket, nil
 }
 
-// Create an inter-process socket.
-// Through this socket a thread could connect to
-// another thread.
+// InprocRequestSocket creates a client socket with inproc protocol.
+// The created client socket can connect to controller.Router or controller.Reply.
 //
-// The `url` should start with `inproc://`
-func InprocRequestSocket(url string, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
+// The `url` parameter must start with `inproc://`
+func InprocRequestSocket(url string, parent log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
 	if app_config == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}
@@ -392,7 +392,7 @@ func InprocRequestSocket(url string, parent log.Logger, app_config *configuratio
 		return nil, fmt.Errorf("logger: %w", err)
 	}
 
-	new_socket := Socket{
+	new_socket := ClientSocket{
 		socket:             sock,
 		protocol:           "inproc",
 		inproc_url:         url,
@@ -404,9 +404,9 @@ func InprocRequestSocket(url string, parent log.Logger, app_config *configuratio
 	return &new_socket, nil
 }
 
-// Create a new Socket on TCP protocol otherwise exit from the program
-// The socket is the wrapper over zmq.SUB
-func NewTcpSubscriber(e *service.Service, server_public_key string, client *credentials.Credentials, parent log.Logger, app_config *configuration.Config) (*Socket, error) {
+// NewTcpSubscriber create a new client socket on TCP protocol.
+// The created client can subscribe to broadcast.Broadcast
+func NewTcpSubscriber(e *service.Service, server_public_key string, client *credentials.Credentials, parent log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
 	if app_config == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}
@@ -439,7 +439,7 @@ func NewTcpSubscriber(e *service.Service, server_public_key string, client *cred
 		return nil, fmt.Errorf("logger: %w", err)
 	}
 
-	return &Socket{
+	return &ClientSocket{
 		remote_service:     e,
 		socket:             socket,
 		client_credentials: client,

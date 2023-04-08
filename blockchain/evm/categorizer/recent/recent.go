@@ -48,7 +48,7 @@ const RUNNING = "running"
 type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
-	static            *remote.Socket           // return the abi from static for decoding event logs
+	static            *remote.ClientSocket     // return the abi from static for decoding event logs
 	app_config        *configuration.Config    // configuration used to create new sockets
 	logger            log.Logger               // print the debug parameters
 	workers           smartcontract.EvmWorkers // up-to-date smartcontracts consumes subscribed_blocks
@@ -339,7 +339,7 @@ func (manager *Manager) categorize() {
 //
 // Algorithm to get block number by priority
 // - from blockchain
-func (manager *Manager) remote_recent_block_number(client_socket *remote.Socket) (blockchain.Number, error) {
+func (manager *Manager) remote_recent_block_number(client_socket *remote.ClientSocket) (blockchain.Number, error) {
 	recent_request := handler.RecentBlockHeaderRequest{}
 	var recent_reply handler.RecentBlockHeaderReply
 
@@ -352,7 +352,7 @@ func (manager *Manager) remote_recent_block_number(client_socket *remote.Socket)
 }
 
 // returns the block's logs
-func (manager *Manager) get_filtered_block(sub_logger log.Logger, client_socket *remote.Socket, block_number blockchain.Number) (*spaghetti_block.Block, error) {
+func (manager *Manager) get_filtered_block(sub_logger log.Logger, client_socket *remote.ClientSocket, block_number blockchain.Number) (*spaghetti_block.Block, error) {
 	req_parameters := handler.FilterLog{
 		BlockFrom: block_number,
 		Addresses: []string{},

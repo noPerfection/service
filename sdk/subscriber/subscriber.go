@@ -59,7 +59,7 @@ func (s *Subscriber) Start() error {
 }
 
 // Get the snapshot since the latest cached till the most recent updated time.
-func (s *Subscriber) get_snapshot(socket *remote.Socket, block_timestamp_from uint64) (uint64, []*event.Log, error) {
+func (s *Subscriber) get_snapshot(socket *remote.ClientSocket, block_timestamp_from uint64) (uint64, []*event.Log, error) {
 	request := message.Request{
 		Command: "snapshot_get",
 		Parameters: key_value.
@@ -146,7 +146,7 @@ func (s *Subscriber) start() {
 }
 
 // Get the recent logs timestamp from where we should continue to fetch
-func (s *Subscriber) recent_subscriber_state(socket *remote.Socket) (uint64, error) {
+func (s *Subscriber) recent_subscriber_state(socket *remote.ClientSocket) (uint64, error) {
 	request := message.Request{
 		Command: "subscriber_state",
 		Parameters: key_value.

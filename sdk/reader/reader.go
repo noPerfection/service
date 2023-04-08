@@ -7,11 +7,11 @@ import (
 )
 
 type Reader struct {
-	socket  *remote.Socket // SDS Gateway
-	address string         // Account address granted for reading
+	socket  *remote.ClientSocket // SDS Gateway
+	address string               // Account address granted for reading
 }
 
-func NewReader(gatewaySocket *remote.Socket, address string) *Reader {
+func NewReader(gatewaySocket *remote.ClientSocket, address string) *Reader {
 	return &Reader{socket: gatewaySocket, address: address}
 }
 

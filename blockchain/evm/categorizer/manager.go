@@ -39,7 +39,7 @@ type Manager struct {
 
 	old_manager           *zmq.Socket // send through this socket updated datat to old smartcontract categorizer
 	recent_manager        *zmq.Socket // send through this socket updated datat to old smartcontract categorizer
-	recent_request_socket *remote.Socket
+	recent_request_socket *remote.ClientSocket
 	app_config            *configuration.Config // configuration used to create new sockets
 	logger                log.Logger            // print the debug parameters
 }

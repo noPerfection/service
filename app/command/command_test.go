@@ -20,7 +20,7 @@ import (
 type TestCommandSuite struct {
 	suite.Suite
 	controller *zmq.Socket
-	client     *remote.Socket
+	client     *remote.ClientSocket
 }
 
 // Make sure that Account is set to five

@@ -47,9 +47,9 @@ type Manager struct {
 	Network *network.Network // blockchain information of the manager
 
 	pusher                *zmq.Socket // send through this socket updated data to SDS Core
-	recent_request_socket *remote.Socket
+	recent_request_socket *remote.ClientSocket
 	recent_manager        *zmq.Socket           // send
-	static                *remote.Socket        // return the abi from static for decoding event logs
+	static                *remote.ClientSocket  // return the abi from static for decoding event logs
 	app_config            *configuration.Config // configuration used to create new sockets
 	logger                log.Logger            // print the debug parameters
 	old_categorizers      OldWorkerGroups       // smartcontracts to categorize from archived nodes

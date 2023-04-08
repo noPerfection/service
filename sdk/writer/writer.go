@@ -7,11 +7,11 @@ import (
 )
 
 type Writer struct {
-	socket  *remote.Socket // SDS Gateway host
-	address string         // Account address granted for reading
+	socket  *remote.ClientSocket // SDS Gateway host
+	address string               // Account address granted for reading
 }
 
-func NewWriter(gatewaySocket *remote.Socket, address string) *Writer {
+func NewWriter(gatewaySocket *remote.ClientSocket, address string) *Writer {
 	return &Writer{socket: gatewaySocket, address: address}
 }
 

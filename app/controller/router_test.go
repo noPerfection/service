@@ -25,7 +25,7 @@ type TestRouterSuite struct {
 	client_service *service.Service
 	tcp_router     *Router
 	tcp_repliers   []*Controller
-	tcp_client     *remote.Socket
+	tcp_client     *remote.ClientSocket
 	logger         log.Logger
 
 	commands []command.CommandName
