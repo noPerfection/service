@@ -1,4 +1,22 @@
-// SeascapeSDS comes both with SDK and Core features.
+// SDS Core is the group of
+//   - core services,
+//   - security layers
+//   - db (Database)
+//   - and finally an sdk to interact with SDS.
+//
+// Core services are:
+//   - Static to keep the smartcontracts, their abi and topic
+//   - Blockchain to connect to the remote blockchain nodes in a smart way
+//   - Categorizer to decode the event logs and make sure users can interact with them over SDK.
+//
+// For detailed documentation visit:
+// https://github.com/blocklords/sds
+//
+// The security layers include two parts:
+//   - credentials to enable authentication in the sockets
+//   - vault to interact with the remote vault
+//
+// The database engine that SDS is using is Mysql.
 package main
 
 import (
