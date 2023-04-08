@@ -9,6 +9,19 @@ import (
 	"github.com/blocklords/sds/security/vault"
 )
 
+// The vault bucket name where we keep the service's curve private keys.
+const BUCKET string = "SDS_SERVICES"
+
+// Returns the Vault secret path for the service private key.
+func vault_path(name service.ServiceType) string {
+	return name.ToString() + "_SECRET_KEY"
+}
+
+// Returns the Vault secret path for the broadcast service private key.
+func vault_broadcast_path(name service.ServiceType) string {
+	return name.ToString() + "_BROADCAST_SECRET_KEY"
+}
+
 // Gets the credentials for the service type
 func ServiceCredentials(service_type service.ServiceType, limit service.Limit, app_config *configuration.Config) (*credentials.Credentials, error) {
 	name := string(service_type)
@@ -22,9 +35,9 @@ func ServiceCredentials(service_type service.ServiceType, limit service.Limit, a
 		}
 		return credentials.New(public_key), nil
 	case service.THIS:
-		bucket, key_name := service_type.SecretKeyPath()
+		key_name := vault_path(service_type)
 
-		creds, err := vault.GetCredentials(bucket, key_name)
+		creds, err := vault.GetCredentials(BUCKET, key_name)
 		if err != nil {
 			return nil, fmt.Errorf("vault.GetString for %s service secret key: %w", name, err)
 		}
@@ -37,9 +50,9 @@ func ServiceCredentials(service_type service.ServiceType, limit service.Limit, a
 
 		return credentials.New(app_config.GetString(broadcast_public_key)), nil
 	case service.BROADCAST:
-		bucket, key_name := service_type.BroadcastSecretKeyPath()
+		key_name := vault_broadcast_path(service_type)
 
-		creds, err := vault.GetCredentials(bucket, key_name)
+		creds, err := vault.GetCredentials(BUCKET, key_name)
 		if err != nil {
 			return nil, fmt.Errorf("vault.GetString for %s service secret key: %w", name, err)
 		}

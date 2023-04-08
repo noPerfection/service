@@ -17,22 +17,11 @@ const (
 	WRITER            ServiceType = "WRITER"            // The service sends the transaction to the blockchain via blockchain service.
 	BUNDLE            ServiceType = "BUNDLE"            // The service turns all transactions into one and then sends them to WRITER service.
 
-	BUCKET string = "SDS_SERVICES" // Vault parameter
 )
 
 // Returns the string represantion of the service type
 func (s ServiceType) ToString() string {
 	return string(s)
-}
-
-// Returns the Vault secret storage and the key for curve private part.
-func (name ServiceType) SecretKeyPath() (string, string) {
-	return BUCKET, name.ToString() + "_SECRET_KEY"
-}
-
-// Returns the Vault secret path and the key for curve private part for broadcaster.
-func (name ServiceType) BroadcastSecretKeyPath() (string, string) {
-	return BUCKET, name.ToString() + "_BROADCAST_SECRET_KEY"
 }
 
 func (s ServiceType) valid() error {
