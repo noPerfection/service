@@ -6,6 +6,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
+// Unmarshelled variant of SDS_BLOCKCHAIN_NETWORKS configuration
 type Networks []*Network
 
 // Whether the network with network_id exists in the networks list
@@ -19,7 +20,7 @@ func (networks Networks) Exist(network_id string) bool {
 	return false
 }
 
-// parses list of JSON objects into the list of Networks
+// NewNetworks parses the list of JSON objects into the list of Network
 func NewNetworks(raw_networks []key_value.KeyValue) (Networks, error) {
 	networks := make(Networks, 0)
 

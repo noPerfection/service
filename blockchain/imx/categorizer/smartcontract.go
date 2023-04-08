@@ -1,5 +1,13 @@
-// imx smartcontract cateogirzer
-// for documentation see:
+// Package categorizer is the sub serice for ImmutableX (in short 'imx') blockchain
+// that decodes the smartcontracts on the immutable x.
+//
+// The 'imx' categorizer supports NFT and ERC20 tokens only.
+//
+// The imx categorizer categorizes the following types:
+//   - transfer
+//   - mint
+//
+// For reference documentation see:
 // https://github.com/immutable/imx-core-sdk-golang/blob/6541766b54733580889f5051653d82f077c2aa17/imx/api/docs/TransfersApi.md#ListTransfers
 // https://github.com/immutable/imx-core-sdk-golang/blob/6541766b54733580889f5051653d82f077c2aa17/imx/api/docs/MintsApi.md#listmints
 package categorizer

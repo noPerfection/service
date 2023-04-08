@@ -10,10 +10,11 @@ type NetworkType string
 
 const (
 	ALL NetworkType = "all" // any blockchain
-	EVM NetworkType = "evm" // with EVM
-	IMX NetworkType = "imx" // without EVM, it's an L2
+	EVM NetworkType = "evm" // EVM based blockchains
+	IMX NetworkType = "imx" // IMX based blockchains
 )
 
+// NewNetworkType from given string
 func NewNetworkType(network_type string) (NetworkType, error) {
 	new_type := NetworkType(network_type)
 	if !new_type.valid() {
@@ -28,6 +29,7 @@ func (network_type NetworkType) valid() bool {
 	return network_type == ALL || network_type == EVM || network_type == IMX
 }
 
+// String format of NetworkType
 func (network_type NetworkType) String() string {
 	return string(network_type)
 }

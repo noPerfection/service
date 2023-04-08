@@ -1,4 +1,3 @@
-// Categorize ImmutableX (https://x.immutable.com/) blockchain data
 package imx
 
 import (
@@ -7,14 +6,20 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 )
 
+// REQUEST_PER_SECOND is the configuration name that defines how many requests
+// SDS can do to the remote RPC.
 const REQUEST_PER_SECOND = "SDS_IMX_REQUEST_PER_SECOND"
+
+// Network ID, imx network can have one network only.
 const NETWORK_ID = "imx"
+
+// PAGE_SIZE defines how many event logs we retreive from imx for categorization
 const PAGE_SIZE = int32(50)
 
 // /////////////////////////////////////////////////////////////////////////////////
-// Checks whetehr the immutable environment variables set
+// ValidateEnv validates the validness of the configurations.
 //
-//	the request_per_second environment variable is given or not
+//	SDS_IMX_REQUEST_PER_SECOND // environment variable is given or not
 //
 // If the imx network is supported.
 func ValidateEnv(app_config *configuration.Config) error {

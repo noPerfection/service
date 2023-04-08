@@ -1,4 +1,3 @@
-/*Spaghetti transaction without method name and without clear input parameters*/
 package transaction
 
 import (
@@ -9,8 +8,9 @@ import (
 	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
-// Blockchain agnostic transaction
-// The transaction information
+// RawTransaction is the blockchain agnostic transaction.
+//
+// # The transaction information
 //
 // The SmartcontractKey field keeps the
 // network id where this transaction occured

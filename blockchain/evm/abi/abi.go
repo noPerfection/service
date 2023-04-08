@@ -1,5 +1,4 @@
-// Package abi is the wrapper over the static.Abi
-// binded with the ethereum abi engine.
+// Package abi creates the ethereum ABI from [static/abi.Abi]
 package abi
 
 import (
@@ -66,6 +65,8 @@ func (a *Abi) get_events(event_id string) []abi.Event {
 }
 
 // Parse the data and indexed data (topics) to key-value
+//
+// To understand the event data and event topics refer to the Ethereum documentation.
 func (a *Abi) DecodeLog(topics []string, data string) (string, map[string]interface{}, error) {
 	if len(topics) == 0 {
 		return "", nil, fmt.Errorf("anonymous events are not supported")

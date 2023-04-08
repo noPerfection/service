@@ -1,7 +1,3 @@
-// The network package is used to get the blockchain network information.
-// The storage.go file loads the network parameters from application environment.
-//
-// IMPORTANT! networks are not stored in the database! On environment variables only
 package network
 
 import (
@@ -14,10 +10,11 @@ import (
 )
 
 const (
+	// Configuration name that handles the list of [network.Networks]
 	SDS_BLOCKCHAIN_NETWORKS = "SDS_BLOCKCHAIN_NETWORKS"
 )
 
-// Returns list of the blockchain networks
+// Returns list of the blockchain networks from configuration
 func GetNetworks(network_config *configuration.Config, network_type NetworkType) (Networks, error) {
 	if !network_config.Exist(SDS_BLOCKCHAIN_NETWORKS) {
 		return nil, fmt.Errorf("missing '%s' in the configuration, atleast call config.SetDefault(network.SDS_BLOCKCHAIN_NETWORKS, network.DefaultConfiguration())", SDS_BLOCKCHAIN_NETWORKS)
@@ -54,7 +51,7 @@ func GetNetworks(network_config *configuration.Config, network_type NetworkType)
 	return networks, nil
 }
 
-// Returns list of support network IDs
+// Returns list of support network IDs from configuration
 func GetNetworkIds(network_config *configuration.Config, network_type NetworkType) ([]string, error) {
 	networks, err := GetNetworks(network_config, network_type)
 	if err != nil {

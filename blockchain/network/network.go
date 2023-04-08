@@ -1,4 +1,3 @@
-// The network package is used to get the blockchain network information.
 package network
 
 import (
@@ -7,6 +6,7 @@ import (
 	"github.com/blocklords/sds/blockchain/network/provider"
 )
 
+// Network is the indetical to the element of SDS_BLOCKCHAIN_NETWORKS configuration
 type Network struct {
 	Id        string              `json:"id"`
 	Providers []provider.Provider `json:"providers"`

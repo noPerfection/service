@@ -1,3 +1,7 @@
+// The network package is used to get the blockchain network information.
+// The storage.go file loads the network parameters from application environment.
+//
+// IMPORTANT! networks are not stored in the database! On environment variables only
 package network
 
 // Returns the default configuration for the service

@@ -1,3 +1,7 @@
+// Package client creates the RPC client that is connected to the 'imx' rpc node.
+//
+// To interact with the imx don't connect to the [client.Client] directly.
+// Use [github.com/blocklords/sds/blockchain/imx/worker.Manager]
 package client
 
 import (
@@ -21,14 +25,14 @@ import (
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
 )
 
+// Client is the wrapper around imx RPC client.
 type Client struct {
 	client  *imx_api.APIClient
 	ctx     context.Context
 	Network *network.Network
 }
 
-// Create a network client connected to the blockchain based on a Static parameters
-// Static parameters include the node url
+// New client based on the network
 func New(network *network.Network) *Client {
 	configuration := imx_api.NewConfiguration()
 	client := imx_api.NewAPIClient(configuration)
@@ -41,7 +45,7 @@ func New(network *network.Network) *Client {
 	}
 }
 
-// Returns list of transfers
+// GetSmartcontractTransferLogs returns the list of transfers event logs for the given smartcontract address
 func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]event.RawLog, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE
@@ -154,6 +158,7 @@ func (client *Client) GetSmartcontractTransferLogs(address string, sleep time.Du
 	return logs, nil
 }
 
+// GetSmartcontractMintLogs returns the list of mint event logs for the given smartcontract address
 func (client *Client) GetSmartcontractMintLogs(address string, sleep time.Duration, timestamp string, timestamp_to string) ([]event.RawLog, error) {
 	status := "success"
 	pageSize := imx.PAGE_SIZE

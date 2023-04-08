@@ -1,6 +1,9 @@
 package provider
 
 const (
+	// PROVIDER_MAX_LENGTH defines the limit.
+	// When the provider is set in the configuration the "length" parameter
+	// value should not exceed this limit
 	PROVIDER_MAX_LENGTH uint64 = 10_000
 )
 

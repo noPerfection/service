@@ -1,3 +1,7 @@
+// Package worker creates a sub service that is connected to the imx network node.
+//
+// It creates the reply controller that is connected by other SDS services in order to interact
+// with imx network node.
 package worker
 
 import (
@@ -18,8 +22,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-// the global variables that we pass between functions in this worker.
-// the functions are recursive.
+// Manager of the imx rpc nodes.
 type Manager struct {
 	client             *client.Client
 	logger             log.Logger
@@ -27,7 +30,7 @@ type Manager struct {
 	request_amount     uint64 // concurrent running requests
 }
 
-// A new Manager
+// New manager of imx clients with a one client only.
 func New(app_config *configuration.Config, client *client.Client, logger log.Logger) *Manager {
 	return &Manager{
 		client:             client,
@@ -37,7 +40,7 @@ func New(app_config *configuration.Config, client *client.Client, logger log.Log
 	}
 }
 
-// Sets up the socket to interact with the clients
+// SetupSocket runs the reply controller of the imx client manager.
 func (worker *Manager) SetupSocket() {
 	url := blockchain_proc.ClientEndpoint(worker.client.Network.Id)
 	service, err := service.InprocessFromUrl(url)

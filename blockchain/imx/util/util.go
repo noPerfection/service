@@ -1,3 +1,4 @@
+// Package util defines the additional functions specific for imx network
 package util
 
 import (
@@ -8,7 +9,7 @@ import (
 	imx_api "github.com/immutable/imx-core-sdk-golang/imx/api"
 )
 
-// converts the transfer value parameter from big int to float
+// Erc20Amount converts the transfer value parameter from big.Int to float64
 func Erc20Amount(transaction_data *imx_api.TokenData) (float64, error) {
 	value := 0.0
 	quantity := new(big.Int)

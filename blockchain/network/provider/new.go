@@ -1,3 +1,4 @@
+// Package provider is the wrapper of the provider object of network in the configuration
 package provider
 
 import (
@@ -7,7 +8,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-// parses JSON object into the Network Type
+// New provider from the json
 func New(data key_value.KeyValue) (Provider, error) {
 	var provider Provider
 	err := data.ToInterface(&provider)
@@ -37,7 +38,7 @@ func New(data key_value.KeyValue) (Provider, error) {
 	return provider, nil
 }
 
-// Create the list of providers from the given key value list
+// NewList of providers from list of json objects
 func NewList(datas []key_value.KeyValue) ([]Provider, error) {
 	providers := make([]Provider, len(datas))
 

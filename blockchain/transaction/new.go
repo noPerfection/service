@@ -1,3 +1,4 @@
+// Package transaction defines the blockchain agnostic transaction
 package transaction
 
 import (

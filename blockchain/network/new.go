@@ -7,7 +7,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-// parses JSON object into the Network Type
+// New Network from the key value object
 func New(raw key_value.KeyValue) (*Network, error) {
 	id, err := raw.GetString("id")
 	if err != nil {
