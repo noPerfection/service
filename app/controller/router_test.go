@@ -28,7 +28,7 @@ type TestRouterSuite struct {
 	tcp_client     *remote.Socket
 	logger         log.Logger
 
-	commands []command.Command
+	commands []command.CommandName
 }
 
 // Todo test inprocess and external types of controllers
@@ -121,7 +121,7 @@ func (suite *TestRouterSuite) SetupTest() {
 	categorizer_handlers := command.EmptyHandlers().
 		Add(command_2, command_2_handler)
 
-	suite.commands = []command.Command{
+	suite.commands = []command.CommandName{
 		command_1, command_2,
 	}
 

@@ -12,21 +12,21 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-type Command string
+type CommandName string
 
-func (c Command) String() string {
+func (c CommandName) String() string {
 	return string(c)
 }
 
-func New(value string) Command {
-	return Command(value)
+func New(value string) CommandName {
+	return CommandName(value)
 }
 
 // Makes a remote request with the @request parameters
 // And then returns the @reply.
 //
 // Both request and reply are the message parameters.
-func (command Command) Request(socket *remote.Socket, request interface{}, reply interface{}) error {
+func (command CommandName) Request(socket *remote.Socket, request interface{}, reply interface{}) error {
 	_, ok := request.(message.Request)
 	if ok {
 		return fmt.Errorf("the request can not be of message.Request type")
@@ -68,7 +68,7 @@ func (command Command) Request(socket *remote.Socket, request interface{}, reply
 // And then returns the @reply.
 //
 // Both request and reply are the message parameters.
-func (command Command) Push(socket *zmq.Socket, request interface{}) error {
+func (command CommandName) Push(socket *zmq.Socket, request interface{}) error {
 	socket_type, err := socket.GetType()
 	if err != nil {
 		return fmt.Errorf("socket.GetType: %w", err)
@@ -112,7 +112,7 @@ func (command Command) Push(socket *zmq.Socket, request interface{}) error {
 	return nil
 }
 
-func (command Command) RequestRouter(socket *remote.Socket, service_type service.ServiceType, request interface{}, reply interface{}) error {
+func (command CommandName) RequestRouter(socket *remote.Socket, service_type service.ServiceType, request interface{}, reply interface{}) error {
 	_, ok := request.(message.Request)
 	if ok {
 		return fmt.Errorf("the request can not be of message.Request type")

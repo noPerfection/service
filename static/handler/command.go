@@ -6,21 +6,21 @@ import (
 
 const (
 	// Direct
-	GET_ABI command.Command = "abi_get"
+	GET_ABI command.CommandName = "abi_get"
 	// Through the router
-	SET_ABI command.Command = "abi_set"
+	SET_ABI command.CommandName = "abi_set"
 	// Through the router
-	GET_CONFIGURATION command.Command = "configuration_get"
+	GET_CONFIGURATION command.CommandName = "configuration_get"
 	// Through the router
-	SET_CONFIGURATION command.Command = "configuration_set"
+	SET_CONFIGURATION command.CommandName = "configuration_set"
 	// Direct
-	FILTER_SMARTCONTRACTS command.Command = "smartcontract_filter"
+	FILTER_SMARTCONTRACTS command.CommandName = "smartcontract_filter"
 	// Through the router
-	FILTER_SMARTCONTRACT_KEYS command.Command = "smartcontract_key_filter"
+	FILTER_SMARTCONTRACT_KEYS command.CommandName = "smartcontract_key_filter"
 	// Through the router
-	SET_SMARTCONTRACT command.Command = "smartcontract_set"
+	SET_SMARTCONTRACT command.CommandName = "smartcontract_set"
 	// Direct
-	GET_SMARTCONTRACT command.Command = "smartcontract_get"
+	GET_SMARTCONTRACT command.CommandName = "smartcontract_get"
 )
 
 // Return list of all commands and their handlers

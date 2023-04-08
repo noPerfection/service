@@ -12,7 +12,7 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-const GET_STRING command.Command = "get-string"
+const GET_STRING command.CommandName = "get-string"
 
 func VaultEndpoint() string {
 	return "inproc://sds_vault"

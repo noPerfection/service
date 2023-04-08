@@ -6,16 +6,16 @@ import (
 
 const (
 	// Through the router
-	SNAPSHOT command.Command = "snapshot_get"
+	SNAPSHOT command.CommandName = "snapshot_get"
 	// Direct
-	GET_SMARTCONTRACTS command.Command = "smartcontract_get_all"
+	GET_SMARTCONTRACTS command.CommandName = "smartcontract_get_all"
 	// Direct
-	GET_SMARTCONTRACT command.Command = "smartcontract_get"
+	GET_SMARTCONTRACT command.CommandName = "smartcontract_get"
 	// Through the router
-	SET_SMARTCONTRACT command.Command = "smartcontract_set"
+	SET_SMARTCONTRACT command.CommandName = "smartcontract_set"
 	// Internal from SDS Blockchain service to SDS Categorizer
 	// Indicates that the list of smartcontracts are categorized
-	CATEGORIZATION command.Command = "categorize"
+	CATEGORIZATION command.CommandName = "categorize"
 )
 
 // Return the list of command handlers for this service

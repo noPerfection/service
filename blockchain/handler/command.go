@@ -6,17 +6,17 @@ import (
 
 const (
 	// The command executed by the blockchain/network manager
-	FILTER_LOG_COMMAND command.Command = "log-filter"
+	FILTER_LOG_COMMAND command.CommandName = "log-filter"
 	// The command executed by the blockchain/network manager
-	TRANSACTION_COMMAND command.Command = "transaction"
+	TRANSACTION_COMMAND command.CommandName = "transaction"
 	// The command executed by the blockchain manager
-	DEPLOYED_TRANSACTION_COMMAND command.Command = "transaction_deployed_get"
+	DEPLOYED_TRANSACTION_COMMAND command.CommandName = "transaction_deployed_get"
 	// The command executed by the blockchain manager
-	NETWORK_IDS_COMMAND command.Command = "network_id_get_all"
+	NETWORK_IDS_COMMAND command.CommandName = "network_id_get_all"
 	// The command executed by the blockchain manager
-	NETWORKS_COMMAND command.Command = "network_get_all"
+	NETWORKS_COMMAND command.CommandName = "network_get_all"
 	// The command executed by the blockchain manager
-	NETWORK_COMMAND command.Command = "network_get"
+	NETWORK_COMMAND command.CommandName = "network_get"
 	// Internal blockchain package's.
 	// Its only for EVM blockchains.
 	//
@@ -26,7 +26,7 @@ const (
 	//     from blockchain client.
 	//  2. evm/categorizer/recent uses it to push new recent block number
 	//     to old categorizer and categorizer manager.
-	RECENT_BLOCK_NUMBER command.Command = "recent-block-number"
+	RECENT_BLOCK_NUMBER command.CommandName = "recent-block-number"
 	// Internal from SDS Categorizer service to SDS Blockchain service
-	NEW_CATEGORIZED_SMARTCONTRACTS command.Command = "new-smartcontracts"
+	NEW_CATEGORIZED_SMARTCONTRACTS command.CommandName = "new-smartcontracts"
 )

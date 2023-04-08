@@ -8,19 +8,19 @@ import (
 type HandleFunc = func(message.Request, log.Logger, ...interface{}) message.Reply
 
 // command name => function
-type Handlers map[Command]HandleFunc
+type Handlers map[CommandName]HandleFunc
 
 func EmptyHandlers() Handlers {
 	return Handlers{}
 }
 
 // Check does command handler exist
-func (c Handlers) Exist(command Command) bool {
+func (c Handlers) Exist(command CommandName) bool {
 	_, ok := c[command]
 	return ok
 }
 
-func (c Handlers) Add(command Command, handler HandleFunc) Handlers {
+func (c Handlers) Add(command CommandName, handler HandleFunc) Handlers {
 	c[command] = handler
 	return c
 }

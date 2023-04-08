@@ -50,7 +50,7 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-const NEW_MESSAGE command.Command = "new-message"
+const NEW_MESSAGE command.CommandName = "new-message"
 
 // Broadcast socket and the service for which the publisher was created
 type Broadcast struct {

@@ -24,7 +24,7 @@ type TestReplyControllerSuite struct {
 	inproc_controller *Controller
 	tcp_client        *remote.Socket
 	inproc_client     *remote.Socket
-	commands          []command.Command
+	commands          []command.CommandName
 }
 
 // Todo test inprocess and external types of controllers
@@ -87,7 +87,7 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 		Add(command_1, command_1_handler).
 		Add(command_2, command_2_handler)
 
-	suite.commands = []command.Command{
+	suite.commands = []command.CommandName{
 		command_1, command_2,
 	}
 
