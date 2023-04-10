@@ -67,7 +67,7 @@ func (command CommandName) Request(socket *remote.ClientSocket, request interfac
 
 	request_parameters, err := key_value.NewFromInterface(request)
 	if err != nil {
-		return fmt.Errorf("conver parameters to: %w", err)
+		return fmt.Errorf("convert parameters to: %w", err)
 	}
 
 	request_message := message.Request{
@@ -118,7 +118,7 @@ func (command CommandName) Push(socket *zmq.Socket, request interface{}) error {
 	var mu sync.Mutex
 	request_parameters, err := key_value.NewFromInterface(request)
 	if err != nil {
-		return fmt.Errorf("conver parameters to: %w", err)
+		return fmt.Errorf("convert parameters to: %w", err)
 	}
 
 	request_message := message.Request{
@@ -182,7 +182,7 @@ func (command CommandName) RequestRouter(socket *remote.ClientSocket, service_ty
 
 	request_parameters, err := key_value.NewFromInterface(request)
 	if err != nil {
-		return fmt.Errorf("conver parameters to: %w", err)
+		return fmt.Errorf("convert parameters to: %w", err)
 	}
 
 	request_message := message.Request{
