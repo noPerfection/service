@@ -17,6 +17,11 @@ const (
 	WRITER            ServiceType = "WRITER"            // The service sends the transaction to the blockchain via blockchain service.
 	BUNDLE            ServiceType = "BUNDLE"            // The service turns all transactions into one and then sends them to WRITER service.
 
+	// The services to be used within application.
+	// Don't call them on TCP protocol.
+	DATABASE ServiceType = "DATABASE" // The service of database operations. Intended to be on inproc protocol.
+	SECURITY ServiceType = "SECURITY" // The service of authentication and vault starter. Intended to be on inproc protocol.
+	VAULT    ServiceType = "VAULT"    // The service of
 )
 
 // Returns the string represantion of the service type
@@ -35,7 +40,16 @@ func (s ServiceType) valid() error {
 	return fmt.Errorf("the '%s' service type not registered", s.ToString())
 }
 
-// Returns all registered services
+// Returns the services that are available for use within application only
+func inproc_service_types() []ServiceType {
+	return []ServiceType{
+		DATABASE,
+		SECURITY,
+		VAULT,
+	}
+}
+
+// Returns all registered services for TCP connection
 func service_types() []ServiceType {
 	return []ServiceType{
 		CORE,
