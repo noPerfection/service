@@ -66,12 +66,12 @@ import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/service"
-	service_credentials "github.com/blocklords/sds/app/service/credentials"
+	service_credentials "github.com/blocklords/sds/app/service/auth"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/sdk/reader"
 	"github.com/blocklords/sds/sdk/subscriber"
 	"github.com/blocklords/sds/sdk/writer"
-	"github.com/blocklords/sds/security/credentials"
+	"github.com/blocklords/sds/security/auth"
 	"github.com/blocklords/sds/security/vault"
 )
 
@@ -147,7 +147,7 @@ func (sdk *Sdk) NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subsc
 		return nil, err
 	}
 
-	var creds *credentials.Credentials
+	var creds *auth.Credentials
 	if !sdk.config.Plain {
 		creds, err = developer_credentials()
 		if err != nil {
@@ -159,7 +159,7 @@ func (sdk *Sdk) NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subsc
 		}
 
 		public_key := sdk.config.GetString("SDS_PUBLIC_KEY")
-		creds = credentials.New(public_key)
+		creds = auth.New(public_key)
 	}
 
 	return subscriber.NewSubscriber(&topic_filter, creds, e, sdk.logger, sdk.config)
@@ -201,7 +201,7 @@ func NewSdk() (*Sdk, error) {
 	}, nil
 }
 
-func developer_credentials() (*credentials.Credentials, error) {
+func developer_credentials() (*auth.Credentials, error) {
 	creds, err := vault.GetCredentials("SDS", "DEVELOPER_SECRET_KEY")
 	if err != nil {
 		return nil, err

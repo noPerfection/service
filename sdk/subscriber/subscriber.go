@@ -17,16 +17,16 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
-	service_credentials "github.com/blocklords/sds/app/service/credentials"
+	service_credentials "github.com/blocklords/sds/app/service/auth"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
-	"github.com/blocklords/sds/security/credentials"
+	"github.com/blocklords/sds/security/auth"
 )
 
 type Subscriber struct {
 	topic_filter *topic.TopicFilter
-	credentials  *credentials.Credentials
+	credentials  *auth.Credentials
 	gateway      *service.Service
 	logger       log.Logger
 	config       *configuration.Config
@@ -35,7 +35,7 @@ type Subscriber struct {
 }
 
 // Create a new subscriber for a given user and his topic filter.
-func NewSubscriber(topic_filter *topic.TopicFilter, creds *credentials.Credentials, gateway *service.Service, logger log.Logger, config *configuration.Config) (*Subscriber, error) {
+func NewSubscriber(topic_filter *topic.TopicFilter, creds *auth.Credentials, gateway *service.Service, logger log.Logger, config *configuration.Config) (*Subscriber, error) {
 	subscriber := Subscriber{
 		topic_filter: topic_filter,
 		credentials:  creds,

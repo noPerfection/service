@@ -1,6 +1,11 @@
-// Package credentials defines the CURVE public/private key
-// used for authentication in the sockets.
-package credentials
+// Package auth defines the CURVE public/private key
+// used for authentication of socket interaction.
+//
+// If the sockets are exchanging messages in TCP protocol on the production
+// environment, then advised to use this authentication.
+//
+// For inproc protocol, the authentication is not needed.
+package auth
 
 import (
 	"fmt"

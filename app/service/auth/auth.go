@@ -1,6 +1,6 @@
-// Package credentials defines the functions that prepares the curve key pair
-// for the service.
-package credentials
+// Package auth defines the functions that get's the CURVE key pair of the service
+// for authentication
+package auth
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/blocklords/sds/app/service"
 
 	// move out dependency from security/credentials and security/vault
-	"github.com/blocklords/sds/security/credentials"
+	"github.com/blocklords/sds/security/auth"
 	"github.com/blocklords/sds/security/vault"
 )
 
@@ -27,7 +27,7 @@ func vault_broadcast_path(name service.ServiceType) string {
 }
 
 // Gets the credentials for the service type
-func ServiceCredentials(service_type service.ServiceType, limit service.Limit, app_config *configuration.Config) (*credentials.Credentials, error) {
+func ServiceCredentials(service_type service.ServiceType, limit service.Limit, app_config *configuration.Config) (*auth.Credentials, error) {
 	name := string(service_type)
 	public_key := name + "_PUBLIC_KEY"
 	broadcast_public_key := name + "_BROADCAST_PUBLIC_KEY"
@@ -37,7 +37,7 @@ func ServiceCredentials(service_type service.ServiceType, limit service.Limit, a
 		if !app_config.Exist(public_key) {
 			return nil, fmt.Errorf("security enabled, but missing %s", name)
 		}
-		return credentials.New(public_key), nil
+		return auth.New(public_key), nil
 	case service.THIS:
 		key_name := vault_path(service_type)
 
@@ -52,7 +52,7 @@ func ServiceCredentials(service_type service.ServiceType, limit service.Limit, a
 			return nil, fmt.Errorf("security enabled, but missing %s", name)
 		}
 
-		return credentials.New(app_config.GetString(broadcast_public_key)), nil
+		return auth.New(app_config.GetString(broadcast_public_key)), nil
 	case service.BROADCAST:
 		key_name := vault_broadcast_path(service_type)
 

@@ -12,7 +12,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 
 	// move out dependency from security/credentials
-	"github.com/blocklords/sds/security/credentials"
+	"github.com/blocklords/sds/security/auth"
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -22,7 +22,7 @@ type ClientSocket struct {
 	// The name of remote SDS service and its URL
 	// its used as a clarification
 	remote_service     *service.Service
-	client_credentials *credentials.Credentials
+	client_credentials *auth.Credentials
 	server_public_key  string
 	poller             *zmq.Poller
 	socket             *zmq.Socket
@@ -325,7 +325,7 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 }
 
 // SetSecurity will set the curve credentials in the socket to authenticate with the remote service.
-func (socket *ClientSocket) SetSecurity(server_public_key string, client *credentials.Credentials) *ClientSocket {
+func (socket *ClientSocket) SetSecurity(server_public_key string, client *auth.Credentials) *ClientSocket {
 	socket.server_public_key = server_public_key
 	socket.client_credentials = client
 
@@ -408,7 +408,7 @@ func InprocRequestSocket(url string, parent log.Logger, app_config *configuratio
 
 // NewTcpSubscriber create a new client socket on TCP protocol.
 // The created client can subscribe to broadcast.Broadcast
-func NewTcpSubscriber(e *service.Service, server_public_key string, client *credentials.Credentials, parent log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
+func NewTcpSubscriber(e *service.Service, server_public_key string, client *auth.Credentials, parent log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
 	if app_config == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}

@@ -43,7 +43,7 @@ import (
 	"github.com/blocklords/sds/app/service"
 
 	// remove the dependency on security/credentials
-	"github.com/blocklords/sds/security/credentials"
+	"github.com/blocklords/sds/security/auth"
 
 	"github.com/blocklords/sds/app/remote/message"
 
@@ -94,7 +94,7 @@ func AddWhitelistedAccounts(s *service.Service, public_keys []string) {
 
 // Security: Set the CURVE private key for this broadcast.
 // Run this function before you call broadcast.Run()
-func (c *Broadcast) SetPrivateKey(service_credentials *credentials.Credentials) error {
+func (c *Broadcast) SetPrivateKey(service_credentials *auth.Credentials) error {
 	err := service_credentials.SetSocketAuthCurve(c.socket, broadcast_domain(c.service))
 	if err != nil {
 		return fmt.Errorf("socket.ServerAuthCurve: %w", err)
