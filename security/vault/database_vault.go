@@ -48,16 +48,16 @@ func NewDatabase(vault *Vault) (*DatabaseVault, error) {
 }
 
 // GetDatabaseCredentials retrieves a new set of temporary database credentials
-func (v *DatabaseVault) GetDatabaseCredentials() (db.DatabaseCredentials, error) {
+func (v *Vault) get_db_credentials() (db.DatabaseCredentials, error) {
 	v.logger.Info("getting temporary database credentials from vault: begin")
 
-	request_timeout := parameter.RequestTimeout(v.vault.GetConfig())
+	request_timeout := parameter.RequestTimeout(v.app_config)
 
 	ctx := context.TODO()
 	login_ctx, cancel := context.WithTimeout(ctx, request_timeout)
 	defer cancel()
 
-	lease, err := v.vault.client.Logical().ReadWithContext(login_ctx, v.database_path)
+	lease, err := v.client.Logical().ReadWithContext(login_ctx, v.database_vault.database_path)
 	if err != nil {
 		return db.DatabaseCredentials{}, fmt.Errorf("unable to read secret: %w", err)
 	}
@@ -75,7 +75,7 @@ func (v *DatabaseVault) GetDatabaseCredentials() (db.DatabaseCredentials, error)
 
 	v.logger.Info("getting temporary database credentials from vault: success!")
 
-	v.database_auth_token = lease
+	v.database_vault.database_auth_token = lease
 
 	// raw secret is included to renew database credentials
 	return credentials, nil
