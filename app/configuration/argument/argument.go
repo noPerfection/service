@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	PLAIN     = "plain"     // Switch off the authentication and encryption for SDS Service
+	SECURE    = "secure"    // If passed, then TCP sockets will require authentication. Default is false
 	BROADCAST = "broadcast" // runs only broadcaster
 	REPLY     = "reply"     // runs only request-reply server
 

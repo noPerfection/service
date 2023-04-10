@@ -50,7 +50,7 @@ import (
 func main() {
 	logger, err := log.New("sds-core", log.WITH_TIMESTAMP)
 	if err != nil {
-		panic(err)
+		logger.Fatal("log.New(`sds-core`)", "error", err)
 	}
 
 	app_config, err := configuration.NewAppConfig(logger)
@@ -69,7 +69,7 @@ func main() {
 	// Prepare the security layer if plain wasn't given
 	logger.Info("Setting up Vault connection and authentication layer...")
 	var vault_database *vault.DatabaseVault
-	if !app_config.Plain {
+	if app_config.Secure {
 		app_config.SetDefaults(vault.VaultConfigurations)
 		v, err := vault.New(logger, app_config)
 		if err != nil {
@@ -99,7 +99,7 @@ func main() {
 	if err != nil {
 		logger.Fatal("database error", "message", err)
 	}
-	if !app_config.Plain {
+	if app_config.Secure {
 		go vault_database.PeriodicallyRenewLeases(database.Reconnect)
 	}
 
@@ -126,7 +126,7 @@ func main() {
 	}
 
 	// todo add SetSecurity for router
-	// if !app_config.Plain {
+	// if app_config.Secure {
 	// 	creds, err := service_credentials.ServiceCredentials(service.CORE, service.THIS, app_config)
 	// 	if err != nil {
 	// 		logger.Fatal("controller new router", "error", err)

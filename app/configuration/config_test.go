@@ -52,7 +52,7 @@ func (suite *TestEnvSuite) SetupTest() {
 // All methods that begin with "Test" are run as tests within a
 // suite.
 func (suite *TestEnvSuite) TestRun() {
-	suite.Require().True(suite.app_config.Plain)
+	suite.Require().False(suite.app_config.Secure)
 	suite.Require().True(suite.app_config.DebugSecurity)
 	suite.Require().NotNil(suite.app_config.logger)
 

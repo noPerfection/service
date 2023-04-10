@@ -148,7 +148,7 @@ func (sdk *Sdk) NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subsc
 	}
 
 	var creds *auth.Credentials
-	if !sdk.config.Plain {
+	if sdk.config.Secure {
 		creds, err = developer_credentials()
 		if err != nil {
 			return nil, fmt.Errorf("developer_credentials: %w", err)
@@ -170,7 +170,7 @@ func (sdk *Sdk) NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subsc
 func (sdk *Sdk) gateway_service() (*service.Service, error) {
 	var serv *service.Service
 	var err error
-	if !sdk.config.Plain {
+	if sdk.config.Secure {
 		serv, err = service.NewExternal(service.GATEWAY, service.REMOTE, sdk.config)
 		if err != nil {
 			return nil, fmt.Errorf("service.NewSecure: %w", err)

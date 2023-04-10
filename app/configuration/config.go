@@ -19,7 +19,7 @@ import (
 type Config struct {
 	viper *viper.Viper // used to keep default values
 
-	Plain         bool        // Passed as --plain command line argument. If its passed then authentication is switched off.
+	Secure        bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
 	DebugSecurity bool        // Passed as --debug-security command line argument. If true then app prints the security logs.
 	logger        *log.Logger // debug purpose only
 }
@@ -37,13 +37,13 @@ func NewAppConfig(logger log.Logger) (*Config, error) {
 	arguments := argument.GetArguments(&config_logger)
 
 	conf := Config{
-		Plain:         argument.Has(arguments, argument.PLAIN),
+		Secure:        argument.Has(arguments, argument.SECURE),
 		DebugSecurity: argument.Has(arguments, argument.SECURITY_DEBUG),
 		logger:        &config_logger,
 	}
 
 	config_logger.Info("Supported application arguments:")
-	config_logger.Info("--"+argument.PLAIN, "to switch off security. Enabled", conf.Plain)
+	config_logger.Info("--"+argument.SECURE, "to enable authentication of TCP sockets. Enabled", conf.Secure)
 	config_logger.Info("--"+argument.SECURITY_DEBUG, "to hide security debug. Enabled", conf.DebugSecurity)
 
 	// First we load the environment variables
