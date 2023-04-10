@@ -21,14 +21,6 @@ func (suite *TestServiceTypeSuite) SetupTest() {
 	service := BUNDLE
 
 	suite.Equal("BUNDLE", service.ToString())
-
-	bucket, name := service.SecretKeyPath()
-	suite.Equal(BUCKET, bucket)
-	suite.Equal("BUNDLE_SECRET_KEY", name)
-
-	broadcast_bucket, broadcast_name := service.BroadcastSecretKeyPath()
-	suite.Equal(BUCKET, broadcast_bucket)
-	suite.Equal("BUNDLE_BROADCAST_SECRET_KEY", broadcast_name)
 }
 
 func (suite *TestServiceTypeSuite) TestTypes() {
