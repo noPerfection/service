@@ -43,11 +43,8 @@ func Run(app_config *configuration.Config, parent log.Logger) {
 			parameters:      *database_parameters,
 			logger:          logger,
 		}
-		// todo get credentials from vault
+		// vault will push the credentials here
 		database.run_puller()
-		// if app_config.Secure {
-		// go vault_database.PeriodicallyRenewLeases(database.Reconnect)
-		// }
 	} else {
 		database_credentials := GetDefaultCredentials(app_config)
 		database, err = Open(logger, database_parameters, database_credentials)
