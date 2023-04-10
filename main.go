@@ -29,7 +29,6 @@ import (
 	"github.com/blocklords/sds/categorizer"
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/security"
-	"github.com/blocklords/sds/security/vault"
 	"github.com/blocklords/sds/static"
 )
 
@@ -58,54 +57,14 @@ func main() {
 		logger.Fatal("configuration.NewAppConfig", "error", err)
 	}
 
-	// Prepare the parameters of database
-	app_config.SetDefaults(db.DatabaseConfigurations)
-	database_parameters, err := db.GetParameters(app_config)
-	if err != nil {
-		logger.Fatal("db.GetParameters", "error", err)
-	}
-	database_credentials := db.GetDefaultCredentials(app_config)
-
-	// Prepare the security layer if plain wasn't given
-	logger.Info("Setting up Vault connection and authentication layer...")
-	var vault_database *vault.DatabaseVault
 	if app_config.Secure {
-		app_config.SetDefaults(vault.VaultConfigurations)
-		v, err := vault.New(app_config, logger)
+		security_service, err := security.New(app_config, logger)
 		if err != nil {
-			logger.Fatal("vault error", "message", err)
+			logger.Fatal("security.New", "error", err)
 		}
-
-		go v.PeriodicallyRenewLeases()
-		go v.RunController()
-
-		// database credentials from the vault
-		app_config.SetDefaults(vault.DatabaseVaultConfigurations)
-		vault_database, _ := vault.NewDatabase(v)
-		database_credentials, err = vault_database.GetDatabaseCredentials()
-		if err != nil {
-			logger.Fatal("reading database credentials from vault: %v", err)
-		}
-
-		// Setup the Security layer. Any outside services that wants to connect
-		// All incoming messages are encrypted and authenticated.
-		if err := security.New(app_config.DebugSecurity).StartAuthentication(); err != nil {
-			logger.Fatal("security: %v", err)
-		}
+		go security_service.Run()
+		go db.Run(app_config, logger)
 	}
-
-	// Set the database connection
-	database, err := db.Open(logger, database_parameters, database_credentials)
-	if err != nil {
-		logger.Fatal("database error", "message", err)
-	}
-	if app_config.Secure {
-		go vault_database.PeriodicallyRenewLeases(database.Reconnect)
-	}
-
-	defer func() {
-		_ = database.Close()
-	}()
 
 	/////////////////////////////////////////////////////////////////////////
 	//
@@ -142,8 +101,8 @@ func main() {
 	}
 
 	// Start the core services
-	go static.Run(app_config, database)
-	go categorizer.Run(app_config, database)
+	go static.Run(app_config)
+	go categorizer.Run(app_config, nil)
 	go blockchain.Run(app_config)
 
 	// Start the external services
