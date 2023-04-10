@@ -69,7 +69,7 @@ func NewExternal(service_type ServiceType, limit Limit, app_config *configuratio
 	default_configuration := DefaultConfiguration(service_type)
 	app_config.SetDefaults(default_configuration)
 
-	name := string(service_type)
+	name := service_type.ToString()
 	host_env := name + "_HOST"
 	port_env := name + "_PORT"
 	broadcast_host_env := name + "_BROADCAST_HOST"
