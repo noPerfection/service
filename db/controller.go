@@ -222,13 +222,40 @@ func on_select_row(request message.Request, _ log.Logger, parameters ...interfac
 		return message.Fail("parameter validation:" + err.Error())
 	}
 
-	err = db.Connection.QueryRow(query_parameters.Query, query_parameters.Arguments...).Scan(query_parameters.Outputs...)
+	query, err := query_parameters.BuildSelectRowQuery()
 	if err != nil {
-		return message.Fail("db.Connection.QueryRow: " + err.Error())
+		return message.Fail("query_parameter.BuildSelectRowQuery: " + err.Error())
 	}
 
-	reply := handler.ReadRowReply{
-		Outputs: query_parameters.Outputs,
+	rows, err := db.Connection.Query(query, query_parameters.Arguments...)
+	if err != nil {
+		return message.Fail("db.Connection.Query: " + err.Error())
+	}
+	fields, err := rows.Columns()
+	if err != nil {
+		return message.Fail("rows.Columns: " + err.Error())
+	}
+
+	row := make(map[string]interface{})
+
+	for rows.Next() {
+		scans := make([]interface{}, len(fields))
+
+		for i := range scans {
+			scans[i] = &scans[i]
+		}
+		rows.Scan(scans...)
+		for i, v := range scans {
+			var value = ""
+			if v != nil {
+				value = fmt.Sprintf("%s", v)
+			}
+			row[fields[i]] = value
+		}
+	}
+
+	reply := handler.SelectRowReply{
+		Outputs: key_value.New(row),
 	}
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
@@ -259,7 +286,12 @@ func on_delete(request message.Request, _ log.Logger, parameters ...interface{})
 		return message.Fail("parameter validation:" + err.Error())
 	}
 
-	result, err := db.Connection.Exec(query_parameters.Query, query_parameters.Arguments...)
+	query, err := query_parameters.BuildDeleteQuery()
+	if err != nil {
+		return message.Fail("query_parameter.BuildDeleteQuery: " + err.Error())
+	}
+
+	result, err := db.Connection.Exec(query, query_parameters.Arguments...)
 	if err != nil {
 		return message.Fail("db.Connection.Exec: " + err.Error())
 	}
@@ -281,7 +313,7 @@ func on_delete(request message.Request, _ log.Logger, parameters ...interface{})
 }
 
 // Execute the insert or update
-func on_write(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+func on_insert(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	if len(parameters) == 0 {
 		return message.Fail("the database connection wasn't passed to handler")
 	}
@@ -301,7 +333,12 @@ func on_write(request message.Request, _ log.Logger, parameters ...interface{}) 
 		return message.Fail("parameter validation:" + err.Error())
 	}
 
-	result, err := db.Connection.Exec(query_parameters.Query, query_parameters.Arguments...)
+	query, err := query_parameters.BuildInsertRowQuery()
+	if err != nil {
+		return message.Fail("query_parameter.BuildInsertRowQuery: " + err.Error())
+	}
+
+	result, err := db.Connection.Exec(query, query_parameters.Arguments...)
 	if err != nil {
 		return message.Fail("db.Connection.Exec: " + err.Error())
 	}
@@ -313,7 +350,7 @@ func on_write(request message.Request, _ log.Logger, parameters ...interface{}) 
 	if affected == 0 {
 		return message.Fail("no rows were inserted or updated")
 	}
-	reply := handler.WriteReply{}
+	reply := handler.InsertReply{}
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("command.Reply: " + err.Error())
