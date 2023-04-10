@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/blocklords/sds/app/command"
@@ -89,9 +90,10 @@ func (database *Database) run_controller() {
 	}
 
 	command_handlers := command.EmptyHandlers().
-		Add(handler.READ_ROW, on_read_row).
+		Add(handler.SELECT_ROW, on_select_row).
+		Add(handler.SELECT_ALL, on_select_all).
 		Add(handler.DELETE, on_delete).
-		Add(handler.WRITE, on_write)
+		Add(handler.INSERT, on_insert)
 
 	reply.Run(command_handlers, database)
 }
@@ -131,9 +133,76 @@ func on_new_credentials(request message.Request, _ log.Logger, parameters ...int
 	}
 }
 
+func on_select_all(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if len(parameters) == 0 {
+		return message.Fail("the database connection wasn't passed to handler")
+	}
+
+	db, ok := parameters[0].(*Database)
+	if !ok {
+		return message.Fail("the parameter is not a database")
+	}
+	if db.Connection == nil {
+		return message.Fail("database.Connection is nil, please open the connection first")
+	}
+
+	//parameters []interface{}, outputs []interface{}
+	var query_parameters handler.DatabaseQueryRequest
+	err := request.Parameters.ToInterface(&query_parameters)
+	if err != nil {
+		return message.Fail("parameter validation:" + err.Error())
+	}
+
+	query, err := query_parameters.BuildSelectQuery()
+	if err != nil {
+		return message.Fail("query_parameter.BuildSelectQuery: " + err.Error())
+	}
+	fmt.Println(query)
+
+	rows, err := db.Connection.Query(query)
+	if err != nil {
+		return message.Fail("db.Connection.Query: " + err.Error())
+	}
+	fields, err := rows.Columns()
+	if err != nil {
+		return message.Fail("rows.Columns: " + err.Error())
+	}
+
+	reply_objects := make([]key_value.KeyValue, 0)
+
+	for rows.Next() {
+		scans := make([]interface{}, len(fields))
+		row := make(map[string]interface{})
+
+		for i := range scans {
+			scans[i] = &scans[i]
+		}
+		rows.Scan(scans...)
+		for i, v := range scans {
+			var value = ""
+			if v != nil {
+				value = fmt.Sprintf("%s", v)
+			}
+			row[fields[i]] = value
+		}
+
+		reply_objects = append(reply_objects, key_value.New(row))
+	}
+
+	reply := handler.SelectAllReply{
+		Rows: reply_objects,
+	}
+	reply_message, err := command.Reply(&reply)
+	if err != nil {
+		return message.Fail("command.Reply: " + err.Error())
+	}
+
+	return reply_message
+}
+
 // Read the row only once
 // func on_read_one_row(db *sql.DB, query string, parameters []interface{}, outputs []interface{}) ([]interface{}, error) {
-func on_read_row(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+func on_select_row(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	if len(parameters) == 0 {
 		return message.Fail("the database connection wasn't passed to handler")
 	}
