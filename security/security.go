@@ -41,6 +41,9 @@ func (s *Security) Run() {
 		s.logger.Fatal("auth layer start", "error", err)
 	}
 
+	s.app_config.SetDefaults(vault.VaultConfigurations)
+	s.app_config.SetDefaults(vault.DatabaseVaultConfigurations)
+
 	v, err := vault.New(s.app_config, s.logger)
 	if err != nil {
 		s.logger.Fatal("vault.New", "error", err)
