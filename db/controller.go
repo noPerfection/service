@@ -6,49 +6,18 @@
 package db
 
 import (
+	"context"
+	"sync"
+
 	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/db/handler"
 )
-
-const (
-	READ_ROW command.CommandName = "read-row" // Get one row, if it doesn't exist, return error
-	READ_ALL command.CommandName = "read"     // Read multiple line
-	WRITE    command.CommandName = "write"    // insert or update
-	EXIST    command.CommandName = "exist"    // Returns true or false if select query has some rows
-	DELETE   command.CommandName = "delete"   // Delete some rows from database
-)
-
-// DatabaseQueryRequest has the sql and it's parameters on part with commands.
-type DatabaseQueryRequest struct {
-	Query     string        `json:"query"`             // SQL query to apply
-	Arguments []interface{} `json:"arguments"`         // Parameters to insert into SQL query
-	Outputs   []interface{} `json:"outputs,omitempty"` // For reading it will keep what kind of data parameters to get
-}
-
-// ReadRowReply keeps the parameters of READ_ROW command reply by controller
-type ReadRowReply struct {
-	Outputs []interface{} `json:"outputs"` // all column parameters returned back to user
-}
-
-// ReadAllReply keeps the parameters of READ_ALL command reply by controller
-type ReadAllReply struct {
-	Rows []ReadRowReply `json:"rows"` // list of rows returned back to user
-}
-
-// WriteReply keeps the parameters of WRITE command reply by controller
-type WriteReply struct{}
-
-// ExistReply keeps the parameters of EXIST command reply by controller
-type ExistReply struct {
-	Exist bool `json:"exist"` // true or false
-}
-
-// DeleteReply keeps the parameters of DELETE command reply by controller
-type DeleteReply struct{}
 
 // Run the database layer as a concurrent service
 func Run(app_config *configuration.Config, parent log.Logger) {
@@ -65,37 +34,104 @@ func Run(app_config *configuration.Config, parent log.Logger) {
 	if err != nil {
 		logger.Fatal("GetParameters", "error", err)
 	}
-	database_credentials := GetDefaultCredentials(app_config)
-	// if secure is enabled
-	// then get credentials from vault
-	database, err := Open(logger, database_parameters, database_credentials)
-	if err != nil {
-		logger.Fatal("database error", "message", err)
+
+	var database *Database
+	if app_config.Secure {
+		database = &Database{
+			Connection:      nil,
+			connectionMutex: sync.Mutex{},
+			parameters:      *database_parameters,
+			logger:          logger,
+		}
+		// todo get credentials from vault
+		database.run_puller()
+		// if app_config.Secure {
+		// go vault_database.PeriodicallyRenewLeases(database.Reconnect)
+		// }
+	} else {
+		database_credentials := GetDefaultCredentials(app_config)
+		database, err = Open(logger, database_parameters, database_credentials)
+		if err != nil {
+			logger.Fatal("database error", "message", err)
+		}
 	}
-	// if app_config.Secure {
-	// go vault_database.PeriodicallyRenewLeases(database.Reconnect)
-	// }
 
-	defer func() {
-		_ = database.Close()
-	}()
+	go database.run_controller()
+}
 
-	db_service, err := service.Inprocess(service.DATABASE)
+// run_puller creates a pull controller that get's the
+// new database credentials to reconnect.
+func (database *Database) run_puller() {
+	db_service, err := service.InprocessFromUrl(handler.PullerEndpoint())
 	if err != nil {
-		logger.Fatal("service.Inproc", "service type", service.DATABASE, "error", err)
+		database.logger.Fatal("service.Inproc", "service type", service.DATABASE, "error", err)
 	}
 
-	reply, err := controller.NewReply(db_service, logger)
+	pull, err := controller.NewPull(db_service, database.logger)
 	if err != nil {
-		logger.Fatal("controller.NewReply", "url", db_service.Url(), "error", err)
+		database.logger.Fatal("controller.NewReply", "url", db_service.Url(), "error", err)
 	}
 
 	command_handlers := command.EmptyHandlers().
-		Add(READ_ROW, on_read_row).
-		Add(DELETE, on_delete).
-		Add(WRITE, on_write)
+		Add(handler.NEW_CREDENTIALS, on_new_credentials)
+
+	pull.Run(command_handlers, database)
+}
+
+// run_controller creates a reply controller for other services
+// to interact with the database
+func (database *Database) run_controller() {
+	db_service, err := service.Inprocess(service.DATABASE)
+	if err != nil {
+		database.logger.Fatal("service.Inproc", "service type", service.DATABASE, "error", err)
+	}
+
+	reply, err := controller.NewReply(db_service, database.logger)
+	if err != nil {
+		database.logger.Fatal("controller.NewReply", "url", db_service.Url(), "error", err)
+	}
+
+	command_handlers := command.EmptyHandlers().
+		Add(handler.READ_ROW, on_read_row).
+		Add(handler.DELETE, on_delete).
+		Add(handler.WRITE, on_write)
 
 	reply.Run(command_handlers, database)
+}
+
+// puller received new credentials
+func on_new_credentials(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if len(parameters) == 0 {
+		return message.Fail("the database connection wasn't passed to handler")
+	}
+
+	db, ok := parameters[0].(*Database)
+	if !ok {
+		return message.Fail("the parameter is not a database")
+	}
+
+	var credentials DatabaseCredentials
+	err := request.Parameters.ToInterface(&credentials)
+	if err != nil {
+		return message.Fail("the received database credentials are invalid")
+	}
+
+	if db.Connection == nil {
+		return message.Fail("database.Connection is nil, please open the connection first")
+	}
+
+	ctx := context.TODO()
+
+	// establish the first connection
+	if err := db.Reconnect(ctx, credentials); err != nil {
+		return message.Fail("database.reconnect:" + err.Error())
+	}
+
+	return message.Reply{
+		Status:     message.OK,
+		Message:    "",
+		Parameters: key_value.Empty(),
+	}
 }
 
 // Read the row only once
@@ -105,16 +141,19 @@ func on_read_row(request message.Request, _ log.Logger, parameters ...interface{
 		return message.Fail("the database connection wasn't passed to handler")
 	}
 
-	//parameters []interface{}, outputs []interface{}
-	var query_parameters DatabaseQueryRequest
-	err := request.Parameters.ToInterface(&query_parameters)
-	if err != nil {
-		return message.Fail("parameter validation:" + err.Error())
-	}
-
 	db, ok := parameters[0].(*Database)
 	if !ok {
 		return message.Fail("the parameter is not a database")
+	}
+	if db.Connection == nil {
+		return message.Fail("database.Connection is nil, please open the connection first")
+	}
+
+	//parameters []interface{}, outputs []interface{}
+	var query_parameters handler.DatabaseQueryRequest
+	err := request.Parameters.ToInterface(&query_parameters)
+	if err != nil {
+		return message.Fail("parameter validation:" + err.Error())
 	}
 
 	err = db.Connection.QueryRow(query_parameters.Query, query_parameters.Arguments...).Scan(query_parameters.Outputs...)
@@ -122,7 +161,7 @@ func on_read_row(request message.Request, _ log.Logger, parameters ...interface{
 		return message.Fail("db.Connection.QueryRow: " + err.Error())
 	}
 
-	reply := ReadRowReply{
+	reply := handler.ReadRowReply{
 		Outputs: query_parameters.Outputs,
 	}
 	reply_message, err := command.Reply(&reply)
@@ -139,16 +178,19 @@ func on_delete(request message.Request, _ log.Logger, parameters ...interface{})
 		return message.Fail("the database connection wasn't passed to handler")
 	}
 
-	//parameters []interface{}, outputs []interface{}
-	var query_parameters DatabaseQueryRequest
-	err := request.Parameters.ToInterface(&query_parameters)
-	if err != nil {
-		return message.Fail("parameter validation:" + err.Error())
-	}
-
 	db, ok := parameters[0].(*Database)
 	if !ok {
 		return message.Fail("the parameter is not a database")
+	}
+	if db.Connection == nil {
+		return message.Fail("database.Connection is nil, please open the connection first")
+	}
+
+	//parameters []interface{}, outputs []interface{}
+	var query_parameters handler.DatabaseQueryRequest
+	err := request.Parameters.ToInterface(&query_parameters)
+	if err != nil {
+		return message.Fail("parameter validation:" + err.Error())
 	}
 
 	result, err := db.Connection.Exec(query_parameters.Query, query_parameters.Arguments...)
@@ -163,7 +205,7 @@ func on_delete(request message.Request, _ log.Logger, parameters ...interface{})
 	if affected == 0 {
 		return message.Fail("no rows were deleted")
 	}
-	reply := DeleteReply{}
+	reply := handler.DeleteReply{}
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("command.Reply: " + err.Error())
@@ -178,16 +220,19 @@ func on_write(request message.Request, _ log.Logger, parameters ...interface{}) 
 		return message.Fail("the database connection wasn't passed to handler")
 	}
 
-	//parameters []interface{}, outputs []interface{}
-	var query_parameters DatabaseQueryRequest
-	err := request.Parameters.ToInterface(&query_parameters)
-	if err != nil {
-		return message.Fail("parameter validation:" + err.Error())
-	}
-
 	db, ok := parameters[0].(*Database)
 	if !ok {
 		return message.Fail("the parameter is not a database")
+	}
+	if db.Connection == nil {
+		return message.Fail("database.Connection is nil, please open the connection first")
+	}
+
+	//parameters []interface{}, outputs []interface{}
+	var query_parameters handler.DatabaseQueryRequest
+	err := request.Parameters.ToInterface(&query_parameters)
+	if err != nil {
+		return message.Fail("parameter validation:" + err.Error())
 	}
 
 	result, err := db.Connection.Exec(query_parameters.Query, query_parameters.Arguments...)
@@ -202,7 +247,7 @@ func on_write(request message.Request, _ log.Logger, parameters ...interface{}) 
 	if affected == 0 {
 		return message.Fail("no rows were inserted or updated")
 	}
-	reply := WriteReply{}
+	reply := handler.WriteReply{}
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("command.Reply: " + err.Error())
