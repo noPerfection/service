@@ -72,3 +72,129 @@ func PushSocket() (*zmq.Socket, error) {
 
 	return sock, nil
 }
+
+// BuildSelectQuery creates a SELECT SQL query
+func (request DatabaseQueryRequest) BuildSelectQuery() (string, error) {
+	if len(request.Fields) == 0 {
+		return "", fmt.Errorf("missing Fields parameter")
+	}
+	if len(request.Tables) == 0 {
+		return "", fmt.Errorf("missing Tables parameter")
+	}
+
+	str := `SELECT `
+
+	last_field_index := len(request.Fields) - 1
+	for i, field := range request.Fields {
+		str += field
+		if i < last_field_index {
+			str += `, `
+		}
+	}
+
+	str += ` FROM `
+	last_table_index := len(request.Tables) - 1
+	for i, table := range request.Tables {
+		str += table
+		if i < last_table_index {
+			str += `, `
+		}
+	}
+
+	str += ` WHERE `
+	if len(request.Where) == 0 {
+		return str + ` 1 `, nil
+	} else {
+		return str + request.Where, nil
+	}
+}
+
+// BuildSelectRowQuery creates a SELECT SQL query for fetching one row
+func (request DatabaseQueryRequest) BuildSelectRowQuery() (string, error) {
+	query, err := request.BuildSelectQuery()
+	if err != nil {
+		return "", fmt.Errorf("BuildSelectQuery: %w", err)
+	}
+
+	return query + " LIMIT 1 ", nil
+}
+
+// BuildInsertRowQuery creates an INSERT INTO SQL query
+func (request DatabaseQueryRequest) BuildInsertRowQuery() (string, error) {
+	if len(request.Fields) == 0 {
+		return "", fmt.Errorf("missing Fields parameter")
+	}
+	if len(request.Tables) == 0 {
+		return "", fmt.Errorf("missing Tables parameter")
+	}
+	if len(request.Arguments) != len(request.Fields) {
+		return "", fmt.Errorf("arguments to pass in insert clause mismatch")
+	}
+
+	str := `INSERT INTO `
+	// tables
+	last_table_index := len(request.Tables) - 1
+	for i, table := range request.Tables {
+		str += table
+		if i < last_table_index {
+			str += `, `
+		}
+	}
+
+	str += ` (`
+	// the fields
+	last_field_index := len(request.Fields) - 1
+	for i, field := range request.Fields {
+		str += field
+		if i < last_field_index {
+			str += `, `
+		}
+	}
+
+	str += `) VALUES ( `
+	for i := range request.Fields {
+		str += `?`
+		if i < last_field_index {
+			str += `, `
+		}
+	}
+	str += `) `
+
+	return str, nil
+}
+
+// BuildDeleteQuery creates DELETE FROM SQL query
+func (request DatabaseQueryRequest) BuildDeleteQuery() (string, error) {
+	if len(request.Fields) == 0 {
+		return "", fmt.Errorf("missing Fields parameter")
+	}
+	if len(request.Tables) == 0 {
+		return "", fmt.Errorf("missing Tables parameter")
+	}
+
+	str := `DELETE FROM `
+	// tables
+	last_table_index := len(request.Tables) - 1
+	for i, table := range request.Tables {
+		str += table
+		if i < last_table_index {
+			str += `, `
+		}
+	}
+
+	if len(request.Where) == 0 {
+		return str, nil
+	}
+
+	str += ` WHERE `
+	// the fields
+	last_field_index := len(request.Fields) - 1
+	for i, field := range request.Fields {
+		str += field
+		if i < last_field_index {
+			str += ` AND `
+		}
+	}
+
+	return str, nil
+}
