@@ -18,7 +18,9 @@ type Service struct {
 // Inprocess creates the service with the parameters but without any information
 func Inprocess(service_type ServiceType) (*Service, error) {
 	if err := service_type.valid(); err != nil {
-		return nil, fmt.Errorf("valid: %w", err)
+		if inproc_err := service_type.inproc_valid(); inproc_err != nil {
+			return nil, fmt.Errorf("valid or inproc_valid: %w", inproc_err)
+		}
 	}
 	name := service_type.ToString()
 

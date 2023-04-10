@@ -40,6 +40,17 @@ func (s ServiceType) valid() error {
 	return fmt.Errorf("the '%s' service type not registered", s.ToString())
 }
 
+func (s ServiceType) inproc_valid() error {
+	types := inproc_service_types()
+	for _, service_type := range types {
+		if service_type == s {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("the '%s' service type not registered", s.ToString())
+}
+
 // Returns the services that are available for use within application only
 func inproc_service_types() []ServiceType {
 	return []ServiceType{
