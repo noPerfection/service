@@ -1,5 +1,3 @@
-// The database package handles all the database operations.
-// Note that for now it uses Mysql as a hardcoded data
 package db
 
 import (
