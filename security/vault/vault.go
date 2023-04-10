@@ -13,15 +13,17 @@ import (
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/db/handler"
 	hashicorp "github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/api/auth/approle"
 )
 
 type Vault struct {
-	logger  log.Logger
-	client  *hashicorp.Client
-	context context.Context
-	path    string // Key-Value credentials
+	logger         log.Logger
+	client         *hashicorp.Client
+	database_vault *DatabaseVault
+	context        context.Context
+	path           string // Key-Value credentials
 
 	// connection parameters
 	approle_role_id    string
@@ -52,7 +54,9 @@ var VaultConfigurations = configuration.DefaultConfig{
 	}),
 }
 
-// Sets up the connection to the Hashicorp Vault
+// Sets up the connection to the Hashicorp Vault for static keys and database credentials.
+//
+// The dynamic
 // If you run the Vault in the dev mode, then path should be "sds-auth-kv/"
 //
 // Optionally the app configuration could be nil, in that case it creates a new vault
@@ -110,15 +114,49 @@ func New(app_config *configuration.Config, logger log.Logger) (*Vault, error) {
 		return nil, fmt.Errorf("vault login error: %w", err)
 	}
 
+	// creates a database credentials as well
+	vault_database, err := NewDatabase(&vault)
+	if err != nil {
+		return nil, fmt.Errorf("vault create database error: %w", err)
+	}
+
+	vault.database_vault = vault_database
 	vault.auth_token = token
+
+	credentials, err := vault.get_db_credentials()
+	if err != nil {
+		return nil, fmt.Errorf("vault get database error: %w", err)
+	}
+
+	// Push the credentials to the database engine
+	database_client, err := handler.PushSocket()
+	if err != nil {
+		vault_logger.Fatal("handler.PushSocket", "error", err)
+	}
+	if err := handler.NEW_CREDENTIALS.Push(database_client, credentials); err != nil {
+		vault_logger.Fatal("database socket push", "error", err) // simplified error handling
+	}
+	err = database_client.Close()
+	if err != nil {
+		vault_logger.Fatal("database socket close", "error", err) // simplified error handling
+	}
+
 	return &vault, nil
+}
+
+// Run the vault engine
+// along with controller, and automatically renew vault token, database token
+func (vault *Vault) Run() {
+	go vault.run_controller()
+	go vault.periodically_renew_leases()
+	go vault.periodically_renew_database_leases()
 }
 
 // The vault runs on its own thread.
 // The controller is for other threads that wants to read data from the vault
 //
 // use controller.Controller through controller.NewReply()
-func (v *Vault) RunController() {
+func (v *Vault) run_controller() {
 	service, err := service.InprocessFromUrl(VaultEndpoint())
 	if err != nil {
 		v.logger.Fatal("service.InprocessFromUrl", "error", err.Error())
@@ -128,11 +166,13 @@ func (v *Vault) RunController() {
 		v.logger.Fatal("controller.NewReply", "error", err.Error())
 	}
 
-	handlers := command.EmptyHandlers().Add(GET_STRING, on_get_string)
+	handlers := command.EmptyHandlers().
+		Add(GET_STRING, on_get_string)
 
 	reply.Run(handlers, v)
 }
 
+// on_get_string returns the string value from vault at bucket/key path.
 func on_get_string(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
 	bucket, err := request.Parameters.GetString("bucket")
 	if err != nil {
@@ -153,7 +193,7 @@ func on_get_string(request message.Request, logger log.Logger, parameters ...int
 	value, err := v.get_string(bucket, key)
 
 	if err != nil {
-		fail := message.Fail("invalid smartcontract developer request " + err.Error())
+		fail := message.Fail("invalid vault request: " + err.Error())
 		return fail
 	}
 
