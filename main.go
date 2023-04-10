@@ -71,7 +71,7 @@ func main() {
 	var vault_database *vault.DatabaseVault
 	if app_config.Secure {
 		app_config.SetDefaults(vault.VaultConfigurations)
-		v, err := vault.New(logger, app_config)
+		v, err := vault.New(app_config, logger)
 		if err != nil {
 			logger.Fatal("vault error", "message", err)
 		}

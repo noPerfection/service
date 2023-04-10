@@ -56,7 +56,7 @@ var VaultConfigurations = configuration.DefaultConfig{
 // If you run the Vault in the dev mode, then path should be "sds-auth-kv/"
 //
 // Optionally the app configuration could be nil, in that case it creates a new vault
-func New(logger log.Logger, app_config *configuration.Config) (*Vault, error) {
+func New(app_config *configuration.Config, logger log.Logger) (*Vault, error) {
 	if app_config == nil {
 		return nil, errors.New("missing configuration file")
 	}
