@@ -10,12 +10,13 @@ import (
 // Save the ABI in the Database
 func SetInDatabase(db *remote.ClientSocket, a *Abi) error {
 	request := handler.DatabaseQueryRequest{
-		Query:     `INSERT IGNORE INTO static_abi (abi_id, body) VALUES (?, ?) `,
+		Fields:    []string{"abi_id", "body"},
+		Tables:    []string{"static_abi"},
 		Arguments: []interface{}{a.Id, a.Bytes},
 	}
-	var reply handler.WriteReply
+	var reply handler.InsertReply
 
-	err := handler.WRITE.Request(db, request, &reply)
+	err := handler.INSERT.Request(db, request, &reply)
 	if err != nil {
 		return fmt.Errorf("handler.WRITE.Push: %w", err)
 	}
@@ -25,13 +26,13 @@ func SetInDatabase(db *remote.ClientSocket, a *Abi) error {
 // Get all abis from database
 func GetAllFromDatabase(db *remote.ClientSocket) ([]*Abi, error) {
 	request := handler.DatabaseQueryRequest{
-		Query:     "SELECT body, abi_id FROM static_abi",
+		Fields:    []string{"abi_id", "body"},
+		Tables:    []string{"static_abi"},
 		Arguments: []interface{}{},
-		Outputs:   []interface{}{[]byte{}, ""},
 	}
-	var reply handler.ReadAllReply
+	var reply handler.SelectAllReply
 
-	err := handler.WRITE.Request(db, request, &reply)
+	err := handler.SELECT_ALL.Request(db, request, &reply)
 	if err != nil {
 		return nil, fmt.Errorf("handler.WRITE.Push: %w", err)
 	}
@@ -40,11 +41,11 @@ func GetAllFromDatabase(db *remote.ClientSocket) ([]*Abi, error) {
 
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for i, raw := range reply.Rows {
-		abi := Abi{
-			Bytes: raw.Outputs[0].([]byte),
-			Id:    raw.Outputs[1].(string),
+		abi, err := New(raw)
+		if err != nil {
+			return nil, fmt.Errorf("New Abi from database result: %w", err)
 		}
-		abis[i] = &abi
+		abis[i] = abi
 	}
 	return abis, err
 }

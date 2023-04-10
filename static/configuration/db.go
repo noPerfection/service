@@ -13,12 +13,13 @@ import (
 // Call conf.Validate() before calling this
 func SetInDatabase(db *remote.ClientSocket, conf *Configuration) error {
 	request := handler.DatabaseQueryRequest{
-		Query:     `INSERT IGNORE INTO static_configuration (organization, project, network_id, group_name, smartcontract_name, address) VALUES (?, ?, ?, ?, ?, ?) `,
+		Fields:    []string{"organization", "project", "network_id", "group_name", "smartcontract_name", "address"},
+		Tables:    []string{"static_configuration"},
 		Arguments: []interface{}{conf.Topic.Organization, conf.Topic.Project, conf.Topic.NetworkId, conf.Topic.Group, conf.Topic.Smartcontract, conf.Address},
 	}
-	var reply handler.WriteReply
+	var reply handler.InsertReply
 
-	err := handler.WRITE.Request(db, request, &reply)
+	err := handler.INSERT.Request(db, request, &reply)
 	if err != nil {
 		return fmt.Errorf("handler.WRITE.Push: %w", err)
 	}
@@ -27,13 +28,19 @@ func SetInDatabase(db *remote.ClientSocket, conf *Configuration) error {
 
 func GetAllFromDatabase(db *remote.ClientSocket) ([]*Configuration, error) {
 	request := handler.DatabaseQueryRequest{
-		Query:     "SELECT organization, project, network_id, group_name, smartcontract_name, address FROM static_configuration WHERE 1",
-		Arguments: []interface{}{},
-		Outputs:   []interface{}{"", "", "", "", "", ""},
+		Fields: []string{
+			"organization as o",
+			"project as p",
+			"network_id as n",
+			"group_name as g",
+			"smartcontract_name as s",
+			"address",
+		},
+		Tables: []string{"static_configuration"},
 	}
-	var reply handler.ReadAllReply
+	var reply handler.SelectAllReply
 
-	err := handler.WRITE.Request(db, request, &reply)
+	err := handler.SELECT_ALL.Request(db, request, &reply)
 	if err != nil {
 		return nil, fmt.Errorf("handler.WRITE.Push: %w", err)
 	}
@@ -42,17 +49,19 @@ func GetAllFromDatabase(db *remote.ClientSocket) ([]*Configuration, error) {
 
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for i, raw := range reply.Rows {
-		conf := Configuration{
-			Topic: topic.Topic{
-				Organization:  raw.Outputs[0].(string),
-				Project:       raw.Outputs[1].(string),
-				NetworkId:     raw.Outputs[2].(string),
-				Group:         raw.Outputs[3].(string),
-				Smartcontract: raw.Outputs[4].(string),
-			},
-			Address: raw.Outputs[5].(string),
+		conf_topic, err := topic.ParseJSON(raw)
+		if err != nil {
+			return nil, fmt.Errorf("parsing topic parameters from database result failed: %w", err)
 		}
-		confs[i] = &conf
+		address, err := raw.GetString("address")
+		if err != nil {
+			return nil, fmt.Errorf("parsing address parameter from database result failed: %w", err)
+		}
+		conf, err := NewFromTopic(*conf_topic, address)
+		if err != nil {
+			return nil, fmt.Errorf("NewFromTopic: %w", err)
+		}
+		confs[i] = conf
 	}
 	return confs, err
 }

@@ -11,31 +11,29 @@ import (
 
 func SetInDatabase(db *remote.ClientSocket, a *Smartcontract) error {
 	request := handler.DatabaseQueryRequest{
-		Query: `
-		INSERT IGNORE INTO 
-			static_smartcontract (
-				network_id, 
-				address, 
-				abi_id, 
-				transaction_id, 
-				transaction_index,
-				block_number, 
-				block_timestamp, 
-				deployer
-			) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?) `,
-		Arguments: []interface{}{a.SmartcontractKey.NetworkId,
+		Fields: []string{"network_id",
+			"address",
+			"abi_id",
+			"transaction_id",
+			"transaction_index",
+			"block_number",
+			"block_timestamp",
+			"deployer"},
+		Tables: []string{"static_smartcontract"},
+		Arguments: []interface{}{
+			a.SmartcontractKey.NetworkId,
 			a.SmartcontractKey.Address,
 			a.AbiId,
 			a.TransactionKey.Id,
 			a.TransactionKey.Index,
 			a.BlockHeader.Number,
 			a.BlockHeader.Timestamp,
-			a.Deployer},
+			a.Deployer,
+		},
 	}
-	var reply handler.WriteReply
+	var reply handler.InsertReply
 
-	err := handler.WRITE.Request(db, request, &reply)
+	err := handler.INSERT.Request(db, request, &reply)
 	if err != nil {
 		return fmt.Errorf("handler.WRITE.Push: %w", err)
 	}
@@ -44,15 +42,23 @@ func SetInDatabase(db *remote.ClientSocket, a *Smartcontract) error {
 
 func GetAllFromDatabase(db *remote.ClientSocket) ([]*Smartcontract, error) {
 	request := handler.DatabaseQueryRequest{
-		Query:     "SELECT network_id, address, abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract",
-		Arguments: []interface{}{},
-		Outputs:   []interface{}{"", "", "", "", uint64(0), uint64(0), uint64(0), ""},
+		Fields: []string{
+			"network_id",
+			"address",
+			"abi_id",
+			"transaction_id as id",
+			"transaction_index as index",
+			"block_number",
+			"block_timestamp",
+			"deployer",
+		},
+		Tables: []string{"static_smartcontract"},
 	}
-	var reply handler.ReadAllReply
+	var reply handler.SelectAllReply
 
-	err := handler.WRITE.Request(db, request, &reply)
+	err := handler.SELECT_ALL.Request(db, request, &reply)
 	if err != nil {
-		return nil, fmt.Errorf("handler.WRITE.Push: %w", err)
+		return nil, fmt.Errorf("handler.SELECT_ALL.Request: %w", err)
 	}
 
 	smartcontracts := make([]*Smartcontract, len(reply.Rows))
@@ -65,13 +71,32 @@ func GetAllFromDatabase(db *remote.ClientSocket) ([]*Smartcontract, error) {
 			BlockHeader:      blockchain.BlockHeader{},
 		}
 
-		sm.SmartcontractKey.NetworkId = raw.Outputs[0].(string)
-		sm.SmartcontractKey.Address = raw.Outputs[1].(string)
-		sm.TransactionKey.Id = raw.Outputs[2].(string)
-		sm.TransactionKey.Index = uint(raw.Outputs[3].(uint64))
-		sm.BlockHeader.Number = blockchain.Number(raw.Outputs[4].(uint64))
-		sm.BlockHeader.Timestamp = blockchain.Timestamp(raw.Outputs[5].(uint64))
-		sm.Deployer = raw.Outputs[6].(string)
+		err := raw.ToInterface(&sm.SmartcontractKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+		}
+
+		err = raw.ToInterface(&sm.BlockHeader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+		}
+
+		err = raw.ToInterface(&sm.TransactionKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+		}
+
+		deployer, err := raw.GetString("deployer")
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract deployer from database result: %w", err)
+		}
+		sm.Deployer = deployer
+
+		abi_id, err := raw.GetString("abi_id")
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract abi id from database result: %w", err)
+		}
+		sm.AbiId = abi_id
 
 		smartcontracts[i] = &sm
 	}
