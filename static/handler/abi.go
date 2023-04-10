@@ -3,8 +3,8 @@ package handler
 import (
 	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/abi"
 
 	"github.com/blocklords/sds/app/remote/message"
@@ -94,7 +94,7 @@ func AbiRegister(request message.Request, _ log.Logger, parameters ...interface{
 		return message.Fail("failed to add abi to abi list: " + err.Error())
 	}
 
-	db_con, ok := parameters[0].(*db.Database)
+	db_con, ok := parameters[0].(*remote.ClientSocket)
 	if ok {
 		save_err := abi.SetInDatabase(db_con, new_abi)
 		if save_err != nil {

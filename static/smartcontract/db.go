@@ -3,13 +3,15 @@ package smartcontract
 import (
 	"fmt"
 
+	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/smartcontract_key"
-	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/db/handler"
 )
 
-func SetInDatabase(db *db.Database, a *Smartcontract) error {
-	result, err := db.Connection.Exec(`
+func SetInDatabase(db *remote.ClientSocket, a *Smartcontract) error {
+	request := handler.DatabaseQueryRequest{
+		Query: `
 		INSERT IGNORE INTO 
 			static_smartcontract (
 				network_id, 
@@ -22,60 +24,56 @@ func SetInDatabase(db *db.Database, a *Smartcontract) error {
 				deployer
 			) 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?) `,
-		a.SmartcontractKey.NetworkId,
-		a.SmartcontractKey.Address,
-		a.AbiId,
-		a.TransactionKey.Id,
-		a.TransactionKey.Index,
-		a.BlockHeader.Number,
-		a.BlockHeader.Timestamp,
-		a.Deployer,
-	)
-	if err != nil {
-		return fmt.Errorf("db.Insert network id = %s, address = %s: %w", a.SmartcontractKey.NetworkId, a.SmartcontractKey.Address, err)
+		Arguments: []interface{}{a.SmartcontractKey.NetworkId,
+			a.SmartcontractKey.Address,
+			a.AbiId,
+			a.TransactionKey.Id,
+			a.TransactionKey.Index,
+			a.BlockHeader.Number,
+			a.BlockHeader.Timestamp,
+			a.Deployer},
 	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("checking insert result: %w", err)
-	}
-	if affected != 1 {
-		return fmt.Errorf("expected to have 1 affected rows. Got %d", affected)
-	}
+	var reply handler.WriteReply
 
+	err := handler.WRITE.Request(db, request, &reply)
+	if err != nil {
+		return fmt.Errorf("handler.WRITE.Push: %w", err)
+	}
 	return nil
 }
 
-func GetAllFromDatabase(db *db.Database) ([]*Smartcontract, error) {
-	rows, err := db.Connection.Query("SELECT network_id, address, abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract WHERE 1")
+func GetAllFromDatabase(db *remote.ClientSocket) ([]*Smartcontract, error) {
+	request := handler.DatabaseQueryRequest{
+		Query:     "SELECT network_id, address, abi_id, transaction_id, transaction_index, block_number, block_timestamp, deployer FROM static_smartcontract",
+		Arguments: []interface{}{},
+		Outputs:   []interface{}{"", "", "", "", uint64(0), uint64(0), uint64(0), ""},
+	}
+	var reply handler.ReadAllReply
+
+	err := handler.WRITE.Request(db, request, &reply)
 	if err != nil {
-		return nil, fmt.Errorf("db: %w", err)
+		return nil, fmt.Errorf("handler.WRITE.Push: %w", err)
 	}
 
-	defer rows.Close()
-
-	smartcontracts := make([]*Smartcontract, 0)
+	smartcontracts := make([]*Smartcontract, len(reply.Rows))
 
 	// Loop through rows, using Scan to assign column data to struct fields.
-	for rows.Next() {
-		var s = Smartcontract{
+	for i, raw := range reply.Rows {
+		var sm = Smartcontract{
 			SmartcontractKey: smartcontract_key.Key{},
 			TransactionKey:   blockchain.TransactionKey{},
 			BlockHeader:      blockchain.BlockHeader{},
 		}
 
-		if err := rows.Scan(
-			&s.SmartcontractKey.NetworkId,
-			&s.SmartcontractKey.Address,
-			&s.AbiId,
-			&s.TransactionKey.Id,
-			&s.TransactionKey.Index,
-			&s.BlockHeader.Number,
-			&s.BlockHeader.Timestamp,
-			&s.Deployer); err != nil {
-			return nil, fmt.Errorf("failed to scan database result: %w", err)
-		}
+		sm.SmartcontractKey.NetworkId = raw.Outputs[0].(string)
+		sm.SmartcontractKey.Address = raw.Outputs[1].(string)
+		sm.TransactionKey.Id = raw.Outputs[2].(string)
+		sm.TransactionKey.Index = uint(raw.Outputs[3].(uint64))
+		sm.BlockHeader.Number = blockchain.Number(raw.Outputs[4].(uint64))
+		sm.BlockHeader.Timestamp = blockchain.Timestamp(raw.Outputs[5].(uint64))
+		sm.Deployer = raw.Outputs[6].(string)
 
-		smartcontracts = append(smartcontracts, &s)
+		smartcontracts[i] = &sm
 	}
 	return smartcontracts, err
 }

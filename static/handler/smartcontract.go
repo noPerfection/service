@@ -2,7 +2,7 @@ package handler
 
 import (
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/static/smartcontract"
 
 	"github.com/blocklords/sds/common/data_type/key_value"
@@ -54,7 +54,7 @@ func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...
 		return message.Fail("failed to add abi to abi list: " + err.Error())
 	}
 
-	db_con, ok := parameters[0].(*db.Database)
+	db_con, ok := parameters[0].(*remote.ClientSocket)
 	if ok {
 		if err = smartcontract.SetInDatabase(db_con, &sm); err != nil {
 			return message.Fail("Smartcontract saving in the database failed: " + err.Error())

@@ -2,9 +2,9 @@ package handler
 
 import (
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
-	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/static/configuration"
 
 	"github.com/blocklords/sds/app/command"
@@ -47,7 +47,7 @@ func ConfigurationRegister(request message.Request, logger log.Logger, parameter
 		return message.Fail("failed to add abi to abi list: " + err.Error())
 	}
 
-	db_con, ok := parameters[0].(*db.Database)
+	db_con, ok := parameters[0].(*remote.ClientSocket)
 	if ok {
 		if err = configuration.SetInDatabase(db_con, &conf); err != nil {
 			return message.Fail("Configuration saving in the database failed: " + err.Error())
