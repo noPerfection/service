@@ -49,8 +49,7 @@ func (s *Security) Run() {
 		s.logger.Fatal("vault.New", "error", err)
 	}
 
-	go v.PeriodicallyRenewLeases()
-	go v.RunController()
+	go v.Run()
 }
 
 // Enables the authentication and encryption layer on of SDS Service connection.
