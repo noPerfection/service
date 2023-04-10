@@ -3,9 +3,9 @@ package vault
 import (
 	"context"
 	"fmt"
-	"log"
 
-	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/db/handler"
 	hashicorp "github.com/hashicorp/vault/api"
 )
 
@@ -24,14 +24,14 @@ import (
 // this which are outside the scope of this code sample.
 //
 // ref: https://www.vaultproject.io/docs/enterprise/consistency#vault-1-7-mitigations
-func (v *Vault) PeriodicallyRenewLeases() {
-	/* */ log.Println("renew / recreate secrets loop: begin")
-	defer log.Println("renew / recreate secrets loop: end")
+func (v *Vault) periodically_renew_leases() {
+	/* */ v.logger.Info("renew / recreate secrets loop: begin")
+	defer v.logger.Info("renew / recreate secrets loop: end")
 
 	for {
 		renewed, err := v.renewLeases(v.context, v.auth_token)
 		if err != nil {
-			log.Fatalf("renew error: %v", err) // simplified error handling
+			v.logger.Fatal("renew error", "error", err) // simplified error handling
 		}
 
 		if renewed&exitRequested != 0 {
@@ -39,11 +39,11 @@ func (v *Vault) PeriodicallyRenewLeases() {
 		}
 
 		if renewed&expiringAuthToken != 0 {
-			log.Printf("auth token: can no longer be renewed; will log in again")
+			v.logger.Info("auth token: can no longer be renewed; will log in again")
 
 			auth_token, err := v.login(v.context)
 			if err != nil {
-				log.Fatalf("login authentication error: %v", err) // simplified error handling
+				v.logger.Fatal("login authentication error", "error", err) // simplified error handling
 			}
 
 			v.auth_token = auth_token
@@ -51,14 +51,19 @@ func (v *Vault) PeriodicallyRenewLeases() {
 	}
 }
 
-func (v *DatabaseVault) PeriodicallyRenewLeases(db_reconnect func(ctx context.Context, credentials db.DatabaseCredentials) error) {
-	/* */ log.Println("renew / recreate secrets loop: begin")
-	defer log.Println("renew / recreate secrets loop: end")
+func (v *Vault) periodically_renew_database_leases() {
+	/* */ v.logger.Info("renew / recreate secrets loop: begin")
+	defer v.logger.Info("renew / recreate secrets loop: end")
+
+	database_client, err := handler.PushSocket()
+	if err != nil {
+		v.logger.Fatal("remote.InprocRequestSocket.Inproc", "service type", service.DATABASE, "error", err)
+	}
 
 	for {
-		renewed, err := v.renewLeases(v.vault.context, v.database_auth_token)
+		renewed, err := v.renewLeases(v.context, v.database_vault.database_auth_token)
 		if err != nil {
-			log.Fatalf("renew error: %v", err) // simplified error handling
+			v.logger.Fatal("renew error", "error", err) // simplified error handling
 		}
 
 		if renewed&exitRequested != 0 {
@@ -66,15 +71,15 @@ func (v *DatabaseVault) PeriodicallyRenewLeases(db_reconnect func(ctx context.Co
 		}
 
 		if renewed&expiringDatabaseCredentialsLease != 0 {
-			log.Printf("database credentials: can no longer be renewed; will fetch new credentials & reconnect")
+			v.logger.Fatal("database credentials: can no longer be renewed; will fetch new credentials & reconnect")
 
-			databaseCredentials, err := v.GetDatabaseCredentials()
+			databaseCredentials, err := v.get_db_credentials()
 			if err != nil {
-				log.Fatalf("database credentials error: %v", err) // simplified error handling
+				v.logger.Fatal("database credentials error", "error", err) // simplified error handling
 			}
 
-			if err := db_reconnect(v.vault.context, databaseCredentials); err != nil {
-				log.Fatalf("database connection error: %v", err) // simplified error handling
+			if err := handler.NEW_CREDENTIALS.Push(database_client, databaseCredentials); err != nil {
+				v.logger.Fatal("database connection error", "error", err) // simplified error handling
 			}
 		}
 	}
@@ -127,7 +132,7 @@ func (v *Vault) renewLeases(ctx context.Context, authToken *hashicorp.Secret) (r
 			return expiringAuthToken | expiringDatabaseCredentialsLease, err
 
 		case info := <-authTokenWatcher.RenewCh():
-			log.Printf("auth token: successfully renewed; remaining duration: %ds", info.Secret.Auth.LeaseDuration)
+			v.logger.Info("auth token: successfully renewed", "remaining duration", info.Secret.Auth.LeaseDuration)
 		}
 	}
 }
@@ -155,7 +160,7 @@ func (v *DatabaseVault) renewLeases(ctx context.Context, databaseCredentialsLeas
 		case err := <-databaseCredentialsWatcher.DoneCh():
 			return expiringDatabaseCredentialsLease, err
 		case info := <-databaseCredentialsWatcher.RenewCh():
-			log.Printf("database credentials: successfully renewed; remaining lease duration: %ds", info.Secret.LeaseDuration)
+			v.logger.Info("database credentials: successfully renewed;", "remaining lease duration", info.Secret.LeaseDuration)
 		}
 	}
 }
