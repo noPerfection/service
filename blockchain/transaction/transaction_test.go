@@ -56,7 +56,7 @@ func (suite *TestTransactionSuite) SetupTest() {
 }
 
 func (suite *TestTransactionSuite) TestToString() {
-	expected := `{"block_header":{"block_number":1,"block_timestamp":2},"smartcontract_key":{"address":"0xdead","network_id":"1"},"transaction_data":"asdsad","transaction_from":"0x123","transaction_key":{"id":"0x123213","index":0}}`
+	expected := `{"block_header":{"block_number":1,"block_timestamp":2},"smartcontract_key":{"address":"0xdead","network_id":"1"},"transaction_data":"asdsad","transaction_from":"0x123","transaction_key":{"transaction_id":"0x123213","transaction_index":0}}`
 	actual, err := suite.tx.ToString()
 	suite.Require().NoError(err)
 	suite.Require().EqualValues(expected, actual)

@@ -66,7 +66,7 @@ func (suite *TestLogSuite) SetupTest() {
 }
 
 func (suite *TestLogSuite) TestToString() {
-	expected := `{"log_data":"123213","log_index":0,"log_topics":["indexed_signature","indexed_parameter"],"transaction":{"block_header":{"block_number":1,"block_timestamp":2},"smartcontract_key":{"address":"0xdead","network_id":"1"},"transaction_data":"asdsad","transaction_from":"0x123","transaction_key":{"id":"0x123213","index":0}}}`
+	expected := `{"log_data":"123213","log_index":0,"log_topics":["indexed_signature","indexed_parameter"],"transaction":{"block_header":{"block_number":1,"block_timestamp":2},"smartcontract_key":{"address":"0xdead","network_id":"1"},"transaction_data":"asdsad","transaction_from":"0x123","transaction_key":{"transaction_id":"0x123213","transaction_index":0}}}`
 	actual, err := suite.log.ToString()
 	suite.Require().NoError(err)
 	suite.Require().EqualValues(expected, actual)
