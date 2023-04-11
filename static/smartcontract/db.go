@@ -35,7 +35,7 @@ func SetInDatabase(db *remote.ClientSocket, a *Smartcontract) error {
 
 	err := handler.INSERT.Request(db, request, &reply)
 	if err != nil {
-		return fmt.Errorf("handler.WRITE.Push: %w", err)
+		return fmt.Errorf("handler.INSERT.Request: %w", err)
 	}
 	return nil
 }

@@ -34,7 +34,7 @@ func GetAllFromDatabase(db *remote.ClientSocket) ([]*Abi, error) {
 
 	err := handler.SELECT_ALL.Request(db, request, &reply)
 	if err != nil {
-		return nil, fmt.Errorf("handler.WRITE.Push: %w", err)
+		return nil, fmt.Errorf("handler.SELECT_ALL.Push: %w", err)
 	}
 
 	abis := make([]*Abi, len(reply.Rows))

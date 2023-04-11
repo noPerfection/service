@@ -21,7 +21,7 @@ func SetInDatabase(db *remote.ClientSocket, conf *Configuration) error {
 
 	err := handler.INSERT.Request(db, request, &reply)
 	if err != nil {
-		return fmt.Errorf("handler.WRITE.Push: %w", err)
+		return fmt.Errorf("handler.INSERT.Request: %w", err)
 	}
 	return nil
 }
@@ -42,7 +42,7 @@ func GetAllFromDatabase(db *remote.ClientSocket) ([]*Configuration, error) {
 
 	err := handler.SELECT_ALL.Request(db, request, &reply)
 	if err != nil {
-		return nil, fmt.Errorf("handler.WRITE.Push: %w", err)
+		return nil, fmt.Errorf("handler.SELECT_ALL.Request: %w", err)
 	}
 
 	confs := make([]*Configuration, len(reply.Rows))
