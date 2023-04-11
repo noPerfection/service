@@ -7,7 +7,7 @@ package db
 
 import (
 	"context"
-	"fmt"
+	"database/sql"
 	"sync"
 
 	"github.com/blocklords/sds/app/command"
@@ -165,9 +165,13 @@ func on_select_all(request message.Request, _ log.Logger, parameters ...interfac
 	if err != nil {
 		return message.Fail("query_parameter.BuildSelectQuery: " + err.Error())
 	}
-	fmt.Println(query)
 
-	rows, err := db.Connection.Query(query)
+	var rows *sql.Rows
+	if len(query_parameters.Where) > 0 {
+		rows, err = db.Connection.Query(query, query_parameters.Arguments...)
+	} else {
+		rows, err = db.Connection.Query(query)
+	}
 	if err != nil {
 		return message.Fail("db.Connection.Query: " + err.Error())
 	}
