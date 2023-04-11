@@ -63,19 +63,28 @@ func transaction_deployed_get(request message.Request, logger log.Logger, app_pa
 		return message.Fail("unsupported network id")
 	}
 
-	url := blockchain_process.ClientEndpoint(request_parameters.NetworkId)
-	sock, err := remote.InprocRequestSocket(url, logger, app_config)
+	network, err := networks.Get(request_parameters.NetworkId)
 	if err != nil {
-		return message.Fail("blockchain request error: " + err.Error())
+		return message.Fail("network.Get: " + err.Error())
 	}
-	defer sock.Close()
+
+	network_sockets := app_parameters[1].(key_value.KeyValue)
+	sock, ok := network_sockets[network.Type.String()].(*remote.ClientSocket)
+	if !ok {
+		return message.Fail("no network client socket was registered of for " + network.Type.String() + " network type")
+	}
+
+	url := blockchain_process.ClientEndpoint(request_parameters.NetworkId)
+	target_service, err := service.InprocessFromUrl(url)
+	if err != nil {
+		return message.Fail("service.InprocessFromUrl(url): " + err.Error())
+	}
 
 	req_parameters := handler.Transaction{
 		TransactionId: request_parameters.TransactionId,
 	}
-
 	var blockchain_reply handler.LogFilterReply
-	err = handler.DEPLOYED_TRANSACTION_COMMAND.Request(sock, req_parameters, &blockchain_reply)
+	err = handler.DEPLOYED_TRANSACTION_COMMAND.RequestRouter(sock, target_service, req_parameters, &blockchain_reply)
 	if err != nil {
 		return message.Fail("remote transaction_request: " + err.Error())
 	}
