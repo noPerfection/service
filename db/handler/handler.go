@@ -138,6 +138,30 @@ func (request DatabaseQueryRequest) BuildSelectQuery() (string, error) {
 	}
 }
 
+func (request DatabaseQueryRequest) BuildExistQuery() (string, error) {
+	if len(request.Arguments) == 0 {
+		return "", fmt.Errorf("missing Arguments parameter")
+	}
+	if len(request.Tables) == 0 {
+		return "", fmt.Errorf("missing Tables parameter")
+	}
+	if len(request.Where) == 0 {
+		return "", fmt.Errorf("missing Where parameter")
+	}
+
+	str := `SELECT 1 FROM `
+	last_table_index := len(request.Tables) - 1
+	for i, table := range request.Tables {
+		str += table
+		if i < last_table_index {
+			str += `, `
+		}
+	}
+
+	str += ` WHERE ` + request.Where
+	return str, nil
+}
+
 // BuildSelectRowQuery creates a SELECT SQL query for fetching one row
 func (request DatabaseQueryRequest) BuildSelectRowQuery() (string, error) {
 	query, err := request.BuildSelectQuery()

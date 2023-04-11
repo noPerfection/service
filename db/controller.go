@@ -91,6 +91,7 @@ func (database *Database) run_controller() {
 	}
 
 	command_handlers := command.EmptyHandlers().
+		Add(handler.EXIST, on_exist).
 		Add(handler.SELECT_ROW, on_select_row).
 		Add(handler.SELECT_ALL, on_select_all).
 		Add(handler.DELETE, on_delete).
@@ -193,6 +194,54 @@ func on_select_all(request message.Request, _ log.Logger, parameters ...interfac
 	reply := handler.SelectAllReply{
 		Rows: reply_objects,
 	}
+	reply_message, err := command.Reply(&reply)
+	if err != nil {
+		return message.Fail("command.Reply: " + err.Error())
+	}
+
+	return reply_message
+}
+
+// checks whether there are any rows that matches to the query
+func on_exist(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if len(parameters) == 0 {
+		return message.Fail("the database connection wasn't passed to handler")
+	}
+
+	db, ok := parameters[0].(*Database)
+	if !ok {
+		return message.Fail("the parameter is not a database")
+	}
+	if db.Connection == nil {
+		return message.Fail("database.Connection is nil, please open the connection first")
+	}
+
+	//parameters []interface{}, outputs []interface{}
+	var query_parameters handler.DatabaseQueryRequest
+	err := request.Parameters.ToInterface(&query_parameters)
+	if err != nil {
+		return message.Fail("parameter validation:" + err.Error())
+	}
+
+	query, err := query_parameters.BuildExistQuery()
+	if err != nil {
+		return message.Fail("query_parameter.BuildExistQuery: " + err.Error())
+	}
+
+	rows, err := db.Connection.Query(query, query_parameters.Arguments...)
+	if err != nil {
+		return message.Fail("db.Connection.Query: " + err.Error())
+	}
+	defer rows.Close()
+
+	reply := handler.ExistReply{}
+
+	if rows.Next() {
+		reply.Exist = true
+	} else {
+		reply.Exist = false
+	}
+
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("command.Reply: " + err.Error())
