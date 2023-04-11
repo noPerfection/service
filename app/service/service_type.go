@@ -16,6 +16,7 @@ const (
 	READER            ServiceType = "READER"            // The service that reads the smartcontract parameters via blockchain service.
 	WRITER            ServiceType = "WRITER"            // The service sends the transaction to the blockchain via blockchain service.
 	BUNDLE            ServiceType = "BUNDLE"            // The service turns all transactions into one and then sends them to WRITER service.
+	EVM               ServiceType = "EVM"               // The service that handles EVM specific operations.
 
 	// The services to be used within application.
 	// Don't call them on TCP protocol.
@@ -72,5 +73,6 @@ func service_types() []ServiceType {
 		READER,
 		WRITER,
 		BUNDLE,
+		EVM,
 	}
 }
