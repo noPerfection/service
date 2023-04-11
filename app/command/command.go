@@ -158,7 +158,7 @@ func (command CommandName) Push(socket *zmq.Socket, request interface{}) error {
 //	        db_service := service.DB
 //			// Send SET command to the database via the authentication proxy.
 //			_ := set.RequestRouter(auth_socket, db_service, request_parameters, &reply_parameters)
-func (command CommandName) RequestRouter(socket *remote.ClientSocket, service_type service.ServiceType, request interface{}, reply interface{}) error {
+func (command CommandName) RequestRouter(socket *remote.ClientSocket, target_service *service.Service, request interface{}, reply interface{}) error {
 	_, ok := request.(message.Request)
 	if ok {
 		return fmt.Errorf("the request can not be of message.Request type")
@@ -190,7 +190,7 @@ func (command CommandName) RequestRouter(socket *remote.ClientSocket, service_ty
 		Parameters: request_parameters,
 	}
 
-	reply_parameters, err := socket.RequestRouter(service_type, &request_message)
+	reply_parameters, err := socket.RequestRouter(target_service, &request_message)
 	if err != nil {
 		return fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}

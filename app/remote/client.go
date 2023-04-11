@@ -156,7 +156,7 @@ func (socket *ClientSocket) Close() error {
 // Supports both inproc and TCP protocols.
 //
 // The socket should be the router's socket.
-func (socket *ClientSocket) RequestRouter(service_type service.ServiceType, request *message.Request) (key_value.KeyValue, error) {
+func (socket *ClientSocket) RequestRouter(service *service.Service, request *message.Request) (key_value.KeyValue, error) {
 	request_timeout := parameter.RequestTimeout(socket.app_config)
 
 	if socket.protocol == "inproc" {
@@ -182,7 +182,7 @@ func (socket *ClientSocket) RequestRouter(service_type service.ServiceType, requ
 	// we attempt requests for an infinite amount of time.
 	for {
 		//  We send a request, then we work to get a reply
-		if _, err := socket.socket.SendMessage(service_type.ToString(), request_string); err != nil {
+		if _, err := socket.socket.SendMessage(service.Name, request_string); err != nil {
 			return nil, fmt.Errorf("failed to send the command '%s' to. socket error: %w", request.Command, err)
 		}
 
@@ -215,7 +215,7 @@ func (socket *ClientSocket) RequestRouter(service_type service.ServiceType, requ
 
 			return reply.Parameters, nil
 		} else {
-			socket.logger.Warn("router timeout", "target service", service_type, "request_command", request.Command, "attempts_left", attempt)
+			socket.logger.Warn("router timeout", "target service name", service.Name, "request_command", request.Command, "attempts_left", attempt)
 			// if attempts are 0, we reconnect to remove the buffer queue.
 			if socket.protocol == "inproc" {
 				err := socket.inproc_reconnect()
