@@ -1,6 +1,14 @@
 package network
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/common/data_type/key_value"
+)
 
 // Keeps track of the network types
 // That SDS supports.
@@ -32,4 +40,32 @@ func (network_type NetworkType) valid() bool {
 // String format of NetworkType
 func (network_type NetworkType) String() string {
 	return string(network_type)
+}
+
+// NewSockets returns client sockets to the remote network services.
+//
+// The returned sockets is the key value where key is the network type,
+// and value is the socket.
+func NewClientSockets(app_config *configuration.Config, logger log.Logger) (key_value.KeyValue, error) {
+	evm_service, err := service.NewExternal(service.EVM, service.REMOTE, app_config)
+	if err != nil {
+		logger.Fatal("service.NewExternal(service.EVM)", "error", err)
+	}
+	evm_socket, err := remote.NewTcpSocket(evm_service, logger, app_config)
+	if err != nil {
+		logger.Fatal("remote.NewTcpSocket(evm_service)", "message", err)
+	}
+	imx_service, err := service.NewExternal(service.IMX, service.REMOTE, app_config)
+	if err != nil {
+		logger.Fatal("service.NewExternal(service.IMX)", "error", err)
+	}
+	imx_socket, err := remote.NewTcpSocket(imx_service, logger, app_config)
+	if err != nil {
+		logger.Fatal("remote.NewTcpSocket(imx_service)", "message", err)
+	}
+	network_sockets := key_value.Empty().
+		Set(EVM.String(), evm_socket).
+		Set(IMX.String(), imx_socket)
+
+	return network_sockets, nil
 }
