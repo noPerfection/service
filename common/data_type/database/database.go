@@ -102,7 +102,12 @@ func SetValue(kv key_value.KeyValue, database_type *sql.ColumnType, raw interfac
 		if !ok {
 			bytes, ok := raw.([]byte)
 			if !ok {
-				return fmt.Errorf("couldn't convert %v of type %T into 't converted into %s", raw, raw, golang_type)
+				new_value, ok := raw.(int64)
+				if !ok {
+					return fmt.Errorf("couldn't convert %v of type %T into 'uint64'", raw, raw)
+				}
+				kv.Set(database_type.Name(), new_value)
+				return nil
 			}
 			data, err := strconv.ParseUint(string(bytes), 10, 64)
 			if err != nil {
