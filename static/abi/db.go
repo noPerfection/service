@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/db/handler"
 )
 
@@ -12,13 +13,13 @@ func SetInDatabase(db *remote.ClientSocket, a *Abi) error {
 	request := handler.DatabaseQueryRequest{
 		Fields:    []string{"abi_id", "body"},
 		Tables:    []string{"static_abi"},
-		Arguments: []interface{}{a.Id, a.Bytes},
+		Arguments: []interface{}{a.Id, data_type.SerializeBytes(a.Bytes)},
 	}
 	var reply handler.InsertReply
 
 	err := handler.INSERT.Request(db, request, &reply)
 	if err != nil {
-		return fmt.Errorf("handler.WRITE.Push: %w", err)
+		return fmt.Errorf("handler.INSERT.Request: %w", err)
 	}
 	return nil
 }
@@ -26,9 +27,8 @@ func SetInDatabase(db *remote.ClientSocket, a *Abi) error {
 // Get all abis from database
 func GetAllFromDatabase(db *remote.ClientSocket) ([]*Abi, error) {
 	request := handler.DatabaseQueryRequest{
-		Fields:    []string{"abi_id", "body"},
-		Tables:    []string{"static_abi"},
-		Arguments: []interface{}{},
+		Fields: []string{"abi_id as id", "body as bytes"},
+		Tables: []string{"static_abi"},
 	}
 	var reply handler.SelectAllReply
 

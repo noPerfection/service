@@ -5,9 +5,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
@@ -28,7 +31,7 @@ type TestConfigurationDbSuite struct {
 	db_name       string
 	configuration Configuration
 	container     *mysql.MySQLContainer
-	db_con        *db.Database
+	db_con        *remote.ClientSocket
 	ctx           context.Context
 }
 
@@ -72,36 +75,28 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 	// after settings the default parameters
 	// we should have the user name and password
 	app_config.SetDefaults(db.DatabaseConfigurations)
-	credentials := db.GetDefaultCredentials(app_config)
 
-	// Overwrite the host
+	// Overwrite the default parameters to use test container
 	host, err := container.Host(ctx)
 	suite.Require().NoError(err)
-	app_config.SetDefault("SDS_DATABASE_HOST", host)
-
-	// Overwrite the port
 	ports, err := container.Ports(ctx)
 	suite.Require().NoError(err)
 	exposed_port := ports["3306/tcp"][0].HostPort
-	app_config.SetDefault("SDS_DATABASE_PORT", exposed_port)
 
-	// overwrite the database name
-	app_config.SetDefault("SDS_DATABASE_NAME", suite.db_name)
-	parameters, err := db.GetParameters(app_config)
+	db.DatabaseConfigurations.Parameters["SDS_DATABASE_HOST"] = host
+	db.DatabaseConfigurations.Parameters["SDS_DATABASE_PORT"] = exposed_port
+	db.DatabaseConfigurations.Parameters["SDS_DATABASE_NAME"] = suite.db_name
+
+	go db.Run(app_config, logger)
+	// wait for initiation of the controller
+	time.Sleep(time.Second * 1)
+
+	database_service, err := service.Inprocess(service.DATABASE)
+	suite.Require().NoError(err)
+	client, err := remote.InprocRequestSocket(database_service.Url(), logger, app_config)
 	suite.Require().NoError(err)
 
-	// Connect to the database
-	db_con, err := db.Open(logger, parameters, credentials)
-	suite.Require().NoError(err)
-	suite.db_con = db_con
-
-	// // create configuration sql
-	// configuration_sql, err := os.ReadFile(configuration_sql_path)
-	// suite.Require().NoError(err)
-	// // add configuration path
-	// arguments := []interface{}{}
-	// _, err = suite.db_con.Query(suite.ctx, string(configuration_sql), arguments)
-	// suite.Require().NoError(err)
+	suite.db_con = client
 
 	// add the static abi
 	abi_id := "base64="
@@ -147,7 +142,7 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 		if err := container.Terminate(ctx); err != nil {
 			suite.T().Fatalf("failed to terminate container: %s", err)
 		}
-		if err := db_con.Close(); err != nil {
+		if err := suite.db_con.Close(); err != nil {
 			suite.T().Fatalf("failed to terminate database connection: %s", err)
 		}
 	})
