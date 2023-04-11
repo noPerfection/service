@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/app/command"
+	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 
 	zmq "github.com/pebbe/zmq4"
@@ -71,6 +72,26 @@ func PushSocket() (*zmq.Socket, error) {
 	}
 
 	return sock, nil
+}
+
+// the bytes array are accepted as base64 string with "==" tail.
+// deserialize it into the sequence of the bytes.
+//
+// If no arguments were given, or no need to serialize, then return nil
+func (request DatabaseQueryRequest) DeserializeBytes() error {
+	for i, raw_arg := range request.Arguments {
+		base_str, ok := raw_arg.(string)
+		if !ok {
+			continue
+		}
+		bytes := data_type.DeserializeBytes(base_str)
+		if len(bytes) > 0 {
+			request.Arguments[i] = bytes
+			continue
+		}
+	}
+
+	return nil
 }
 
 // BuildSelectQuery creates a SELECT SQL query

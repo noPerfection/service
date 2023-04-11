@@ -332,6 +332,11 @@ func on_insert(request message.Request, _ log.Logger, parameters ...interface{})
 		return message.Fail("parameter validation:" + err.Error())
 	}
 
+	err = query_parameters.DeserializeBytes()
+	if err != nil {
+		return message.Fail("serialization failed: %w" + err.Error())
+	}
+
 	query, err := query_parameters.BuildInsertRowQuery()
 	if err != nil {
 		return message.Fail("query_parameter.BuildInsertRowQuery: " + err.Error())
