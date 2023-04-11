@@ -80,10 +80,11 @@ func transaction_deployed_get(request message.Request, logger log.Logger, app_pa
 		return message.Fail("service.InprocessFromUrl(url): " + err.Error())
 	}
 
-	req_parameters := handler.Transaction{
+	req_parameters := handler.DeployedTransactionRequest{
+		NetworkId:     network.Id,
 		TransactionId: request_parameters.TransactionId,
 	}
-	var blockchain_reply handler.LogFilterReply
+	var blockchain_reply handler.DeployedTransactionReply
 	err = handler.DEPLOYED_TRANSACTION_COMMAND.RequestRouter(sock, target_service, req_parameters, &blockchain_reply)
 	if err != nil {
 		return message.Fail("remote transaction_request: " + err.Error())
