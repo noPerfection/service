@@ -4,8 +4,8 @@ import "fmt"
 
 // Transaction Identifier in the blockchain
 type TransactionKey struct {
-	Id    string `json:"id"`    // txId column
-	Index uint   `json:"index"` // txIndex column
+	Id    string `json:"transaction_id"`    // txId column
+	Index uint   `json:"transaction_index"` // txIndex column
 }
 
 // Validate the transaction key
