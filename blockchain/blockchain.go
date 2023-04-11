@@ -23,10 +23,7 @@ import (
 
 	"fmt"
 
-	evm_categorizer "github.com/blocklords/sds/blockchain/evm/categorizer"
 	imx_categorizer "github.com/blocklords/sds/blockchain/imx/categorizer"
-
-	evm_client "github.com/blocklords/sds/blockchain/evm/client"
 	imx_client "github.com/blocklords/sds/blockchain/imx/client"
 
 	"github.com/blocklords/sds/blockchain/imx"
@@ -273,21 +270,7 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 			return fmt.Errorf("child logger: %w", err)
 		}
 
-		if new_network.Type == network.EVM {
-			blockchain_manager, err := evm_client.NewManager(new_network, worker_logger, app_config)
-			if err != nil {
-				return fmt.Errorf("gosds/blockchain: failed to create EVM client: %v", err)
-			}
-			go blockchain_manager.SetupSocket()
-
-			// Categorizer of the smartcontracts
-			// This categorizers are interacting with the SDS Categorizer
-			categorizer, err := evm_categorizer.NewManager(worker_logger, new_network, app_config)
-			if err != nil {
-				worker_logger.Fatal("evm categorizer manager", "error", err)
-			}
-			go categorizer.Start()
-		} else if new_network.Type == network.IMX {
+		if new_network.Type == network.IMX {
 			new_client := imx_client.New(new_network)
 
 			new_worker := imx_worker.New(app_config, new_client, worker_logger)
@@ -298,7 +281,7 @@ func run_networks(logger log.Logger, app_config *configuration.Config) error {
 				worker_logger.Fatal("imx.NewManager", "error", err)
 			}
 			go imx_manager.Start()
-		} else {
+		} else if new_network.Type != network.EVM {
 			return fmt.Errorf("no blockchain handler for network_type %v", new_network.Type)
 		}
 	}
