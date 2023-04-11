@@ -27,7 +27,7 @@ type DatabaseQueryRequest struct {
 	// for reading, it will have the SELECT clause fields
 	//
 	// for writing, it will have the INSERT VALUES() clause fields
-	Fields    []string      `json:"fields"`
+	Fields    []string      `json:"fields,omitempty"`
 	Tables    []string      `json:"tables"`              // Tables that are used for query
 	Where     string        `json:"where,omitempty"`     // WHERE part of the SQL query
 	Arguments []interface{} `json:"arguments,omitempty"` // to pass in where clause
