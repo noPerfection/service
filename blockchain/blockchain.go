@@ -21,14 +21,6 @@ import (
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
-
-	"fmt"
-
-	imx_categorizer "github.com/blocklords/sds/blockchain/imx/categorizer"
-	imx_client "github.com/blocklords/sds/blockchain/imx/client"
-
-	"github.com/blocklords/sds/blockchain/imx"
-	imx_worker "github.com/blocklords/sds/blockchain/imx/worker"
 )
 
 ////////////////////////////////////////////////////////////////////
@@ -245,11 +237,6 @@ func Run(app_config *configuration.Config) {
 		logger.Fatal("controller new", "message", err)
 	}
 
-	err = run_networks(logger, app_config)
-	if err != nil {
-		logger.Fatal("StartWorkers", "message", err)
-	}
-
 	evm_service, err := service.NewExternal(service.EVM, service.REMOTE, app_config)
 	if err != nil {
 		logger.Fatal("service.NewExternal(service.EVM)", "error", err)
@@ -276,48 +263,4 @@ func Run(app_config *configuration.Config) {
 	if err != nil {
 		logger.Fatal("controller error", "error", err)
 	}
-}
-
-// Start the workers for each blockchain network
-// It will initiate the categorizer along with
-// the client
-func run_networks(logger log.Logger, app_config *configuration.Config) error {
-	networks, err := network.GetNetworks(app_config, network.ALL)
-	if err != nil {
-		return fmt.Errorf("gosds/blockchain: failed to get networks: %v", err)
-	}
-
-	for _, new_network := range networks {
-		if new_network.Type == network.IMX {
-			err = imx.ValidateEnv(app_config)
-			if err != nil {
-				return fmt.Errorf("gosds/blockchain: failed to validate IMX specific config: %v", err)
-			}
-			break
-		}
-	}
-
-	for _, new_network := range networks {
-		worker_logger, err := logger.ChildWithTimestamp(new_network.Type.String() + "_network_id_" + new_network.Id)
-		if err != nil {
-			return fmt.Errorf("child logger: %w", err)
-		}
-
-		if new_network.Type == network.IMX {
-			new_client := imx_client.New(new_network)
-
-			new_worker := imx_worker.New(app_config, new_client, worker_logger)
-			go new_worker.SetupSocket()
-
-			imx_manager, err := imx_categorizer.NewManager(worker_logger, app_config, new_network)
-			if err != nil {
-				worker_logger.Fatal("imx.NewManager", "error", err)
-			}
-			go imx_manager.Start()
-		} else if new_network.Type != network.EVM {
-			return fmt.Errorf("no blockchain handler for network_type %v", new_network.Type)
-		}
-	}
-
-	return nil
 }
