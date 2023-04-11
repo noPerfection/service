@@ -165,7 +165,7 @@ func (router *Router) Run() {
 		poller.Add(router.dealers[index].socket, zmq.POLLIN)
 	}
 	router.logger.Info("dealers set up successfully")
-	router.logger.Info("setup router")
+	router.logger.Info("setup router", "service", router.service.Name, "url", router.service.Url())
 
 	frontend, _ := zmq.NewSocket(zmq.ROUTER)
 	defer frontend.Close()
