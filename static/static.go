@@ -103,6 +103,6 @@ func Run(app_config *configuration.Config) {
 		configurations_list,
 	)
 	if err != nil {
-		logger.Fatal("reply controller", "message", err)
+		logger.Fatal("reply controller", "error", err)
 	}
 }
