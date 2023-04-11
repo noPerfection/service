@@ -2,11 +2,11 @@ package handler
 
 import (
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/db"
 )
 
 func on_new_smartcontracts(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
@@ -14,7 +14,7 @@ func on_new_smartcontracts(request message.Request, logger log.Logger, parameter
 		return message.Fail("invalid parameters were given atleast database should be passed")
 	}
 
-	database, ok := parameters[0].(*db.Database)
+	db_con, ok := parameters[0].(*remote.ClientSocket)
 	if !ok {
 		return message.Fail("missing Manager in the parameters")
 	}
@@ -36,14 +36,14 @@ func on_new_smartcontracts(request message.Request, logger log.Logger, parameter
 	}
 
 	for _, sm := range smartcontracts {
-		err := smartcontract.SaveBlockParameters(database, sm)
+		err := smartcontract.SaveBlockParameters(db_con, sm)
 		if err != nil {
 			return message.Fail("smartcontract.SaveBlockParameters: " + err.Error())
 		}
 	}
 
 	for _, l := range logs {
-		err := event.Save(database, l)
+		err := event.Save(db_con, l)
 		if err != nil {
 			return message.Fail("event.Save: " + err.Error())
 		}

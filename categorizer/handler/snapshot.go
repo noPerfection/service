@@ -2,8 +2,8 @@ package handler
 
 import (
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/categorizer/event"
-	"github.com/blocklords/sds/db"
 
 	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/remote/message"
@@ -28,7 +28,7 @@ type SnapshotReply struct {
 //
 // This function is called by the SDK through SDS Gateway
 func GetSnapshot(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	db_con := parameters[0].(*db.Database)
+	db_con := parameters[0].(*remote.ClientSocket)
 
 	var snapshot Snapshot
 	err := request.Parameters.ToInterface(&snapshot)

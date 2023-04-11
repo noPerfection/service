@@ -32,7 +32,6 @@ import (
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/categorizer/handler"
 	"github.com/blocklords/sds/categorizer/smartcontract"
-	"github.com/blocklords/sds/db"
 )
 
 // Sends the smartcontracts to the blockchain package.
@@ -40,9 +39,9 @@ import (
 // The blockchain package will have the categorizer for its each blockchain type.
 // They will handle the decoding the event logs.
 // After decoding, the blockchain/categorizer will push back to this categorizer's puller.
-func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *network.Network, client_socket *remote.ClientSocket) error {
+func setup_smartcontracts(logger log.Logger, database_client *remote.ClientSocket, network *network.Network, client_socket *remote.ClientSocket) error {
 	logger.Info("get all categorizable smartcontracts from database", "network_id", network.Id)
-	smartcontracts, err := smartcontract.GetAllByNetworkId(db_con, network.Id)
+	smartcontracts, err := smartcontract.GetAllByNetworkId(database_client, network.Id)
 	if err != nil {
 		return fmt.Errorf("smartcontract.GetAllByNetworkId: %w", err)
 	}
@@ -86,7 +85,7 @@ func Service() *service.Service {
 // Provides commands to fetch the decoded logs from SDK.
 //
 // dep: SDS Blockchain core service
-func Run(app_config *configuration.Config, db_con *db.Database) {
+func Run(app_config *configuration.Config, database_client *remote.ClientSocket) {
 	logger, _ := log.New("categorizer", log.WITH_TIMESTAMP)
 
 	logger.Info("starting")
@@ -124,7 +123,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 			logger.Fatal("no client socket to network service", "network id", new_network.Id, "network type", new_network.Type)
 		}
 
-		err = setup_smartcontracts(logger, db_con, new_network, client_socket)
+		err = setup_smartcontracts(logger, database_client, new_network, client_socket)
 		if err != nil {
 			logger.Fatal("setup_smartcontracts", "network_id", new_network.Id, "error", err)
 		}
@@ -136,7 +135,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		logger.Fatal("controller.NewReply", "service", Service())
 	}
 
-	err = reply.Run(CommandHandlers, db_con, network_sockets, networks)
+	err = reply.Run(CommandHandlers, database_client, network_sockets, networks)
 	if err != nil {
 		logger.Fatal("controller.Run", "error", err)
 	}

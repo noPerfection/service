@@ -13,8 +13,6 @@ import (
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
-
-	"github.com/blocklords/sds/db"
 )
 
 type GetSmartcontractRequest struct {
@@ -41,14 +39,16 @@ type CategorizationReply key_value.KeyValue
 
 // return a categorized smartcontract parameters by network id and smartcontract address
 func GetSmartcontract(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	db := parameters[0].(*db.Database)
-
 	key, err := smartcontract_key.NewFromKeyValue(request.Parameters)
 	if err != nil {
 		return message.Fail("smartcontract_key.NewFromKeyValue: " + err.Error())
 	}
 
-	sm, err := smartcontract.Get(db, key)
+	db_con, ok := parameters[0].(*remote.ClientSocket)
+	if !ok {
+		return message.Fail("missing database client socket in app parameters")
+	}
+	sm, err := smartcontract.Get(db_con, key)
 
 	if err != nil {
 		return message.Fail("smartcontract.Get: " + err.Error())
@@ -69,8 +69,11 @@ func GetSmartcontract(request message.Request, _ log.Logger, parameters ...inter
 
 // returns all smartcontract categorized smartcontracts
 func GetSmartcontracts(_ message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	db := parameters[0].(*db.Database)
-	smartcontracts, err := smartcontract.GetAll(db)
+	db_con, ok := parameters[0].(*remote.ClientSocket)
+	if !ok {
+		return message.Fail("missing database client socket in app parameters")
+	}
+	smartcontracts, err := smartcontract.GetAll(db_con)
 	if err != nil {
 		return message.Fail("the database error " + err.Error())
 	}
@@ -89,7 +92,10 @@ func GetSmartcontracts(_ message.Request, _ log.Logger, parameters ...interface{
 
 // Register a new smartcontract to categorizer.
 func SetSmartcontract(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	db_con := parameters[0].(*db.Database)
+	db_con, ok := parameters[0].(*remote.ClientSocket)
+	if !ok {
+		return message.Fail("missing database client socket in app parameters")
+	}
 
 	var request_parameters SetSmartcontractRequest
 	err := request.Parameters.ToInterface(&request_parameters)
