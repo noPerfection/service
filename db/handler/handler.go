@@ -209,7 +209,7 @@ func (request DatabaseQueryRequest) BuildUpdateQuery() (string, error) {
 			str += `, `
 		}
 	}
-	str += " "
+	str += " WHERE " + request.Where
 
 	return str, nil
 }
