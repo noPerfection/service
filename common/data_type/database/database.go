@@ -54,7 +54,7 @@ func SetValue(kv key_value.KeyValue, database_type *sql.ColumnType, raw interfac
 		if !ok {
 			bytes, ok := raw.([]byte)
 			if !ok {
-				return fmt.Errorf("couldn't convert %v of type %T into 't converted into %s", raw, raw, golang_type)
+				return fmt.Errorf("couldn't convert %v of type %T into 'string'", raw, raw)
 			}
 			kv.Set(database_type.Name(), string(bytes))
 			return nil
@@ -69,7 +69,7 @@ func SetValue(kv key_value.KeyValue, database_type *sql.ColumnType, raw interfac
 
 		value, ok := raw.([]byte)
 		if !ok {
-			return fmt.Errorf("database value is expected to be %s, but value %v of type %T wasn't converted into", golang_type, raw, raw)
+			return fmt.Errorf("database value is expected to be '[]byte', but value %v of type %T", raw, raw)
 		}
 		kv.Set(database_type.Name(), value)
 		return nil
@@ -82,7 +82,7 @@ func SetValue(kv key_value.KeyValue, database_type *sql.ColumnType, raw interfac
 		if !ok {
 			bytes, ok := raw.([]byte)
 			if !ok {
-				return fmt.Errorf("couldn't convert %v of type %T into 't converted into %s", raw, raw, golang_type)
+				return fmt.Errorf("couldn't convert %v of type %T into 'int64'", raw, raw)
 			}
 			data, err := strconv.ParseInt(string(bytes), 10, 64)
 			if err != nil {
