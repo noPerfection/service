@@ -27,7 +27,7 @@ const (
 	// CATEGORIZATION command is sent from blockchain sub services to this service
 	// with the list of decoded smartcontract logs and new states.
 	//
-	// Internal from SDS Blockchain service to SDS Categorizer
+	// Internal from SDS network services to SDS Categorizer
 	// Indicates that the list of smartcontracts are categorized
 	CATEGORIZATION command.CommandName = "categorize"
 )
@@ -39,5 +39,6 @@ func CommandHandlers() command.Handlers {
 		Add(GET_SMARTCONTRACTS, GetSmartcontracts).
 		Add(GET_SMARTCONTRACT, GetSmartcontract).
 		Add(SET_SMARTCONTRACT, SetSmartcontract).
-		Add(SNAPSHOT, GetSnapshot)
+		Add(SNAPSHOT, GetSnapshot).
+		Add(CATEGORIZATION, on_new_smartcontracts)
 }

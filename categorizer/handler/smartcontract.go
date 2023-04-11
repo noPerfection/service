@@ -7,6 +7,7 @@ import (
 	blockchain_command "github.com/blocklords/sds/blockchain/handler"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 
 	"github.com/blocklords/sds/db"
@@ -34,6 +35,7 @@ type PushCategorization struct {
 	Smartcontracts []smartcontract.Smartcontract `json:"smartcontracts"`
 	Logs           []event.Log                   `json:"logs"`
 }
+type CategorizationReply key_value.KeyValue
 
 // return a categorized smartcontract parameters by network id and smartcontract address
 func GetSmartcontract(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
