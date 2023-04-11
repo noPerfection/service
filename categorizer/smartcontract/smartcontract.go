@@ -39,3 +39,16 @@ func (sm *Smartcontract) ToString() (string, error) {
 
 	return string(bytes), nil
 }
+
+// Validate the parameters of the Smartcontract
+func (sm *Smartcontract) Validate() error {
+	if err := sm.SmartcontractKey.Validate(); err != nil {
+		return fmt.Errorf("sm.SmartcontractKey.Validate(): %w", err)
+	}
+
+	if err := sm.BlockHeader.Validate(); err != nil {
+		return fmt.Errorf("sm.BlockHeader.Validate(): %w", err)
+	}
+
+	return nil
+}

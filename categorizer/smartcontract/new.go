@@ -13,5 +13,9 @@ func New(blob key_value.KeyValue) (*Smartcontract, error) {
 		return nil, fmt.Errorf("failed to serialize categorizer.Smartcontract key-value %v to intermediate interface: %v", blob, err)
 	}
 
+	if err := sm.Validate(); err != nil {
+		return nil, fmt.Errorf("sm.Validate(): %w", err)
+	}
+
 	return &sm, nil
 }
