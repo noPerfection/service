@@ -136,6 +136,11 @@ func on_new_credentials(request message.Request, _ log.Logger, parameters ...int
 	}
 }
 
+// selects all rows from the database
+//
+// intended to be used once during the app launch for caching.
+//
+// Minimize the database queries by using this
 func on_select_all(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	if len(parameters) == 0 {
 		return message.Fail("the database connection wasn't passed to handler")
@@ -281,6 +286,8 @@ func on_select_row(request message.Request, _ log.Logger, parameters ...interfac
 	if err != nil {
 		return message.Fail("db.Connection.Query: " + err.Error())
 	}
+	defer rows.Close()
+
 	field_types, err := rows.ColumnTypes()
 	if err != nil {
 		return message.Fail("rows.ColumnTypes: " + err.Error())
@@ -344,6 +351,7 @@ func on_delete(request message.Request, _ log.Logger, parameters ...interface{})
 	if err != nil {
 		return message.Fail("db.Connection.Exec: " + err.Error())
 	}
+
 	affected, err := result.RowsAffected()
 	if err != nil {
 		return message.Fail("result.RowsAffected: " + err.Error())
@@ -456,7 +464,7 @@ func on_update(request message.Request, _ log.Logger, parameters ...interface{})
 	if affected == 0 {
 		return message.Fail("no rows were inserted or updated")
 	}
-	reply := handler.InsertReply{}
+	reply := handler.UpdateReply{}
 	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("command.Reply: " + err.Error())
