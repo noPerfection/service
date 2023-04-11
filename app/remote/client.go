@@ -11,7 +11,7 @@ import (
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 
-	// move out dependency from security/credentials
+	// move out dependency from security/auth
 	"github.com/blocklords/sds/security/auth"
 	zmq "github.com/pebbe/zmq4"
 )
@@ -77,7 +77,7 @@ func (socket *ClientSocket) reconnect() error {
 	if socket.client_credentials != nil {
 		socket.client_credentials.SetClientAuthCurve(socket.socket, socket.server_public_key)
 		if err != nil {
-			return fmt.Errorf("credentials.SetClientAuthCurve: %w", err)
+			return fmt.Errorf("auth.SetClientAuthCurve: %w", err)
 		}
 	}
 
@@ -427,7 +427,7 @@ func NewTcpSubscriber(e *service.Service, server_public_key string, client *auth
 	if client != nil {
 		err := client.SetClientAuthCurve(socket, server_public_key)
 		if err != nil {
-			return nil, fmt.Errorf("credentials.SetClientAuthCurve: %w", err)
+			return nil, fmt.Errorf("client.SetClientAuthCurve: %w", err)
 		}
 	}
 

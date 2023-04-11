@@ -8,7 +8,7 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/service"
 
-	// move out dependency from security/credentials and security/vault
+	// move out dependency from security/auth and security/vault
 	"github.com/blocklords/sds/security/auth"
 	"github.com/blocklords/sds/security/vault"
 )

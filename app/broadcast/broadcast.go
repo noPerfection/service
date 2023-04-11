@@ -42,7 +42,7 @@ import (
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/service"
 
-	// remove the dependency on security/credentials
+	// remove the dependency on security/auth
 	"github.com/blocklords/sds/security/auth"
 
 	"github.com/blocklords/sds/app/remote/message"
