@@ -107,8 +107,6 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 
 	logger.Info("networks retreived")
 
-	// TODO: create inside the handlers
-	// don't pass as global variable
 	pushers := make(map[string]*zmq.Socket, len(parameters))
 
 	for _, the_network := range parameters {
@@ -129,8 +127,6 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 	if err != nil {
 		logger.Fatal("controller.NewReply", "service", Service())
 	}
-
-	go RunPuller(logger, db_con)
 
 	err = reply.Run(CommandHandlers, db_con, pushers)
 	if err != nil {
