@@ -11,6 +11,7 @@ import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/blockchain/handler"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
+	"github.com/blocklords/sds/common/data_type/key_value"
 
 	"github.com/blocklords/sds/blockchain/network"
 
@@ -38,9 +39,9 @@ import (
 
 // this function returns the smartcontract deployer, deployed block number
 // and block timestamp by a transaction hash of the smartcontract deployment.
-func transaction_deployed_get(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
-	if len(parameters) < 1 {
-		return message.Fail("missing app configuration")
+func transaction_deployed_get(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
+	if len(app_parameters) < 2 {
+		return message.Fail("missing app configuration and network sockets")
 	}
 
 	var request_parameters handler.DeployedTransactionRequest
@@ -49,7 +50,7 @@ func transaction_deployed_get(request message.Request, logger log.Logger, parame
 		return message.Fail("failed to parse request parameters " + err.Error())
 	}
 
-	app_config, ok := parameters[0].(*configuration.Config)
+	app_config, ok := app_parameters[0].(*configuration.Config)
 	if !ok {
 		return message.Fail("the parameter is not app config")
 	}
@@ -89,8 +90,8 @@ func transaction_deployed_get(request message.Request, logger log.Logger, parame
 
 // Returns Network
 func get_network(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
-	if len(app_parameters) < 1 {
-		return message.Fail("missing app configuration")
+	if len(app_parameters) < 2 {
+		return message.Fail("missing app configuration and network sockets")
 	}
 
 	command_logger, err := logger.ChildWithoutReport("network-get-command")
@@ -130,8 +131,8 @@ func get_network(request message.Request, logger log.Logger, app_parameters ...i
 
 // Returns an abi by the smartcontract key.
 func get_network_ids(request message.Request, _ log.Logger, app_parameters ...interface{}) message.Reply {
-	if len(app_parameters) < 1 {
-		return message.Fail("missing app configuration")
+	if len(app_parameters) < 2 {
+		return message.Fail("missing app configuration and network sockets")
 	}
 
 	var network_type handler.GetNetworkIdsRequest
@@ -160,8 +161,8 @@ func get_network_ids(request message.Request, _ log.Logger, app_parameters ...in
 
 // Returns an abi by the smartcontract key.
 func get_all_networks(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
-	if len(app_parameters) < 1 {
-		return message.Fail("missing app configuration")
+	if len(app_parameters) < 2 {
+		return message.Fail("missing app configuration and network sockets")
 	}
 
 	command_logger, err := logger.ChildWithoutReport("network-get-all-command")
@@ -239,9 +240,31 @@ func Run(app_config *configuration.Config) {
 		logger.Fatal("StartWorkers", "message", err)
 	}
 
-	err = reply.Run(CommandHandlers(), app_config)
+	evm_service, err := service.NewExternal(service.EVM, service.REMOTE, app_config)
 	if err != nil {
-		logger.Fatal("controller error", "message", err)
+		logger.Fatal("service.NewExternal(service.EVM)", "error", err)
+	}
+	evm_socket, err := remote.NewTcpSocket(evm_service, logger, app_config)
+	if err != nil {
+		logger.Fatal("remote.NewTcpSocket(EVM service)", "error", err)
+	}
+
+	imx_service, err := service.NewExternal(service.IMX, service.REMOTE, app_config)
+	if err != nil {
+		logger.Fatal("service.NewExternal(service.IMX)", "error", err)
+	}
+	imx_socket, err := remote.NewTcpSocket(imx_service, logger, app_config)
+	if err != nil {
+		logger.Fatal("remote.NewTcpSocket(IMX service)", "error", err)
+	}
+
+	network_sockets := key_value.Empty().
+		Set(network.EVM.String(), evm_socket).
+		Set(network.IMX.String(), imx_socket)
+
+	err = reply.Run(CommandHandlers(), app_config, network_sockets)
+	if err != nil {
+		logger.Fatal("controller error", "error", err)
 	}
 }
 
