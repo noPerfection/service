@@ -110,6 +110,9 @@ func (request DatabaseQueryRequest) BuildSelectQuery() (string, error) {
 	if len(request.Tables) == 0 {
 		return "", fmt.Errorf("missing Tables parameter")
 	}
+	if len(request.Where) > 0 && len(request.Arguments) == 0 {
+		return "", fmt.Errorf("missing Arguments for Where clause")
+	}
 
 	str := `SELECT `
 
