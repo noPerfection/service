@@ -176,7 +176,7 @@ func (suite *TestRouterSuite) TestRun() {
 			var reply_parameters key_value.KeyValue
 
 			command_index := 1
-			dealer := service.CATEGORIZER
+			dealer, _ := service.Inprocess(service.CATEGORIZER)
 
 			err := suite.commands[command_index].RequestRouter(suite.tcp_client, dealer, request_parameters, &reply_parameters)
 			suite.NoError(err)
@@ -196,7 +196,7 @@ func (suite *TestRouterSuite) TestRun() {
 			var reply_parameters key_value.KeyValue
 
 			command_index := 0
-			dealer := service.SPAGHETTI
+			dealer, _ := service.Inprocess(service.SPAGHETTI)
 
 			err := suite.commands[command_index].RequestRouter(suite.tcp_client, dealer, request_parameters, &reply_parameters)
 			suite.NoError(err)
@@ -216,12 +216,17 @@ func (suite *TestRouterSuite) TestRun() {
 			Command:    command_3.String(),
 			Parameters: key_value.Empty(),
 		}
-		_, err := suite.tcp_client.RequestRouter(service.SPAGHETTI, &request_3)
+
+		spaghetti_socket, _ := service.Inprocess(service.SPAGHETTI)
+
+		_, err := suite.tcp_client.RequestRouter(spaghetti_socket, &request_3)
 		suite.Require().Error(err)
 
 		suite.logger.Info("before requesting unhandled reply controller's dealer")
 
-		_, err = suite.tcp_client.RequestRouter(service.STATIC, &request_3)
+		static_socket, _ := service.Inprocess(service.STATIC)
+
+		_, err = suite.tcp_client.RequestRouter(static_socket, &request_3)
 		suite.Require().Error(err)
 
 		suite.logger.Info("after requesting unhandled reply controller's dealer")

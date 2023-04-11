@@ -137,9 +137,11 @@ func (suite *TestCommandSuite) TestRun() {
 	err = command_2.Push(client, push_parameters)
 	suite.NoError(err)
 
+	categorizer_service, _ := service.Inprocess(service.CATEGORIZER)
+
 	// Test command.RequestRouter()
 	command_3 := New("command_router")
-	err = command_3.RequestRouter(suite.client, service.CATEGORIZER, request_parameters, &reply_parameters)
+	err = command_3.RequestRouter(suite.client, categorizer_service, request_parameters, &reply_parameters)
 	suite.NoError(err)
 	replied_command, err := reply_parameters.GetString("command")
 	suite.NoError(err)

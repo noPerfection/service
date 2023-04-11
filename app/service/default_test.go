@@ -19,7 +19,7 @@ type TestDefaultSuite struct {
 // before each test
 func (suite *TestDefaultSuite) SetupTest() {
 	types := service_types()
-	suite.Require().Len(types, 9)
+	suite.Require().Len(types, 11)
 	configs := DefaultConfigurations()
 	suite.Require().Len(configs, len(types))
 

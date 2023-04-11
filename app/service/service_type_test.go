@@ -25,7 +25,7 @@ func (suite *TestServiceTypeSuite) SetupTest() {
 
 func (suite *TestServiceTypeSuite) TestTypes() {
 	types := service_types()
-	suite.Require().Len(types, 9)
+	suite.Require().Len(types, 11)
 	suite.Equal(CORE, types[0])
 	suite.Equal(SPAGHETTI, types[1])
 	suite.Equal(CATEGORIZER, types[2])
@@ -35,6 +35,8 @@ func (suite *TestServiceTypeSuite) TestTypes() {
 	suite.Equal(READER, types[6])
 	suite.Equal(WRITER, types[7])
 	suite.Equal(BUNDLE, types[8])
+	suite.Equal(EVM, types[9])
+	suite.Equal(IMX, types[10])
 }
 
 // In order for 'go test' to run this suite, we need to create
