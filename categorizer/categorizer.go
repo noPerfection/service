@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/common/data_type/key_value"
 
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/controller"
@@ -32,8 +33,6 @@ import (
 	"github.com/blocklords/sds/categorizer/handler"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/db"
-
-	zmq "github.com/pebbe/zmq4"
 )
 
 // Sends the smartcontracts to the blockchain package.
@@ -41,7 +40,7 @@ import (
 // The blockchain package will have the categorizer for its each blockchain type.
 // They will handle the decoding the event logs.
 // After decoding, the blockchain/categorizer will push back to this categorizer's puller.
-func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *network.Network, pusher *zmq.Socket) error {
+func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *network.Network, client_socket *remote.ClientSocket) error {
 	logger.Info("get all categorizable smartcontracts from database", "network_id", network.Id)
 	smartcontracts, err := smartcontract.GetAllByNetworkId(db_con, network.Id)
 	if err != nil {
@@ -54,10 +53,17 @@ func setup_smartcontracts(logger log.Logger, db_con *db.Database, network *netwo
 	logger.Info("all smartcontracts returned", "network_id", network.Id, "smartcontract amount", len(smartcontracts))
 	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id, "url", categorizer_process.CategorizerEndpoint(network.Id))
 
+	url := categorizer_process.CategorizerEndpoint(network.Id)
+	categorizer_service, err := service.InprocessFromUrl(url)
+	if err != nil {
+		return fmt.Errorf("service.InprocessFromUrl(url): %w", err)
+	}
+
 	request := blockchain_command.PushNewSmartcontracts{
 		Smartcontracts: smartcontracts,
 	}
-	err = blockchain_command.NEW_CATEGORIZED_SMARTCONTRACTS.Push(pusher, request)
+	var reply key_value.KeyValue
+	err = blockchain_command.NEW_CATEGORIZED_SMARTCONTRACTS.RequestRouter(client_socket, categorizer_service, request, &reply)
 	if err != nil {
 		return fmt.Errorf("failed to send to blockchain package: %w", err)
 	}
@@ -98,27 +104,29 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 	logger.Info("retreive networks", "network-type", network.ALL)
 
 	var request_parameters = network.ALL
-	var parameters blockchain_command.GetNetworksReply
-	err = blockchain_command.NETWORKS_COMMAND.Request(blockchain_socket, request_parameters, &parameters)
+	var networks blockchain_command.GetNetworksReply
+	err = blockchain_command.NETWORKS_COMMAND.Request(blockchain_socket, request_parameters, &networks)
 	blockchain_socket.Close()
 	if err != nil {
-		logger.Fatal("newwork.GetRemoteNetworks", "message", err)
+		logger.Fatal("newwork.GetRemoteNetworks", "error", err)
 	}
 
 	logger.Info("networks retreived")
 
-	pushers := make(map[string]*zmq.Socket, len(parameters))
+	network_sockets, err := network.NewClientSockets(app_config, logger)
+	if err != nil {
+		logger.Fatal("network.NewClientSockets", "error", err)
+	}
 
-	for _, the_network := range parameters {
-		pusher, err := categorizer_process.CategorizerManagerSocket(the_network.Id)
-		if err != nil {
-			logger.Fatal("categorizer_process.CategorizerManagerSocket: %w", err)
+	for _, new_network := range networks {
+		client_socket, ok := network_sockets[new_network.Type.String()].(*remote.ClientSocket)
+		if !ok {
+			logger.Fatal("no client socket to network service", "network id", new_network.Id, "network type", new_network.Type)
 		}
-		pushers[the_network.Id] = pusher
 
-		err = setup_smartcontracts(logger, db_con, the_network, pusher)
+		err = setup_smartcontracts(logger, db_con, new_network, client_socket)
 		if err != nil {
-			logger.Fatal("setup_smartcontracts", "network_id", the_network.Id, "message", err)
+			logger.Fatal("setup_smartcontracts", "network_id", new_network.Id, "error", err)
 		}
 	}
 
@@ -128,7 +136,7 @@ func Run(app_config *configuration.Config, db_con *db.Database) {
 		logger.Fatal("controller.NewReply", "service", Service())
 	}
 
-	err = reply.Run(CommandHandlers, db_con, pushers)
+	err = reply.Run(CommandHandlers, db_con, network_sockets, networks)
 	if err != nil {
 		logger.Fatal("controller.Run", "error", err)
 	}

@@ -3,16 +3,18 @@ package handler
 import (
 	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/service"
 	blockchain_command "github.com/blocklords/sds/blockchain/handler"
+	blockchain_inproc "github.com/blocklords/sds/blockchain/inproc"
+	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 
 	"github.com/blocklords/sds/db"
-
-	zmq "github.com/pebbe/zmq4"
 )
 
 type GetSmartcontractRequest struct {
@@ -104,16 +106,39 @@ func SetSmartcontract(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("database: " + saveErr.Error())
 	}
 
-	pushers := parameters[1].(map[string]*zmq.Socket)
-	pusher, ok := pushers[request_parameters.Smartcontract.SmartcontractKey.NetworkId]
+	networks, ok := parameters[2].(network.Networks)
 	if !ok {
-		return message.Fail("no blockchain package for network id")
+		return message.Fail("no networks were given")
+	}
+	if !networks.Exist(request_parameters.Smartcontract.SmartcontractKey.NetworkId) {
+		return message.Fail("network data not found for network id: " + request_parameters.Smartcontract.SmartcontractKey.NetworkId)
+	}
+	network, err := networks.Get(request_parameters.Smartcontract.SmartcontractKey.NetworkId)
+	if err != nil {
+		return message.Fail("networks.Get: " + err.Error())
 	}
 
-	push := blockchain_command.PushNewSmartcontracts{
+	network_sockets, ok := parameters[1].(key_value.KeyValue)
+	if !ok {
+		return message.Fail("no network sockets in the app parameters")
+	}
+
+	client_socket, ok := network_sockets[network.Type.String()].(*remote.ClientSocket)
+	if !ok {
+		return message.Fail("no network client for " + network.Type.String())
+	}
+
+	url := blockchain_inproc.CategorizerEndpoint(network.Id)
+	categorizer_service, err := service.InprocessFromUrl(url)
+	if err != nil {
+		return message.Fail("blockchain_inproc.CategorizerEndpoint(network.Id): " + err.Error())
+	}
+
+	new_sm_request := blockchain_command.PushNewSmartcontracts{
 		Smartcontracts: []smartcontract.Smartcontract{request_parameters.Smartcontract},
 	}
-	err = blockchain_command.NEW_CATEGORIZED_SMARTCONTRACTS.Push(pusher, push)
+	var new_sm_reply key_value.KeyValue
+	err = blockchain_command.NEW_CATEGORIZED_SMARTCONTRACTS.RequestRouter(client_socket, categorizer_service, new_sm_request, &new_sm_reply)
 	if err != nil {
 		return message.Fail("failed to send to blockchain package: " + err.Error())
 	}
