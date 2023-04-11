@@ -94,7 +94,8 @@ func (database *Database) run_controller() {
 		Add(handler.SELECT_ROW, on_select_row).
 		Add(handler.SELECT_ALL, on_select_all).
 		Add(handler.DELETE, on_delete).
-		Add(handler.INSERT, on_insert)
+		Add(handler.INSERT, on_insert).
+		Add(handler.UPDATE, on_update)
 
 	reply.Run(command_handlers, database)
 }
@@ -311,7 +312,7 @@ func on_delete(request message.Request, _ log.Logger, parameters ...interface{})
 	return reply_message
 }
 
-// Execute the insert or update
+// Execute the insert
 func on_insert(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	if len(parameters) == 0 {
 		return message.Fail("the database connection wasn't passed to handler")
@@ -340,6 +341,58 @@ func on_insert(request message.Request, _ log.Logger, parameters ...interface{})
 	query, err := query_parameters.BuildInsertRowQuery()
 	if err != nil {
 		return message.Fail("query_parameter.BuildInsertRowQuery: " + err.Error())
+	}
+
+	result, err := db.Connection.Exec(query, query_parameters.Arguments...)
+	if err != nil {
+		return message.Fail("db.Connection.Exec: " + err.Error())
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return message.Fail("result.RowsAffected: " + err.Error())
+	}
+
+	if affected == 0 {
+		return message.Fail("no rows were inserted or updated")
+	}
+	reply := handler.InsertReply{}
+	reply_message, err := command.Reply(&reply)
+	if err != nil {
+		return message.Fail("command.Reply: " + err.Error())
+	}
+
+	return reply_message
+}
+
+// Execute the row update
+func on_update(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+	if len(parameters) == 0 {
+		return message.Fail("the database connection wasn't passed to handler")
+	}
+
+	db, ok := parameters[0].(*Database)
+	if !ok {
+		return message.Fail("the parameter is not a database")
+	}
+	if db.Connection == nil {
+		return message.Fail("database.Connection is nil, please open the connection first")
+	}
+
+	//parameters []interface{}, outputs []interface{}
+	var query_parameters handler.DatabaseQueryRequest
+	err := request.Parameters.ToInterface(&query_parameters)
+	if err != nil {
+		return message.Fail("parameter validation:" + err.Error())
+	}
+
+	err = query_parameters.DeserializeBytes()
+	if err != nil {
+		return message.Fail("serialization failed: %w" + err.Error())
+	}
+
+	query, err := query_parameters.BuildUpdateQuery()
+	if err != nil {
+		return message.Fail("query_parameter.BuildUpdateQuery: " + err.Error())
 	}
 
 	result, err := db.Connection.Exec(query, query_parameters.Arguments...)

@@ -16,6 +16,7 @@ const (
 	SELECT_ROW      command.CommandName = "select-row"      // Get one row, if it doesn't exist, return error
 	SELECT_ALL      command.CommandName = "select"          // Read multiple line
 	INSERT          command.CommandName = "insert"          // insert new row
+	UPDATE          command.CommandName = "update"          // update the existing row
 	EXIST           command.CommandName = "exist"           // Returns true or false if select query has some rows
 	DELETE          command.CommandName = "delete"          // Delete some rows from database
 )
@@ -53,6 +54,9 @@ type ExistReply struct {
 // DeleteReply keeps the parameters of DELETE command reply by controller
 type DeleteReply struct{}
 
+// UpdateReply keeps the parameters of UPDATE command reply by controller
+type UpdateReply struct{}
+
 // PullerEndpoint returns the inproc pull controller to
 // database.
 //
@@ -61,6 +65,10 @@ func PullerEndpoint() string {
 	return "inproc://database_renew"
 }
 
+// PushSocket creates a client socket to the database puller.
+//
+// Used by the database credentials handler (for example: vault) to send to the database service
+// new credentials.
 func PushSocket() (*zmq.Socket, error) {
 	sock, err := zmq.NewSocket(zmq.PUSH)
 	if err != nil {
@@ -138,6 +146,45 @@ func (request DatabaseQueryRequest) BuildSelectRowQuery() (string, error) {
 	}
 
 	return query + " LIMIT 1 ", nil
+}
+
+// BuildUpdateQuery creates an UPDATE SQL query
+func (request DatabaseQueryRequest) BuildUpdateQuery() (string, error) {
+	if len(request.Fields) == 0 {
+		return "", fmt.Errorf("missing Fields parameter")
+	}
+	if len(request.Tables) == 0 {
+		return "", fmt.Errorf("missing Tables parameter")
+	}
+	if len(request.Arguments) == 0 {
+		return "", fmt.Errorf("missing Arguments parameter")
+	}
+	if len(request.Where) == 0 {
+		return "", fmt.Errorf("missing Where parameter, updating all rows is prohibited")
+	}
+
+	str := `UPDATE `
+	// tables
+	last_table_index := len(request.Tables) - 1
+	for i, table := range request.Tables {
+		str += table
+		if i < last_table_index {
+			str += `, `
+		}
+	}
+
+	str += ` SET `
+	// the fields
+	last_field_index := len(request.Fields) - 1
+	for i, field := range request.Fields {
+		str += field + " = ?"
+		if i < last_field_index {
+			str += `, `
+		}
+	}
+	str += " "
+
+	return str, nil
 }
 
 // BuildInsertRowQuery creates an INSERT INTO SQL query
