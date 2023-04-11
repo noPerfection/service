@@ -16,6 +16,7 @@ import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db/handler"
 )
@@ -163,27 +164,26 @@ func on_select_all(request message.Request, _ log.Logger, parameters ...interfac
 	if err != nil {
 		return message.Fail("db.Connection.Query: " + err.Error())
 	}
-	fields, err := rows.Columns()
+	field_types, err := rows.ColumnTypes()
 	if err != nil {
-		return message.Fail("rows.Columns: " + err.Error())
+		return message.Fail("rows.ColumnTypes: " + err.Error())
 	}
 
 	reply_objects := make([]key_value.KeyValue, 0)
 
 	for rows.Next() {
-		scans := make([]interface{}, len(fields))
-		row := make(map[string]interface{})
+		scans := make([]interface{}, len(field_types))
+		row := key_value.Empty()
 
 		for i := range scans {
 			scans[i] = &scans[i]
 		}
 		rows.Scan(scans...)
 		for i, v := range scans {
-			var value = ""
-			if v != nil {
-				value = fmt.Sprintf("%s", v)
+			err := database.SetValue(row, field_types[i], v)
+			if err != nil {
+				return message.Fail("failed to set value for field " + field_types[i].Name() + " of " + field_types[i].DatabaseTypeName() + " type: " + err.Error())
 			}
-			row[fields[i]] = value
 		}
 
 		reply_objects = append(reply_objects, key_value.New(row))
@@ -231,26 +231,25 @@ func on_select_row(request message.Request, _ log.Logger, parameters ...interfac
 	if err != nil {
 		return message.Fail("db.Connection.Query: " + err.Error())
 	}
-	fields, err := rows.Columns()
+	field_types, err := rows.ColumnTypes()
 	if err != nil {
-		return message.Fail("rows.Columns: " + err.Error())
+		return message.Fail("rows.ColumnTypes: " + err.Error())
 	}
 
 	row := make(map[string]interface{})
 
 	for rows.Next() {
-		scans := make([]interface{}, len(fields))
+		scans := make([]interface{}, len(field_types))
 
 		for i := range scans {
 			scans[i] = &scans[i]
 		}
 		rows.Scan(scans...)
 		for i, v := range scans {
-			var value = ""
-			if v != nil {
-				value = fmt.Sprintf("%s", v)
+			err := database.SetValue(row, field_types[i], v)
+			if err != nil {
+				return message.Fail("failed to set value for field " + field_types[i].Name() + " of " + field_types[i].DatabaseTypeName() + " type: " + err.Error())
 			}
-			row[fields[i]] = value
 		}
 	}
 
