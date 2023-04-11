@@ -2,6 +2,8 @@
 package event
 
 import (
+	"fmt"
+
 	spaghetti_log "github.com/blocklords/sds/blockchain/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
@@ -31,4 +33,32 @@ func (log *Log) AddMetadata(spaghetti_log *spaghetti_log.RawLog) *Log {
 func (log *Log) AddSmartcontractData(smartcontract *smartcontract.Smartcontract) *Log {
 	log.SmartcontractKey = smartcontract.SmartcontractKey
 	return log
+}
+
+// Validate the Log parameters.
+//
+// Such that none of the string fields
+// and nested struct fields can not be empty
+func (log *Log) Validate() error {
+	if log == nil {
+		return fmt.Errorf("invalid log")
+	}
+
+	if len(log.Name) == 0 {
+		return fmt.Errorf("the 'Name' field is empty")
+	}
+	if log.Parameters == nil {
+		return fmt.Errorf("the 'Parameters' is nil")
+	}
+	if err := log.SmartcontractKey.Validate(); err != nil {
+		return fmt.Errorf("log.SmartcontractKey.Validate: %w", err)
+	}
+	if err := log.TransactionKey.Validate(); err != nil {
+		return fmt.Errorf("log.TransactionKey.Validate: %w", err)
+	}
+	if err := log.BlockHeader.Validate(); err != nil {
+		return fmt.Errorf("log.BlockHeader.Validate: %w", err)
+	}
+
+	return nil
 }
