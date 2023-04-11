@@ -221,6 +221,7 @@ func on_exist(request message.Request, _ log.Logger, parameters ...interface{}) 
 	if !ok {
 		return message.Fail("the parameter is not a database")
 	}
+
 	if db.Connection == nil {
 		return message.Fail("database.Connection is nil, please open the connection first")
 	}
@@ -297,9 +298,11 @@ func on_select_row(request message.Request, _ log.Logger, parameters ...interfac
 		return message.Fail("rows.ColumnTypes: " + err.Error())
 	}
 
-	row := make(map[string]interface{})
+	row := key_value.Empty()
+	no_result := true
 
 	for rows.Next() {
+		no_result = false
 		scans := make([]interface{}, len(field_types))
 
 		for i := range scans {
@@ -312,6 +315,10 @@ func on_select_row(request message.Request, _ log.Logger, parameters ...interfac
 				return message.Fail("failed to set value for field " + field_types[i].Name() + " of " + field_types[i].DatabaseTypeName() + " type: " + err.Error())
 			}
 		}
+	}
+
+	if no_result {
+		return message.Fail("not found")
 	}
 
 	reply := handler.SelectRowReply{
