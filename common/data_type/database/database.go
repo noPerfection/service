@@ -7,6 +7,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
@@ -23,8 +24,12 @@ func detect_type(database_type *sql.ColumnType) string {
 	case "JSON":
 		return "[]byte"
 	case "SMALLINT":
-		return "uint64"
+		return "int64"
 	case "BIGINT":
+		return "int64"
+	case "UNSIGNED SMALLINT":
+		return "uint64"
+	case "UNSIGNED BIGINT":
 		return "uint64"
 	}
 	return ""
@@ -68,6 +73,26 @@ func SetValue(kv key_value.KeyValue, database_type *sql.ColumnType, raw interfac
 		}
 		kv.Set(database_type.Name(), value)
 		return nil
+	case "int64":
+		if raw == nil {
+			kv.Set(database_type.Name(), int64(0))
+			return nil
+		}
+		value, ok := raw.(int64)
+		if !ok {
+			bytes, ok := raw.([]byte)
+			if !ok {
+				return fmt.Errorf("couldn't convert %v of type %T into 't converted into %s", raw, raw, golang_type)
+			}
+			data, err := strconv.ParseInt(string(bytes), 10, 64)
+			if err != nil {
+				return fmt.Errorf("strconv.ParseInt: %w", err)
+			}
+			kv.Set(database_type.Name(), data)
+			return nil
+		}
+		kv.Set(database_type.Name(), value)
+		return nil
 	case "uint64":
 		if raw == nil {
 			kv.Set(database_type.Name(), uint64(0))
@@ -75,7 +100,16 @@ func SetValue(kv key_value.KeyValue, database_type *sql.ColumnType, raw interfac
 		}
 		value, ok := raw.(uint64)
 		if !ok {
-			return fmt.Errorf("database value is expected to be %s, but value %v of type %T wasn't converted into", golang_type, raw, raw)
+			bytes, ok := raw.([]byte)
+			if !ok {
+				return fmt.Errorf("couldn't convert %v of type %T into 't converted into %s", raw, raw, golang_type)
+			}
+			data, err := strconv.ParseUint(string(bytes), 10, 64)
+			if err != nil {
+				return fmt.Errorf("strconv.ParseUint: %w", err)
+			}
+			kv.Set(database_type.Name(), data)
+			return nil
 		}
 		kv.Set(database_type.Name(), value)
 		return nil
