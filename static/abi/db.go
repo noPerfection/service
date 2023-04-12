@@ -5,11 +5,14 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/data_type"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db/handler"
 )
 
-// Save the ABI in the Database
-func SetInDatabase(db *remote.ClientSocket, a *Abi) error {
+// Insert into database
+//
+// Implements common/data_type/database.Crud interface
+func (a *Abi) Insert(db *remote.ClientSocket) error {
 	request := handler.DatabaseQueryRequest{
 		Fields:    []string{"abi_id", "body"},
 		Tables:    []string{"static_abi"},
@@ -24,28 +27,64 @@ func SetInDatabase(db *remote.ClientSocket, a *Abi) error {
 	return nil
 }
 
-// Get all abis from database
-func GetAllFromDatabase(db *remote.ClientSocket) ([]*Abi, error) {
+// SelectAll abi from database
+//
+// Implements common/data_type/database.Crud interface
+func (a *Abi) SelectAll(db_client *remote.ClientSocket, return_values interface{}) error {
+	abis, ok := return_values.(*[]*Abi)
+	if !ok {
+		return fmt.Errorf("return_values.(*[]*Abi)")
+	}
+
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{"abi_id as id", "body as bytes"},
 		Tables: []string{"static_abi"},
 	}
 	var reply handler.SelectAllReply
 
-	err := handler.SELECT_ALL.Request(db, request, &reply)
+	err := handler.SELECT_ALL.Request(db_client, request, &reply)
 	if err != nil {
-		return nil, fmt.Errorf("handler.SELECT_ALL.Push: %w", err)
+		return fmt.Errorf("handler.SELECT_ALL.Push: %w", err)
 	}
-
-	abis := make([]*Abi, len(reply.Rows))
+	*abis = make([]*Abi, len(reply.Rows))
 
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for i, raw := range reply.Rows {
 		abi, err := New(raw)
 		if err != nil {
-			return nil, fmt.Errorf("New Abi from database result: %w", err)
+			return fmt.Errorf("New Abi from database result: %w", err)
 		}
-		abis[i] = abi
+		(*abis)[i] = abi
 	}
-	return abis, err
+	return_values = abis
+
+	return err
+}
+
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (b *Abi) Select(_ *remote.ClientSocket) error {
+	return fmt.Errorf("not implemented")
+}
+
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (b *Abi) SelectAllByCondition(_ *remote.ClientSocket, _ key_value.KeyValue, _ interface{}) error {
+	return fmt.Errorf("not implemented")
+}
+
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (b *Abi) Exist(_ *remote.ClientSocket) bool {
+	return false
+}
+
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (b *Abi) Update(_ *remote.ClientSocket, _ uint8) error {
+	return fmt.Errorf("not implemented")
 }

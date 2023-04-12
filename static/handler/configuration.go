@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/static/configuration"
@@ -49,7 +50,8 @@ func ConfigurationRegister(request message.Request, logger log.Logger, parameter
 
 	db_con, ok := parameters[0].(*remote.ClientSocket)
 	if ok {
-		if err = configuration.SetInDatabase(db_con, &conf); err != nil {
+		var crud database.Crud = &conf
+		if err = crud.Insert(db_con); err != nil {
 			return message.Fail("Configuration saving in the database failed: " + err.Error())
 		}
 	}

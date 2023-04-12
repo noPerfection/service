@@ -115,34 +115,35 @@ func (suite *TestSmartcontractDbSuite) SetupTest() {
 }
 
 func (suite *TestSmartcontractDbSuite) TestSmartcontract() {
-	smartcontracts, err := GetAllFromDatabase(suite.db_con)
+	var smartcontracts []*Smartcontract
+	err := suite.smartcontract.SelectAll(suite.db_con, &smartcontracts)
 	suite.Require().NoError(err)
 	suite.Require().Len(smartcontracts, 0)
 
 	// Insert into the database
 	// it should fail, since the smartcontract depends on the
 	// abi
-	err = SetInDatabase(suite.db_con, &suite.smartcontract)
+	err = suite.smartcontract.Insert(suite.db_con)
 	suite.Require().Error(err)
 
 	sample_abi := abi.Abi{
 		Bytes: []byte("[{}]"),
 		Id:    suite.smartcontract.AbiId,
 	}
-	err = abi.SetInDatabase(suite.db_con, &sample_abi)
+	err = sample_abi.Insert(suite.db_con)
 	suite.Require().NoError(err)
 
 	// inserting a smartcontract should be successful
-	err = SetInDatabase(suite.db_con, &suite.smartcontract)
+	err = suite.smartcontract.Insert(suite.db_con)
 	suite.Require().NoError(err)
 
 	// duplicate key in the database
 	// it should fail
-	err = SetInDatabase(suite.db_con, &suite.smartcontract)
+	err = suite.smartcontract.Insert(suite.db_con)
 	suite.Require().Error(err)
 
 	// all from database
-	smartcontracts, err = GetAllFromDatabase(suite.db_con)
+	err = suite.smartcontract.SelectAll(suite.db_con, &smartcontracts)
 	suite.Require().NoError(err)
 	suite.Require().Len(smartcontracts, 1)
 	suite.Require().EqualValues(suite.smartcontract, *smartcontracts[0])

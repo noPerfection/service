@@ -4,6 +4,7 @@ import (
 	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
+	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/static/abi"
 
@@ -96,7 +97,8 @@ func AbiRegister(request message.Request, _ log.Logger, parameters ...interface{
 
 	db_con, ok := parameters[0].(*remote.ClientSocket)
 	if ok {
-		save_err := abi.SetInDatabase(db_con, new_abi)
+		var crud database.Crud = new_abi
+		save_err := crud.Insert(db_con)
 		if save_err != nil {
 			return message.Fail("database error:" + err.Error())
 		}

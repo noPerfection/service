@@ -104,7 +104,7 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 		Bytes: []byte("[{}]"),
 		Id:    abi_id,
 	}
-	err = abi.SetInDatabase(suite.db_con, &sample_abi)
+	err = sample_abi.Insert(suite.db_con)
 	suite.Require().NoError(err)
 
 	// add the static smartcontract
@@ -123,7 +123,7 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 		BlockHeader:      header,
 		Deployer:         deployer,
 	}
-	err = smartcontract.SetInDatabase(suite.db_con, &sm)
+	err = sm.Insert(suite.db_con)
 	suite.Require().NoError(err)
 
 	sample := topic.Topic{
@@ -149,14 +149,16 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 }
 
 func (suite *TestConfigurationDbSuite) TestConfiguration() {
-	configs, err := GetAllFromDatabase(suite.db_con)
+	var configs []*Configuration
+
+	err := suite.configuration.SelectAll(suite.db_con, &configs)
 	suite.Require().NoError(err)
 	suite.Require().Len(configs, 0)
 
-	err = SetInDatabase(suite.db_con, &suite.configuration)
+	err = suite.configuration.Insert(suite.db_con)
 	suite.Require().NoError(err)
 
-	configs, err = GetAllFromDatabase(suite.db_con)
+	err = suite.configuration.SelectAll(suite.db_con, &configs)
 	suite.Require().NoError(err)
 	suite.Require().Len(configs, 1)
 	suite.Require().EqualValues(suite.configuration, *configs[0])
@@ -175,7 +177,7 @@ func (suite *TestConfigurationDbSuite) TestConfiguration() {
 		Topic:   sample,
 		Address: "not_inserted",
 	}
-	err = SetInDatabase(suite.db_con, &configuration)
+	err = configuration.Insert(suite.db_con)
 	suite.Require().Error(err)
 }
 

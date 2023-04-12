@@ -13,6 +13,7 @@ import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/static/abi"
 	static_conf "github.com/blocklords/sds/static/configuration"
@@ -57,7 +58,10 @@ func Run(app_config *configuration.Config) {
 
 	// the global parameters to reduce
 	// database queries
-	abis, err := abi.GetAllFromDatabase(db_socket)
+	var crud database.Crud = &abi.Abi{}
+	var abis []*abi.Abi
+
+	err = crud.SelectAll(db_socket, &abis)
 	if err != nil {
 		logger.Fatal("abi.GetAllFromDatabase: %w", err)
 	}
@@ -70,7 +74,10 @@ func Run(app_config *configuration.Config) {
 	}
 
 	// static smartcontracts
-	smartcontracts, err := smartcontract.GetAllFromDatabase(db_socket)
+	crud = &smartcontract.Smartcontract{}
+	var smartcontracts []*smartcontract.Smartcontract
+
+	err = crud.SelectAll(db_socket, &smartcontracts)
 	if err != nil {
 		logger.Fatal("smartcontract.GetAllFromDatabase: %w", err)
 	}
@@ -83,7 +90,10 @@ func Run(app_config *configuration.Config) {
 	}
 
 	// static configurations
-	configurations, err := static_conf.GetAllFromDatabase(db_socket)
+	crud = &static_conf.Configuration{}
+	var configurations []*static_conf.Configuration
+
+	err = crud.SelectAll(db_socket, &configurations)
 	if err != nil {
 		logger.Fatal("configuration.GetAllFromDatabase: %w", err)
 	}

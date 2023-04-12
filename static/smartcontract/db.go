@@ -5,11 +5,15 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/blockchain"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db/handler"
 )
 
-func SetInDatabase(db *remote.ClientSocket, a *Smartcontract) error {
+// Inserts the smartcontract into the database
+//
+// Implements common/data_type/database.Crud interface
+func (sm *Smartcontract) Insert(db *remote.ClientSocket) error {
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{"network_id",
 			"address",
@@ -21,14 +25,14 @@ func SetInDatabase(db *remote.ClientSocket, a *Smartcontract) error {
 			"deployer"},
 		Tables: []string{"static_smartcontract"},
 		Arguments: []interface{}{
-			a.SmartcontractKey.NetworkId,
-			a.SmartcontractKey.Address,
-			a.AbiId,
-			a.TransactionKey.Id,
-			a.TransactionKey.Index,
-			a.BlockHeader.Number,
-			a.BlockHeader.Timestamp,
-			a.Deployer,
+			sm.SmartcontractKey.NetworkId,
+			sm.SmartcontractKey.Address,
+			sm.AbiId,
+			sm.TransactionKey.Id,
+			sm.TransactionKey.Index,
+			sm.BlockHeader.Number,
+			sm.BlockHeader.Timestamp,
+			sm.Deployer,
 		},
 	}
 	var reply handler.InsertReply
@@ -40,7 +44,15 @@ func SetInDatabase(db *remote.ClientSocket, a *Smartcontract) error {
 	return nil
 }
 
-func GetAllFromDatabase(db *remote.ClientSocket) ([]*Smartcontract, error) {
+// SelectAll smartcontracts from database
+//
+// Implements common/data_type/database.Crud interface
+func (sm *Smartcontract) SelectAll(db *remote.ClientSocket, return_values interface{}) error {
+	smartcontracts, ok := return_values.(*[]*Smartcontract)
+	if !ok {
+		return fmt.Errorf("return_values.(*[]*Smartcontract)")
+	}
+
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{
 			"network_id",
@@ -58,10 +70,10 @@ func GetAllFromDatabase(db *remote.ClientSocket) ([]*Smartcontract, error) {
 
 	err := handler.SELECT_ALL.Request(db, request, &reply)
 	if err != nil {
-		return nil, fmt.Errorf("handler.SELECT_ALL.Request: %w", err)
+		return fmt.Errorf("handler.SELECT_ALL.Request: %w", err)
 	}
 
-	smartcontracts := make([]*Smartcontract, len(reply.Rows))
+	*smartcontracts = make([]*Smartcontract, len(reply.Rows))
 
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for i, raw := range reply.Rows {
@@ -73,32 +85,63 @@ func GetAllFromDatabase(db *remote.ClientSocket) ([]*Smartcontract, error) {
 
 		err := raw.ToInterface(&sm.SmartcontractKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
 		}
 
 		err = raw.ToInterface(&sm.BlockHeader)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
 		}
 
 		err = raw.ToInterface(&sm.TransactionKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
 		}
 
 		deployer, err := raw.GetString("deployer")
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract deployer from database result: %w", err)
+			return fmt.Errorf("failed to extract deployer from database result: %w", err)
 		}
 		sm.Deployer = deployer
 
 		abi_id, err := raw.GetString("abi_id")
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract abi id from database result: %w", err)
+			return fmt.Errorf("failed to extract abi id from database result: %w", err)
 		}
 		sm.AbiId = abi_id
 
-		smartcontracts[i] = &sm
+		(*smartcontracts)[i] = &sm
 	}
-	return smartcontracts, err
+
+	return_values = smartcontracts
+
+	return err
+}
+
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (sm *Smartcontract) Select(_ *remote.ClientSocket) error {
+	return fmt.Errorf("not implemented")
+}
+
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (sm *Smartcontract) SelectAllByCondition(_ *remote.ClientSocket, _ key_value.KeyValue, _ interface{}) error {
+	return fmt.Errorf("not implemented")
+}
+
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (sm *Smartcontract) Exist(_ *remote.ClientSocket) bool {
+	return false
+}
+
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (sm *Smartcontract) Update(_ *remote.ClientSocket, _ uint8) error {
+	return fmt.Errorf("not implemented")
 }

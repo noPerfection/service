@@ -5,6 +5,7 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/static/smartcontract"
 
+	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 
@@ -56,7 +57,8 @@ func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...
 
 	db_con, ok := parameters[0].(*remote.ClientSocket)
 	if ok {
-		if err = smartcontract.SetInDatabase(db_con, &sm); err != nil {
+		var crud database.Crud = &sm
+		if err = crud.Insert(db_con); err != nil {
 			return message.Fail("Smartcontract saving in the database failed: " + err.Error())
 		}
 	}
