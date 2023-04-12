@@ -2,6 +2,7 @@ package event
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/blockchain"
@@ -88,7 +89,7 @@ func (b *Log) Update(_ *remote.ClientSocket, _ uint8) error {
 //
 // The condition is:
 //
-//   - "smartcontract_key" = []smartcontract_key.Key
+//   - "smartcontract_keys" = []smartcontract_key.Key
 //     filter event logs for this smartcontracts
 //
 //   - "block_timestamp" = blockchain.Timestamp
@@ -110,7 +111,7 @@ func (l *Log) SelectAllByCondition(db_con *remote.ClientSocket, condition key_va
 	if !ok {
 		return fmt.Errorf("condition['block_timestamp'] is missing or invalid")
 	}
-	limit, err := condition.GetString("limit")
+	limit, err := condition.GetUint64("limit")
 	if err != nil {
 		return fmt.Errorf("condition['limit']: %w", err)
 	}
@@ -123,7 +124,7 @@ func (l *Log) SelectAllByCondition(db_con *remote.ClientSocket, condition key_va
 
 	args := make([]interface{}, (sm_amount*2)+2)
 	offset := 0
-	args[offset] = block_timestamp
+	args[offset] = block_timestamp.Value()
 	offset++
 
 	smartcontracts_clause := ""
@@ -141,7 +142,7 @@ func (l *Log) SelectAllByCondition(db_con *remote.ClientSocket, condition key_va
 		args[offset] = address
 		offset++
 	}
-	args[offset] = limit
+	args[offset] = strconv.FormatUint(limit, 10)
 
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{
