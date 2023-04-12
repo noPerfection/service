@@ -92,9 +92,9 @@ func (request DatabaseQueryRequest) DeserializeBytes() error {
 		if !ok {
 			continue
 		}
-		bytes := data_type.DeserializeBytes(base_str)
-		if len(bytes) > 0 {
-			request.Arguments[i] = bytes
+		str := data_type.DecodeJsonPrefixed(base_str)
+		if len(str) > 0 {
+			request.Arguments[i] = []byte(str)
 			continue
 		}
 	}

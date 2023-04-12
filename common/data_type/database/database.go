@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
@@ -24,7 +25,7 @@ func detect_type(database_type *sql.ColumnType) string {
 	case "VARCHAR":
 		return "string"
 	case "JSON":
-		return "[]byte"
+		return "json"
 	case "SMALLINT":
 		return "int64"
 	case "BIGINT":
@@ -63,7 +64,7 @@ func SetValue(kv key_value.KeyValue, database_type *sql.ColumnType, raw interfac
 		}
 		kv.Set(database_type.Name(), value)
 		return nil
-	case "[]byte":
+	case "json":
 		if raw == nil {
 			kv.Set(database_type.Name(), []byte{})
 			return nil
@@ -73,7 +74,7 @@ func SetValue(kv key_value.KeyValue, database_type *sql.ColumnType, raw interfac
 		if !ok {
 			return fmt.Errorf("database value is expected to be '[]byte', but value %v of type %T", raw, raw)
 		}
-		kv.Set(database_type.Name(), value)
+		kv.Set(database_type.Name(), data_type.AddJsonPrefix(value))
 		return nil
 	case "int64":
 		if raw == nil {

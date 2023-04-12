@@ -16,7 +16,7 @@ func (a *Abi) Insert(db *remote.ClientSocket) error {
 	request := handler.DatabaseQueryRequest{
 		Fields:    []string{"abi_id", "body"},
 		Tables:    []string{"static_abi"},
-		Arguments: []interface{}{a.Id, data_type.SerializeBytes(a.Bytes)},
+		Arguments: []interface{}{a.Id, data_type.AddJsonPrefix(a.Bytes)},
 	}
 	var reply handler.InsertReply
 

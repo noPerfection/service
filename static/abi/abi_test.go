@@ -3,6 +3,7 @@ package abi
 import (
 	"testing"
 
+	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/stretchr/testify/suite"
 )
@@ -677,7 +678,7 @@ func (suite *TestAbiSuite) TestNew() {
 
 	kv := key_value.Empty().
 		Set("id", abi.Id).
-		Set("bytes", abi.Bytes)
+		Set("bytes", data_type.AddJsonPrefix(abi.Bytes))
 	kv_abi, err := New(kv)
 	suite.Require().NoError(err)
 	suite.Require().EqualValues(abi, *kv_abi)

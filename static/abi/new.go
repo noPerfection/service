@@ -12,18 +12,29 @@ import (
 // It's blockchain agnostic.
 func New(kv key_value.KeyValue) (*Abi, error) {
 	var abi Abi
-	err := kv.ToInterface(&abi)
-
+	id, err := kv.GetString("id")
 	if err != nil {
-		return nil, fmt.Errorf("key_value.ToInterface(static/abi.Abi): %w", err)
+		return nil, fmt.Errorf("key_value.GetString(id): %w", err)
+	}
+	if len(id) == 0 {
+		return nil, fmt.Errorf("missing `id` parameter")
+	} else {
+		abi.Id = id
+	}
+	bytes, err := kv.GetString("bytes")
+	if err != nil {
+		return nil, fmt.Errorf("key_value.GetString(bytes): %w", err)
 	}
 
-	if len(abi.Id) == 0 {
-		return nil, fmt.Errorf("missing `id` parameter")
-	}
-	if len(abi.Bytes) == 0 {
+	if len(bytes) == 0 {
 		return nil, fmt.Errorf("missing `bytes` parameter")
 	}
+	unprefixed := data_type.DecodeJsonPrefixed(bytes)
+	if len(unprefixed) == 0 {
+		return nil, fmt.Errorf("parameter `bytes` is not a json prefixed string")
+	}
+	abi.Bytes = []byte(unprefixed)
+
 	if err := abi.format_bytes(); err != nil {
 		return nil, fmt.Errorf("format_bytes: %w", err)
 	}
