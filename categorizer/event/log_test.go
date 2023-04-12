@@ -100,12 +100,12 @@ func (suite *TestLogSuite) TestNew() {
 			Set("block_number", 23).
 			Set("block_timestamp", 123)).
 		Set("log_index", 2).
-		Set("log_name", "Transfer").
-		Set("log_parameters", "")
+		Set("event_name", "Transfer").
+		Set("event_parameters", "")
 	_, err := NewFromMap(kv)
 	suite.Require().Error(err)
 
-	kv.Set("log_parameters", key_value.Empty())
+	kv.Set("event_parameters", key_value.Empty())
 	_, err = NewFromMap(kv)
 	suite.Require().NoError(err)
 }

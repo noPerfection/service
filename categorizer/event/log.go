@@ -16,9 +16,9 @@ type Log struct {
 	SmartcontractKey smartcontract_key.Key     `json:"smartcontract_key"`
 	TransactionKey   blockchain.TransactionKey `json:"transaction_key"`
 	BlockHeader      blockchain.BlockHeader    `json:"block_header"`
-	Index            uint                      `json:"log_index"`      // Log index in the block
-	Name             string                    `json:"log_name"`       // Event name
-	Parameters       key_value.KeyValue        `json:"log_parameters"` // Decoded log parameters
+	Index            uint                      `json:"log_index"`        // Log index in the block
+	Name             string                    `json:"event_name"`       // Event name
+	Parameters       key_value.KeyValue        `json:"event_parameters"` // Decoded log parameters
 }
 
 // Add the metadata such as transaction id, block header and log index from raw event log
