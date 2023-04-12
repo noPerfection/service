@@ -32,9 +32,9 @@ type TestBlockchainSuite struct {
 	evm_router *controller.Router
 	imx_router *controller.Router
 	commands   []command.CommandName
-	app_config *configuration.Config
 
-	logger log.Logger
+	app_config *configuration.Config
+	logger     log.Logger
 }
 
 func (suite *TestBlockchainSuite) SetupTest() {
