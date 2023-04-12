@@ -26,7 +26,7 @@ type GetSmartcontractReply struct {
 type SetSmartcontractRequest struct {
 	Smartcontract smartcontract.Smartcontract `json:"smartcontract"`
 }
-type SetSmartcontractsReply struct{}
+type SetSmartcontractReply struct{}
 
 type GetSmartcontractsRequest struct{}
 type GetSmartcontractsReply struct {
@@ -157,7 +157,7 @@ func SetSmartcontract(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("failed to send to blockchain package: " + err.Error())
 	}
 
-	reply := SetSmartcontractsReply{}
+	reply := SetSmartcontractReply{}
 	reply_message, err := command.Reply(reply)
 	if err != nil {
 		return message.Fail("parse reply: " + err.Error())
