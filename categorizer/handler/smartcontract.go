@@ -109,6 +109,10 @@ func SetSmartcontract(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("parsing request parameters: " + err.Error())
 	}
 
+	if err := request_parameters.Smartcontract.Validate(); err != nil {
+		return message.Fail("validating request parameters: " + err.Error())
+	}
+
 	var crud database.Crud = &request_parameters.Smartcontract
 
 	if crud.Exist(db_con) {
