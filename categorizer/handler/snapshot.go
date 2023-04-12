@@ -41,6 +41,15 @@ func GetSnapshot(request message.Request, _ log.Logger, parameters ...interface{
 		return message.Fail("no smartcontract_keys")
 	}
 
+	if err := snapshot.BlockTimestamp.Validate(); err != nil {
+		return message.Fail("snapshot.BlockTimestamp.Validate(): " + err.Error())
+	}
+	for _, key := range snapshot.SmartcontractKeys {
+		if err := key.Validate(); err != nil {
+			return message.Fail("snapshot.SmartcontractKeys.Validate(): " + err.Error())
+		}
+	}
+
 	var crud database.Crud = &event.Log{}
 	condition := key_value.Empty().
 		Set("smartcontract_keys", snapshot.SmartcontractKeys).
