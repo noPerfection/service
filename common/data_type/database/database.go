@@ -2,6 +2,8 @@
 // functions that converts
 // database type to
 // internal golang type
+//
+// It also keeps the interface for structs to implement database connection
 package database
 
 import (
