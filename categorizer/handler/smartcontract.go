@@ -39,19 +39,23 @@ type PushCategorization struct {
 type CategorizationReply key_value.KeyValue
 
 // return a categorized smartcontract parameters by network id and smartcontract address
-func GetSmartcontract(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
+func GetSmartcontract(request message.Request, _ log.Logger, app_parameters ...interface{}) message.Reply {
+	if len(app_parameters) < 3 {
+		return message.Fail("missing database client socket in the app parameters")
+	}
 	key, err := smartcontract_key.NewFromKeyValue(request.Parameters)
 	if err != nil {
 		return message.Fail("smartcontract_key.NewFromKeyValue: " + err.Error())
 	}
 
 	sm := smartcontract.Smartcontract{SmartcontractKey: key}
-	var crud database.Crud = &sm
 
-	db_con, ok := parameters[0].(*remote.ClientSocket)
+	db_con, ok := app_parameters[0].(*remote.ClientSocket)
 	if !ok {
 		return message.Fail("missing database client socket in app parameters")
 	}
+
+	var crud database.Crud = &sm
 
 	err = crud.Select(db_con)
 	if err != nil {
@@ -71,9 +75,13 @@ func GetSmartcontract(request message.Request, _ log.Logger, parameters ...inter
 
 }
 
-// returns all smartcontract categorized smartcontracts
-func GetSmartcontracts(_ message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	db_con, ok := parameters[0].(*remote.ClientSocket)
+// returns all categorized smartcontracts
+func GetSmartcontracts(_ message.Request, _ log.Logger, app_parameters ...interface{}) message.Reply {
+	if len(app_parameters) < 3 {
+		return message.Fail("missing database client socket in the app parameters")
+	}
+
+	db_con, ok := app_parameters[0].(*remote.ClientSocket)
 	if !ok {
 		return message.Fail("missing database client socket in app parameters")
 	}
@@ -97,8 +105,12 @@ func GetSmartcontracts(_ message.Request, _ log.Logger, parameters ...interface{
 }
 
 // Register a new smartcontract to categorizer.
-func SetSmartcontract(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	db_con, ok := parameters[0].(*remote.ClientSocket)
+func SetSmartcontract(request message.Request, _ log.Logger, app_parameters ...interface{}) message.Reply {
+	if len(app_parameters) < 3 {
+		return message.Fail("missing database client socket, network sockets and networks in the app parameters")
+	}
+
+	db_con, ok := app_parameters[0].(*remote.ClientSocket)
 	if !ok {
 		return message.Fail("missing database client socket in app parameters")
 	}
@@ -124,7 +136,7 @@ func SetSmartcontract(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("database: " + saveErr.Error())
 	}
 
-	networks, ok := parameters[2].(network.Networks)
+	networks, ok := app_parameters[2].(network.Networks)
 	if !ok {
 		return message.Fail("no networks were given")
 	}
@@ -136,7 +148,7 @@ func SetSmartcontract(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("networks.Get: " + err.Error())
 	}
 
-	network_sockets, ok := parameters[1].(key_value.KeyValue)
+	network_sockets, ok := app_parameters[1].(key_value.KeyValue)
 	if !ok {
 		return message.Fail("no network sockets in the app parameters")
 	}
