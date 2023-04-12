@@ -209,7 +209,6 @@ func (l *Log) SelectAllByCondition(db_con *remote.ClientSocket, condition key_va
 		if err != nil {
 			return fmt.Errorf("failed to extract event_parameters from database result: %w", err)
 		}
-		fmt.Printf("event_parameters %s type %T\n\n", raw["event_parameters"], raw["event_parameters"])
 		raw_parameters := data_type.DecodeJsonPrefixed(parameters_base)
 		if len(raw_parameters) == 0 {
 			return fmt.Errorf("data_type.DecodeJsonPrefixed %s: %w", parameters_base, err)
