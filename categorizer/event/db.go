@@ -43,7 +43,7 @@ func (t *Log) Insert(db_con *remote.ClientSocket) error {
 			t.BlockHeader.Timestamp,
 			t.Index,
 			t.Name,
-			data_type.SerializeBytes(bytes),
+			data_type.AddJsonPrefix(bytes),
 		},
 	}
 	var reply handler.InsertReply
@@ -170,17 +170,56 @@ func (l *Log) SelectAllByCondition(db_con *remote.ClientSocket, condition key_va
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for i, raw := range reply.Rows {
 		var s Log
-		var output_bytes []byte
+		var key smartcontract_key.Key
+		var transaction_key blockchain.TransactionKey
+		var block_header blockchain.BlockHeader
 
-		err := raw.ToInterface(&s)
+		err := raw.ToInterface(&key)
 		if err != nil {
 			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
 		}
 
-		err = data_type.Deserialize(output_bytes, &s.Parameters)
+		err = raw.ToInterface(&transaction_key)
 		if err != nil {
-			return fmt.Errorf("data_type.Deserialize %s: %w", string(output_bytes), err)
+			return fmt.Errorf("failed to extract transaction key from database result: %w", err)
 		}
+
+		err = raw.ToInterface(&block_header)
+		if err != nil {
+			return fmt.Errorf("failed to extract block_header header from database result: %w", err)
+		}
+
+		s.BlockHeader = block_header
+		s.TransactionKey = transaction_key
+		s.SmartcontractKey = key
+
+		name, err := raw.GetString("event_name")
+		if err != nil {
+			return fmt.Errorf("failed to extract event_name from database result: %w", err)
+		}
+		s.Name = name
+
+		index, err := raw.GetUint64("log_index")
+		if err != nil {
+			return fmt.Errorf("failed to extract event_index from database result: %w", err)
+		}
+		s.Index = uint(index)
+
+		parameters_base, err := raw.GetString("event_parameters")
+		if err != nil {
+			return fmt.Errorf("failed to extract event_parameters from database result: %w", err)
+		}
+		fmt.Printf("event_parameters %s type %T\n\n", raw["event_parameters"], raw["event_parameters"])
+		raw_parameters := data_type.DecodeJsonPrefixed(parameters_base)
+		if len(raw_parameters) == 0 {
+			return fmt.Errorf("data_type.DecodeJsonPrefixed %s: %w", parameters_base, err)
+		}
+
+		parameters, err := key_value.NewFromString(string(raw_parameters))
+		if err != nil {
+			return fmt.Errorf("key_value.NewFromString(event_parameters): %w", err)
+		}
+		s.Parameters = parameters
 
 		(*logs)[i] = s
 	}
