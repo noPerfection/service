@@ -10,6 +10,11 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
+// on_new_smartcontracts command handles an update of the smartcontracts
+// as well as inserts new decoded event logs in the database.
+//
+// Send categorizer/handler.CATEGORIZER command from network categorizer sub service
+// to execute this function.
 func on_new_smartcontracts(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
 	if parameters == nil || len(parameters) < 1 {
 		return message.Fail("invalid parameters were given atleast database should be passed")
