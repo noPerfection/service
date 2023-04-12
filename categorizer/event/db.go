@@ -6,11 +6,15 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db/handler"
 )
 
-func Save(db_con *remote.ClientSocket, t *Log) error {
+// Insert the event log into database
+//
+// Implements common/data_type/database.Crud interface
+func (t *Log) Insert(db_con *remote.ClientSocket) error {
 	bytes, err := t.Parameters.ToBytes()
 	if err != nil {
 		return fmt.Errorf("event.Parameters.ToBytes %v: %w", t.Parameters, err)
@@ -50,16 +54,71 @@ func Save(db_con *remote.ClientSocket, t *Log) error {
 	return nil
 }
 
-// returns list of logs for smartcontracts
-func GetLogsFromDb(
-	db_con *remote.ClientSocket,
-	smartcontracts []smartcontract_key.Key,
-	block_timestamp blockchain.Timestamp,
-	limit uint64) ([]Log, error) {
-	sm_amount := len(smartcontracts)
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (b *Log) Select(_ *remote.ClientSocket) error {
+	return fmt.Errorf("not implemented")
+}
+
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (b *Log) SelectAll(_ *remote.ClientSocket, _ interface{}) error {
+	return fmt.Errorf("not implemented")
+}
+
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (b *Log) Exist(_ *remote.ClientSocket) bool {
+	return false
+}
+
+// Not implemented common/data_type/database.Crud interface
+//
+// Returns an error
+func (b *Log) Update(_ *remote.ClientSocket, _ uint8) error {
+	return fmt.Errorf("not implemented")
+}
+
+// SelectAllByCondition the event log into database
+//
+// Implements common/data_type/database.Crud interface
+//
+// The condition is:
+//
+//   - "smartcontract_key" = []smartcontract_key.Key
+//     filter event logs for this smartcontracts
+//
+//   - "block_timestamp" = blockchain.Timestamp
+//     event logs starting form this timestamp
+//
+//   - "limit" = uint64
+//     maximum amount of event logs to return
+func (l *Log) SelectAllByCondition(db_con *remote.ClientSocket, condition key_value.KeyValue, return_values interface{}) error {
+	logs, ok := return_values.(*[]Log)
+	if !ok {
+		return fmt.Errorf("return_values.([]Log)")
+	}
+
+	smartcontract_keys, ok := condition["smartcontract_keys"].([]smartcontract_key.Key)
+	if !ok {
+		return fmt.Errorf("condition['smartcontract_keys'] is missing or invalid")
+	}
+	block_timestamp, ok := condition["block_timestamp"].(blockchain.Timestamp)
+	if !ok {
+		return fmt.Errorf("condition['block_timestamp'] is missing or invalid")
+	}
+	limit, err := condition.GetString("limit")
+	if err != nil {
+		return fmt.Errorf("condition['limit']: %w", err)
+	}
+
+	sm_amount := len(smartcontract_keys)
 
 	if sm_amount == 0 {
-		return []Log{}, nil
+		return nil
 	}
 
 	args := make([]interface{}, (sm_amount*2)+2)
@@ -68,7 +127,7 @@ func GetLogsFromDb(
 	offset++
 
 	smartcontracts_clause := ""
-	for i, sm := range smartcontracts {
+	for i, sm := range smartcontract_keys {
 		network_id := sm.NetworkId
 		address := sm.Address
 
@@ -101,12 +160,12 @@ func GetLogsFromDb(
 		Arguments: args,
 	}
 	var reply handler.SelectAllReply
-	err := handler.SELECT_ALL.Request(db_con, request, &reply)
+	err = handler.SELECT_ALL.Request(db_con, request, &reply)
 	if err != nil {
-		return nil, fmt.Errorf("handler.SELECT_ALL.Request: %w", err)
+		return fmt.Errorf("handler.SELECT_ALL.Request: %w", err)
 	}
 
-	logs := make([]Log, len(reply.Rows))
+	*logs = make([]Log, len(reply.Rows))
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for i, raw := range reply.Rows {
 		var s Log
@@ -114,15 +173,17 @@ func GetLogsFromDb(
 
 		err := raw.ToInterface(&s)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
 		}
 
 		err = data_type.Deserialize(output_bytes, &s.Parameters)
 		if err != nil {
-			return nil, fmt.Errorf("data_type.Deserialize %s: %w", string(output_bytes), err)
+			return fmt.Errorf("data_type.Deserialize %s: %w", string(output_bytes), err)
 		}
 
-		logs[i] = s
+		(*logs)[i] = s
 	}
-	return logs, err
+	return_values = logs
+
+	return err
 }

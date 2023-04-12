@@ -45,7 +45,8 @@ func on_new_smartcontracts(request message.Request, logger log.Logger, parameter
 	}
 
 	for _, l := range logs {
-		err := event.Save(db_con, l)
+		var crud database.Crud = l
+		err := crud.Insert(db_con)
 		if err != nil {
 			return message.Fail("event.Save: " + err.Error())
 		}

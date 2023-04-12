@@ -8,6 +8,8 @@ import (
 	"github.com/blocklords/sds/app/command"
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/blockchain"
+	"github.com/blocklords/sds/common/data_type/database"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
@@ -39,7 +41,14 @@ func GetSnapshot(request message.Request, _ log.Logger, parameters ...interface{
 		return message.Fail("no smartcontract_keys")
 	}
 
-	logs, err := event.GetLogsFromDb(db_con, snapshot.SmartcontractKeys, snapshot.BlockTimestamp+1, SNAPSHOT_LIMIT)
+	var crud database.Crud = &event.Log{}
+	condition := key_value.Empty().
+		Set("smartcontract_keys", snapshot.SmartcontractKeys).
+		Set("block_timestamp", snapshot.BlockTimestamp+1).
+		Set("limit", SNAPSHOT_LIMIT)
+
+	var logs []event.Log
+	err = crud.SelectAllByCondition(db_con, condition, &logs)
 	if err != nil {
 		return message.Fail("database error to filter logs: " + err.Error())
 	}
