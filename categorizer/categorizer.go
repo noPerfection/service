@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 
 	"github.com/blocklords/sds/app/configuration"
@@ -41,7 +42,12 @@ import (
 // After decoding, the blockchain/categorizer will push back to this categorizer's puller.
 func setup_smartcontracts(logger log.Logger, database_client *remote.ClientSocket, network *network.Network, client_socket *remote.ClientSocket) error {
 	logger.Info("get all categorizable smartcontracts from database", "network_id", network.Id)
-	smartcontracts, err := smartcontract.GetAllByNetworkId(database_client, network.Id)
+
+	var crud database.Crud = &smartcontract.Smartcontract{}
+	condition := key_value.Empty().Set("network_id", network.Id)
+	var smartcontracts []smartcontract.Smartcontract
+
+	err := crud.SelectAllByCondition(database_client, condition, &smartcontracts)
 	if err != nil {
 		return fmt.Errorf("smartcontract.GetAllByNetworkId: %w", err)
 	}

@@ -5,12 +5,17 @@ import (
 
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/blockchain"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db/handler"
 )
 
+const UPDATE_BLOCK_HEADER uint8 = 1
+
 // Set the block parameters in the database
-func SaveBlockParameters(db *remote.ClientSocket, sm *Smartcontract) error {
+//
+// Implements common/data_type/database.Crud interface
+func (sm *Smartcontract) Update(db *remote.ClientSocket, _ uint8) error {
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{"block_number", "block_timestamp"},
 		Tables: []string{"categorizer_smartcontract"},
@@ -33,13 +38,15 @@ func SaveBlockParameters(db *remote.ClientSocket, sm *Smartcontract) error {
 // Exists checks whether the smartcontract exists or not by it's smartcontract key
 //
 // Note that if database layer returns an error, it won't return an error.
-func Exists(db *remote.ClientSocket, key smartcontract_key.Key) bool {
+//
+// Implements common/data_type/database.Crud interface
+func (sm *Smartcontract) Exist(db *remote.ClientSocket) bool {
 	request := handler.DatabaseQueryRequest{
 		Tables: []string{"categorizer_smartcontract"},
 		Where:  "network_id = ? AND address = ? ",
 		Arguments: []interface{}{
-			key.NetworkId,
-			key.Address,
+			sm.SmartcontractKey.NetworkId,
+			sm.SmartcontractKey.Address,
 		},
 	}
 	var reply handler.ExistReply
@@ -51,7 +58,10 @@ func Exists(db *remote.ClientSocket, key smartcontract_key.Key) bool {
 	return reply.Exist
 }
 
-func Save(db *remote.ClientSocket, b *Smartcontract) error {
+// Insert the data into database
+//
+// Implements common/data_type/database.Crud interface
+func (b *Smartcontract) Insert(db *remote.ClientSocket) error {
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{"network_id", "address", "block_number", "block_timestamp"},
 		Tables: []string{"categorizer_smartcontract"},
@@ -72,45 +82,45 @@ func Save(db *remote.ClientSocket, b *Smartcontract) error {
 }
 
 // Return the single smartcontract from database
-func Get(db *remote.ClientSocket, key smartcontract_key.Key) (*Smartcontract, error) {
+//
+// Implements common/data_type/database.Crud interface
+func (b *Smartcontract) Select(db *remote.ClientSocket) error {
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{"block_number", "block_timestamp"},
 		Tables: []string{"categorizer_smartcontract"},
 		Where:  "network_id = ? AND address = ? ",
 		Arguments: []interface{}{
-			key.NetworkId,
-			key.Address,
+			b.SmartcontractKey.NetworkId,
+			b.SmartcontractKey.Address,
 		},
 	}
 	var reply handler.SelectRowReply
 	err := handler.SELECT_ROW.Request(db, request, &reply)
 	if err != nil {
-		return nil, fmt.Errorf("handler.SELECT_ROW.Request: %w", err)
+		return fmt.Errorf("handler.SELECT_ROW.Request: %w", err)
 	}
 
 	block_number, err := blockchain.
 		NewNumberFromKeyValueParameter(reply.Outputs)
 	if err != nil {
-		return nil, fmt.Errorf("blockchain.NewNumberFromKeyValueParameter(reply.Outputs): %w", err)
+		return fmt.Errorf("blockchain.NewNumberFromKeyValueParameter(reply.Outputs): %w", err)
 	}
 
 	block_timestamp, err := blockchain.
 		NewTimestampFromKeyValueParameter(reply.Outputs)
 	if err != nil {
-		return nil, fmt.Errorf("blockchain.NewTimestampFromKeyValueParameter(reply.Outputs): %w", err)
+		return fmt.Errorf("blockchain.NewTimestampFromKeyValueParameter(reply.Outputs): %w", err)
 	}
 
 	block_header, _ := blockchain.NewHeader(block_number.Value(), block_timestamp.Value())
-	sm := Smartcontract{
-		SmartcontractKey: key,
-		BlockHeader:      block_header,
-	}
-
-	return &sm, nil
+	b.BlockHeader = block_header
+	return nil
 }
 
 // Return all smartcontracts from database
-func GetAll(db *remote.ClientSocket) ([]Smartcontract, error) {
+//
+// Implements common/data_type/database.Crud interface
+func (b *Smartcontract) SelectAll(db *remote.ClientSocket, return_values interface{}) error {
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{"network_id", "address", "block_number", "block_timestamp"},
 		Tables: []string{"categorizer_smartcontract"},
@@ -118,10 +128,15 @@ func GetAll(db *remote.ClientSocket) ([]Smartcontract, error) {
 	var reply handler.SelectAllReply
 	err := handler.SELECT_ALL.Request(db, request, &reply)
 	if err != nil {
-		return nil, fmt.Errorf("handler.SELECT_ALL.Request: %w", err)
+		return fmt.Errorf("handler.SELECT_ALL.Request: %w", err)
 	}
 
-	smartcontracts := make([]Smartcontract, len(reply.Rows))
+	raw_smartcontracts, ok := return_values.(*[]Smartcontract)
+	if !ok {
+		return fmt.Errorf("return_values.([]Smartcontract): %w", err)
+	}
+	*raw_smartcontracts = make([]Smartcontract, len(reply.Rows))
+
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for i, raw := range reply.Rows {
 		var sm = Smartcontract{
@@ -131,21 +146,29 @@ func GetAll(db *remote.ClientSocket) ([]Smartcontract, error) {
 
 		err := raw.ToInterface(&sm.SmartcontractKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
 		}
 
 		err = raw.ToInterface(&sm.BlockHeader)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
 		}
 
-		smartcontracts[i] = sm
+		(*raw_smartcontracts)[i] = sm
 	}
-	return smartcontracts, err
+	return_values = raw_smartcontracts
+
+	return err
 }
 
 // Returns list of the smartcontracts registered in the categorizer
-func GetAllByNetworkId(db *remote.ClientSocket, network_id string) ([]Smartcontract, error) {
+//
+// Implements common/data_type/database.Crud interface
+func (b *Smartcontract) SelectAllByCondition(db *remote.ClientSocket, condition key_value.KeyValue, return_values interface{}) error {
+	network_id, err := condition.GetString("network_id")
+	if err != nil {
+		return fmt.Errorf("missing network_id condition value")
+	}
 	request := handler.DatabaseQueryRequest{
 		Fields:    []string{"network_id", "address", "block_number", "block_timestamp"},
 		Tables:    []string{"categorizer_smartcontract"},
@@ -153,12 +176,17 @@ func GetAllByNetworkId(db *remote.ClientSocket, network_id string) ([]Smartcontr
 		Arguments: []interface{}{network_id},
 	}
 	var reply handler.SelectAllReply
-	err := handler.SELECT_ALL.Request(db, request, &reply)
+	err = handler.SELECT_ALL.Request(db, request, &reply)
 	if err != nil {
-		return nil, fmt.Errorf("handler.SELECT_ALL.Request: %w", err)
+		return fmt.Errorf("handler.SELECT_ALL.Request: %w", err)
 	}
 
-	smartcontracts := make([]Smartcontract, len(reply.Rows))
+	raw_smartcontracts, ok := return_values.(*[]Smartcontract)
+	if !ok {
+		return fmt.Errorf("return_values.([]Smartcontract): %w", err)
+	}
+	*raw_smartcontracts = make([]Smartcontract, len(reply.Rows))
+
 	// Loop through rows, using Scan to assign column data to struct fields.
 	for i, raw := range reply.Rows {
 		var sm = Smartcontract{
@@ -168,15 +196,17 @@ func GetAllByNetworkId(db *remote.ClientSocket, network_id string) ([]Smartcontr
 
 		err := raw.ToInterface(&sm.SmartcontractKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
 		}
 
 		err = raw.ToInterface(&sm.BlockHeader)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
 		}
 
-		smartcontracts[i] = sm
+		(*raw_smartcontracts)[i] = sm
 	}
-	return smartcontracts, err
+	return_values = raw_smartcontracts
+
+	return err
 }

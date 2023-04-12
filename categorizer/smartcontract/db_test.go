@@ -12,6 +12,7 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/blockchain"
+	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db"
 	"github.com/stretchr/testify/suite"
@@ -109,21 +110,22 @@ func (suite *TestSmartcontractDbSuite) TestSmartcontract() {
 	//
 	///////////////////////////////////////////////////////////////////////
 
-	smartcontracts, err := GetAll(suite.db_con)
+	var smartcontracts []Smartcontract
+	err := suite.smartcontract.SelectAll(suite.db_con, &smartcontracts)
 	suite.Require().NoError(err)
 	suite.Require().Len(smartcontracts, 0)
 
 	// inserting a smartcontract should be successful
-	err = Save(suite.db_con, &suite.smartcontract)
+	err = suite.smartcontract.Insert(suite.db_con)
 	suite.Require().NoError(err)
 
 	// duplicate key in the database
 	// it should fail
-	err = Save(suite.db_con, &suite.smartcontract)
+	err = suite.smartcontract.Insert(suite.db_con)
 	suite.Require().Error(err)
 
 	// all from database
-	smartcontracts, err = GetAll(suite.db_con)
+	err = suite.smartcontract.SelectAll(suite.db_con, &smartcontracts)
 	suite.Require().NoError(err)
 	suite.Require().Len(smartcontracts, 1)
 	suite.Require().EqualValues(suite.smartcontract, smartcontracts[0])
@@ -133,14 +135,14 @@ func (suite *TestSmartcontractDbSuite) TestSmartcontract() {
 	// GetAllByNetworkId
 	//
 	///////////////////////////////////////////////////////////////////////
-	network_id := "1"
-	smartcontracts, err = GetAllByNetworkId(suite.db_con, network_id)
+	condition := key_value.Empty().Set("network_id", "1")
+	err = suite.smartcontract.SelectAllByCondition(suite.db_con, condition, &smartcontracts)
 	suite.Require().NoError(err)
 	suite.Require().Len(smartcontracts, 1)
 	suite.Require().EqualValues(suite.smartcontract, smartcontracts[0])
 
-	network_id = "not_existing_id"
-	smartcontracts, err = GetAllByNetworkId(suite.db_con, network_id)
+	invalid_condition := key_value.Empty().Set("network_id", "not_existing_id")
+	err = suite.smartcontract.SelectAllByCondition(suite.db_con, invalid_condition, &smartcontracts)
 	suite.Require().NoError(err)
 	suite.Require().Len(smartcontracts, 0)
 
@@ -150,15 +152,22 @@ func (suite *TestSmartcontractDbSuite) TestSmartcontract() {
 	//
 	///////////////////////////////////////////////////////////////////////
 
+	sm := Smartcontract{
+		SmartcontractKey: suite.smartcontract.SmartcontractKey,
+	}
+
 	// get
-	sm, err := Get(suite.db_con, suite.smartcontract.SmartcontractKey)
+	err = sm.Select(suite.db_con)
 	suite.Require().NoError(err)
-	suite.Require().EqualValues(suite.smartcontract, *sm)
+	suite.Require().EqualValues(suite.smartcontract, sm)
 
 	// can not get the non existing
-	_, err = Get(suite.db_con, smartcontract_key.Key{NetworkId: "not_registered", Address: "0xdead"})
+	invalid_key := smartcontract_key.Key{NetworkId: "not_registered", Address: "0xdead"}
+	invalid_sm := Smartcontract{
+		SmartcontractKey: invalid_key,
+	}
+	err = invalid_sm.Select(suite.db_con)
 	suite.Require().Error(err)
-	suite.Require().EqualValues(suite.smartcontract, *sm)
 
 	///////////////////////////////////////////////////////////////////////
 	//
@@ -167,11 +176,11 @@ func (suite *TestSmartcontractDbSuite) TestSmartcontract() {
 	///////////////////////////////////////////////////////////////////////
 
 	// exist
-	exist := Exists(suite.db_con, suite.smartcontract.SmartcontractKey)
+	exist := suite.smartcontract.Exist(suite.db_con)
 	suite.Require().True(exist)
 
 	// can not get the non existing
-	exist = Exists(suite.db_con, smartcontract_key.Key{NetworkId: "not_registered", Address: "0xdead"})
+	exist = invalid_sm.Exist(suite.db_con)
 	suite.Require().False(exist)
 
 	///////////////////////////////////////////////////////////////////////
@@ -184,20 +193,16 @@ func (suite *TestSmartcontractDbSuite) TestSmartcontract() {
 	header, _ := blockchain.NewHeader(uint64(2), uint64(4))
 	suite.smartcontract.SetBlockHeader(header)
 
-	err = SaveBlockParameters(suite.db_con, &suite.smartcontract)
+	err = suite.smartcontract.Update(suite.db_con, UPDATE_BLOCK_HEADER)
 	suite.Require().NoError(err)
 
 	// updated smartcontract returned from database
-	sm, err = Get(suite.db_con, suite.smartcontract.SmartcontractKey)
+	err = sm.Select(suite.db_con)
 	suite.Require().NoError(err)
 	suite.Require().EqualValues(header, sm.BlockHeader)
 
 	// updating smartcontract that doesn't exist in the database should fail
-	non_exist_sm := Smartcontract{
-		SmartcontractKey: smartcontract_key.Key{NetworkId: "not_registered", Address: "0xdead"},
-		BlockHeader:      header,
-	}
-	err = SaveBlockParameters(suite.db_con, &non_exist_sm)
+	err = invalid_sm.Update(suite.db_con, UPDATE_BLOCK_HEADER)
 	suite.Require().Error(err)
 }
 

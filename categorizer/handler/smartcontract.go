@@ -11,6 +11,7 @@ import (
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 )
@@ -44,18 +45,21 @@ func GetSmartcontract(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("smartcontract_key.NewFromKeyValue: " + err.Error())
 	}
 
+	sm := smartcontract.Smartcontract{SmartcontractKey: key}
+	var crud database.Crud = &sm
+
 	db_con, ok := parameters[0].(*remote.ClientSocket)
 	if !ok {
 		return message.Fail("missing database client socket in app parameters")
 	}
-	sm, err := smartcontract.Get(db_con, key)
 
+	err = crud.Select(db_con)
 	if err != nil {
 		return message.Fail("smartcontract.Get: " + err.Error())
 	}
 
 	reply := GetSmartcontractReply{
-		Smartcontract: *sm,
+		Smartcontract: sm,
 	}
 
 	reply_message, err := command.Reply(reply)
@@ -73,7 +77,9 @@ func GetSmartcontracts(_ message.Request, _ log.Logger, parameters ...interface{
 	if !ok {
 		return message.Fail("missing database client socket in app parameters")
 	}
-	smartcontracts, err := smartcontract.GetAll(db_con)
+	var smartcontracts []smartcontract.Smartcontract
+	var crud database.Crud = &smartcontract.Smartcontract{}
+	err := crud.SelectAll(db_con, &smartcontracts)
 	if err != nil {
 		return message.Fail("the database error " + err.Error())
 	}
@@ -103,11 +109,13 @@ func SetSmartcontract(request message.Request, _ log.Logger, parameters ...inter
 		return message.Fail("parsing request parameters: " + err.Error())
 	}
 
-	if smartcontract.Exists(db_con, request_parameters.Smartcontract.SmartcontractKey) {
+	var crud database.Crud = &request_parameters.Smartcontract
+
+	if crud.Exist(db_con) {
 		return message.Fail("the smartcontract already in SDS Categorizer")
 	}
 
-	saveErr := smartcontract.Save(db_con, &request_parameters.Smartcontract)
+	saveErr := crud.Insert(db_con)
 	if saveErr != nil {
 		return message.Fail("database: " + saveErr.Error())
 	}

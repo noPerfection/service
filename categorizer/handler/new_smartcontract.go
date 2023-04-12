@@ -6,6 +6,7 @@ import (
 	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
@@ -36,7 +37,8 @@ func on_new_smartcontracts(request message.Request, logger log.Logger, parameter
 	}
 
 	for _, sm := range smartcontracts {
-		err := smartcontract.SaveBlockParameters(db_con, sm)
+		var crud database.Crud = sm
+		err := crud.Update(db_con, smartcontract.UPDATE_BLOCK_HEADER)
 		if err != nil {
 			return message.Fail("smartcontract.SaveBlockParameters: " + err.Error())
 		}
