@@ -29,7 +29,10 @@ func on_new_smartcontracts(request message.Request, logger log.Logger, parameter
 	smartcontracts := make([]*smartcontract.Smartcontract, len(raw_smartcontracts))
 
 	for i, raw := range raw_smartcontracts {
-		sm, _ := smartcontract.New(raw)
+		sm, err := smartcontract.New(raw)
+		if err != nil {
+			logger.Fatal("unexpected error. failed to deserialize smartcontract: ", err)
+		}
 		smartcontracts[i] = sm
 	}
 
