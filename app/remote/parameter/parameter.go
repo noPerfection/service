@@ -7,6 +7,7 @@
 package parameter
 
 import (
+	"context"
 	"time"
 
 	"github.com/blocklords/sds/app/configuration"
@@ -29,6 +30,13 @@ const (
 	// then its rounded.
 	ATTEMPT = uint(5)
 )
+
+// NewTimeoutContext returns a new context with the request timeout
+// and the timeout with SDS_REQUEST_TIMEOUT
+func NewContextWithTimeout(parent context.Context, app_config *configuration.Config) (context.Context, context.CancelFunc) {
+	new_ctx, cancel_func := context.WithTimeout(parent, RequestTimeout(app_config))
+	return new_ctx, cancel_func
+}
 
 // Request timeout, from the configuration.
 // If the configuration doesn't exist, then return the default value.
