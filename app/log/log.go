@@ -134,8 +134,8 @@ func (logger *Logger) Error(title string, keyval ...interface{}) {
 //	// INFO main: starting: security_enabled=true
 //	// INFO main::database: starting
 //	// INFO main::controller: starting, port=443
-func (parent *Logger) Child(prefix string, timestamp bool) (Logger, error) {
-	child := parent.logger.With()
+func (parent *Logger) Child(prefix string, keyval ...interface{}) (Logger, error) {
+	child := parent.logger.With(keyval...)
 	child.SetReportTimestamp(WITH_TIMESTAMP)
 
 	child.SetPrefix(parent.logger.GetPrefix() + "/" + prefix)
@@ -144,26 +144,6 @@ func (parent *Logger) Child(prefix string, timestamp bool) (Logger, error) {
 		logger: child,
 		style:  parent.style,
 	}, nil
-}
-
-// Same as Child but without printing timestamps
-func (parent *Logger) ChildWithoutReport(prefix string) (Logger, error) {
-	child, err := parent.Child(prefix, WITH_TIMESTAMP)
-	if err != nil {
-		return Logger{}, fmt.Errorf("parent.Child: %w", err)
-	}
-
-	return child, nil
-}
-
-// Same as Child but prints the timestamps
-func (parent *Logger) ChildWithTimestamp(prefix string) (Logger, error) {
-	child, err := parent.Child(prefix, WITH_TIMESTAMP)
-	if err != nil {
-		return Logger{}, fmt.Errorf("parent.Child: %w", err)
-	}
-
-	return child, nil
 }
 
 // Flag to include the timestamps

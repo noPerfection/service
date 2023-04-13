@@ -42,6 +42,21 @@ func (network_type NetworkType) String() string {
 	return string(network_type)
 }
 
+// ServiceType returns registered service type
+//
+// If the network type is not registered, then it's casted into
+// custom service type.
+func (network_type NetworkType) ServiceType() service.ServiceType {
+	switch network_type {
+	case EVM:
+		return service.EVM
+	case IMX:
+		return service.IMX
+	}
+
+	return service.ServiceType(network_type)
+}
+
 // NewSockets returns client sockets to the remote network services.
 //
 // The returned sockets is the key value where key is the network type,

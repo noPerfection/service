@@ -42,7 +42,7 @@ type Security struct {
 
 // New security with the given metadata
 func New(app_config *configuration.Config, parent log.Logger) (*Security, error) {
-	logger, err := parent.ChildWithTimestamp("security")
+	logger, err := parent.Child("security", "debug_security", app_config.DebugSecurity)
 	if err != nil {
 		return nil, fmt.Errorf("logger.Child: %w", err)
 	}

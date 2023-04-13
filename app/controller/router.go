@@ -33,8 +33,8 @@ type Router struct {
 }
 
 // Returns the initiated Router whith the service parameters
-func NewRouter(service *service.Service, parent_log log.Logger) (Router, error) {
-	logger, err := parent_log.ChildWithoutReport("router")
+func NewRouter(service *service.Service, parent log.Logger) (Router, error) {
+	logger, err := parent.Child("controller", "type", "router", "service_name", service.Name, "inproc", service.IsInproc())
 	if err != nil {
 		return Router{}, fmt.Errorf("error creating child logger: %w", err)
 	}

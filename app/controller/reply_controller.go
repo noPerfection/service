@@ -24,7 +24,8 @@ func NewReply(s *service.Service, logger log.Logger) (*Controller, error) {
 	if !s.IsThis() && !s.IsInproc() {
 		return nil, fmt.Errorf("service should be limited to service.THIS or inproc type")
 	}
-	controller_logger, err := logger.ChildWithTimestamp("reply_" + s.Name)
+	controller_logger, err := logger.Child("controller", "type", "reply", "service_name", s.Name, "inproc", s.IsInproc())
+
 	if err != nil {
 		return nil, fmt.Errorf("error creating child logger: %w", err)
 	}
@@ -81,6 +82,10 @@ func (c *Controller) reply_error(err error) error {
 //
 // The parameters are the list of parameters that are passed to the command handlers
 func (c *Controller) Run(handlers command.Handlers, parameters ...interface{}) error {
+	// if secure and not inproc
+	// then we add the domain name of controller to the security layer
+	//
+	// then any whitelisting users will be send there.
 	if err := c.socket.Bind(c.service.Url()); err != nil {
 		return fmt.Errorf("socket.bind on tcp protocol for %s at url %s: %w", c.service.Name, c.service.Url(), err)
 	}

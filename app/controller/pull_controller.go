@@ -25,7 +25,7 @@ func NewPull(s *service.Service, logger log.Logger) (*Controller, error) {
 	if !s.IsThis() && !s.IsInproc() {
 		return nil, fmt.Errorf("service should be limited to service.THIS or inproc type")
 	}
-	controller_logger, err := logger.ChildWithTimestamp("pull_" + s.Name)
+	controller_logger, err := logger.Child("controller", "type", "pull", "service_name", s.Name, "inproc", s.IsInproc())
 	if err != nil {
 		return nil, fmt.Errorf("error creating child logger: %w", err)
 	}

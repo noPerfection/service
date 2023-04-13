@@ -66,27 +66,22 @@ func Run(app_config *configuration.Config) {
 // run_puller creates a pull controller that get's the
 // new database credentials to reconnect.
 func (database *Database) run_puller() {
-	logger, err := database.logger.ChildWithTimestamp("puller")
-	if err != nil {
-		logger.Fatal("database.logger.ChildWithTimestamp", "error", err)
-	}
-
-	logger.Info("Creating puller service to get credentials from vault service", "url", handler.PullerEndpoint())
+	database.logger.Info("Creating puller service to get credentials from vault service", "url", handler.PullerEndpoint())
 
 	puller_service, err := service.InprocessFromUrl(handler.PullerEndpoint())
 	if err != nil {
-		logger.Fatal("service.Inproc", "service type", service.DATABASE, "error", err)
+		database.logger.Fatal("service.Inproc", "service type", service.DATABASE, "error", err)
 	}
 
-	pull, err := controller.NewPull(puller_service, logger)
+	pull, err := controller.NewPull(puller_service, database.logger)
 	if err != nil {
-		logger.Fatal("controller.NewPull", "url", puller_service.Url(), "error", err)
+		database.logger.Fatal("controller.NewPull", "url", puller_service.Url(), "error", err)
 	}
 
 	command_handlers := command.EmptyHandlers().
 		Add(handler.NEW_CREDENTIALS, on_new_credentials)
 
-	logger.Info("Running puller")
+	database.logger.Info("Running pull controller")
 	pull.Run(command_handlers, database)
 }
 

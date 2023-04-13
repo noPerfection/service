@@ -31,7 +31,7 @@ var DatabaseVaultConfigurations = configuration.DefaultConfig{
 
 // Create the credentials of the database
 func NewDatabase(vault *Vault) (*DatabaseVault, error) {
-	vault_logger, err := vault.logger.ChildWithoutReport("database")
+	vault_logger, err := vault.logger.Child("database")
 	if err != nil {
 		return nil, fmt.Errorf("child logger: %w", err)
 	}

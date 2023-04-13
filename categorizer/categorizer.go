@@ -40,8 +40,8 @@ import (
 // The blockchain package will have the categorizer for its each blockchain type.
 // They will handle the decoding the event logs.
 // After decoding, the blockchain/categorizer will push back to this categorizer's puller.
-func setup_smartcontracts(logger log.Logger, database_client *remote.ClientSocket, network *network.Network, client_socket *remote.ClientSocket) error {
-	logger.Info("get all categorizable smartcontracts from database", "network_id", network.Id)
+func push_to_network_service(logger log.Logger, database_client *remote.ClientSocket, network *network.Network, client_socket *remote.ClientSocket) error {
+	logger.Info("Select All categorization from database for network id", "network_type", network.Type, "network_id", network.Id)
 
 	var crud database.Crud = &smartcontract.Smartcontract{}
 	condition := key_value.Empty().Set("network_id", network.Id)
@@ -55,8 +55,7 @@ func setup_smartcontracts(logger log.Logger, database_client *remote.ClientSocke
 		return nil
 	}
 
-	logger.Info("all smartcontracts returned", "network_id", network.Id, "smartcontract amount", len(smartcontracts))
-	logger.Info("send smartcontracts to blockchain/categorizer", "network_id", network.Id, "url", categorizer_process.CategorizerEndpoint(network.Id))
+	logger.Info("Smartcontracts received from database", "network_id", network.Id, "smartcontract amount", len(smartcontracts))
 
 	url := categorizer_process.CategorizerEndpoint(network.Id)
 	categorizer_service, err := service.InprocessFromUrl(url)
@@ -68,9 +67,12 @@ func setup_smartcontracts(logger log.Logger, database_client *remote.ClientSocke
 		Smartcontracts: smartcontracts,
 	}
 	var reply key_value.KeyValue
+
+	logger.Info("Push smartcontracts to categorizer sub service in network service", "network_id", network.Id, "network service type", network.Type.ServiceType(), "target service", categorizer_service.Name)
+
 	err = blockchain_command.NEW_CATEGORIZED_SMARTCONTRACTS.RequestRouter(client_socket, categorizer_service, request, &reply)
 	if err != nil {
-		return fmt.Errorf("failed to send to blockchain package: %w", err)
+		return fmt.Errorf("blockchain_command.NEW_CATEGORIZED_SMARTCONTRACTS.RequestRouter: %w", err)
 	}
 
 	return nil
@@ -123,32 +125,39 @@ func Run(app_config *configuration.Config) {
 		logger.Fatal("blockchain client socket close", "error", err)
 	}
 
-	logger.Info("Networks returned from blockchain service")
+	logger.Info("Networks returned from blockchain service, get network client sockets")
 
 	network_sockets, err := network.NewClientSockets(app_config, logger)
 	if err != nil {
 		logger.Fatal("network.NewClientSockets", "error", err)
 	}
 
+	logger.Info("Get the database service parameters", "protocol", "inproc")
+
 	database_service, err := service.Inprocess(service.DATABASE)
 	if err != nil {
 		logger.Fatal("service.Inprocess(service.DATABASE)", "error", err)
 	}
+
+	logger.Info("Create a database client socket", "protocol", "inproc", "url", database_service.Url())
 
 	db_socket, err := remote.InprocRequestSocket(database_service.Url(), logger, app_config)
 	if err != nil {
 		logger.Fatal("remote.InprocRequestSocket", "error", err)
 	}
 
+	logger.Info("Push categoized smartcontracts to network service")
+
 	for _, new_network := range networks_parameters.Networks {
+		logger.Info("Push smartcontracts", "network_type", new_network.Type)
 		client_socket, ok := network_sockets[new_network.Type.String()].(*remote.ClientSocket)
 		if !ok {
 			logger.Fatal("no client socket to network service", "network id", new_network.Id, "network type", new_network.Type)
 		}
 
-		err = setup_smartcontracts(logger, db_socket, new_network, client_socket)
+		err = push_to_network_service(logger, db_socket, new_network, client_socket)
 		if err != nil {
-			logger.Fatal("setup_smartcontracts", "network_id", new_network.Id, "error", err)
+			logger.Fatal("push_to_network_service", "network_id", new_network.Id, "error", err)
 		}
 	}
 

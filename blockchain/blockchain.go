@@ -104,11 +104,11 @@ func get_network(request message.Request, logger log.Logger, app_parameters ...i
 		return message.Fail("missing app configuration and network sockets")
 	}
 
-	command_logger, err := logger.ChildWithoutReport("network-get-command")
+	command_logger, err := logger.Child("handler", "command", request.Command)
 	if err != nil {
 		return message.Fail("network-get-command: " + err.Error())
 	}
-	command_logger.Info("incoming request", "parameters", request.Parameters)
+	command_logger.Info("Get network", "parameters", request.Parameters)
 
 	var request_parameters handler.GetNetworkRequest
 	err = request.Parameters.ToInterface(&request_parameters)
@@ -177,11 +177,11 @@ func get_all_networks(request message.Request, logger log.Logger, app_parameters
 		return message.Fail("missing app configuration and network sockets")
 	}
 
-	command_logger, err := logger.ChildWithoutReport("network-get-all-command")
+	command_logger, err := logger.Child("handler", "command", request.Command)
 	if err != nil {
 		return message.Fail("network-get-all-command: " + err.Error())
 	}
-	command_logger.Info("incoming request", "parameters", request.Parameters)
+	command_logger.Info("Get all networks", "parameters", request.Parameters)
 
 	var request_parameters handler.GetNetworksRequest
 	err = request.Parameters.ToInterface(&request_parameters)

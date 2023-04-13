@@ -162,13 +162,13 @@ func (socket *ClientSocket) RequestRouter(service *service.Service, request *mes
 	if socket.protocol == "inproc" {
 		err := socket.inproc_reconnect()
 		if err != nil {
-			return nil, fmt.Errorf("socket connection: %w", err)
+			return nil, fmt.Errorf("inproc_reconnect: %w", err)
 		}
 
 	} else {
 		err := socket.reconnect()
 		if err != nil {
-			return nil, fmt.Errorf("socket connection: %w", err)
+			return nil, fmt.Errorf("reconnect: %w", err)
 		}
 	}
 
@@ -215,7 +215,7 @@ func (socket *ClientSocket) RequestRouter(service *service.Service, request *mes
 
 			return reply.Parameters, nil
 		} else {
-			socket.logger.Warn("router timeout", "target service name", service.Name, "request_command", request.Command, "attempts_left", attempt)
+			socket.logger.Warn("Timeout! Are you sure that remote service is running?", "target service name", service.Name, "request_command", request.Command, "attempts_left", attempt, "request_timeout", request_timeout)
 			// if attempts are 0, we reconnect to remove the buffer queue.
 			if socket.protocol == "inproc" {
 				err := socket.inproc_reconnect()
@@ -351,7 +351,12 @@ func NewTcpSocket(remote_service *service.Service, parent log.Logger, app_config
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
-	logger, err := parent.ChildWithTimestamp("tcp_socket")
+	logger, err := parent.Child("client_socket",
+		"remote_service", remote_service.Name,
+		"protocol", "tcp",
+		"socket_type", "REQ",
+		"remote_service_url", remote_service.Url(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("logger: %w", err)
 	}
@@ -389,7 +394,10 @@ func InprocRequestSocket(url string, parent log.Logger, app_config *configuratio
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
-	logger, err := parent.ChildWithTimestamp("inproc_socket")
+	logger, err := parent.Child("client_socket",
+		"protocol", "inproc",
+		"socket_type", "REQ",
+		"remote_service_url", url)
 	if err != nil {
 		return nil, fmt.Errorf("logger: %w", err)
 	}
@@ -436,7 +444,12 @@ func NewTcpSubscriber(e *service.Service, server_public_key string, client *auth
 		return nil, fmt.Errorf("connect to broadcast: %w", conErr)
 	}
 
-	logger, err := parent.ChildWithTimestamp("tcp_subscriber")
+	logger, err := parent.Child("client_socket",
+		"remote_service", e.Name,
+		"protocol", "tcp",
+		"socket_type", "Subscriber",
+		"remote_service_url", e.Url(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("logger: %w", err)
 	}
