@@ -34,13 +34,15 @@ type Router struct {
 
 // Returns the initiated Router whith the service parameters
 func NewRouter(service *service.Service, parent_log log.Logger) (Router, error) {
-	if service == nil || !service.IsInproc() && !service.IsThis() {
-		return Router{}, fmt.Errorf("the router should be with a THIS limit or inproc type")
-	}
-
 	logger, err := parent_log.ChildWithoutReport("router")
 	if err != nil {
 		return Router{}, fmt.Errorf("error creating child logger: %w", err)
+	}
+
+	logger.Info("New router", "service_name", service.Name)
+
+	if service == nil || !service.IsInproc() && !service.IsThis() {
+		return Router{}, fmt.Errorf("the router should be with a THIS limit or inproc type")
 	}
 
 	dealers := make([]*Dealer, 0)
@@ -72,6 +74,8 @@ func (r *Router) add_service(service *service.Service) {
 // Registers the route from command to dealer.
 // SDS Core can have unique command handlers.
 func (router *Router) AddDealers(services ...*service.Service) error {
+	router.logger.Info("Adding client sockets that router will redirect")
+
 	if len(router.dealers) > 0 && router.dealers[0].socket != nil {
 		return fmt.Errorf("this router is already running, add a dealers before calling router.Run()")
 	}
