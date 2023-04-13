@@ -94,12 +94,14 @@ func Service() *service.Service {
 func Run(app_config *configuration.Config) {
 	logger, _ := log.New("categorizer", log.WITH_TIMESTAMP)
 
-	logger.Info("starting")
+	logger.Info("Starting by getting blockchain service parameters", "protocol", "inproc")
 
 	blockchain_service, err := service.Inprocess(service.SPAGHETTI)
 	if err != nil {
 		logger.Fatal("failed to get inproc configuration for the service", "service type", service.SPAGHETTI, "error", err)
 	}
+
+	logger.Info("Create a blockchain client socket", "protocol", "url", blockchain_service.Url())
 
 	blockchain_socket, err := remote.InprocRequestSocket(blockchain_service.Url(), logger, app_config)
 	if err != nil {
@@ -144,7 +146,7 @@ func Run(app_config *configuration.Config) {
 			logger.Fatal("no client socket to network service", "network id", new_network.Id, "network type", new_network.Type)
 		}
 
-		err = setup_smartcontracts(logger, database_client, new_network, client_socket)
+		err = setup_smartcontracts(logger, db_socket, new_network, client_socket)
 		if err != nil {
 			logger.Fatal("setup_smartcontracts", "network_id", new_network.Id, "error", err)
 		}
@@ -156,7 +158,7 @@ func Run(app_config *configuration.Config) {
 		logger.Fatal("controller.NewReply", "service", Service())
 	}
 
-	err = reply.Run(CommandHandlers, database_client, network_sockets, networks)
+	err = reply.Run(CommandHandlers, db_socket, network_sockets, networks_parameters.Networks)
 	if err != nil {
 		logger.Fatal("controller.Run", "error", err)
 	}
