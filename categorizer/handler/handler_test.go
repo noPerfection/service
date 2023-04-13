@@ -271,7 +271,6 @@ func (suite *TestHandlerSuite) SetupTest() {
 
 // all database operations should be done in a one test
 func (suite *TestHandlerSuite) TestCommands() {
-
 	////////////////////////////////////////////////////////
 	//
 	// GetSmartcontract command
@@ -457,10 +456,119 @@ func (suite *TestHandlerSuite) TestCommands() {
 
 	suite.Require().Len(reply_parameters.Logs, 15)
 	suite.Require().EqualValues(reply_parameters.BlockTimestamp, suite.calculate_timestamp(14))
+
+	////////////////////////////////////////////////////////
+	//
+	// Categorize
+	//
+	////////////////////////////////////////////////////////
+
+	// categorization of invalid data should fail
+	// smartcontract doesn't exist in the database.
+	invalid_smartcontract := smartcontract.Smartcontract{
+		SmartcontractKey: network_id_key,
+		BlockHeader: blockchain.BlockHeader{
+			Number:    blockchain.Number(1),
+			Timestamp: blockchain.Timestamp(2),
+		},
+	}
+	categorize_parameters := PushCategorization{
+		Smartcontracts: []smartcontract.Smartcontract{invalid_smartcontract},
+		Logs:           []event.Log{},
+	}
+	valid_kv, err = key_value.NewFromInterface(categorize_parameters)
+	suite.Require().NoError(err)
+
+	request = message.Request{
+		Command:    "",
+		Parameters: valid_kv,
+	}
+	reply = on_categorize(request, suite.logger, suite.db_con)
+	suite.Require().False(reply.IsOK())
+
+	// no smartcontract in the request parameters
+	// means it should fail
+	categorize_parameters = PushCategorization{
+		Smartcontracts: []smartcontract.Smartcontract{},
+		Logs:           []event.Log{},
+	}
+	valid_kv, err = key_value.NewFromInterface(categorize_parameters)
+	suite.Require().NoError(err)
+
+	request = message.Request{
+		Command:    "",
+		Parameters: valid_kv,
+	}
+	reply = on_categorize(request, suite.logger, suite.db_con)
+	suite.Require().False(reply.IsOK())
+
+	// log that doesn't belong to the smartcontract
+	// tried to be added into database. It should fail
+	// should fail
+	log_index := 16 // new log index
+	header, _ := blockchain.NewHeader(uint64(log_index+1), suite.calculate_timestamp(log_index))
+
+	log := event.Log{
+		SmartcontractKey: suite.sm_1_key,
+		BlockHeader:      header,
+		TransactionKey: blockchain.TransactionKey{
+			Id:    "txid",
+			Index: 0,
+		},
+		Index:      uint(log_index),
+		Name:       "Transfer",
+		Parameters: key_value.Empty().Set("value", "1"),
+	}
+	// log is for smartcontract 1, but we don't pass it here
+	categorize_parameters = PushCategorization{
+		Smartcontracts: []smartcontract.Smartcontract{suite.sm_0},
+		Logs:           []event.Log{log},
+	}
+	valid_kv, err = key_value.NewFromInterface(categorize_parameters)
+	suite.Require().NoError(err)
+
+	request = message.Request{
+		Command:    "",
+		Parameters: valid_kv,
+	}
+	reply = on_categorize(request, suite.logger, suite.db_con)
+	suite.Require().False(reply.IsOK())
+
+	// inserting a log that was already adde should fail
+	log.Index = uint(6) // its added
+	categorize_parameters = PushCategorization{
+		Smartcontracts: []smartcontract.Smartcontract{suite.sm_1},
+		Logs:           []event.Log{log},
+	}
+	valid_kv, err = key_value.NewFromInterface(categorize_parameters)
+	suite.Require().NoError(err)
+
+	request = message.Request{
+		Command:    "",
+		Parameters: valid_kv,
+	}
+	reply = on_categorize(request, suite.logger, suite.db_con)
+	suite.Require().False(reply.IsOK())
+
+	// finally, adding a new log should be successful
+	log.Index = uint(log_index) // its added
+	categorize_parameters = PushCategorization{
+		Smartcontracts: []smartcontract.Smartcontract{suite.sm_1},
+		Logs:           []event.Log{log},
+	}
+	valid_kv, err = key_value.NewFromInterface(categorize_parameters)
+	suite.Require().NoError(err)
+
+	request = message.Request{
+		Command:    "",
+		Parameters: valid_kv,
+	}
+	reply = on_categorize(request, suite.logger, suite.db_con)
+	suite.Require().False(reply.IsOK())
 }
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestSmartcontract(t *testing.T) {
+func TestHanlder(t *testing.T) {
 	suite.Run(t, new(TestHandlerSuite))
 }
