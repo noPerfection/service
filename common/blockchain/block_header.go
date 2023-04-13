@@ -2,6 +2,7 @@
 package blockchain
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/blocklords/sds/common/data_type/key_value"
@@ -42,6 +43,34 @@ func (n Number) Validate() error {
 	return nil
 }
 
+func (n *Number) UnmarshalJSON(data []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	num, ok := v.(uint64)
+	if ok {
+		*n = Number(num)
+		return nil
+	}
+	float_num, ok := v.(float64)
+	if ok {
+		*n = Number(uint64(float_num))
+		return nil
+	}
+	json_num, ok := v.(json.Number)
+	if ok {
+		int_num, err := json_num.Int64()
+		if err != nil {
+			return fmt.Errorf("value.(json.Number): %w", err)
+		}
+		*n = Number(uint64(int_num))
+		return nil
+	}
+
+	return fmt.Errorf("the type of data %T is not supported ", v)
+}
+
 func (t Timestamp) Value() uint64 {
 	return uint64(t)
 }
@@ -51,6 +80,34 @@ func (t Timestamp) Validate() error {
 		return fmt.Errorf("timestamp is 0")
 	}
 	return nil
+}
+
+func (n *Timestamp) UnmarshalJSON(data []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	num, ok := v.(uint64)
+	if ok {
+		*n = Timestamp(num)
+		return nil
+	}
+	float_num, ok := v.(float64)
+	if ok {
+		*n = Timestamp(uint64(float_num))
+		return nil
+	}
+	json_num, ok := v.(json.Number)
+	if ok {
+		int_num, err := json_num.Int64()
+		if err != nil {
+			return fmt.Errorf("value.(json.Number): %w", err)
+		}
+		*n = Timestamp(uint64(int_num))
+		return nil
+	}
+
+	return fmt.Errorf("the type of data %T is not supported ", v)
 }
 
 // Extracts the block parameters from the given key value map
