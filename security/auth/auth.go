@@ -13,13 +13,13 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// The ZAP curve for authentication of the users
+// The ZAP curve for authentication
 type Credentials struct {
 	PublicKey   string
 	private_key string
 }
 
-// Returns the credentials with public key and private key
+// NewPrivateKey returns credentials with public key and private key
 func NewPrivateKey(private_key string, public_key string) *Credentials {
 	return &Credentials{
 		PublicKey:   public_key,
@@ -27,7 +27,7 @@ func NewPrivateKey(private_key string, public_key string) *Credentials {
 	}
 }
 
-// Returns the credentials but with public key only
+// New credentials with public key only
 func New(public_key string) *Credentials {
 	return &Credentials{
 		PublicKey:   public_key,
@@ -35,12 +35,16 @@ func New(public_key string) *Credentials {
 	}
 }
 
-// Whether the credentials include the private key or not
+// HasPrivateKey checks whether the Credentials has
+// private key or not.
+//
+// If Credentials was created directly or as New(), then this function will return false.
+// If Credentials was created using NewPrivateKey(), then this function will return true.
 func (c *Credentials) HasPrivateKey() bool {
 	return len(c.private_key) > 0
 }
 
-// Sets the private key to the socket on a given domain.
+// SetSocketAuthCurve sets the private key to the socket on a given domain.
 // Call it for controllers.
 func (c *Credentials) SetSocketAuthCurve(socket *zmq.Socket, domain string) error {
 	if len(c.private_key) == 0 {
@@ -53,8 +57,10 @@ func (c *Credentials) SetSocketAuthCurve(socket *zmq.Socket, domain string) erro
 	return nil
 }
 
-// Sets the authentication to the target machine
-// Considering that this is the client
+// SetClientAuthCurve sets the authentication of the client.
+// Call it for [app/remote.ClientSocket]
+//
+// The server_public_key is the public key derived from Credentials for the controller socket.
 func (c *Credentials) SetClientAuthCurve(socket *zmq.Socket, server_public_key string) error {
 	if len(c.private_key) == 0 {
 		return fmt.Errorf("no client private key")
