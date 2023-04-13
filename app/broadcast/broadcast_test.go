@@ -26,7 +26,7 @@ type TestBroadcastSuite struct {
 // Make sure that Account is set to five
 // before each test
 func (suite *TestBroadcastSuite) SetupTest() {
-	logger, err := log.New("log", log.WITHOUT_TIMESTAMP)
+	logger, err := log.New("log", log.WITH_TIMESTAMP)
 	suite.Require().Nil(err, "failed to create logger")
 
 	app_config, err := configuration.NewAppConfig(logger)

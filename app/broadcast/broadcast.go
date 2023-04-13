@@ -74,7 +74,7 @@ func New(s *service.Service, logger log.Logger) (*Broadcast, error) {
 		return nil, fmt.Errorf("the service is not limited to BROADCAST. run service.NewExternal(type, service.BROADCAST)")
 	}
 
-	logger, err := logger.ChildWithTimestamp("broadcast")
+	logger, err := logger.Child("broadcast", "service_name", s.Name, "inproc", s.IsInproc())
 	if err != nil {
 		return nil, fmt.Errorf("error creating child logger: %w", err)
 	}
