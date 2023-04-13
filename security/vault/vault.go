@@ -1,4 +1,5 @@
-// Keep the credentials in a vault
+// Package vault creates a service that acts as a gateway
+// between hashicorp vault and SDS services.
 package vault
 
 import (
@@ -18,6 +19,8 @@ import (
 	"github.com/hashicorp/vault/api/auth/approle"
 )
 
+// Vault is the wrapper around hashicorp vault client along with
+// the secret key paths specific for SDS services.
 type Vault struct {
 	logger         log.Logger
 	client         *hashicorp.Client
@@ -38,7 +41,8 @@ type Vault struct {
 	auth_token *hashicorp.Secret
 }
 
-// The configuration parameters
+// VaultConfigurations are setting the default configuration parameters.
+//
 // The values are the default values if it wasn't provided by the user
 // Set the default value to nil, if the parameter is required from the user
 var VaultConfigurations = configuration.DefaultConfig{
@@ -54,12 +58,14 @@ var VaultConfigurations = configuration.DefaultConfig{
 	}),
 }
 
-// Sets up the connection to the Hashicorp Vault for static keys and database credentials.
+// New vault that's connected to remote the Hashicorp Vault.
 //
-// The dynamic
 // If you run the Vault in the dev mode, then path should be "sds-auth-kv/"
 //
-// Optionally the app configuration could be nil, in that case it creates a new vault
+// Optionally the app configuration could be nil, in that case it creates a new vault.
+//
+// This function also gets the database credentials and pushes them to the
+// blockchain.
 func New(app_config *configuration.Config, logger log.Logger) (*Vault, error) {
 	if app_config == nil {
 		return nil, errors.New("missing configuration file")

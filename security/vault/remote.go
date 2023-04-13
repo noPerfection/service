@@ -1,4 +1,3 @@
-// Keep the credentials in a vault
 package vault
 
 import (

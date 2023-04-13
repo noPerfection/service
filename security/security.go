@@ -1,7 +1,28 @@
-// The security package enables the authentication and runs the vault.
-// The credentials are stored in the vault, and they will be fetched from the vault.
+// Package security is the service that acts as the manager
+// of authentication service and vault service.
+//
+// The credentials for authentication are stored in the vault,
+// and they will be fetched from the vault.
 //
 // To enable it in the app, pass --security argument.
+//
+// Usage of security
+//
+//		// package main
+//	 	// import sds/security package
+//		import "github.com/blocklords/sds/security"
+//		import "github.com/blocklords/sds/app/configuration"
+//		import "github.com/blocklords/sds/app/log"
+//
+//		func main() {
+//			log, _ := log.New("main", log.WITH_TIMESTAMP)
+//			app_config, _ := configuration.NewAppConfig(log)
+//			secure_service, _ := security.New(app_config, logger)
+//
+//			// will start authentication servic concurrently
+//			// will start vault service concurrently
+//			secure_service.Run()
+//		}
 package security
 
 import (
@@ -56,6 +77,7 @@ func (s *Security) Run() {
 // Under the hood it runs the ZAP (Zeromq Authentication Protocol).
 //
 // This function should be called at the beginning of the main() function.
+// Before creating sockets.
 func (s *Security) start_auth() error {
 	zmq.AuthSetVerbose(s.app_config.DebugSecurity)
 	err := zmq.AuthStart()
@@ -67,7 +89,7 @@ func (s *Security) start_auth() error {
 	// for any domain of this application.
 	zmq.AuthAllow("*")
 
-	// Retreive the public key of the authenticator.
+	// Retreive the public key of the requester.
 	// The public key is then used by app/account and security/auth
 	handler := func(version string, request_id string, domain string, address string, identity string, mechanism string, credentials ...string) (metadata map[string]string) {
 		metadata = map[string]string{
