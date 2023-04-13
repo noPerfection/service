@@ -102,7 +102,7 @@ func main() {
 
 	// Start the core services
 	go static.Run(app_config)
-	go categorizer.Run(app_config, nil)
+	go categorizer.Run(app_config)
 	go blockchain.Run(app_config)
 
 	// Start the external services

@@ -91,7 +91,7 @@ func Service() *service.Service {
 // Provides commands to fetch the decoded logs from SDK.
 //
 // dep: SDS Blockchain core service
-func Run(app_config *configuration.Config, database_client *remote.ClientSocket) {
+func Run(app_config *configuration.Config) {
 	logger, _ := log.New("categorizer", log.WITH_TIMESTAMP)
 
 	logger.Info("starting")
@@ -106,24 +106,39 @@ func Run(app_config *configuration.Config, database_client *remote.ClientSocket)
 		logger.Fatal("remote.InprocRequest", "url", blockchain_service.Url(), "error", err)
 	}
 
-	logger.Info("retreive networks", "network-type", network.ALL)
+	logger.Info("Get supported networks from blockchain", "network_type", network.ALL)
 
-	var request_parameters = network.ALL
-	var networks blockchain_command.GetNetworksReply
-	err = blockchain_command.NETWORKS_COMMAND.Request(blockchain_socket, request_parameters, &networks)
-	blockchain_socket.Close()
-	if err != nil {
-		logger.Fatal("newwork.GetRemoteNetworks", "error", err)
+	request_parameters := blockchain_command.GetNetworksRequest{
+		NetworkType: network.ALL,
 	}
 
-	logger.Info("networks retreived")
+	var networks_parameters blockchain_command.GetNetworksReply
+	err = blockchain_command.NETWORKS_COMMAND.Request(blockchain_socket, request_parameters, &networks_parameters)
+	if err != nil {
+		logger.Fatal("network.GetRemoteNetworks", "error", err)
+	}
+	if err := blockchain_socket.Close(); err != nil {
+		logger.Fatal("blockchain client socket close", "error", err)
+	}
+
+	logger.Info("Networks returned from blockchain service")
 
 	network_sockets, err := network.NewClientSockets(app_config, logger)
 	if err != nil {
 		logger.Fatal("network.NewClientSockets", "error", err)
 	}
 
-	for _, new_network := range networks {
+	database_service, err := service.Inprocess(service.DATABASE)
+	if err != nil {
+		logger.Fatal("service.Inprocess(service.DATABASE)", "error", err)
+	}
+
+	db_socket, err := remote.InprocRequestSocket(database_service.Url(), logger, app_config)
+	if err != nil {
+		logger.Fatal("remote.InprocRequestSocket", "error", err)
+	}
+
+	for _, new_network := range networks_parameters.Networks {
 		client_socket, ok := network_sockets[new_network.Type.String()].(*remote.ClientSocket)
 		if !ok {
 			logger.Fatal("no client socket to network service", "network id", new_network.Id, "network type", new_network.Type)
