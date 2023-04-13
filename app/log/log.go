@@ -29,13 +29,13 @@ type LoggerStyle struct {
 }
 
 func random_style() (LoggerStyle, error) {
-	raw_palette, err := gamut.Generate(2, gamut.HappyGenerator{})
+	raw_palette, err := gamut.Generate(2, gamut.PastelGenerator{})
 	if err != nil {
 		return LoggerStyle{}, fmt.Errorf("color.Generate: %w", err)
 	}
 	palette := make([]lipgloss.Color, len(raw_palette))
 	for i, raw_palette := range raw_palette {
-		lighter := gamut.Lighter(raw_palette, 0.25)
+		lighter := gamut.Lighter(raw_palette, 0.05)
 		palette[i] = lipgloss.Color(gamut.ToHex(lighter))
 	}
 
