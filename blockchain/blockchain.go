@@ -1,9 +1,17 @@
-// Package blockchain defines core service that acts as the gateway
-// between SDS and blockchain network.
-// All accesses to the blockchain network within SDS goes through blockchain service.
+// Package blockchain is the core service that acts as the gateway
+// between other SDS services and blockchain network.
+// All accesses to the blockchain network by SDS goes through blockchain service.
 //
-// All blockchain specific reading/writing and categorizing the smartcontracts or any
-// other feature are defined in this package as a sub package.
+// Besides acting as the gateway, it also defines common blockchain data types:
+//   - smartcontract events
+//   - blockhain transaction
+//
+// Blockchain package also defines **network** sub package to handle the supported
+// networks. Visit to [blockchain/network] for adding new supported networks.
+//
+// Each blockchain runs as a separate sds service. However blockchain package
+//
+// However their socket parameters are defined in [blockchain/inproc]
 package blockchain
 
 import (
