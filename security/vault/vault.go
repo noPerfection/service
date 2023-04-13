@@ -12,6 +12,7 @@ import (
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote/message"
+	remote_parameter "github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db/handler"
@@ -25,7 +26,6 @@ type Vault struct {
 	logger         log.Logger
 	client         *hashicorp.Client
 	database_vault *DatabaseVault
-	context        context.Context
 	path           string // Key-Value credentials
 
 	// connection parameters
@@ -72,14 +72,14 @@ func New(app_config *configuration.Config, logger log.Logger) (*Vault, error) {
 	}
 	// AppRole RoleID to log in to Vault
 	if !app_config.Exist("SDS_VAULT_APPROLE_ROLE_ID") {
-		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_ROLE_ID' environment variable")
+		return nil, fmt.Errorf("missing 'SDS_VAULT_APPROLE_ROLE_ID' environment variable")
 	}
 	// AppRole SecretID file path to log in to Vault
 	if !app_config.Exist("SDS_VAULT_APPROLE_SECRET_ID") {
-		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_SECRET_ID' environment variable")
+		return nil, fmt.Errorf("secure, missing 'SDS_VAULT_APPROLE_SECRET_ID' environment variable")
 	}
 	if !app_config.Exist("SDS_VAULT_APPROLE_MOUNT_PATH") {
-		return nil, errors.New("secure, missing 'SDS_VAULT_APPROLE_MOUNT_PATH' environment variable")
+		return nil, fmt.Errorf("secure, missing 'SDS_VAULT_APPROLE_MOUNT_PATH' environment variable")
 	}
 
 	vault_logger, err := logger.Child("vault", log.WITH_TIMESTAMP)
@@ -103,24 +103,23 @@ func New(app_config *configuration.Config, logger log.Logger) (*Vault, error) {
 		return nil, fmt.Errorf("hashicorp.NewClient: %w", err)
 	}
 
-	ctx := context.TODO()
-
 	vault := Vault{
 		client:             client,
 		logger:             vault_logger,
-		context:            ctx,
 		path:               app_config.GetString("SDS_VAULT_PATH"),
 		approle_mount_path: app_config.GetString("SDS_VAULT_APPROLE_MOUNT_PATH"),
 		approle_role_id:    app_config.GetString("SDS_VAULT_APPROLE_ROLE_ID"),
 		approle_secret_id:  app_config.GetString("SDS_VAULT_APPROLE_SECRET_ID"),
 	}
 
+	ctx, cancel_func := remote_parameter.NewContextWithTimeout(context.TODO(), app_config)
 	token, err := vault.login(ctx)
+	cancel_func()
 	if err != nil {
 		return nil, fmt.Errorf("vault login error: %w", err)
 	}
 
-	// creates a database credentials as well
+	// creates a database credentials wrapper as well
 	vault_database, err := NewDatabase(&vault)
 	if err != nil {
 		return nil, fmt.Errorf("vault create database error: %w", err)
@@ -253,7 +252,10 @@ func (v *Vault) login(ctx context.Context) (*hashicorp.Secret, error) {
 
 // Returns the String in the secret, by key
 func (v *Vault) get_string(secret_name string, key string) (string, error) {
-	secret, err := v.client.KVv2(v.path).Get(v.context, secret_name)
+	ctx, cancel_func := remote_parameter.NewContextWithTimeout(context.TODO(), v.app_config)
+	defer cancel_func()
+
+	secret, err := v.client.KVv2(v.path).Get(ctx, secret_name)
 	if err != nil {
 		return "", fmt.Errorf("vault.client.Get: %w", err)
 	}
@@ -265,8 +267,4 @@ func (v *Vault) get_string(secret_name string, key string) (string, error) {
 	}
 
 	return value, nil
-}
-
-func (v *Vault) GetConfig() *configuration.Config {
-	return v.app_config
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	remote_parameter "github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/db/handler"
 	hashicorp "github.com/hashicorp/vault/api"
@@ -29,7 +30,9 @@ func (v *Vault) periodically_renew_leases() {
 	defer v.logger.Info("renew / recreate secrets loop: end")
 
 	for {
-		renewed, err := v.renewLeases(v.context, v.auth_token)
+		ctx, cancel_func := remote_parameter.NewContextWithTimeout(context.TODO(), v.app_config)
+		renewed, err := v.renewLeases(ctx, v.auth_token)
+		cancel_func()
 		if err != nil {
 			v.logger.Fatal("renew error", "error", err) // simplified error handling
 		}
@@ -41,7 +44,9 @@ func (v *Vault) periodically_renew_leases() {
 		if renewed&expiringAuthToken != 0 {
 			v.logger.Info("auth token: can no longer be renewed; will log in again")
 
-			auth_token, err := v.login(v.context)
+			ctx, cancel_func := remote_parameter.NewContextWithTimeout(context.TODO(), v.app_config)
+			auth_token, err := v.login(ctx)
+			cancel_func()
 			if err != nil {
 				v.logger.Fatal("login authentication error", "error", err) // simplified error handling
 			}
@@ -61,7 +66,9 @@ func (v *Vault) periodically_renew_database_leases() {
 	}
 
 	for {
-		renewed, err := v.renewLeases(v.context, v.database_vault.database_auth_token)
+		ctx, cancel_func := remote_parameter.NewContextWithTimeout(context.TODO(), v.app_config)
+		renewed, err := v.renewLeases(ctx, v.database_vault.database_auth_token)
+		cancel_func()
 		if err != nil {
 			v.logger.Fatal("renew error", "error", err) // simplified error handling
 		}
