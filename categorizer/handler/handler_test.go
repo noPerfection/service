@@ -18,6 +18,7 @@ import (
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
+	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
@@ -32,7 +33,7 @@ import (
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
 // returns the current testing context
-type TestSmartcontractSuite struct {
+type TestHandlerSuite struct {
 	suite.Suite
 	app_config *configuration.Config
 	logger     log.Logger
@@ -50,9 +51,11 @@ type TestSmartcontractSuite struct {
 	clients    key_value.KeyValue // clients to pass as app parameters to the command handlers
 	evm_router *controller.Router
 	networks   network.Networks
+
+	logs key_value.List
 }
 
-func (suite *TestSmartcontractSuite) setup_network_service() {
+func (suite *TestHandlerSuite) setup_network_service() {
 	suite.app_config.SetDefault(network.SDS_BLOCKCHAIN_NETWORKS, network.DefaultConfiguration())
 	// router services
 	evm_router_service, err := service.NewExternal(service.EVM, service.THIS, suite.app_config)
@@ -118,7 +121,7 @@ func (suite *TestSmartcontractSuite) setup_network_service() {
 	time.Sleep(time.Millisecond * 200)
 }
 
-func (suite *TestSmartcontractSuite) setup_app() {
+func (suite *TestHandlerSuite) setup_app() {
 	logger, err := log.New("test_handler", log.WITH_TIMESTAMP)
 	suite.Require().NoError(err)
 	suite.logger = logger
@@ -128,12 +131,20 @@ func (suite *TestSmartcontractSuite) setup_app() {
 	suite.app_config = app_config
 }
 
-func (suite *TestSmartcontractSuite) setup_db() {
+// for given index i of the log, calculate timestamps
+func (suite *TestHandlerSuite) calculate_timestamp(i int) uint64 {
+	return uint64(5 * (1 + i))
+}
+
+func (suite *TestHandlerSuite) setup_db() {
 	// prepare the database creation
 	suite.db_name = "test"
 	_, filename, _, _ := runtime.Caller(0)
 	static_smartcontract := "20230308174318_categorizer_smartcontract.sql"
 	smartcontract_sql_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", static_smartcontract)
+
+	event_sql_name := "20230308174720_categorizer_event.sql"
+	event_sql_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", event_sql_name)
 
 	// run the container
 	ctx := context.TODO()
@@ -141,7 +152,7 @@ func (suite *TestSmartcontractSuite) setup_db() {
 		mysql.WithDatabase(suite.db_name),
 		mysql.WithUsername("root"),
 		mysql.WithPassword("tiger"),
-		mysql.WithScripts(smartcontract_sql_path),
+		mysql.WithScripts(smartcontract_sql_path, event_sql_path),
 	)
 	suite.Require().NoError(err)
 	suite.container = container
@@ -175,16 +186,20 @@ func (suite *TestSmartcontractSuite) setup_db() {
 	suite.db_con = client
 
 	suite.T().Cleanup(func() {
-		if err := container.Terminate(ctx); err != nil {
-			suite.T().Fatalf("failed to terminate container: %s", err)
-		}
 		if err := suite.db_con.Close(); err != nil {
 			suite.T().Fatalf("failed to terminate database connection: %s", err)
 		}
+		suite.Require().True(suite.container.IsRunning())
+
+		if err := suite.container.Terminate(ctx); err != nil {
+			suite.T().Fatalf("failed to terminate container: %s", err)
+		}
+
+		suite.Require().False(suite.container.IsRunning())
 	})
 }
 
-func (suite *TestSmartcontractSuite) SetupTest() {
+func (suite *TestHandlerSuite) SetupTest() {
 	header, _ := blockchain.NewHeader(uint64(1), uint64(22))
 	suite.sm_0_key, _ = smartcontract_key.New("1", "0xaddress")
 	suite.sm_0 = smartcontract.Smartcontract{
@@ -207,10 +222,55 @@ func (suite *TestSmartcontractSuite) SetupTest() {
 	suite.Require().NoError(err)
 	err = suite.sm_1.Insert(suite.db_con)
 	suite.Require().NoError(err)
+
+	suite.logs = *key_value.NewList()
+
+	// random 10 logs
+	for i := 0; i < 10; i++ {
+		header, _ := blockchain.NewHeader(uint64(i+1), suite.calculate_timestamp(i))
+
+		log := event.Log{
+			SmartcontractKey: suite.sm_0_key,
+			BlockHeader:      header,
+			TransactionKey: blockchain.TransactionKey{
+				Id:    "txid",
+				Index: 0,
+			},
+			Index:      uint(i + 1),
+			Name:       "Transfer",
+			Parameters: key_value.Empty().Set("value", "1"),
+		}
+		err := suite.logs.Add(i, log)
+		suite.Require().NoError(err)
+
+		err = log.Insert(suite.db_con)
+		suite.Require().NoError(err)
+	}
+	for i := 5; i < 15; i++ {
+		header, _ := blockchain.NewHeader(uint64(i+1), suite.calculate_timestamp(i))
+
+		log := event.Log{
+			SmartcontractKey: suite.sm_1_key,
+			BlockHeader:      header,
+			TransactionKey: blockchain.TransactionKey{
+				Id:    "txid",
+				Index: 0,
+			},
+			Index:      uint(i + 1 + 5),
+			Name:       "Transfer",
+			Parameters: key_value.Empty().Set("value", "1"),
+		}
+		err := suite.logs.Add(i+5, log)
+		suite.Require().NoError(err)
+
+		err = log.Insert(suite.db_con)
+		suite.Require().NoError(err)
+
+	}
 }
 
 // all database operations should be done in a one test
-func (suite *TestSmartcontractSuite) TestCommands() {
+func (suite *TestHandlerSuite) TestCommands() {
 
 	////////////////////////////////////////////////////////
 	//
@@ -253,7 +313,6 @@ func (suite *TestSmartcontractSuite) TestCommands() {
 		Parameters: key_value.Empty(),
 	}
 	reply = GetSmartcontracts(request, suite.logger, suite.db_con, "", "")
-	suite.T().Log("error message", reply.Message)
 	suite.Require().True(reply.IsOK())
 
 	var replied_smartcontracts GetSmartcontractsReply
@@ -320,10 +379,88 @@ func (suite *TestSmartcontractSuite) TestCommands() {
 	}
 	reply = SetSmartcontract(request, suite.logger, suite.db_con, suite.clients, suite.networks)
 	suite.Require().False(reply.IsOK())
+
+	////////////////////////////////////////////////////////
+	//
+	// GetSnapshot command
+	//
+	////////////////////////////////////////////////////////
+
+	snapshot_parameters := Snapshot{
+		BlockTimestamp:    suite.sm_0.BlockHeader.Timestamp,
+		SmartcontractKeys: []smartcontract_key.Key{},
+	}
+	valid_kv, err = key_value.NewFromInterface(snapshot_parameters)
+	suite.Require().NoError(err)
+	request = message.Request{
+		Command:    SNAPSHOT.String(),
+		Parameters: valid_kv,
+	}
+	// Snapshot should fail since no smartcontract keys were given
+	reply = GetSnapshot(request, suite.logger, suite.db_con)
+	suite.Require().False(reply.IsOK())
+
+	// Getting snapshot for the first smartcontract key
+	snapshot_parameters.SmartcontractKeys = []smartcontract_key.Key{suite.sm_0_key}
+	snapshot_parameters.BlockTimestamp, _ = blockchain.NewTimestamp(suite.calculate_timestamp(0))
+	valid_kv, err = key_value.NewFromInterface(snapshot_parameters)
+	suite.Require().NoError(err)
+	request = message.Request{
+		Command:    SNAPSHOT.String(),
+		Parameters: valid_kv,
+	}
+	// Snapshot should fail since no smartcontract keys were given
+	reply = GetSnapshot(request, suite.logger, suite.db_con)
+	suite.Require().True(reply.IsOK())
+
+	var reply_parameters SnapshotReply
+	err = reply.Parameters.ToInterface(&reply_parameters)
+	suite.Require().NoError(err)
+
+	// we added 10 logs in suite.SetupTest(), should fetch all
+	suite.Require().Len(reply_parameters.Logs, 10)
+	suite.Require().EqualValues(reply_parameters.BlockTimestamp, suite.calculate_timestamp(9))
+
+	// fetching the data for the non existing timestamp should
+	// return empty list
+	snapshot_parameters.BlockTimestamp, _ = blockchain.NewTimestamp(suite.calculate_timestamp(10))
+	valid_kv, err = key_value.NewFromInterface(snapshot_parameters)
+	suite.Require().NoError(err)
+	request = message.Request{
+		Command:    SNAPSHOT.String(),
+		Parameters: valid_kv,
+	}
+	// Snapshot should fail since no smartcontract keys were given
+	reply = GetSnapshot(request, suite.logger, suite.db_con)
+	suite.Require().True(reply.IsOK())
+	err = reply.Parameters.ToInterface(&reply_parameters)
+	suite.Require().NoError(err)
+
+	suite.Require().Len(reply_parameters.Logs, 0)
+	suite.Require().EqualValues(reply_parameters.BlockTimestamp, suite.calculate_timestamp(10))
+
+	// fetching all from timestamp of log #5 for two smartcontract keys
+	snapshot_parameters.SmartcontractKeys = []smartcontract_key.Key{suite.sm_0_key, suite.sm_1_key}
+	snapshot_parameters.BlockTimestamp, _ = blockchain.NewTimestamp(suite.calculate_timestamp(5))
+
+	valid_kv, err = key_value.NewFromInterface(snapshot_parameters)
+	suite.Require().NoError(err)
+	request = message.Request{
+		Command:    SNAPSHOT.String(),
+		Parameters: valid_kv,
+	}
+	// Snapshot should fail since no smartcontract keys were given
+	reply = GetSnapshot(request, suite.logger, suite.db_con)
+	suite.Require().True(reply.IsOK())
+	err = reply.Parameters.ToInterface(&reply_parameters)
+	suite.Require().NoError(err)
+
+	suite.Require().Len(reply_parameters.Logs, 15)
+	suite.Require().EqualValues(reply_parameters.BlockTimestamp, suite.calculate_timestamp(14))
 }
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestSmartcontract(t *testing.T) {
-	suite.Run(t, new(TestSmartcontractSuite))
+	suite.Run(t, new(TestHandlerSuite))
 }
