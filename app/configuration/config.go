@@ -27,30 +27,30 @@ type Config struct {
 // NewAppConfig creates a global configuration for the entire application.
 // Automatically reads the command line arguments.
 // Loads the environment variables.
-func NewAppConfig(logger log.Logger) (*Config, error) {
-	config_logger, err := logger.Child("app-config", log.WITHOUT_TIMESTAMP)
+func NewAppConfig(parent log.Logger) (*Config, error) {
+	logger, err := parent.Child("configuration", log.WITH_TIMESTAMP)
 	if err != nil {
 		return nil, fmt.Errorf("error creating child logger: %w", err)
 	}
+	logger.Info("Reading command line arguments for application parameters")
 
 	// First we check the parameters of the application arguments
-	arguments := argument.GetArguments(&config_logger)
+	arguments := argument.GetArguments(&logger)
 
 	conf := Config{
 		Secure:        argument.Has(arguments, argument.SECURE),
 		DebugSecurity: argument.Has(arguments, argument.SECURITY_DEBUG),
-		logger:        &config_logger,
+		logger:        &logger,
 	}
-
-	config_logger.Info("Supported application arguments:")
-	config_logger.Info("--"+argument.SECURE, "to enable authentication of TCP sockets. Enabled", conf.Secure)
-	config_logger.Info("--"+argument.SECURITY_DEBUG, "to hide security debug. Enabled", conf.DebugSecurity)
+	logger.Info("Loading environment files passed as app arguments")
 
 	// First we load the environment variables
 	err = env.LoadAnyEnv()
 	if err != nil {
 		return nil, fmt.Errorf("loading environment variables: %w", err)
 	}
+
+	logger.Info("Starting Viper with environment variables")
 
 	// replace the values with the ones we fetched from environment variables
 	conf.viper = viper.New()
@@ -61,24 +61,19 @@ func NewAppConfig(logger log.Logger) (*Config, error) {
 
 // Set the default configuration parameters.
 func (config *Config) SetDefaults(default_config DefaultConfig) {
-	if config.logger != nil {
-		config.logger.Info("Set the default config parameters for", "title", default_config.Title)
-	}
+	config.logger.Info("Set the default config parameters for", "title", default_config.Title)
 
 	for name, value := range default_config.Parameters {
 		if value == nil {
 			continue
 		}
-		if config.logger != nil {
-			config.logger.Info("default", name, value)
-		}
+		config.logger.Info(default_config.Title, name, value)
 		config.SetDefault(name, value)
 	}
 }
 
 // Sets the default configuration name to the value
 func (c *Config) SetDefault(name string, value interface{}) {
-	// log.Printf("\tdefault config %s=%v", name, value)
 	c.viper.SetDefault(name, value)
 }
 

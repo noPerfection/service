@@ -58,16 +58,23 @@ func GetEnvPaths() []string {
 
 // Load arguments, not the environment variable paths.
 // Arguments starts with '--'
-func GetArguments(logger *log.Logger) []string {
-	if logger != nil {
-		env_logger, _ := logger.Child("arguments", log.WITHOUT_TIMESTAMP)
-
-		env_logger.Info("To load .env files pass them as application arguments")
-		env_logger.Info(".env in folder from where you call the app loaded automatically")
+func GetArguments(parent *log.Logger) []string {
+	logger, err := parent.Child("argument", log.WITH_TIMESTAMP)
+	if err != nil {
+		logger.Warn("parent.Child", "error", err)
+		return []string{}
 	}
+
+	logger.Info("Supported app arguments",
+		"--"+SECURE,
+		"Enables security service",
+		"--"+SECURITY_DEBUG,
+		"To print the authentication logs",
+	)
 
 	args := os.Args[1:]
 	if len(args) == 0 {
+		logger.Info("No arguments were given")
 		return []string{}
 	}
 
@@ -78,6 +85,8 @@ func GetArguments(logger *log.Logger) []string {
 			parameters = append(parameters, arg[2:])
 		}
 	}
+
+	logger.Info("All arguments read", "amount", len(parameters), "app parameters", parameters)
 
 	return parameters
 }
