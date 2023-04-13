@@ -59,7 +59,7 @@ func GetEnvPaths() []string {
 // Load arguments, not the environment variable paths.
 // Arguments starts with '--'
 func GetArguments(parent *log.Logger) []string {
-	logger, err := parent.Child("argument", log.WITH_TIMESTAMP)
+	logger, err := parent.Child("argument")
 	if err != nil {
 		logger.Warn("parent.Child", "error", err)
 		return []string{}
