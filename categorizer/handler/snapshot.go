@@ -15,11 +15,23 @@ import (
 
 const SNAPSHOT_LIMIT = uint64(500)
 
+// Snapshot is the parameters of the request.Message
+// for getting categorized events from database
+//
+//   - BlockTimestamp logs are fetched atleast from this time
+//   - SmartcontractKeys are the list of smartcontracts to filter logs for
+//     SmartcontractKeys can't be empty.
 type Snapshot struct {
 	BlockTimestamp    blockchain.Timestamp    `json:"block_timestamp"`
 	SmartcontractKeys []smartcontract_key.Key `json:"smartcontract_keys"`
 }
 
+// SnapshotReply is the parameters of the message.Reply
+// for getting categorized events from database
+//
+//   - BlockTimestamp logs is the block timestamp of the recent log
+//     If no logs were given, then it will return the latest categorized block number
+//   - Logs are the list of logs
 type SnapshotReply struct {
 	BlockTimestamp blockchain.Timestamp `json:"block_timestamp"`
 	Logs           []event.Log          `json:"logs"`
@@ -29,8 +41,11 @@ type SnapshotReply struct {
 // that matches topic_filter
 //
 // This function is called by the SDK through SDS Gateway
-func GetSnapshot(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
-	db_con := parameters[0].(*remote.ClientSocket)
+func GetSnapshot(request message.Request, _ log.Logger, app_parameters ...interface{}) message.Reply {
+	if len(app_parameters) < 1 {
+		return message.Fail("missing database client socket in app parameters")
+	}
+	db_con := app_parameters[0].(*remote.ClientSocket)
 
 	var snapshot Snapshot
 	err := request.Parameters.ToInterface(&snapshot)
@@ -53,7 +68,7 @@ func GetSnapshot(request message.Request, _ log.Logger, parameters ...interface{
 	var crud database.Crud = &event.Log{}
 	condition := key_value.Empty().
 		Set("smartcontract_keys", snapshot.SmartcontractKeys).
-		Set("block_timestamp", snapshot.BlockTimestamp+1).
+		Set("block_timestamp", snapshot.BlockTimestamp).
 		Set("limit", SNAPSHOT_LIMIT)
 
 	var logs []event.Log
