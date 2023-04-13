@@ -145,8 +145,8 @@ func get_network_ids(request message.Request, _ log.Logger, app_parameters ...in
 		return message.Fail("missing app configuration and network sockets")
 	}
 
-	var network_type handler.GetNetworkIdsRequest
-	err := request.Parameters.ToInterface(&network_type)
+	var request_parameters handler.GetNetworkIdsRequest
+	err := request.Parameters.ToInterface(&request_parameters)
 	if err != nil {
 		return message.Fail("invalid parameters: " + err.Error())
 	}
@@ -155,12 +155,14 @@ func get_network_ids(request message.Request, _ log.Logger, app_parameters ...in
 	if !ok {
 		return message.Fail("the parameter is not app config")
 	}
-	network_ids, err := network.GetNetworkIds(app_config, network_type)
+	network_ids, err := network.GetNetworkIds(app_config, request_parameters.NetworkType)
 	if err != nil {
 		return message.Fail(err.Error())
 	}
 
-	var reply = network_ids
+	reply := handler.GetNetworkIdsReply{
+		NetworkIds: network_ids,
+	}
 	reply_message, err := command.Reply(reply)
 	if err != nil {
 		return message.Fail("failed to reply: " + err.Error())
@@ -181,8 +183,8 @@ func get_all_networks(request message.Request, logger log.Logger, app_parameters
 	}
 	command_logger.Info("incoming request", "parameters", request.Parameters)
 
-	var network_type handler.GetNetworksRequest
-	err = request.Parameters.ToInterface(&network_type)
+	var request_parameters handler.GetNetworksRequest
+	err = request.Parameters.ToInterface(&request_parameters)
 	if err != nil {
 		return message.Fail("invalid parameters: " + err.Error())
 	}
@@ -191,13 +193,15 @@ func get_all_networks(request message.Request, logger log.Logger, app_parameters
 	if !ok {
 		return message.Fail("the parameter is not app config")
 	}
-	networks, err := network.GetNetworks(app_config, network_type)
+	networks, err := network.GetNetworks(app_config, request_parameters.NetworkType)
 	if err != nil {
 		return message.Fail("blockchain " + err.Error())
 	}
 
-	var reply = networks
-	reply_message, err := command.Reply(reply)
+	reply := handler.GetNetworksReply{
+		Networks: networks,
+	}
+	reply_message, err := command.Reply(&reply)
 	if err != nil {
 		return message.Fail("failed to reply: " + err.Error())
 	}
@@ -238,6 +242,9 @@ func Service() *service.Service {
 // And finally enables the reply controller waiting for CommandHandlers
 func Run(app_config *configuration.Config) {
 	logger, _ := log.New("blockchain", log.WITH_TIMESTAMP)
+
+	logger.Info("Setting default values for supported blockchain networks")
+	app_config.SetDefault(network.SDS_BLOCKCHAIN_NETWORKS, network.DefaultConfiguration())
 
 	this_service := Service()
 	reply, err := controller.NewReply(this_service, logger)

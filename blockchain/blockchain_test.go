@@ -329,6 +329,7 @@ func (suite *TestBlockchainSuite) TestNetworks() {
 	}
 	reply = get_network(request, suite.logger, suite.app_config, nil)
 	suite.Require().True(reply.IsOK())
+
 }
 
 // In order for 'go test' to run this suite, we need to create

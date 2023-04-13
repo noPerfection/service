@@ -20,19 +20,27 @@ type GetNetworkReply = network.Network
 // GetNetworksRequest defines the required
 // parameters in message.Request.Parameters for
 // NETWORKS_COMMAND
-type GetNetworksRequest = network.NetworkType
+type GetNetworksRequest struct {
+	NetworkType network.NetworkType
+}
 
 // GetNetworksReply defines keys and value types
 // of message.Reply.Parameters that are returned
 // by controller after handling NETWORKS_COMMAND
-type GetNetworksReply = network.Networks
+type GetNetworksReply struct {
+	Networks network.Networks `json:"networks"`
+}
 
 // GetNetworkIdsReply defines the required
 // parameters in message.Request.Parameters for
 // NETWORK_IDS_COMMAND
-type GetNetworkIdsRequest = network.NetworkType
+type GetNetworkIdsRequest struct {
+	NetworkType network.NetworkType
+}
 
 // GetNetworksReply defines keys and value types
 // of message.Reply.Parameters that are returned
 // by controller after handling NETWORK_IDS_COMMAND
-type GetNetworkIdsReply = []string
+type GetNetworkIdsReply struct {
+	NetworkIds []string `json:"network_ids"`
+}
