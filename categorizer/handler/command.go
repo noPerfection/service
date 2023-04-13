@@ -40,5 +40,5 @@ func CommandHandlers() command.Handlers {
 		Add(GET_SMARTCONTRACT, GetSmartcontract).
 		Add(SET_SMARTCONTRACT, SetSmartcontract).
 		Add(SNAPSHOT, GetSnapshot).
-		Add(CATEGORIZATION, on_new_smartcontracts)
+		Add(CATEGORIZATION, on_categorize)
 }

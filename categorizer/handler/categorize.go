@@ -10,17 +10,17 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-// on_new_smartcontracts command handles an update of the smartcontracts
+// on_categorize command handles an update of the smartcontracts
 // as well as inserts new decoded event logs in the database.
 //
 // Send categorizer/handler.CATEGORIZER command from network categorizer sub service
 // to execute this function.
-func on_new_smartcontracts(request message.Request, logger log.Logger, parameters ...interface{}) message.Reply {
-	if parameters == nil || len(parameters) < 1 {
+func on_categorize(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
+	if app_parameters == nil || len(app_parameters) < 1 {
 		return message.Fail("invalid parameters were given atleast database should be passed")
 	}
 
-	db_con, ok := parameters[0].(*remote.ClientSocket)
+	db_con, ok := app_parameters[0].(*remote.ClientSocket)
 	if !ok {
 		return message.Fail("missing Manager in the parameters")
 	}
@@ -56,7 +56,7 @@ func on_new_smartcontracts(request message.Request, logger log.Logger, parameter
 		var crud database.Crud = l
 		err := crud.Insert(db_con)
 		if err != nil {
-			return message.Fail("event.Save: " + err.Error())
+			return message.Fail("event.Insert: " + err.Error())
 		}
 	}
 
