@@ -20,12 +20,49 @@ func on_categorize(request message.Request, logger log.Logger, app_parameters ..
 		return message.Fail("invalid parameters were given atleast database should be passed")
 	}
 
-	db_con, ok := app_parameters[0].(*remote.ClientSocket)
-	if !ok {
-		return message.Fail("missing Manager in the parameters")
+	var categorize_parameters PushCategorization
+	err := request.Parameters.ToInterface(&categorize_parameters)
+	if err != nil {
+		return message.Fail("invalid request parameters: " + err.Error())
+	}
+	if len(categorize_parameters.Smartcontracts) == 0 {
+		return message.Fail("missing smartcontracts to update")
+	}
+	for _, sm := range categorize_parameters.Smartcontracts {
+		if err := sm.Validate(); err != nil {
+			return message.Fail("failed to validate smartcontract: " + err.Error())
+		}
 	}
 
-	raw_smartcontracts, _ := request.Parameters.GetKeyValueList("smartcontracts")
+	// the logs if given should match to the ones we already have
+	for _, log := range categorize_parameters.Logs {
+		if err := log.Validate(); err != nil {
+			return message.Fail("failed to validate log: " + err.Error())
+		}
+
+		in_smartcontract := false
+		for _, sm := range categorize_parameters.Smartcontracts {
+			if log.SmartcontractKey == sm.SmartcontractKey {
+				in_smartcontract = true
+			}
+		}
+		if !in_smartcontract {
+			return message.Fail("log to insert doesn't belong to list of smartcontracts: " + log.SmartcontractKey.ToString())
+		}
+	}
+
+	// todo
+	// cache the smartcontract list
+	// then make sure that update time is not the same as
+	// current smartcontract
+	//
+	// as well as make sure that log times are greater
+
+	raw_smartcontracts, err := request.Parameters.GetKeyValueList("smartcontracts")
+	if err != nil {
+		return message.Fail("missing Smartcontracts")
+	}
+
 	smartcontracts := make([]*smartcontract.Smartcontract, len(raw_smartcontracts))
 
 	for i, raw := range raw_smartcontracts {
@@ -42,6 +79,11 @@ func on_categorize(request message.Request, logger log.Logger, app_parameters ..
 	for i, raw := range raw_logs {
 		log, _ := event.NewFromMap(raw)
 		logs[i] = log
+	}
+
+	db_con, ok := app_parameters[0].(*remote.ClientSocket)
+	if !ok {
+		return message.Fail("missing Manager in the parameters")
 	}
 
 	for _, sm := range smartcontracts {
