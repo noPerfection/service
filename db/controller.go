@@ -6,7 +6,6 @@
 package db
 
 import (
-	"context"
 	"database/sql"
 	"sync"
 
@@ -21,12 +20,14 @@ import (
 	"github.com/blocklords/sds/db/handler"
 )
 
-// Run the database layer as a concurrent service
-func Run(app_config *configuration.Config, parent log.Logger) {
-	logger, err := parent.ChildWithTimestamp("database")
+// Run the database servce
+func Run(app_config *configuration.Config) {
+	logger, err := log.New("database", log.WITH_TIMESTAMP)
 	if err != nil {
-		parent.Fatal("logger.Child", "error", err)
+		log.Fatal("log.Child", "error", err)
 	}
+
+	logger.Info("Starting with setting of the default parameters")
 
 	// create a database connection
 	// if security is enabled, then get the database credentials from vault
@@ -39,6 +40,7 @@ func Run(app_config *configuration.Config, parent log.Logger) {
 
 	var database *Database
 	if app_config.Secure {
+		logger.Info("Security enabled, therefore start pull controller that waits credentials from vault service")
 		database = &Database{
 			Connection:      nil,
 			connectionMutex: sync.Mutex{},
@@ -48,32 +50,43 @@ func Run(app_config *configuration.Config, parent log.Logger) {
 		// vault will push the credentials here
 		database.run_puller()
 	} else {
-		database_credentials := GetDefaultCredentials(app_config)
-		database, err = Open(logger, database_parameters, database_credentials)
+		logger.Info("Database is connected in an unsafe way. Connecting with default credentials")
+
+		database, err = connect_with_default(app_config, logger, database_parameters)
 		if err != nil {
 			logger.Fatal("database error", "message", err)
 		}
+		logger.Info("Database connected successfully!")
 	}
 
+	logger.Info("Run database controller")
 	go database.run_controller()
 }
 
 // run_puller creates a pull controller that get's the
 // new database credentials to reconnect.
 func (database *Database) run_puller() {
-	db_service, err := service.InprocessFromUrl(handler.PullerEndpoint())
+	logger, err := database.logger.ChildWithTimestamp("puller")
 	if err != nil {
-		database.logger.Fatal("service.Inproc", "service type", service.DATABASE, "error", err)
+		logger.Fatal("database.logger.ChildWithTimestamp", "error", err)
 	}
 
-	pull, err := controller.NewPull(db_service, database.logger)
+	logger.Info("Creating puller service to get credentials from vault service", "url", handler.PullerEndpoint())
+
+	puller_service, err := service.InprocessFromUrl(handler.PullerEndpoint())
 	if err != nil {
-		database.logger.Fatal("controller.NewReply", "url", db_service.Url(), "error", err)
+		logger.Fatal("service.Inproc", "service type", service.DATABASE, "error", err)
+	}
+
+	pull, err := controller.NewPull(puller_service, logger)
+	if err != nil {
+		logger.Fatal("controller.NewPull", "url", puller_service.Url(), "error", err)
 	}
 
 	command_handlers := command.EmptyHandlers().
 		Add(handler.NEW_CREDENTIALS, on_new_credentials)
 
+	logger.Info("Running puller")
 	pull.Run(command_handlers, database)
 }
 
@@ -122,10 +135,8 @@ func on_new_credentials(request message.Request, _ log.Logger, parameters ...int
 		return message.Fail("database.Connection is nil, please open the connection first")
 	}
 
-	ctx := context.TODO()
-
 	// establish the first connection
-	if err := db.Reconnect(ctx, credentials); err != nil {
+	if err := db.Reconnect(credentials); err != nil {
 		return message.Fail("database.reconnect:" + err.Error())
 	}
 

@@ -82,13 +82,8 @@ func GetDefaultCredentials(app_config *configuration.Config) DatabaseCredentials
 	}
 }
 
-// NewDatabase establishes a database connection with the given Vault credentials
-func Open(parent log.Logger, parameters *DatabaseParameters, credentials DatabaseCredentials) (*Database, error) {
-	logger, err := parent.ChildWithoutReport("database")
-	if err != nil {
-		return nil, fmt.Errorf("child logger: %w", err)
-	}
-
+// Open establishes a database connection
+func connect_with_default(app_config *configuration.Config, logger log.Logger, parameters *DatabaseParameters) (*Database, error) {
 	database := &Database{
 		Connection:      nil,
 		connectionMutex: sync.Mutex{},
@@ -96,10 +91,8 @@ func Open(parent log.Logger, parameters *DatabaseParameters, credentials Databas
 		logger:          logger,
 	}
 
-	ctx := context.TODO()
-
 	// establish the first connection
-	if err := database.Reconnect(ctx, credentials); err != nil {
+	if err := database.Reconnect(GetDefaultCredentials(app_config)); err != nil {
 		return nil, fmt.Errorf("database.reconnect: %w", err)
 	}
 
@@ -115,8 +108,8 @@ func (database *Database) Timeout() time.Duration {
 //  1. construct a connection string using the given credentials
 //  2. establish a database connection
 //  3. close & replace the existing connection with the new one behind a mutex
-func (db *Database) Reconnect(ctx context.Context, credentials DatabaseCredentials) error {
-	ctx, cancelContextFunc := context.WithTimeout(ctx, db.parameters.timeout)
+func (db *Database) Reconnect(credentials DatabaseCredentials) error {
+	ctx, cancelContextFunc := context.WithTimeout(context.Background(), db.parameters.timeout)
 	defer cancelContextFunc()
 
 	db.logger.Info(
