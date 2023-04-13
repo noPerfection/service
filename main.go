@@ -47,32 +47,41 @@ import (
 //
 // The router returns replies the result back to the user.
 func main() {
-	logger, err := log.New("sds-core", log.WITH_TIMESTAMP)
+	logger, err := log.New("main", log.WITH_TIMESTAMP)
 	if err != nil {
-		logger.Fatal("log.New(`sds-core`)", "error", err)
+		logger.Fatal("log.New(`main`)", "error", err)
 	}
 
+	logger.Info("Load app configuration")
 	app_config, err := configuration.NewAppConfig(logger)
 	if err != nil {
 		logger.Fatal("configuration.NewAppConfig", "error", err)
 	}
+	logger.Info("App configuration loaded successfully")
 
 	if app_config.Secure {
+		logger.Info("Security enabled, start security service")
 		security_service, err := security.New(app_config, logger)
 		if err != nil {
 			logger.Fatal("security.New", "error", err)
 		}
 		go security_service.Run()
-		go db.Run(app_config, logger)
+	} else {
+		logger.Warn("App is running in an unsafe environment")
 	}
+
+	logger.Info("Start database service")
+	go db.Run(app_config)
 
 	/////////////////////////////////////////////////////////////////////////
 	//
 	// Run the Core services:
 	//
 	/////////////////////////////////////////////////////////////////////////
-	var core_service *service.Service
-	core_service, err = service.NewExternal(service.CORE, service.THIS, app_config)
+
+	logger.Info("Get CORE service parameters")
+
+	core_service, err := service.NewExternal(service.CORE, service.THIS, app_config)
 	if err != nil {
 		logger.Fatal("external core service error", "message", err)
 	}
