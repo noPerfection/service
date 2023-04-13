@@ -146,12 +146,12 @@ func (b *Smartcontract) SelectAll(db *remote.ClientSocket, return_values interfa
 
 		err := raw.ToInterface(&sm.SmartcontractKey)
 		if err != nil {
-			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("raw.ToInterface(SmartcontractKey): %w", err)
 		}
 
 		err = raw.ToInterface(&sm.BlockHeader)
 		if err != nil {
-			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("raw.ToInterface(BlockHeader): %w", err)
 		}
 
 		(*raw_smartcontracts)[i] = sm
@@ -196,12 +196,12 @@ func (b *Smartcontract) SelectAllByCondition(db *remote.ClientSocket, condition 
 
 		err := raw.ToInterface(&sm.SmartcontractKey)
 		if err != nil {
-			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("raw.ToInterface(SmartcontractKey): %w", err)
 		}
 
 		err = raw.ToInterface(&sm.BlockHeader)
 		if err != nil {
-			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("raw.ToInterface(BlockHeader): %w", err)
 		}
 
 		(*raw_smartcontracts)[i] = sm

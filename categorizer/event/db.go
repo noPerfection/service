@@ -176,17 +176,17 @@ func (l *Log) SelectAllByCondition(db_con *remote.ClientSocket, condition key_va
 
 		err := raw.ToInterface(&key)
 		if err != nil {
-			return fmt.Errorf("failed to extract smartcontract key from database result: %w", err)
+			return fmt.Errorf("raw.ToInterface(SmartcontractKey)	: %w", err)
 		}
 
 		err = raw.ToInterface(&transaction_key)
 		if err != nil {
-			return fmt.Errorf("failed to extract transaction key from database result: %w", err)
+			return fmt.Errorf("raw.ToInterface(TransactionKey): %w", err)
 		}
 
 		err = raw.ToInterface(&block_header)
 		if err != nil {
-			return fmt.Errorf("failed to extract block_header header from database result: %w", err)
+			return fmt.Errorf("raw.ToInterface(BlockHeader): %w", err)
 		}
 
 		s.BlockHeader = block_header

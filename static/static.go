@@ -79,13 +79,13 @@ func Run(app_config *configuration.Config) {
 
 	err = crud.SelectAll(db_socket, &smartcontracts)
 	if err != nil {
-		logger.Fatal("smartcontract.GetAllFromDatabase: %w", err)
+		logger.Fatal("smartcontract.SelectAll", "error", err)
 	}
 	smartcontracts_list := key_value.NewList()
 	for _, sm := range smartcontracts {
 		err := smartcontracts_list.Add(sm.SmartcontractKey, sm)
 		if err != nil {
-			logger.Fatal("smartcontracts_list.Add: %w", err)
+			logger.Fatal("smartcontracts_list.Add", "error", err)
 		}
 	}
 

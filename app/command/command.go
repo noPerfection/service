@@ -80,8 +80,13 @@ func (command CommandName) Request(socket *remote.ClientSocket, request interfac
 		return fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
 
+
 	err = reply_parameters.ToInterface(reply)
-	return err
+	if err != nil {
+		return fmt.Errorf("reply.Parameters.ToInterface: %w", err)
+	}
+
+	return nil
 }
 
 // Push the command to the remote thread or service with the

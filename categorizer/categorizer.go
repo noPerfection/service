@@ -49,7 +49,7 @@ func setup_smartcontracts(logger log.Logger, database_client *remote.ClientSocke
 
 	err := crud.SelectAllByCondition(database_client, condition, &smartcontracts)
 	if err != nil {
-		return fmt.Errorf("smartcontract.GetAllByNetworkId: %w", err)
+		return fmt.Errorf("crud.SelectAllByCondition: %w", err)
 	}
 	if len(smartcontracts) == 0 {
 		return nil
