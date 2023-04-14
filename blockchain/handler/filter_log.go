@@ -17,8 +17,8 @@ type FilterLog struct {
 // types of message.Reply.Parameters that is
 // returned by controller after handling FILTER_LOG_COMMAND
 type LogFilterReply struct {
-	BlockTo uint64         `json:"block_to"`
-	RawLogs []event.RawLog `json:"raw_logs"`
+	BlockTo blockchain.Number `json:"block_to"`
+	RawLogs []event.RawLog    `json:"raw_logs"`
 }
 
 // LogFilterParameters returns the message.Request.Parameters to FilterLog
