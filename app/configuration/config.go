@@ -61,13 +61,15 @@ func NewAppConfig(parent log.Logger) (*Config, error) {
 
 // Set the default configuration parameters.
 func (config *Config) SetDefaults(default_config DefaultConfig) {
-	config.logger.Info("Set the default config parameters for", "title", default_config.Title)
-
 	for name, value := range default_config.Parameters {
 		if value == nil {
 			continue
 		}
-		config.logger.Info(default_config.Title, name, value)
+		// already set, don't use the default
+		if config.viper.IsSet(name) {
+			continue
+		}
+		config.logger.Info("Set default for "+default_config.Title, name, value)
 		config.SetDefault(name, value)
 	}
 }
