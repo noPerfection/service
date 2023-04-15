@@ -16,26 +16,47 @@ import (
 	"github.com/blocklords/sds/common/smartcontract_key"
 )
 
+// Request parameters for GET_SMARTCONTRACT
 type GetSmartcontractRequest struct {
 	Key smartcontract_key.Key
 }
+
+// Reply parameters for GET_SMARTCONTRACT
 type GetSmartcontractReply struct {
 	Smartcontract smartcontract.Smartcontract `json:"smartcontract"`
 }
 
+// Request paramateres for SET_SMARTCONTRACT
 type SetSmartcontractRequest struct {
 	Smartcontract smartcontract.Smartcontract `json:"smartcontract"`
 }
+
+// Reply parameters for SET_SMARTCONTRACT
 type SetSmartcontractReply struct{}
 
+// Request parameters for GET_SMARTCONTRACTS
 type GetSmartcontractsRequest struct{}
+
+// Reply parameters for GET_SMARTCONTRACTS
 type GetSmartcontractsReply struct {
 	Smartcontracts []smartcontract.Smartcontract `json:"smartcontracts"`
 }
+
+// Request parameters for GET_SMARTCONTRACTS_BY_NETWORK_ID
+type GetSmartcontractsByNetworkIdRequest struct {
+	NetworkId string `json:"network_id"`
+}
+
+// Reply parameters of GET_SMARTCONTRACTS_BY_NETWORK_ID
+type GetSmartcontractsByNetworkIdReply = GetSmartcontractsReply
+
+// Request parameters of CATEGORIZE command
 type PushCategorization struct {
 	Smartcontracts []smartcontract.Smartcontract `json:"smartcontracts"`
 	Logs           []event.Log                   `json:"logs"`
 }
+
+// Reply parameters of CATEGORIZE command
 type CategorizationReply key_value.KeyValue
 
 // return a categorized smartcontract parameters by network id and smartcontract address
@@ -93,6 +114,54 @@ func GetSmartcontracts(_ message.Request, _ log.Logger, app_parameters ...interf
 	}
 
 	reply := GetSmartcontractsReply{
+		Smartcontracts: smartcontracts,
+	}
+
+	reply_message, err := command.Reply(reply)
+	if err != nil {
+		return message.Fail("parse reply: " + err.Error())
+	}
+
+	return reply_message
+}
+
+// GetSmartcontractsByNetworkId returns list of categorization states
+// of smartcontracts in a network
+func GetSmartcontractsByNetworkId(request message.Request, _ log.Logger, app_parameters ...interface{}) message.Reply {
+	if len(app_parameters) < 3 {
+		return message.Fail("missing database client socket in the app parameters")
+	}
+
+	var request_parameters GetSmartcontractsByNetworkIdRequest
+	err := request.Parameters.ToInterface(&request_parameters)
+	if err != nil {
+		return message.Fail("parse request parameters: " + err.Error())
+	}
+
+	if len(request_parameters.NetworkId) == 0 {
+		return message.Fail("missing 'network_id' parameter")
+	}
+
+	networks, ok := app_parameters[2].(network.Networks)
+	if !ok {
+		return message.Fail("missing 'networks' app parameter")
+	}
+	if !networks.Exist(request_parameters.NetworkId) {
+		return message.Fail("unsupported network id")
+	}
+
+	db_con, ok := app_parameters[0].(*remote.ClientSocket)
+	if !ok {
+		return message.Fail("missing database client socket in app parameters")
+	}
+	var smartcontracts []smartcontract.Smartcontract
+	var crud database.Crud = &smartcontract.Smartcontract{}
+	err = crud.SelectAllByCondition(db_con, request.Parameters, &smartcontracts)
+	if err != nil {
+		return message.Fail("the database error " + err.Error())
+	}
+
+	reply := GetSmartcontractsByNetworkIdReply{
 		Smartcontracts: smartcontracts,
 	}
 

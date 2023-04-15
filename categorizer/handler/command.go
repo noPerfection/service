@@ -16,6 +16,9 @@ const (
 	// Get all smartcontracts and the categorization state from this service
 	// Intended to be called directly
 	GET_SMARTCONTRACTS command.CommandName = "smartcontract_get_all"
+	// Get the list of smartcontracts from this service for the given
+	// network id
+	GET_SMARTCONTRACTS_BY_NETWORK_ID command.CommandName = "smartcontract_get_all_by_network_id"
 	// Get the smartcontract and it's categorization state from this service
 	// Indended to be called directly
 	GET_SMARTCONTRACT command.CommandName = "smartcontract_get"
@@ -37,6 +40,7 @@ const (
 func CommandHandlers() command.Handlers {
 	return command.EmptyHandlers().
 		Add(GET_SMARTCONTRACTS, GetSmartcontracts).
+		Add(GET_SMARTCONTRACTS_BY_NETWORK_ID, GetSmartcontractsByNetworkId).
 		Add(GET_SMARTCONTRACT, GetSmartcontract).
 		Add(SET_SMARTCONTRACT, SetSmartcontract).
 		Add(SNAPSHOT, GetSnapshot).
