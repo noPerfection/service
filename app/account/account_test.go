@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/blocklords/sds/common/blockchain"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -23,7 +24,7 @@ func (suite *TestAccountSuite) SetupTest() {
 	// The public key is derived from the following public key
 	// private_key := "ndQu.hg=f#P+i+r<.^x-S:oNuEt(?obKd/zD+AjV"
 	var publicKey = "t)fBitv:t=7zX=qzB/.0bOP->YIr[hsw{J*BBh[H"
-	nonce := uint64(time.Now().UnixNano())
+	nonce, _ := blockchain.NewTimestamp(uint64(time.Now().UnixNano()))
 	organization := "test_org"
 
 	suite.AccountFromDb = New(publicKey, nonce, organization)

@@ -7,11 +7,13 @@
 //     It uses blockchain public/private key for authentication.
 package account
 
+import "github.com/blocklords/sds/common/blockchain"
+
 // Account is the developer that accessed to the SDS Service.
 type Account struct {
-	PublicKey      string `json:"public_key"`      // Public Key for authentication.
-	Organization   string `json:"organization"`    // Organization
-	NonceTimestamp uint64 `json:"nonce_timestamp"` // Nonce since the last usage. Only acceptable for developers
+	PublicKey      string               `json:"public_key"`      // Public Key for authentication.
+	Organization   string               `json:"organization"`    // Organization
+	NonceTimestamp blockchain.Timestamp `json:"nonce_timestamp"` // Nonce since the last usage. Only acceptable for developers
 }
 
 type Accounts []*Account
@@ -26,10 +28,10 @@ func NewFromPublicKey(publicKey string) *Account {
 }
 
 // New Account from the fields
-func New(publicKey string, nonceTimestamp uint64, organization string) *Account {
+func New(publicKey string, timestamp blockchain.Timestamp, organization string) *Account {
 	return &Account{
 		PublicKey:      publicKey,
-		NonceTimestamp: nonceTimestamp,
+		NonceTimestamp: timestamp,
 		Organization:   organization,
 	}
 }
