@@ -25,6 +25,7 @@ import (
 	"github.com/blocklords/sds/app/service"
 
 	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/configuration/argument"
 	"github.com/blocklords/sds/blockchain"
 	"github.com/blocklords/sds/categorizer"
 	"github.com/blocklords/sds/db"
@@ -32,7 +33,10 @@ import (
 	"github.com/blocklords/sds/static"
 )
 
-// SDS Core
+// todo remove db from vault or make sure vault works if
+// db is working too.
+//
+// # SDS Core
 //
 // Router with security enabled.
 // Router is connected from the Developer Gateway and Smartcontract Developer Gateway.
@@ -70,8 +74,39 @@ func main() {
 		logger.Warn("App is running in an unsafe environment")
 	}
 
-	logger.Info("Start database service")
-	go db.Run(app_config)
+	var dealers []*service.Service
+	run_db := true
+
+	// Core sds could come up with one service only.
+	// That service is included as --service=<>
+	if argument.Exist(argument.SERVICE) {
+		only_service, err := argument.GetValue(argument.SERVICE)
+		if err != nil {
+			logger.Fatal("argument.GetValue", "name", argument.SERVICE, "error", err)
+		}
+		service_type, err := service.NewServiceType(only_service)
+		if err != nil {
+			logger.Fatal("service.NewServiceType", "name", only_service, "error", err)
+		}
+
+		if service_type == service.STATIC {
+			dealers = []*service.Service{static.Service()}
+		} else if service_type == service.CATEGORIZER {
+			dealers = []*service.Service{categorizer.Service()}
+		} else if service_type == service.SPAGHETTI {
+			dealers = []*service.Service{blockchain.Service()}
+			run_db = false
+		} else {
+			logger.Fatal("Unsupported service", "service_type", service_type)
+		}
+	} else {
+		dealers = []*service.Service{static.Service(), categorizer.Service(), blockchain.Service()}
+	}
+
+	if run_db {
+		logger.Info("Run the database service")
+		go db.Run(app_config)
+	}
 
 	/////////////////////////////////////////////////////////////////////////
 	//
@@ -104,7 +139,7 @@ func main() {
 
 	// Prepare the list of core services that
 	// The router will redirect the data to the services
-	err = router.AddDealers(static.Service(), categorizer.Service(), blockchain.Service())
+	err = router.AddDealers(dealers...)
 	if err != nil {
 		logger.Fatal("router.AddDealers", "message", err)
 	}
