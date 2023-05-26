@@ -49,9 +49,9 @@ func Run(app_config *configuration.Config) {
 
 	logger.Info("Starting by getting blockchain service parameters", "protocol", "inproc")
 
-	blockchain_service, err := service.Inprocess(service.SPAGHETTI)
+	blockchain_service, err := service.Inprocess(service.BLOCKCHAIN)
 	if err != nil {
-		logger.Fatal("failed to get inproc configuration for the service", "service type", service.SPAGHETTI, "error", err)
+		logger.Fatal("failed to get inproc configuration for the service", "service type", service.BLOCKCHAIN, "error", err)
 	}
 
 	logger.Info("Create a blockchain client socket", "protocol", "url", blockchain_service.Url())

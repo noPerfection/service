@@ -8,7 +8,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-// Parse the JSON into spaghetti.Transation
+// Parse the JSON into blockcain.Transation
 func New(parameters key_value.KeyValue) (*RawTransaction, error) {
 	var transaction RawTransaction
 	err := parameters.ToInterface(&transaction)

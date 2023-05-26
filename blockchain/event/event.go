@@ -26,7 +26,7 @@ type RawLog struct {
 	Topics []string `json:"log_topics,omitempty"` // topics
 }
 
-// JSON string representation of the spaghetti.Log
+// JSON string representation of the blockchain.Log
 func (l *RawLog) ToString() (string, error) {
 	err := l.Transaction.Validate()
 	if err != nil {
@@ -35,7 +35,7 @@ func (l *RawLog) ToString() (string, error) {
 
 	kv, err := key_value.NewFromInterface(l)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize spaghetti log to intermediate key-value %v: %v", l, err)
+		return "", fmt.Errorf("failed to serialize blockchain log to intermediate key-value %v: %v", l, err)
 	}
 
 	bytes, err := kv.ToBytes()

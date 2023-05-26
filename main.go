@@ -93,7 +93,7 @@ func main() {
 			dealers = []*service.Service{static.Service()}
 		} else if service_type == service.CATEGORIZER {
 			dealers = []*service.Service{categorizer.Service()}
-		} else if service_type == service.SPAGHETTI {
+		} else if service_type == service.BLOCKCHAIN {
 			dealers = []*service.Service{blockchain.Service()}
 			run_db = false
 		} else {

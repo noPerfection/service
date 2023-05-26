@@ -32,10 +32,10 @@ func (suite *TestInprocSuite) SetupTest() {
 
 func (suite *TestInprocSuite) TestEndpoints() {
 	client_endpoint := ClientEndpoint(suite.network_id)
-	suite.Require().EqualValues("inproc://spaghetti_1", client_endpoint)
+	suite.Require().EqualValues("inproc://blockchain_1", client_endpoint)
 
 	empty_endpoint := ClientEndpoint("")
-	suite.Require().EqualValues("inproc://spaghetti_", empty_endpoint)
+	suite.Require().EqualValues("inproc://blockchain_", empty_endpoint)
 
 	suite.Require().EqualValues("inproc://cat_recent_1", RecentCategorizerEndpoint(suite.network_id))
 	suite.Require().EqualValues("inproc://cat_recent_rep_1", RecentCategorizerReplyEndpoint(suite.network_id))

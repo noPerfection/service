@@ -5,7 +5,7 @@ Using the controller package, you can turn application to the servers.
 
 The following types of controllers are supported:
 
-  - Pull creates a puller for the service. Puller enables the inputs, but doesn't responds back.
+  - Pull creates a puller for the service. Puller enables the inputs, but doesn't respond back.
   - Reply creates a replier for the service. Reply executes the messages and replies back to the caller.
   - Router creates a proxy/broker for the service. Router forwards the requests to other Router/Reply or Pull
 */

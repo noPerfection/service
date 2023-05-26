@@ -13,6 +13,7 @@ const (
 	SECURE    = "secure"    // If passed, then TCP sockets will require authentication. Default is false
 	BROADCAST = "broadcast" // runs only broadcaster
 	REPLY     = "reply"     // runs only request-reply server
+	SERVICE   = "service"   // App runs with the one service only
 
 	// network id, support only this network.
 	// example:
@@ -59,22 +60,28 @@ func GetEnvPaths() []string {
 // Load arguments, not the environment variable paths.
 // Arguments starts with '--'
 func GetArguments(parent *log.Logger) []string {
-	logger, err := parent.Child("argument")
-	if err != nil {
-		logger.Warn("parent.Child", "error", err)
-		return []string{}
-	}
+	var logger *log.Logger
+	if parent != nil {
+		new_logger, err := parent.Child("argument")
+		if err != nil {
+			logger.Warn("parent.Child", "error", err)
+			return []string{}
+		}
+		logger = &new_logger
 
-	logger.Info("Supported app arguments",
-		"--"+SECURE,
-		"Enables security service",
-		"--"+SECURITY_DEBUG,
-		"To print the authentication logs",
-	)
+		logger.Info("Supported app arguments",
+			"--"+SECURE,
+			"Enables security service",
+			"--"+SECURITY_DEBUG,
+			"To print the authentication logs",
+		)
+	}
 
 	args := os.Args[1:]
 	if len(args) == 0 {
-		logger.Info("No arguments were given")
+		if logger != nil {
+			logger.Info("No arguments were given")
+		}
 		return []string{}
 	}
 
@@ -86,7 +93,9 @@ func GetArguments(parent *log.Logger) []string {
 		}
 	}
 
-	logger.Info("All arguments read", "amount", len(parameters), "app parameters", parameters)
+	if logger != nil {
+		logger.Info("All arguments read", "amount", len(parameters), "app parameters", parameters)
+	}
 
 	return parameters
 }
@@ -125,6 +134,12 @@ func ExtractValue(arguments []string, required string) (string, error) {
 	}
 
 	return value, nil
+}
+
+// Extracts the value of the argument if it's exists.
+// Similar to GetValue() but doesn't accept the
+func Value(name string) (string, error) {
+	return ExtractValue(GetArguments(nil), name)
 }
 
 // Extracts the value of the argument.

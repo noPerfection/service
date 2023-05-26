@@ -47,7 +47,7 @@ func (t *RawTransaction) Validate() error {
 	return nil
 }
 
-// JSON string representation of the spaghetti.Transaction
+// JSON string representation of the blockchain.Transaction
 func (t *RawTransaction) ToString() (string, error) {
 	err := t.Validate()
 	if err != nil {
@@ -55,7 +55,7 @@ func (t *RawTransaction) ToString() (string, error) {
 	}
 	kv, err := key_value.NewFromInterface(t)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize spaghetti transaction to intermediate key-value %v: %v", t, err)
+		return "", fmt.Errorf("failed to serialize blockchain transaction to intermediate key-value %v: %v", t, err)
 	}
 
 	bytes, err := kv.ToBytes()

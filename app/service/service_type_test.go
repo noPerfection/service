@@ -27,7 +27,7 @@ func (suite *TestServiceTypeSuite) TestTypes() {
 	types := service_types()
 	suite.Require().Len(types, 11)
 	suite.Equal(CORE, types[0])
-	suite.Equal(SPAGHETTI, types[1])
+	suite.Equal(BLOCKCHAIN, types[1])
 	suite.Equal(CATEGORIZER, types[2])
 	suite.Equal(STATIC, types[3])
 	suite.Equal(GATEWAY, types[4])

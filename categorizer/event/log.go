@@ -4,7 +4,7 @@ package event
 import (
 	"fmt"
 
-	spaghetti_log "github.com/blocklords/sds/blockchain/event"
+	blockchain_log "github.com/blocklords/sds/blockchain/event"
 	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
@@ -22,10 +22,10 @@ type Log struct {
 }
 
 // Add the metadata such as transaction id, block header and log index from raw event log
-func (log *Log) AddMetadata(spaghetti_log *spaghetti_log.RawLog) *Log {
-	log.TransactionKey = spaghetti_log.Transaction.TransactionKey
-	log.BlockHeader = spaghetti_log.Transaction.BlockHeader
-	log.Index = spaghetti_log.Index
+func (log *Log) AddMetadata(blockchain_log *blockchain_log.RawLog) *Log {
+	log.TransactionKey = blockchain_log.Transaction.TransactionKey
+	log.BlockHeader = blockchain_log.Transaction.BlockHeader
+	log.Index = blockchain_log.Index
 	return log
 }
 

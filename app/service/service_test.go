@@ -29,12 +29,12 @@ func (suite *TestServiceSuite) SetupTest() {
 	_, err := Inprocess("sadsad")
 	suite.Require().Error(err)
 
-	inproc, err := Inprocess("SPAGHETTI")
+	inproc, err := Inprocess("BLOCKCHAIN")
 	suite.Require().NoError(err)
 	suite.inproc_service = inproc
 
-	suite.Require().Equal("inproc://SERVICE_SPAGHETTI", inproc.Url())
-	suite.Require().Equal("SPAGHETTI", inproc.Name)
+	suite.Require().Equal("inproc://SERVICE_BLOCKCHAIN", inproc.Url())
+	suite.Require().Equal("BLOCKCHAIN", inproc.Name)
 	suite.Require().True(inproc.IsInproc())
 
 	////////////////////////////////////////////////
@@ -77,7 +77,7 @@ func (suite *TestServiceSuite) SetupTest() {
 }
 
 func (suite *TestServiceSuite) TestValidation() {
-	suite.Require().Equal("inproc://SERVICE_SPAGHETTI", suite.inproc_service.Url())
+	suite.Require().Equal("inproc://SERVICE_BLOCKCHAIN", suite.inproc_service.Url())
 	suite.Require().True(suite.inproc_service.IsInproc())
 	suite.Require().False(suite.inproc_service.IsBroadcast())
 	suite.Require().False(suite.inproc_service.IsSubscribe())

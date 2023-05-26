@@ -9,7 +9,7 @@
 // Blockchain package also defines **network** sub package to handle the supported
 // networks. Visit to [blockchain/network] for adding new supported networks.
 //
-// Each blockchain runs as a separate sds service. However blockchain package
+// Each blockchain runs as a separate sds service.
 //
 // However their socket parameters are defined in [blockchain/inproc]
 package blockchain
@@ -209,10 +209,10 @@ func get_all_networks(request message.Request, logger log.Logger, app_parameters
 	return reply_message
 }
 
-// CommandHandlers returns the list of commands and their handlers for SDS Spaghetti reply
+// CommandHandlers returns the list of commands and their handlers for SDS Blockchain reply
 // contorller. That means it will expose the following commands.
 //
-// SDS Spaghetti defines has the following commands:
+// SDS Blockchain defines has the following commands:
 //
 //   - handler.DEPLOYED_TRANSACTION_COMMAND
 //   - handler.NETWORK_IDS_COMMAND
@@ -228,14 +228,14 @@ func CommandHandlers() command.Handlers {
 		Add(handler.NETWORK_COMMAND, get_network)
 }
 
-// Returns the parameter of the SDS Spaghetti
+// Returns the parameter of the SDS Blockchain
 func Service() *service.Service {
-	service, _ := service.Inprocess(service.SPAGHETTI)
+	service, _ := service.Inprocess(service.BLOCKCHAIN)
 	return service
 }
 
-// Run the SDS Spaghetti service.
-// The SDS Spaghetti will load the all supported networks from configuration.
+// Run the SDS Blockchain service.
+// The SDS Blockchain will load the all supported networks from configuration.
 //
 // Then create the sub processes for each blockchain network.
 //

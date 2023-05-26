@@ -8,7 +8,7 @@ type ServiceType string
 
 const (
 	CORE              ServiceType = "CORE"              // The github.com/blocklords/sds module. It's a Router controller
-	SPAGHETTI         ServiceType = "SPAGHETTI"         // The blockchain service is the gateway between blockchain networks and SDS
+	BLOCKCHAIN        ServiceType = "BLOCKCHAIN"        // The blockchain service is the gateway between blockchain networks and SDS
 	CATEGORIZER       ServiceType = "CATEGORIZER"       // The categorizer service that keeps the decoded smartcontract event logs in the database
 	STATIC            ServiceType = "STATIC"            // The static service keeps the smartcontracts, abis and configurations
 	GATEWAY           ServiceType = "GATEWAY"           // The gateway is the service that is accessed by developers through SDK
@@ -26,7 +26,18 @@ const (
 	VAULT    ServiceType = "VAULT"    // The service of
 )
 
-// Returns the string represantion of the service type
+// NewServiceType converts the string into service type and validates it.
+// Validation includes checking of of [ServiceType.valid].
+func NewServiceType(str string) (ServiceType, error) {
+	service_type := ServiceType(str)
+	if err := service_type.valid(); err != nil {
+		return "", fmt.Errorf("service_type.valid() failed: %v", err)
+	}
+
+	return service_type, nil
+}
+
+// ToString returns the string represantion of the service type
 func (s ServiceType) ToString() string {
 	return string(s)
 }
@@ -66,7 +77,7 @@ func inproc_service_types() []ServiceType {
 func service_types() []ServiceType {
 	return []ServiceType{
 		CORE,
-		SPAGHETTI,
+		BLOCKCHAIN,
 		CATEGORIZER,
 		STATIC,
 		GATEWAY,

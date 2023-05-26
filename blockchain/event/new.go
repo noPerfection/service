@@ -7,7 +7,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-// Convert the JSON into spaghetti.Log
+// Convert the JSON into blockchain.Log
 // https://docs.soliditylang.org/en/v0.8.4/abi-spec.html?highlight=anonymous#json
 func New(parameters key_value.KeyValue) (*RawLog, error) {
 	err := parameters.Exist("log_index")
@@ -29,7 +29,7 @@ func New(parameters key_value.KeyValue) (*RawLog, error) {
 	return &log, nil
 }
 
-// Parse list of Logs into array of spaghetti.Log
+// Parse list of Logs into array of blockchain.Log
 func NewLogs(raw_logs []interface{}) ([]RawLog, error) {
 	logs := make([]RawLog, len(raw_logs))
 	for i, raw := range raw_logs {

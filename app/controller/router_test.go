@@ -60,8 +60,8 @@ func (suite *TestRouterSuite) SetupTest() {
 
 	// Run the background Reply Controllers
 	// Router's dealers will connect to them
-	spaghetti_service, err := service.NewExternal(service.SPAGHETTI, service.THIS, app_config)
-	suite.Require().NoError(err, "failed to create spaghetti service")
+	blockchain_service, err := service.NewExternal(service.BLOCKCHAIN, service.THIS, app_config)
+	suite.Require().NoError(err, "failed to create blockchain service")
 	categorizer_service, err := service.NewExternal(service.CATEGORIZER, service.THIS, app_config)
 	suite.Require().NoError(err, "failed to create categorizer service")
 
@@ -84,7 +84,7 @@ func (suite *TestRouterSuite) SetupTest() {
 	suite.tcp_client = tcp_client_socket
 
 	// Reply Controllers
-	spaghetti_socket, err := NewReply(spaghetti_service, logger)
+	blockchain_socket, err := NewReply(blockchain_service, logger)
 	suite.Require().NoError(err, "remote limited service should be failed as the service.Url() will not return wildcard host")
 	categorizer_socket, err := NewReply(categorizer_service, logger)
 	suite.Require().NoError(err, "remote limited service should be failed as the service.Url() will not return wildcard host")
@@ -101,7 +101,7 @@ func (suite *TestRouterSuite) SetupTest() {
 			Message: "",
 			Parameters: request.Parameters.
 				Set("id", command_1.String()).
-				Set("dealer", service.SPAGHETTI.ToString()),
+				Set("dealer", service.BLOCKCHAIN.ToString()),
 		}
 	}
 	command_2 := command.New("command_2")
@@ -115,7 +115,7 @@ func (suite *TestRouterSuite) SetupTest() {
 				Set("dealer", service.CATEGORIZER.ToString()),
 		}
 	}
-	spaghetti_handlers := command.EmptyHandlers().
+	blockchain_handlers := command.EmptyHandlers().
 		Add(command_1, command_1_handler)
 
 	categorizer_handlers := command.EmptyHandlers().
@@ -126,23 +126,23 @@ func (suite *TestRouterSuite) SetupTest() {
 	}
 
 	// todo
-	// add the reply controllers (SPAGHETTI, CATEGORIZER)
+	// add the reply controllers (BLOCKCHAIN, CATEGORIZER)
 	// assign to suite.<>_repliers
 	//
-	// Add to the router the SPAGHETTI, CATEGORIZER, STATIC
+	// Add to the router the BLOCKCHAIN, CATEGORIZER, STATIC
 	//
 	// send a command to in the goroutine -> loop
 	// BUNDLE (should return error as not registered)
 	// STATIC (should return timeout from the client side)
-	// SPAGHETTI
+	// BLOCKCHAIN
 	// CATEGORIZER
 
-	suite.tcp_repliers = []*Controller{spaghetti_socket, categorizer_socket}
-	go spaghetti_socket.Run(spaghetti_handlers)
+	suite.tcp_repliers = []*Controller{blockchain_socket, categorizer_socket}
+	go blockchain_socket.Run(blockchain_handlers)
 	go categorizer_socket.Run(categorizer_handlers)
 
-	dealer_spaghetti, err := service.NewExternal(service.SPAGHETTI, service.REMOTE, app_config)
-	suite.Require().NoError(err, "failed to create spaghetti service")
+	dealer_blockchain, err := service.NewExternal(service.BLOCKCHAIN, service.REMOTE, app_config)
+	suite.Require().NoError(err, "failed to create blockchain service")
 	dealer_categorizer, err := service.NewExternal(service.CATEGORIZER, service.REMOTE, app_config)
 	suite.Require().NoError(err, "failed to create categorizer service")
 	// The STATIC is registered on the router, but doesn't exist
@@ -150,10 +150,10 @@ func (suite *TestRouterSuite) SetupTest() {
 	dealer_static, err := service.NewExternal(service.STATIC, service.REMOTE, app_config)
 	suite.Require().NoError(err, "failed to create categorizer service")
 
-	err = suite.tcp_router.AddDealers(spaghetti_service)
+	err = suite.tcp_router.AddDealers(blockchain_service)
 	suite.Require().Error(err, "failed to add dealer, because limit is THIS")
-	err = suite.tcp_router.AddDealers(dealer_spaghetti, dealer_categorizer, dealer_static)
-	suite.Require().NoError(err, "failed to create spaghetti service")
+	err = suite.tcp_router.AddDealers(dealer_blockchain, dealer_categorizer, dealer_static)
+	suite.Require().NoError(err, "failed to create blockchain service")
 	go suite.tcp_router.Run()
 
 	suite.client_service = client_service
@@ -196,7 +196,7 @@ func (suite *TestRouterSuite) TestRun() {
 			var reply_parameters key_value.KeyValue
 
 			command_index := 0
-			dealer, _ := service.Inprocess(service.SPAGHETTI)
+			dealer, _ := service.Inprocess(service.BLOCKCHAIN)
 
 			err := suite.commands[command_index].RequestRouter(suite.tcp_client, dealer, request_parameters, &reply_parameters)
 			suite.NoError(err)
@@ -217,9 +217,9 @@ func (suite *TestRouterSuite) TestRun() {
 			Parameters: key_value.Empty(),
 		}
 
-		spaghetti_socket, _ := service.Inprocess(service.SPAGHETTI)
+		blockchain_socket, _ := service.Inprocess(service.BLOCKCHAIN)
 
-		_, err := suite.tcp_client.RequestRouter(spaghetti_socket, &request_3)
+		_, err := suite.tcp_client.RequestRouter(blockchain_socket, &request_3)
 		suite.Require().Error(err)
 
 		suite.logger.Info("before requesting unhandled reply controller's dealer")

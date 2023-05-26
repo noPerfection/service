@@ -12,7 +12,7 @@ import (
 // Use this endpoint in the req socket to interact with the blockchain nodes.
 // The interaction goes through blockchain/<network id>/client.
 func ClientEndpoint(network_id string) string {
-	return "inproc://spaghetti_" + network_id
+	return "inproc://blockchain_" + network_id
 }
 
 // RecentCategorizerEndpoint returns the recent smartcontract categorizer
