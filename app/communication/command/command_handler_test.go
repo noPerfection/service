@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/stretchr/testify/suite"
 )
 

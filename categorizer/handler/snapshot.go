@@ -5,8 +5,8 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/categorizer/event"
 
-	"github.com/blocklords/sds/app/command"
-	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/communication/command"
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"

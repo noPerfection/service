@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
 	service_credentials "github.com/blocklords/sds/app/service/auth"
 	"github.com/blocklords/sds/categorizer/event"

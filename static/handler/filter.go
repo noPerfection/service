@@ -11,8 +11,8 @@ import (
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
 
-	"github.com/blocklords/sds/app/command"
-	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/communication/command"
+	"github.com/blocklords/sds/app/communication/message"
 )
 
 type FilterSmartcontractsRequest = topic.TopicFilter
@@ -199,7 +199,6 @@ func filter_smartcontract(
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create smartcontract key: %w", err)
 		}
-
 
 		value, err := list.Get(key)
 		if err != nil {

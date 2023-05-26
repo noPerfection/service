@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"

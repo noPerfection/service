@@ -4,10 +4,10 @@ import (
 	go_log "log"
 	"testing"
 
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	zmq "github.com/pebbe/zmq4"

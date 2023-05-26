@@ -6,7 +6,7 @@ import (
 
 	"crypto/ecdsa"
 
-	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/stretchr/testify/suite"
 

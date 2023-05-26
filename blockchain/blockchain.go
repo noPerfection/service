@@ -15,7 +15,7 @@
 package blockchain
 
 import (
-	"github.com/blocklords/sds/app/command"
+	"github.com/blocklords/sds/app/communication/command"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/blockchain/handler"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
@@ -26,9 +26,9 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/service"
 
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/remote/message"
 )
 
 ////////////////////////////////////////////////////////////////////

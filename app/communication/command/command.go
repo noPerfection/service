@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
@@ -79,7 +79,6 @@ func (command CommandName) Request(socket *remote.ClientSocket, request interfac
 	if err != nil {
 		return fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
-
 
 	err = reply_parameters.ToInterface(reply)
 	if err != nil {

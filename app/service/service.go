@@ -9,10 +9,11 @@ import (
 
 // Service defines the parameters of the service.
 type Service struct {
-	Name   string // Service name
-	inproc bool
-	url    string
-	limit  Limit
+	ServiceType ServiceType
+	Name        string // Service name
+	inproc      bool
+	url         string
+	limit       Limit
 }
 
 // Inprocess creates the service with the parameters but without any information
@@ -25,10 +26,11 @@ func Inprocess(service_type ServiceType) (*Service, error) {
 	name := service_type.ToString()
 
 	s := Service{
-		Name:   name,
-		inproc: true,
-		url:    "inproc://SERVICE_" + name,
-		limit:  THIS,
+		ServiceType: service_type,
+		Name:        name,
+		inproc:      true,
+		url:         "inproc://SERVICE_" + name,
+		limit:       THIS,
 	}
 
 	return &s, nil
@@ -78,9 +80,10 @@ func NewExternal(service_type ServiceType, limit Limit, app_config *configuratio
 	broadcast_port_env := name + "_BROADCAST_PORT"
 
 	s := Service{
-		Name:   name,
-		inproc: false,
-		limit:  limit,
+		ServiceType: service_type,
+		Name:        name,
+		inproc:      false,
+		limit:       limit,
 	}
 
 	switch limit {

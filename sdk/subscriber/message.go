@@ -1,7 +1,7 @@
 package subscriber
 
 import (
-	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/categorizer/event"
 )
 

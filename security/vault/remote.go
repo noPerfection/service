@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/blocklords/sds/app/command"
-	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/communication/command"
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/security/auth"
 
 	zmq "github.com/pebbe/zmq4"

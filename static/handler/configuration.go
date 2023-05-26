@@ -8,8 +8,8 @@ import (
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/static/configuration"
 
-	"github.com/blocklords/sds/app/command"
-	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/communication/command"
+	"github.com/blocklords/sds/app/communication/message"
 )
 
 type GetConfigurationRequest = topic.Topic

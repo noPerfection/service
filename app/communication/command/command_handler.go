@@ -6,8 +6,8 @@
 package command
 
 import (
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/remote/message"
 )
 
 // HandleFunc is the function type that manipulates the commands.

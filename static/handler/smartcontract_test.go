@@ -3,8 +3,8 @@ package handler
 import (
 	"testing"
 
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"

@@ -3,7 +3,7 @@ package controller
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/remote/message"
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/service"
 
 	"github.com/blocklords/sds/app/log"

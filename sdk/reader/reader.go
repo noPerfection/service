@@ -3,8 +3,8 @@
 package reader
 
 import (
+	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/remote/message"
 	"github.com/blocklords/sds/common/topic"
 )
 
