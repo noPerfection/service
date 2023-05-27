@@ -16,7 +16,6 @@ package blockchain
 
 import (
 	"github.com/blocklords/sds/blockchain/handler"
-	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/service/communication/command"
 	"github.com/blocklords/sds/service/log"
 	"github.com/blocklords/sds/service/parameter"
@@ -27,7 +26,6 @@ import (
 
 	"github.com/blocklords/sds/service/communication/message"
 	"github.com/blocklords/sds/service/controller"
-	"github.com/blocklords/sds/service/remote"
 )
 
 ////////////////////////////////////////////////////////////////////
@@ -189,29 +187,7 @@ func Run(app_config *configuration.Config) {
 		logger.Fatal("controller new", "message", err)
 	}
 
-	evm_service, err := parameter.NewExternal(parameter.EVM, parameter.REMOTE, app_config)
-	if err != nil {
-		logger.Fatal("parameter.NewExternal(parameter.EVM)", "error", err)
-	}
-	evm_socket, err := remote.NewTcpSocket(evm_service, &logger, app_config)
-	if err != nil {
-		logger.Fatal("remote.NewTcpSocket(EVM service)", "error", err)
-	}
-
-	imx_service, err := parameter.NewExternal(parameter.IMX, parameter.REMOTE, app_config)
-	if err != nil {
-		logger.Fatal("parameter.NewExternal(parameter.IMX)", "error", err)
-	}
-	imx_socket, err := remote.NewTcpSocket(imx_service, &logger, app_config)
-	if err != nil {
-		logger.Fatal("remote.NewTcpSocket(IMX service)", "error", err)
-	}
-
-	network_sockets := key_value.Empty().
-		Set(network.EVM.String(), evm_socket).
-		Set(network.IMX.String(), imx_socket)
-
-	err = reply.Run(CommandHandlers(), app_config, network_sockets)
+	err = reply.Run(CommandHandlers(), app_config)
 	if err != nil {
 		logger.Fatal("controller error", "error", err)
 	}
