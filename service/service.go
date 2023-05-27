@@ -5,4 +5,4 @@
 // services that could be binded to each other.
 //
 // Then, the services are connected through sockets over TCP or inproc protocols.
-package app
+package service
