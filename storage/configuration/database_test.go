@@ -10,7 +10,7 @@ import (
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
-	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/database"
 	"github.com/blocklords/sds/service/configuration"
 	"github.com/blocklords/sds/service/log"
 	"github.com/blocklords/sds/service/parameter"
@@ -74,7 +74,7 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 	// Creating a database client
 	// after settings the default parameters
 	// we should have the user name and password
-	app_config.SetDefaults(db.DatabaseConfigurations)
+	app_config.SetDefaults(database.DatabaseConfigurations)
 
 	// Overwrite the default parameters to use test container
 	host, err := container.Host(ctx)
@@ -83,11 +83,11 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 	suite.Require().NoError(err)
 	exposed_port := ports["3306/tcp"][0].HostPort
 
-	db.DatabaseConfigurations.Parameters["SDS_DATABASE_HOST"] = host
-	db.DatabaseConfigurations.Parameters["SDS_DATABASE_PORT"] = exposed_port
-	db.DatabaseConfigurations.Parameters["SDS_DATABASE_NAME"] = suite.db_name
+	database.DatabaseConfigurations.Parameters["SDS_DATABASE_HOST"] = host
+	database.DatabaseConfigurations.Parameters["SDS_DATABASE_PORT"] = exposed_port
+	database.DatabaseConfigurations.Parameters["SDS_DATABASE_NAME"] = suite.db_name
 
-	go db.Run(app_config, logger)
+	go database.Run(app_config, logger)
 	// wait for initiation of the controller
 	time.Sleep(time.Second * 1)
 

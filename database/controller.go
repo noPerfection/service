@@ -3,7 +3,7 @@
 //
 // The database is creating a new service with the inproc reply controller.
 // For any database operation interact with the service.
-package db
+package database
 
 import (
 	"database/sql"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/db/handler"
+	"github.com/blocklords/sds/database/handler"
 	"github.com/blocklords/sds/service/communication/command"
 	"github.com/blocklords/sds/service/communication/message"
 	"github.com/blocklords/sds/service/configuration"

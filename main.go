@@ -30,7 +30,7 @@ import (
 	"github.com/blocklords/sds/indexer"
 	"github.com/blocklords/sds/storage"
 
-	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/database"
 	"github.com/blocklords/sds/security"
 )
 
@@ -106,7 +106,7 @@ func main() {
 
 	if run_db {
 		logger.Info("Run the database service")
-		go db.Run(app_config)
+		go database.Run(app_config)
 	}
 
 	/////////////////////////////////////////////////////////////////////////

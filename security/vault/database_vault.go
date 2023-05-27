@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/database"
 	"github.com/blocklords/sds/service/configuration"
 	"github.com/blocklords/sds/service/log"
 	"github.com/blocklords/sds/service/remote/parameter"
@@ -48,7 +48,7 @@ func NewDatabase(vault *Vault) (*DatabaseVault, error) {
 }
 
 // GetDatabaseCredentials retrieves a new set of temporary database credentials
-func (v *Vault) get_db_credentials() (db.DatabaseCredentials, error) {
+func (v *Vault) get_db_credentials() (database.DatabaseCredentials, error) {
 	v.logger.Info("getting temporary database credentials from vault: begin")
 
 	request_timeout := parameter.RequestTimeout(v.app_config)
@@ -59,18 +59,18 @@ func (v *Vault) get_db_credentials() (db.DatabaseCredentials, error) {
 
 	lease, err := v.client.Logical().ReadWithContext(login_ctx, v.database_vault.database_path)
 	if err != nil {
-		return db.DatabaseCredentials{}, fmt.Errorf("unable to read secret: %w", err)
+		return database.DatabaseCredentials{}, fmt.Errorf("unable to read secret: %w", err)
 	}
 
 	b, err := json.Marshal(lease.Data)
 	if err != nil {
-		return db.DatabaseCredentials{}, fmt.Errorf("malformed credentials returned: %w", err)
+		return database.DatabaseCredentials{}, fmt.Errorf("malformed credentials returned: %w", err)
 	}
 
-	var credentials db.DatabaseCredentials
+	var credentials database.DatabaseCredentials
 
 	if err := json.Unmarshal(b, &credentials); err != nil {
-		return db.DatabaseCredentials{}, fmt.Errorf("unable to unmarshal credentials: %w", err)
+		return database.DatabaseCredentials{}, fmt.Errorf("unable to unmarshal credentials: %w", err)
 	}
 
 	v.logger.Info("getting temporary database credentials from vault: success!")

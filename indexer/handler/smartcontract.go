@@ -174,6 +174,7 @@ func GetSmartcontractsByNetworkId(request message.Request, _ log.Logger, app_par
 }
 
 // Register a new smartcontract to indexer.
+// todo Don't make it depend on the blockchain service.
 func SetSmartcontract(request message.Request, _ log.Logger, app_parameters ...interface{}) message.Reply {
 	if len(app_parameters) < 3 {
 		return message.Fail("missing database client socket, network sockets and networks in the app parameters")

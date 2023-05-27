@@ -6,7 +6,7 @@ import (
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
-	"github.com/blocklords/sds/db/handler"
+	"github.com/blocklords/sds/database/handler"
 	"github.com/blocklords/sds/service/remote"
 )
 

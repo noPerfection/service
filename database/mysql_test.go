@@ -1,17 +1,14 @@
-package db
+package database
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 
-	"github.com/blocklords/sds/db/handler"
 	"github.com/blocklords/sds/service/configuration"
 	"github.com/blocklords/sds/service/log"
-	"github.com/blocklords/sds/service/parameter"
-	"github.com/blocklords/sds/service/remote"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )
@@ -21,19 +18,22 @@ import (
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
 // returns the current testing context
-type TestControllerSuite struct {
+type TestMysqlSuite struct {
 	suite.Suite
 	db_name   string
 	container *mysql.MySQLContainer
-	client    *remote.ClientSocket
+	db_con    *Database
 	ctx       context.Context
 }
 
-func (suite *TestControllerSuite) SetupTest() {
+func (suite *TestMysqlSuite) SetupTest() {
 	suite.db_name = "test"
 	_, filename, _, _ := runtime.Caller(0)
 	storage_abi_sql := "20230308171023_storage_abi.sql"
 	storage_abi_path := filepath.Join(filepath.Dir(filename), "..", "_db", "migrations", storage_abi_sql)
+
+	// create_test_db := "create_test_db.sql"
+	// create_test_db_path := filepath.Join(filepath.Dir(filename), "..", "_db", create_test_db)
 
 	ctx := context.TODO()
 	container, err := mysql.RunContainer(ctx,
@@ -47,10 +47,23 @@ func (suite *TestControllerSuite) SetupTest() {
 	suite.container = container
 	suite.ctx = ctx
 
-	logger, err := log.New("controller-suite", log.WITHOUT_TIMESTAMP)
+	logger, err := log.New("mysql-suite", log.WITHOUT_TIMESTAMP)
 	suite.Require().NoError(err)
 	app_config, err := configuration.NewAppConfig(logger)
 	suite.Require().NoError(err)
+
+	// Getting default parameters should fail
+	// since we don't have any data set yet
+	credentials := GetDefaultCredentials(app_config)
+	suite.Require().Empty(credentials.Username)
+	suite.Require().Empty(credentials.Password)
+
+	// after settings the default parameters
+	// we should have the user name and password
+	app_config.SetDefaults(DatabaseConfigurations)
+	credentials = GetDefaultCredentials(app_config)
+	suite.Require().Equal("root", credentials.Username)
+	suite.Require().Equal("tiger", credentials.Password)
 
 	// Overwrite the host
 	host, err := container.Host(ctx)
@@ -68,71 +81,58 @@ func (suite *TestControllerSuite) SetupTest() {
 		}
 	}
 	suite.Require().NotEmpty(exposed_port)
-	DatabaseConfigurations.Parameters["SDS_DATABASE_PORT"] = exposed_port
-	DatabaseConfigurations.Parameters["SDS_DATABASE_NAME"] = suite.db_name
+	app_config.SetDefault("SDS_DATABASE_PORT", exposed_port)
 
-	go Run(app_config, logger)
-	// wait for initiation of the controller
-	time.Sleep(time.Second * 1)
-
-	database_service, err := parameter.Inprocess(parameter.DATABASE)
+	// overwrite the database name
+	app_config.SetDefault("SDS_DATABASE_NAME", suite.db_name)
+	parameters, err := GetParameters(app_config)
 	suite.Require().NoError(err)
-	client, err := remote.InprocRequestSocket(database_service.Url(), logger, app_config)
-	suite.Require().NoError(err)
+	suite.Require().Equal(suite.db_name, parameters.name)
 
-	suite.client = client
+	// Connect to the database
+	suite.T().Log("open database connection by", parameters.hostname, credentials)
+	db_con, err := Open(logger, parameters, credentials)
+	suite.Require().NoError(err)
+	suite.db_con = db_con
 
 	suite.T().Cleanup(func() {
 		if err := container.Terminate(ctx); err != nil {
 			suite.T().Fatalf("failed to terminate container: %s", err)
 		}
-		if err := client.Close(); err != nil {
-			suite.T().Fatalf("failed to close client socket: %s", err)
+		if err := db_con.Close(); err != nil {
+			suite.T().Fatalf("failed to terminate database connection: %s", err)
 		}
 	})
 }
 
-func (suite *TestControllerSuite) TestInsert() {
-	suite.T().Log("test INSERT command")
+func (suite *TestMysqlSuite) TestInsert() {
 	// query
+	query := `INSERT INTO storage_abi (abi_id, body) VALUES (?, ?)`
 	arguments := []interface{}{"test_id", `[{}]`}
-	request := handler.DatabaseQueryRequest{
-		Fields:    []string{"abi_id", "body"},
-		Tables:    []string{"storage_abi"},
-		Arguments: arguments,
-	}
-	var reply handler.InsertReply
-	err := handler.INSERT.Request(suite.client, request, &reply)
+
+	_, err := suite.db_con.Query(suite.ctx, query, arguments)
 	suite.Require().NoError(err)
 
 	// query
+	query = `SELECT abi_id FROM storage_abi WHERE abi_id = ?`
 	arguments = []interface{}{"test_id"}
-	request = handler.DatabaseQueryRequest{
-		Fields:    []string{"abi_id"},
-		Tables:    []string{"storage_abi"},
-		Where:     "abi_id = ?",
-		Arguments: arguments,
-	}
-	var read_reply handler.SelectRowReply
-	err = handler.SELECT_ROW.Request(suite.client, request, &read_reply)
-	suite.Require().NoError(err)
-	suite.Require().EqualValues("test_id", read_reply.Outputs["abi_id"])
 
-	suite.T().Log("test SELECT ALL command")
-	// query
-	request = handler.DatabaseQueryRequest{
-		Fields: []string{"abi_id", "body"},
-		Tables: []string{"storage_abi"},
-	}
-	var reply_all handler.SelectAllReply
-	err = handler.SELECT_ALL.Request(suite.client, request, &reply_all)
+	_, err = suite.db_con.Query(suite.ctx, query, arguments)
 	suite.Require().NoError(err)
-	suite.T().Log(reply_all)
-	suite.Require().Len(reply_all.Rows, 1)
+}
+
+func (suite *TestMysqlSuite) TestSelect() {
+	// query
+	query := `SELECT abi_id FROM storage_abi WHERE abi_id = ?`
+	arguments := []interface{}{"test_id"}
+
+	result, err := suite.db_con.Query(suite.ctx, query, arguments)
+	suite.Require().NoError(err)
+	fmt.Println("the select result", result)
 }
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestController(t *testing.T) {
-	suite.Run(t, new(TestControllerSuite))
+func TestMysql(t *testing.T) {
+	suite.Run(t, new(TestMysqlSuite))
 }

@@ -5,7 +5,7 @@ import (
 
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/db/handler"
+	"github.com/blocklords/sds/database/handler"
 	"github.com/blocklords/sds/service/remote"
 )
 
