@@ -6,7 +6,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
-	"github.com/blocklords/sds/static/configuration"
+	"github.com/blocklords/sds/storage/configuration"
 
 	"github.com/blocklords/sds/app/communication/command"
 	"github.com/blocklords/sds/app/communication/message"

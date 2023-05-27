@@ -29,8 +29,8 @@ type TestMysqlSuite struct {
 func (suite *TestMysqlSuite) SetupTest() {
 	suite.db_name = "test"
 	_, filename, _, _ := runtime.Caller(0)
-	static_abi_sql := "20230308171023_static_abi.sql"
-	static_abi_path := filepath.Join(filepath.Dir(filename), "..", "_db", "migrations", static_abi_sql)
+	storage_abi_sql := "20230308171023_storage_abi.sql"
+	storage_abi_path := filepath.Join(filepath.Dir(filename), "..", "_db", "migrations", storage_abi_sql)
 
 	// create_test_db := "create_test_db.sql"
 	// create_test_db_path := filepath.Join(filepath.Dir(filename), "..", "_db", create_test_db)
@@ -40,7 +40,7 @@ func (suite *TestMysqlSuite) SetupTest() {
 		mysql.WithDatabase(suite.db_name),
 		mysql.WithUsername("root"),
 		mysql.WithPassword("tiger"),
-		mysql.WithScripts(static_abi_path),
+		mysql.WithScripts(storage_abi_path),
 	)
 
 	suite.Require().NoError(err)
@@ -107,14 +107,14 @@ func (suite *TestMysqlSuite) SetupTest() {
 
 func (suite *TestMysqlSuite) TestInsert() {
 	// query
-	query := `INSERT INTO static_abi (abi_id, body) VALUES (?, ?)`
+	query := `INSERT INTO storage_abi (abi_id, body) VALUES (?, ?)`
 	arguments := []interface{}{"test_id", `[{}]`}
 
 	_, err := suite.db_con.Query(suite.ctx, query, arguments)
 	suite.Require().NoError(err)
 
 	// query
-	query = `SELECT abi_id FROM static_abi WHERE abi_id = ?`
+	query = `SELECT abi_id FROM storage_abi WHERE abi_id = ?`
 	arguments = []interface{}{"test_id"}
 
 	_, err = suite.db_con.Query(suite.ctx, query, arguments)
@@ -123,7 +123,7 @@ func (suite *TestMysqlSuite) TestInsert() {
 
 func (suite *TestMysqlSuite) TestSelect() {
 	// query
-	query := `SELECT abi_id FROM static_abi WHERE abi_id = ?`
+	query := `SELECT abi_id FROM storage_abi WHERE abi_id = ?`
 	arguments := []interface{}{"test_id"}
 
 	result, err := suite.db_con.Query(suite.ctx, query, arguments)

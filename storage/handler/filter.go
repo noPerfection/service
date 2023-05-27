@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/static/configuration"
-	"github.com/blocklords/sds/static/smartcontract"
+	"github.com/blocklords/sds/storage/configuration"
+	"github.com/blocklords/sds/storage/smartcontract"
 
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"

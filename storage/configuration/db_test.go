@@ -15,8 +15,8 @@ import (
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/db"
-	"github.com/blocklords/sds/static/abi"
-	"github.com/blocklords/sds/static/smartcontract"
+	"github.com/blocklords/sds/storage/abi"
+	"github.com/blocklords/sds/storage/smartcontract"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )
@@ -42,14 +42,14 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 	// configuration depends on smartcontract.
 	// smartcontract depends on abi.
 	file_dir := filepath.Dir(filename)
-	static_abi := "20230308171023_static_abi.sql"
-	static_smartcontract := "20230308173919_static_smartcontract.sql"
-	static_configuration := "20230308173943_static_configuration.sql"
-	change_group_type := "20230314150414_static_configuration_group_type.sql"
+	storage_abi := "20230308171023_storage_abi.sql"
+	storage_smartcontract := "20230308173919_storage_smartcontract.sql"
+	storage_configuration := "20230308173943_storage_configuration.sql"
+	change_group_type := "20230314150414_storage_configuration_group_type.sql"
 
-	abi_sql_path := filepath.Join(file_dir, "..", "..", "_db", "migrations", static_abi)
-	smartcontract_sql_path := filepath.Join(file_dir, "..", "..", "_db", "migrations", static_smartcontract)
-	configuration_sql_path := filepath.Join(file_dir, "..", "..", "_db", "migrations", static_configuration)
+	abi_sql_path := filepath.Join(file_dir, "..", "..", "_db", "migrations", storage_abi)
+	smartcontract_sql_path := filepath.Join(file_dir, "..", "..", "_db", "migrations", storage_smartcontract)
+	configuration_sql_path := filepath.Join(file_dir, "..", "..", "_db", "migrations", storage_configuration)
 	change_group_path := filepath.Join(file_dir, "..", "..", "_db", "migrations", change_group_type)
 
 	suite.T().Log("the configuration table path", configuration_sql_path)
@@ -98,7 +98,7 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 
 	suite.db_con = client
 
-	// add the static abi
+	// add the storage abi
 	abi_id := "base64="
 	sample_abi := abi.Abi{
 		Bytes: []byte("[{}]"),
@@ -107,7 +107,7 @@ func (suite *TestConfigurationDbSuite) SetupTest() {
 	err = sample_abi.Insert(suite.db_con)
 	suite.Require().NoError(err)
 
-	// add the static smartcontract
+	// add the storage smartcontract
 	key, _ := smartcontract_key.New("1", "0xaddress")
 	tx_key := blockchain.TransactionKey{
 		Id:    "0xtx_id",

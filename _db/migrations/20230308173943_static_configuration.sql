@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE TABLE static_configuration (
+CREATE TABLE configuration (
     network_id varchar(20) NOT NULL,
 	address varchar(84) NOT NULL, 
 	organization varchar(127) NOT NULL,
@@ -7,5 +7,5 @@ CREATE TABLE static_configuration (
     group_name smallint unsigned,
     smartcontract_name varchar(127) NOT NULL,
     PRIMARY KEY (organization, project, network_id, group_name, smartcontract_name),
-    CONSTRAINT smartcontract_id FOREIGN KEY (network_id, address) REFERENCES static_smartcontract(network_id, address) 
+    CONSTRAINT smartcontract_id FOREIGN KEY (network_id, address) REFERENCES smartcontract(network_id, address) 
 );

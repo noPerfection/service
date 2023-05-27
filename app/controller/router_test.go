@@ -129,11 +129,11 @@ func (suite *TestRouterSuite) SetupTest() {
 	// add the reply controllers (BLOCKCHAIN, INDEXER)
 	// assign to suite.<>_repliers
 	//
-	// Add to the router the BLOCKCHAIN, INDEXER, STATIC
+	// Add to the router the BLOCKCHAIN, INDEXER, STORAGE
 	//
 	// send a command to in the goroutine -> loop
 	// BUNDLE (should return error as not registered)
-	// STATIC (should return timeout from the client side)
+	// STORAGE (should return timeout from the client side)
 	// BLOCKCHAIN
 	// INDEXER
 
@@ -145,14 +145,14 @@ func (suite *TestRouterSuite) SetupTest() {
 	suite.Require().NoError(err, "failed to create blockchain service")
 	dealer_indexer, err := service.NewExternal(service.INDEXER, service.REMOTE, app_config)
 	suite.Require().NoError(err, "failed to create indexer service")
-	// The STATIC is registered on the router, but doesn't exist
+	// The STORAGE is registered on the router, but doesn't exist
 	// On the backend side.
-	dealer_static, err := service.NewExternal(service.STATIC, service.REMOTE, app_config)
+	dealer_storage, err := service.NewExternal(service.STORAGE, service.REMOTE, app_config)
 	suite.Require().NoError(err, "failed to create indexer service")
 
 	err = suite.tcp_router.AddDealers(blockchain_service)
 	suite.Require().Error(err, "failed to add dealer, because limit is THIS")
-	err = suite.tcp_router.AddDealers(dealer_blockchain, dealer_indexer, dealer_static)
+	err = suite.tcp_router.AddDealers(dealer_blockchain, dealer_indexer, dealer_storage)
 	suite.Require().NoError(err, "failed to create blockchain service")
 	go suite.tcp_router.Run()
 
@@ -224,9 +224,9 @@ func (suite *TestRouterSuite) TestRun() {
 
 		suite.logger.Info("before requesting unhandled reply controller's dealer")
 
-		static_socket, _ := service.Inprocess(service.STATIC)
+		storage_socket, _ := service.Inprocess(service.STORAGE)
 
-		_, err = suite.tcp_client.RequestRouter(static_socket, &request_3)
+		_, err = suite.tcp_client.RequestRouter(storage_socket, &request_3)
 		suite.Require().Error(err)
 
 		suite.logger.Info("after requesting unhandled reply controller's dealer")
@@ -252,7 +252,7 @@ func (suite *TestRouterSuite) TestRun() {
 				Command: "no_existing",
 			}
 			request_string, _ := request.ToString()
-			_, err = socket.SendMessage(service.STATIC, request_string)
+			_, err = socket.SendMessage(service.STORAGE, request_string)
 			suite.Require().NoError(err)
 		}
 

@@ -32,15 +32,15 @@ type TestControllerSuite struct {
 func (suite *TestControllerSuite) SetupTest() {
 	suite.db_name = "test"
 	_, filename, _, _ := runtime.Caller(0)
-	static_abi_sql := "20230308171023_static_abi.sql"
-	static_abi_path := filepath.Join(filepath.Dir(filename), "..", "_db", "migrations", static_abi_sql)
+	storage_abi_sql := "20230308171023_storage_abi.sql"
+	storage_abi_path := filepath.Join(filepath.Dir(filename), "..", "_db", "migrations", storage_abi_sql)
 
 	ctx := context.TODO()
 	container, err := mysql.RunContainer(ctx,
 		mysql.WithDatabase(suite.db_name),
 		mysql.WithUsername("root"),
 		mysql.WithPassword("tiger"),
-		mysql.WithScripts(static_abi_path),
+		mysql.WithScripts(storage_abi_path),
 	)
 
 	suite.Require().NoError(err)
@@ -98,7 +98,7 @@ func (suite *TestControllerSuite) TestInsert() {
 	arguments := []interface{}{"test_id", `[{}]`}
 	request := handler.DatabaseQueryRequest{
 		Fields:    []string{"abi_id", "body"},
-		Tables:    []string{"static_abi"},
+		Tables:    []string{"storage_abi"},
 		Arguments: arguments,
 	}
 	var reply handler.InsertReply
@@ -109,7 +109,7 @@ func (suite *TestControllerSuite) TestInsert() {
 	arguments = []interface{}{"test_id"}
 	request = handler.DatabaseQueryRequest{
 		Fields:    []string{"abi_id"},
-		Tables:    []string{"static_abi"},
+		Tables:    []string{"storage_abi"},
 		Where:     "abi_id = ?",
 		Arguments: arguments,
 	}
@@ -122,7 +122,7 @@ func (suite *TestControllerSuite) TestInsert() {
 	// query
 	request = handler.DatabaseQueryRequest{
 		Fields: []string{"abi_id", "body"},
-		Tables: []string{"static_abi"},
+		Tables: []string{"storage_abi"},
 	}
 	var reply_all handler.SelectAllReply
 	err = handler.SELECT_ALL.Request(suite.client, request, &reply_all)

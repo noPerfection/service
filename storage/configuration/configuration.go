@@ -7,10 +7,10 @@ import (
 	"github.com/blocklords/sds/common/topic"
 )
 
-// The Static Configuration is the relationship
+// The Storage Configuration is the relationship
 // between the topic and the smartcontract.
 //
-// The database part depends on the Static Smartcontract
+// The database part depends on the Storage Smartcontract
 type Configuration struct {
 	Topic   topic.Topic `json:"topic"`
 	Address string      `json:"address"`

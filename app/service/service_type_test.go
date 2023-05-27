@@ -29,7 +29,7 @@ func (suite *TestServiceTypeSuite) TestTypes() {
 	suite.Equal(CORE, types[0])
 	suite.Equal(BLOCKCHAIN, types[1])
 	suite.Equal(INDEXER, types[2])
-	suite.Equal(STATIC, types[3])
+	suite.Equal(STORAGE, types[3])
 	suite.Equal(GATEWAY, types[4])
 	suite.Equal(DEVELOPER_GATEWAY, types[5])
 	suite.Equal(READER, types[6])

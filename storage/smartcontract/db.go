@@ -23,7 +23,7 @@ func (sm *Smartcontract) Insert(db *remote.ClientSocket) error {
 			"block_number",
 			"block_timestamp",
 			"deployer"},
-		Tables: []string{"static_smartcontract"},
+		Tables: []string{"smartcontract"},
 		Arguments: []interface{}{
 			sm.SmartcontractKey.NetworkId,
 			sm.SmartcontractKey.Address,
@@ -64,7 +64,7 @@ func (sm *Smartcontract) SelectAll(db *remote.ClientSocket, return_values interf
 			"block_timestamp",
 			"deployer",
 		},
-		Tables: []string{"static_smartcontract"},
+		Tables: []string{"smartcontract"},
 	}
 	var reply handler.SelectAllReply
 

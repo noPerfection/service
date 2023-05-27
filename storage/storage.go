@@ -1,11 +1,11 @@
-// Package static defines the service
+// Package storage defines the service
 // that handles the data processing and storing in the database.
 //
-// The static works with the three kind of data:
+// The storage works with the three kind of data:
 //   - abi of the smartcontract
 //   - smartcontract is the smartcontract linked to the abi.
 //   - configuration is the Topic linked to the smartcontract.
-package static
+package storage
 
 import (
 	"github.com/blocklords/sds/app/configuration"
@@ -15,10 +15,10 @@ import (
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/static/abi"
-	static_conf "github.com/blocklords/sds/static/configuration"
-	"github.com/blocklords/sds/static/handler"
-	"github.com/blocklords/sds/static/smartcontract"
+	"github.com/blocklords/sds/storage/abi"
+	storage_conf "github.com/blocklords/sds/storage/configuration"
+	"github.com/blocklords/sds/storage/handler"
+	"github.com/blocklords/sds/storage/smartcontract"
 )
 
 // Return the list of command handlers for this service
@@ -27,20 +27,20 @@ var CommandHandlers = handler.CommandHandlers()
 // Returns this service's configuration
 // Returns nil if the service parameters doesn't exist in the app/service.service_types
 func Service() *service.Service {
-	service, _ := service.Inprocess(service.STATIC)
+	service, _ := service.Inprocess(service.STORAGE)
 	return service
 }
 
-// Start the SDS Static core service.
-// It keeps the static data:
+// Start the SDS Storage core service.
+// It keeps the storage data:
 // - smartcontract abi
 // - smartcontract information
-// - configuration (a relationship between common/topic.Topic and static.Smartcontract).
+// - configuration (a relationship between common/topic.Topic and storage.Smartcontract).
 func Run(app_config *configuration.Config) {
-	logger, _ := log.New("static", log.WITH_TIMESTAMP)
+	logger, _ := log.New("storage", log.WITH_TIMESTAMP)
 
-	// Getting the services which has access to the SDS Static
-	static_env := Service()
+	// Getting the services which has access to the SDS Storage
+	storage_env := Service()
 	database_service, err := service.Inprocess(service.DATABASE)
 	if err != nil {
 		logger.Fatal("service.Inprocess(service.DATABASE)", "error", err)
@@ -51,7 +51,7 @@ func Run(app_config *configuration.Config) {
 		logger.Fatal("remote.InprocRequestSocket", "error", err)
 	}
 
-	reply, err := controller.NewReply(static_env, logger)
+	reply, err := controller.NewReply(storage_env, logger)
 	if err != nil {
 		logger.Fatal("reply controller", "message", err)
 	}
@@ -73,7 +73,7 @@ func Run(app_config *configuration.Config) {
 		}
 	}
 
-	// static smartcontracts
+	// storage smartcontracts
 	crud = &smartcontract.Smartcontract{}
 	var smartcontracts []*smartcontract.Smartcontract
 
@@ -89,9 +89,9 @@ func Run(app_config *configuration.Config) {
 		}
 	}
 
-	// static configurations
-	crud = &static_conf.Configuration{}
-	var configurations []*static_conf.Configuration
+	// storage configurations
+	crud = &storage_conf.Configuration{}
+	var configurations []*storage_conf.Configuration
 
 	err = crud.SelectAll(db_socket, &configurations)
 	if err != nil {

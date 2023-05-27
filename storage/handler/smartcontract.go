@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/static/smartcontract"
+	"github.com/blocklords/sds/storage/smartcontract"
 
 	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
@@ -19,7 +19,7 @@ type GetSmartcontractRequest = smartcontract_key.Key
 type GetSmartcontractReply = smartcontract.Smartcontract
 
 // Register a new smartcontract. It means we are adding smartcontract parameters into
-// static_smartcontract.
+// smartcontract database table.
 // Requires abi_id parameter. First call abi_register method first.
 func SmartcontractRegister(request message.Request, _ log.Logger, parameters ...interface{}) message.Reply {
 	if len(parameters) < 3 {

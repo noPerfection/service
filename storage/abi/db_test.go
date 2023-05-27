@@ -33,8 +33,8 @@ func (suite *TestAbiDbSuite) SetupTest() {
 	// prepare the database creation
 	suite.db_name = "test"
 	_, filename, _, _ := runtime.Caller(0)
-	static_abi_sql := "20230308171023_static_abi.sql"
-	static_abi_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", static_abi_sql)
+	storage_abi_sql := "20230308171023_storage_abi.sql"
+	storage_abi_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", storage_abi_sql)
 
 	// run the container
 	ctx := context.TODO()
@@ -42,7 +42,7 @@ func (suite *TestAbiDbSuite) SetupTest() {
 		mysql.WithDatabase(suite.db_name),
 		mysql.WithUsername("root"),
 		mysql.WithPassword("tiger"),
-		mysql.WithScripts(static_abi_path),
+		mysql.WithScripts(storage_abi_path),
 	)
 	suite.Require().NoError(err)
 	suite.container = container

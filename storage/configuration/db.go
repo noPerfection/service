@@ -18,7 +18,7 @@ import (
 func (conf *Configuration) Insert(db *remote.ClientSocket) error {
 	request := handler.DatabaseQueryRequest{
 		Fields:    []string{"organization", "project", "network_id", "group_name", "smartcontract_name", "address"},
-		Tables:    []string{"static_configuration"},
+		Tables:    []string{"configuration"},
 		Arguments: []interface{}{conf.Topic.Organization, conf.Topic.Project, conf.Topic.NetworkId, conf.Topic.Group, conf.Topic.Smartcontract, conf.Address},
 	}
 	var reply handler.InsertReply
@@ -48,7 +48,7 @@ func (conf *Configuration) SelectAll(db *remote.ClientSocket, return_values inte
 			"smartcontract_name as s",
 			"address",
 		},
-		Tables: []string{"static_configuration"},
+		Tables: []string{"configuration"},
 	}
 	var reply handler.SelectAllReply
 

@@ -6,7 +6,7 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
-	"github.com/blocklords/sds/static/abi"
+	"github.com/blocklords/sds/storage/abi"
 
 	"github.com/blocklords/sds/app/communication/message"
 )

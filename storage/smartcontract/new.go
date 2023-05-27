@@ -6,7 +6,7 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
-// Creates a new static/smartcontract from the JSON
+// Creates a new storage/smartcontract from the JSON
 func New(parameters key_value.KeyValue) (*Smartcontract, error) {
 	var sm Smartcontract
 	err := parameters.ToInterface(&sm)

@@ -140,8 +140,8 @@ func (suite *TestHandlerSuite) setup_db() {
 	// prepare the database creation
 	suite.db_name = "test"
 	_, filename, _, _ := runtime.Caller(0)
-	static_smartcontract := "20230308174318_indexer_smartcontract.sql"
-	smartcontract_sql_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", static_smartcontract)
+	storage_smartcontract := "20230308174318_indexer_smartcontract.sql"
+	smartcontract_sql_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", storage_smartcontract)
 
 	event_sql_name := "20230308174720_indexer_event.sql"
 	event_sql_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", event_sql_name)

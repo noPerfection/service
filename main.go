@@ -5,7 +5,7 @@
 //   - and finally an sdk to interact with SDS.
 //
 // Core services are:
-//   - Static to keep the smartcontracts, their abi and topic
+//   - Storage to keep the smartcontracts, their abi and topic
 //   - Blockchain to connect to the remote blockchain nodes in a smart way
 //   - Indexer to decode the event logs and make sure users can interact with them over SDK.
 //
@@ -30,7 +30,7 @@ import (
 	"github.com/blocklords/sds/db"
 	indexer "github.com/blocklords/sds/indexer"
 	"github.com/blocklords/sds/security"
-	"github.com/blocklords/sds/static"
+	"github.com/blocklords/sds/storage"
 )
 
 // todo remove db from vault or make sure vault works if
@@ -42,7 +42,7 @@ import (
 // Router is connected from the Developer Gateway and Smartcontract Developer Gateway.
 //
 // Router has the request.
-// Request could go to static
+// Request could go to storage
 // Request could go to indexer
 // Request could go to blockchain
 //
@@ -89,8 +89,8 @@ func main() {
 			logger.Fatal("service.NewServiceType", "name", only_service, "error", err)
 		}
 
-		if service_type == service.STATIC {
-			dealers = []*service.Service{static.Service()}
+		if service_type == service.STORAGE {
+			dealers = []*service.Service{storage.Service()}
 		} else if service_type == service.INDEXER {
 			dealers = []*service.Service{indexer.Service()}
 		} else if service_type == service.BLOCKCHAIN {
@@ -100,7 +100,7 @@ func main() {
 			logger.Fatal("Unsupported service", "service_type", service_type)
 		}
 	} else {
-		dealers = []*service.Service{static.Service(), indexer.Service(), blockchain.Service()}
+		dealers = []*service.Service{storage.Service(), indexer.Service(), blockchain.Service()}
 	}
 
 	if run_db {
@@ -145,7 +145,7 @@ func main() {
 	}
 
 	// Start the core services
-	go static.Run(app_config)
+	go storage.Run(app_config)
 	go indexer.Run(app_config)
 	go blockchain.Run(app_config)
 

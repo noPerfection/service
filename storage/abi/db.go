@@ -15,7 +15,7 @@ import (
 func (a *Abi) Insert(db *remote.ClientSocket) error {
 	request := handler.DatabaseQueryRequest{
 		Fields:    []string{"abi_id", "body"},
-		Tables:    []string{"static_abi"},
+		Tables:    []string{"abi"},
 		Arguments: []interface{}{a.Id, data_type.AddJsonPrefix(a.Bytes)},
 	}
 	var reply handler.InsertReply
@@ -38,7 +38,7 @@ func (a *Abi) SelectAll(db_client *remote.ClientSocket, return_values interface{
 
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{"abi_id as id", "body as bytes"},
-		Tables: []string{"static_abi"},
+		Tables: []string{"storage_abi"},
 	}
 	var reply handler.SelectAllReply
 

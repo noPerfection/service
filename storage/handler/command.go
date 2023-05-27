@@ -1,5 +1,5 @@
 // Package handler defines the commands and command handlers
-// that static service's reply controller supports
+// that storage service's reply controller supports
 package handler
 
 import (

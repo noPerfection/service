@@ -150,8 +150,8 @@ func (router *Router) get_dealer(name string) *Dealer {
 //
 // Example:
 //
-//	// route the msg[3] to the SDS Static
-//	msg := [0: "uid-123", 1: "", 2: "static", 3: "{`command`: `smartcontract_get`, `parameters`: {}}"]
+//	// route the msg[3] to the SDS Storage
+//	msg := [0: "uid-123", 1: "", 2: "storage", 3: "{`command`: `smartcontract_get`, `parameters`: {}}"]
 func (router *Router) Run() {
 	if len(router.dealers) == 0 {
 		router.logger.Fatal("no dealers registered in the router", "hint", "call router.AddDealers()")

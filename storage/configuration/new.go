@@ -21,7 +21,7 @@ func NewFromTopic(t topic.Topic, address string) (*Configuration, error) {
 	return c, nil
 }
 
-// Creates a new static.Configuration class based on the given data
+// Creates a new storage.Configuration class based on the given data
 func New(parameters key_value.KeyValue) (*Configuration, error) {
 	var conf Configuration
 	err := parameters.ToInterface(&conf)

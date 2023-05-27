@@ -7,8 +7,8 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
-	"github.com/blocklords/sds/static/configuration"
-	"github.com/blocklords/sds/static/smartcontract"
+	"github.com/blocklords/sds/storage/configuration"
+	"github.com/blocklords/sds/storage/smartcontract"
 	"github.com/stretchr/testify/suite"
 )
 

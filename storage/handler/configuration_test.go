@@ -7,7 +7,7 @@ import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
-	"github.com/blocklords/sds/static/configuration"
+	"github.com/blocklords/sds/storage/configuration"
 	"github.com/stretchr/testify/suite"
 )
 

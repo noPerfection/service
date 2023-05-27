@@ -37,9 +37,9 @@ func (suite *TestSmartcontractDbSuite) SetupTest() {
 	// prepare the database creation
 	suite.db_name = "test"
 	_, filename, _, _ := runtime.Caller(0)
-	static_smartcontract := "20230308174318_indexer_smartcontract.sql"
-	smartcontract_sql_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", static_smartcontract)
-	suite.T().Log("static smartcontract sql table path", smartcontract_sql_path)
+	storage_smartcontract := "20230308174318_indexer_smartcontract.sql"
+	smartcontract_sql_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", storage_smartcontract)
+	suite.T().Log("storage smartcontract sql table path", smartcontract_sql_path)
 
 	// run the container
 	ctx := context.TODO()
