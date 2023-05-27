@@ -28,14 +28,14 @@ type Subscriber struct {
 	topic_filter *topic.TopicFilter
 	credentials  *auth.Credentials
 	gateway      *parameter.Service
-	logger       log.Logger
+	logger       *log.Logger
 	config       *configuration.Config
 
 	Channel chan Message
 }
 
 // Create a new subscriber for a given user and his topic filter.
-func NewSubscriber(topic_filter *topic.TopicFilter, creds *auth.Credentials, gateway *parameter.Service, logger log.Logger, config *configuration.Config) (*Subscriber, error) {
+func NewSubscriber(topic_filter *topic.TopicFilter, creds *auth.Credentials, gateway *parameter.Service, logger *log.Logger, config *configuration.Config) (*Subscriber, error) {
 	subscriber := Subscriber{
 		topic_filter: topic_filter,
 		credentials:  creds,

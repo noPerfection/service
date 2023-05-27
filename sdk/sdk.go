@@ -60,13 +60,9 @@ example of using Subscribe
 package sdk
 
 import (
-	"fmt"
-
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/parameter"
 	service_credentials "github.com/blocklords/sds/app/parameter/auth"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/sdk/reader"
 	"github.com/blocklords/sds/sdk/subscriber"
@@ -77,10 +73,7 @@ import (
 
 var Version = "Seascape GoSDS version: 0.0.8"
 
-type Sdk struct {
-	logger log.Logger
-	config *configuration.Config
-}
+type Sdk struct{}
 
 // Returns a new reader.Reader.
 //
@@ -99,12 +92,12 @@ func (sdk *Sdk) NewReader(address string) (*reader.Reader, error) {
 		return nil, err
 	}
 
-	gatewaySocket, err := remote.NewTcpSocket(e, sdk.logger, sdk.config)
+	gatewaySocket, err := remote.NewTcpSocket(e, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	if creds != nil {
-		service_creds, err := service_credentials.ServiceCredentials(parameter.GATEWAY, parameter.REMOTE, sdk.config)
+		service_creds, err := service_credentials.ServiceCredentials(parameter.GATEWAY, parameter.REMOTE, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -125,12 +118,12 @@ func (sdk *Sdk) NewWriter(address string) (*writer.Writer, error) {
 		return nil, err
 	}
 
-	gatewaySocket, err := remote.NewTcpSocket(e, sdk.logger, sdk.config)
+	gatewaySocket, err := remote.NewTcpSocket(e, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	if creds != nil {
-		service_creds, err := service_credentials.ServiceCredentials(parameter.GATEWAY, parameter.REMOTE, sdk.config)
+		service_creds, err := service_credentials.ServiceCredentials(parameter.GATEWAY, parameter.REMOTE, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -148,7 +141,7 @@ func (sdk *Sdk) NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subsc
 	}
 
 	var creds *auth.Credentials
-	if sdk.config.Secure {
+	/*if sdk.config.Secure {
 		creds, err = developer_credentials()
 		if err != nil {
 			return nil, fmt.Errorf("developer_credentials: %w", err)
@@ -160,16 +153,16 @@ func (sdk *Sdk) NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subsc
 
 		public_key := sdk.config.GetString("SDS_PUBLIC_KEY")
 		creds = auth.New(public_key)
-	}
+	}*/
 
-	return subscriber.NewSubscriber(&topic_filter, creds, e, sdk.logger, sdk.config)
+	return subscriber.NewSubscriber(&topic_filter, creds, e, nil, nil)
 }
 
 // Returns the gateway environment variable
 // If the broadcast argument set true, then Gateway will require the broadcast to be set as well.
 func (sdk *Sdk) gateway_service() (*parameter.Service, error) {
 	var serv *parameter.Service
-	var err error
+	/*var err error
 	if sdk.config.Secure {
 		serv, err = parameter.NewExternal(parameter.GATEWAY, parameter.REMOTE, sdk.config)
 		if err != nil {
@@ -180,25 +173,13 @@ func (sdk *Sdk) gateway_service() (*parameter.Service, error) {
 		if err != nil {
 			return nil, fmt.Errorf("parameter.NewExternal: %w", err)
 		}
-	}
+	}*/
 
 	return serv, nil
 }
 
 func NewSdk() (*Sdk, error) {
-	logger, err := log.New("seascape-sdk", log.WITH_TIMESTAMP)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize sds log engine: %w", err)
-	}
-	app_config, err := configuration.NewAppConfig(logger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize the sdk configuration engine: %w", err)
-	}
-
-	return &Sdk{
-		logger: logger,
-		config: app_config,
-	}, nil
+	return &Sdk{}, nil
 }
 
 func developer_credentials() (*auth.Credentials, error) {
