@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/service/log"
 
-	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/service/configuration"
 	_ "github.com/go-sql-driver/mysql"
 )
 

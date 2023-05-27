@@ -3,10 +3,10 @@ package configuration
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/db/handler"
+	"github.com/blocklords/sds/service/remote"
 )
 
 // Inserts the configuration into the database

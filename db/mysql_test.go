@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/log"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )

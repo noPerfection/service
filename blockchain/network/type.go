@@ -3,11 +3,11 @@ package network
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/parameter"
+	"github.com/blocklords/sds/service/remote"
 )
 
 // Keeps track of the network types

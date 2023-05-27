@@ -3,11 +3,11 @@ package smartcontract
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db/handler"
+	"github.com/blocklords/sds/service/remote"
 )
 
 const UPDATE_BLOCK_HEADER uint8 = 1

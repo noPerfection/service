@@ -11,8 +11,8 @@
 //		// package main
 //	 	// import sds/security package
 //		import "github.com/blocklords/sds/security"
-//		import "github.com/blocklords/sds/app/configuration"
-//		import "github.com/blocklords/sds/app/log"
+//		import "github.com/blocklords/sds/service/configuration"
+//		import "github.com/blocklords/sds/service/log"
 //
 //		func main() {
 //			log, _ := log.New("main", log.WITH_TIMESTAMP)
@@ -28,9 +28,9 @@ package security
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/security/vault"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/log"
 	zmq "github.com/pebbe/zmq4"
 )
 

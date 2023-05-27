@@ -1,11 +1,6 @@
 package handler
 
 import (
-	"github.com/blocklords/sds/app/communication/command"
-	"github.com/blocklords/sds/app/communication/message"
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/parameter"
-	"github.com/blocklords/sds/app/remote"
 	blockchain_command "github.com/blocklords/sds/blockchain/handler"
 	blockchain_inproc "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
@@ -14,6 +9,11 @@ import (
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/indexer/event"
 	"github.com/blocklords/sds/indexer/smartcontract"
+	"github.com/blocklords/sds/service/communication/command"
+	"github.com/blocklords/sds/service/communication/message"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/parameter"
+	"github.com/blocklords/sds/service/remote"
 )
 
 // Request parameters for GET_SMARTCONTRACT

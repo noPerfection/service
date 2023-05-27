@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/service/configuration"
 )
 
 const (

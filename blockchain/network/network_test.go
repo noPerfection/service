@@ -3,10 +3,10 @@ package network
 import (
 	"testing"
 
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/blockchain/network/provider"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/log"
 	"github.com/stretchr/testify/suite"
 )
 

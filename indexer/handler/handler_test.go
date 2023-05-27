@@ -9,13 +9,6 @@ import (
 
 	blockchain_command "github.com/blocklords/sds/blockchain/handler"
 
-	"github.com/blocklords/sds/app/communication/command"
-	"github.com/blocklords/sds/app/communication/message"
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/controller"
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/parameter"
-	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/common/blockchain"
@@ -24,6 +17,13 @@ import (
 	"github.com/blocklords/sds/db"
 	"github.com/blocklords/sds/indexer/event"
 	"github.com/blocklords/sds/indexer/smartcontract"
+	"github.com/blocklords/sds/service/communication/command"
+	"github.com/blocklords/sds/service/communication/message"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/controller"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/parameter"
+	"github.com/blocklords/sds/service/remote"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )

@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/service/log"
 )
 
 const (

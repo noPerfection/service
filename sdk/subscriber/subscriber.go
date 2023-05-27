@@ -12,16 +12,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/blocklords/sds/app/communication/message"
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/parameter"
-	service_credentials "github.com/blocklords/sds/app/parameter/auth"
-	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/indexer/event"
 	"github.com/blocklords/sds/security/auth"
+	"github.com/blocklords/sds/service/communication/message"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/parameter"
+	service_credentials "github.com/blocklords/sds/service/parameter/auth"
+	"github.com/blocklords/sds/service/remote"
 )
 
 type Subscriber struct {

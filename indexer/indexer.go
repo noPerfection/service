@@ -18,15 +18,15 @@
 package indexer
 
 import (
-	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/service/log"
 
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/controller"
-	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/parameter"
 	blockchain_command "github.com/blocklords/sds/blockchain/handler"
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/indexer/handler"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/controller"
+	"github.com/blocklords/sds/service/parameter"
+	"github.com/blocklords/sds/service/remote"
 )
 
 // Return the list of command handlers for this service

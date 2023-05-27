@@ -9,9 +9,9 @@ package configuration
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/configuration/argument"
-	"github.com/blocklords/sds/app/configuration/env"
-	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/service/configuration/argument"
+	"github.com/blocklords/sds/service/configuration/env"
+	"github.com/blocklords/sds/service/log"
 	"github.com/spf13/viper"
 )
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/service/configuration"
 )
 
 // Service defines the parameters of the service.

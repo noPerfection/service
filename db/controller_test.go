@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/db/handler"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/parameter"
+	"github.com/blocklords/sds/service/remote"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )

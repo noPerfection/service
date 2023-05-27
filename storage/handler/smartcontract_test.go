@@ -3,11 +3,11 @@ package handler
 import (
 	"testing"
 
-	"github.com/blocklords/sds/app/communication/message"
-	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
+	"github.com/blocklords/sds/service/communication/message"
+	"github.com/blocklords/sds/service/log"
 	"github.com/blocklords/sds/storage/smartcontract"
 	"github.com/stretchr/testify/suite"
 )

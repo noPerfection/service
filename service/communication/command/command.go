@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/blocklords/sds/app/communication/message"
-	"github.com/blocklords/sds/app/parameter"
-	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/service/communication/message"
+	"github.com/blocklords/sds/service/parameter"
+	"github.com/blocklords/sds/service/remote"
 
 	zmq "github.com/pebbe/zmq4"
 )

@@ -4,9 +4,9 @@ package handler
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/communication/command"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/service/communication/command"
 
 	zmq "github.com/pebbe/zmq4"
 )

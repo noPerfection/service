@@ -9,15 +9,15 @@ import (
 	"database/sql"
 	"sync"
 
-	"github.com/blocklords/sds/app/communication/command"
-	"github.com/blocklords/sds/app/communication/message"
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/controller"
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db/handler"
+	"github.com/blocklords/sds/service/communication/command"
+	"github.com/blocklords/sds/service/communication/message"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/controller"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/parameter"
 )
 
 // Run the database servce

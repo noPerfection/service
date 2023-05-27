@@ -3,10 +3,10 @@ package abi
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db/handler"
+	"github.com/blocklords/sds/service/remote"
 )
 
 // Insert into database

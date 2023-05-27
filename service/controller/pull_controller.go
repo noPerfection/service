@@ -14,8 +14,8 @@ package controller
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/parameter"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/parameter"
 
 	zmq "github.com/pebbe/zmq4"
 )

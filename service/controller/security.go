@@ -3,8 +3,8 @@ package controller
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/parameter"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/parameter"
 
 	// move out security/auth dependency
 	"github.com/blocklords/sds/security/auth"

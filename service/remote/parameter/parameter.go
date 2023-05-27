@@ -10,7 +10,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/service/configuration"
 )
 
 // todo remove the functions

@@ -4,7 +4,7 @@ package remote
 import (
 	"log"
 
-	"github.com/blocklords/sds/app/communication/message"
+	"github.com/blocklords/sds/service/communication/message"
 
 	zmq "github.com/pebbe/zmq4"
 )

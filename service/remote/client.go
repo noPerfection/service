@@ -4,12 +4,12 @@ package remote
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/communication/message"
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/log"
-	service "github.com/blocklords/sds/app/parameter"
-	"github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/service/communication/message"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/log"
+	service "github.com/blocklords/sds/service/parameter"
+	"github.com/blocklords/sds/service/remote/parameter"
 
 	// move out dependency from security/auth
 	"github.com/blocklords/sds/security/auth"

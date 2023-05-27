@@ -3,7 +3,7 @@ package auth
 import (
 	"testing"
 
-	"github.com/blocklords/sds/app/parameter"
+	"github.com/blocklords/sds/service/parameter"
 	"github.com/stretchr/testify/suite"
 )
 

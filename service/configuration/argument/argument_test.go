@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/service/log"
 	"github.com/stretchr/testify/suite"
 )
 

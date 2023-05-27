@@ -20,16 +20,16 @@
 package main
 
 import (
-	"github.com/blocklords/sds/app/controller"
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/parameter"
+	"github.com/blocklords/sds/service/controller"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/parameter"
 
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/configuration/argument"
 	"github.com/blocklords/sds/blockchain"
 	"github.com/blocklords/sds/db"
 	indexer "github.com/blocklords/sds/indexer"
 	"github.com/blocklords/sds/security"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/configuration/argument"
 	"github.com/blocklords/sds/storage"
 )
 

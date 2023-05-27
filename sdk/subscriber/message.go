@@ -1,8 +1,8 @@
 package subscriber
 
 import (
-	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/indexer/event"
+	"github.com/blocklords/sds/service/communication/message"
 )
 
 type Parameters struct {

@@ -4,12 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blocklords/sds/app/communication/command"
-	"github.com/blocklords/sds/app/communication/message"
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/parameter"
-	"github.com/blocklords/sds/app/controller"
-	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/blockchain/handler"
 	"github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
@@ -17,6 +11,12 @@ import (
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
+	"github.com/blocklords/sds/service/communication/command"
+	"github.com/blocklords/sds/service/communication/message"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/controller"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/parameter"
 	"github.com/stretchr/testify/suite"
 )
 

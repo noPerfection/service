@@ -7,8 +7,8 @@ package parameter
 import (
 	"strconv"
 
-	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/service/configuration"
 )
 
 const (

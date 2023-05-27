@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	remote_parameter "github.com/blocklords/sds/app/remote/parameter"
-	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/db/handler"
+	"github.com/blocklords/sds/service/parameter"
+	remote_parameter "github.com/blocklords/sds/service/remote/parameter"
 	hashicorp "github.com/hashicorp/vault/api"
 )
 

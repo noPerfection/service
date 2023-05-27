@@ -8,13 +8,13 @@
 package storage
 
 import (
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/controller"
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/controller"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/parameter"
+	"github.com/blocklords/sds/service/remote"
 	"github.com/blocklords/sds/storage/abi"
 	storage_conf "github.com/blocklords/sds/storage/configuration"
 	"github.com/blocklords/sds/storage/handler"

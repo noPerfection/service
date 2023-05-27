@@ -4,7 +4,7 @@ package env
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/configuration/argument"
+	"github.com/blocklords/sds/service/configuration/argument"
 	"github.com/joho/godotenv"
 )
 

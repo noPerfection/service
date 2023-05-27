@@ -3,9 +3,9 @@
 package reader
 
 import (
-	"github.com/blocklords/sds/app/communication/message"
-	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/topic"
+	"github.com/blocklords/sds/service/communication/message"
+	"github.com/blocklords/sds/service/remote"
 )
 
 type Reader struct {

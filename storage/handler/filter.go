@@ -3,7 +3,7 @@ package handler
 import (
 	"fmt"
 
-	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/service/log"
 	"github.com/blocklords/sds/storage/configuration"
 	"github.com/blocklords/sds/storage/smartcontract"
 
@@ -11,8 +11,8 @@ import (
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/common/topic"
 
-	"github.com/blocklords/sds/app/communication/command"
-	"github.com/blocklords/sds/app/communication/message"
+	"github.com/blocklords/sds/service/communication/command"
+	"github.com/blocklords/sds/service/communication/message"
 )
 
 type FilterSmartcontractsRequest = topic.TopicFilter

@@ -60,15 +60,15 @@ example of using Subscribe
 package sdk
 
 import (
-	"github.com/blocklords/sds/app/parameter"
-	service_credentials "github.com/blocklords/sds/app/parameter/auth"
-	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/sdk/reader"
 	"github.com/blocklords/sds/sdk/subscriber"
 	"github.com/blocklords/sds/sdk/writer"
 	"github.com/blocklords/sds/security/auth"
 	"github.com/blocklords/sds/security/vault"
+	"github.com/blocklords/sds/service/parameter"
+	service_credentials "github.com/blocklords/sds/service/parameter/auth"
+	"github.com/blocklords/sds/service/remote"
 )
 
 var Version = "Seascape GoSDS version: 0.0.8"

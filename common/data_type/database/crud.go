@@ -1,8 +1,8 @@
 package database
 
 import (
-	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/service/remote"
 )
 
 // Struct interface adds the database CRUD to the data struct.

@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/remote/parameter"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/service/configuration"
+	"github.com/blocklords/sds/service/log"
+	"github.com/blocklords/sds/service/remote/parameter"
 	hashicorp "github.com/hashicorp/vault/api"
 )
 

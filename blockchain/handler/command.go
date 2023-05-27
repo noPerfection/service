@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/blocklords/sds/app/communication/command"
+	"github.com/blocklords/sds/service/communication/command"
 )
 
 const (
