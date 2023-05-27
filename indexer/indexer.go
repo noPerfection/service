@@ -14,7 +14,7 @@
 // The indexer sub processes in the the blockchain service will do all the work and
 // notify this package with the ready to use event logs.
 //
-// This package will saves them in the database and allows users to fetch them.
+// This package will save them in the database and it will allow users to fetch them.
 package indexer
 
 import (

@@ -4,5 +4,5 @@
 // To make SDS extendable and modular, the app package allows to create new
 // services that could be binded to each other.
 //
-// The services are then connected through sockets over TCP or inproc protocols.
+// Then, the services are connected through sockets over TCP or inproc protocols.
 package app
