@@ -22,7 +22,7 @@ package main
 import (
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/configuration/argument"
@@ -74,7 +74,7 @@ func main() {
 		logger.Warn("App is running in an unsafe environment")
 	}
 
-	var dealers []*service.Service
+	var dealers []*parameter.Service
 	run_db := true
 
 	// Core sds could come up with one service only.
@@ -84,23 +84,23 @@ func main() {
 		if err != nil {
 			logger.Fatal("argument.GetValue", "name", argument.SERVICE, "error", err)
 		}
-		service_type, err := service.NewServiceType(only_service)
+		service_type, err := parameter.NewServiceType(only_service)
 		if err != nil {
-			logger.Fatal("service.NewServiceType", "name", only_service, "error", err)
+			logger.Fatal("parameter.NewServiceType", "name", only_service, "error", err)
 		}
 
-		if service_type == service.STORAGE {
-			dealers = []*service.Service{storage.Service()}
-		} else if service_type == service.INDEXER {
-			dealers = []*service.Service{indexer.Service()}
-		} else if service_type == service.BLOCKCHAIN {
-			dealers = []*service.Service{blockchain.Service()}
+		if service_type == parameter.STORAGE {
+			dealers = []*parameter.Service{storage.Service()}
+		} else if service_type == parameter.INDEXER {
+			dealers = []*parameter.Service{indexer.Service()}
+		} else if service_type == parameter.BLOCKCHAIN {
+			dealers = []*parameter.Service{blockchain.Service()}
 			run_db = false
 		} else {
 			logger.Fatal("Unsupported service", "service_type", service_type)
 		}
 	} else {
-		dealers = []*service.Service{storage.Service(), indexer.Service(), blockchain.Service()}
+		dealers = []*parameter.Service{storage.Service(), indexer.Service(), blockchain.Service()}
 	}
 
 	if run_db {
@@ -116,7 +116,7 @@ func main() {
 
 	logger.Info("Get CORE service parameters")
 
-	core_service, err := service.NewExternal(service.CORE, service.THIS, app_config)
+	core_service, err := parameter.NewExternal(parameter.CORE, parameter.THIS, app_config)
 	if err != nil {
 		logger.Fatal("external core service error", "message", err)
 	}
@@ -130,7 +130,7 @@ func main() {
 
 	// todo add SetSecurity for router
 	// if app_config.Secure {
-	// 	creds, err := service_credentials.ServiceCredentials(service.CORE, service.THIS, app_config)
+	// 	creds, err := service_credentials.ServiceCredentials(parameter.CORE, parameter.THIS, app_config)
 	// 	if err != nil {
 	// 		logger.Fatal("controller new router", "error", err)
 	// 	}

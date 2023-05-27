@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 
 	// move out security/auth dependency
 	"github.com/blocklords/sds/security/auth"
@@ -13,7 +13,7 @@ import (
 )
 
 // Add whitelisted services
-func WhitelistAccess(logger log.Logger, blockchain_env *service.Service, public_keys []string) {
+func WhitelistAccess(logger log.Logger, blockchain_env *parameter.Service, public_keys []string) {
 	logger.Info("get the whitelisted services")
 
 	// We set the whitelisted accounts that has access to this controller

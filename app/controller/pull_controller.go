@@ -15,15 +15,15 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 
 	zmq "github.com/pebbe/zmq4"
 )
 
 // NewPull creates a pull controller for the service.
-func NewPull(s *service.Service, logger log.Logger) (*Controller, error) {
+func NewPull(s *parameter.Service, logger log.Logger) (*Controller, error) {
 	if !s.IsThis() && !s.IsInproc() {
-		return nil, fmt.Errorf("service should be limited to service.THIS or inproc type")
+		return nil, fmt.Errorf("service should be limited to parameter.THIS or inproc type")
 	}
 	controller_logger, err := logger.Child("controller", "type", "pull", "service_name", s.Name, "inproc", s.IsInproc())
 	if err != nil {

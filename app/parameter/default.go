@@ -2,7 +2,7 @@
 // and connect to it.
 // For example, the parameters includes the host name and port if you want to connect to it
 // via TCP protocol.
-package service
+package parameter
 
 import (
 	"strconv"

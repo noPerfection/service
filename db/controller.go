@@ -14,7 +14,7 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db/handler"
@@ -68,9 +68,9 @@ func Run(app_config *configuration.Config) {
 func (database *Database) run_puller() {
 	database.logger.Info("Creating puller service to get credentials from vault service", "url", handler.PullerEndpoint())
 
-	puller_service, err := service.InprocessFromUrl(handler.PullerEndpoint())
+	puller_service, err := parameter.InprocessFromUrl(handler.PullerEndpoint())
 	if err != nil {
-		database.logger.Fatal("service.Inproc", "service type", service.DATABASE, "error", err)
+		database.logger.Fatal("parameter.Inproc", "service type", parameter.DATABASE, "error", err)
 	}
 
 	pull, err := controller.NewPull(puller_service, database.logger)
@@ -88,9 +88,9 @@ func (database *Database) run_puller() {
 // run_controller creates a reply controller for other services
 // to interact with the database
 func (database *Database) run_controller() {
-	db_service, err := service.Inprocess(service.DATABASE)
+	db_service, err := parameter.Inprocess(parameter.DATABASE)
 	if err != nil {
-		database.logger.Fatal("service.Inproc", "service type", service.DATABASE, "error", err)
+		database.logger.Fatal("parameter.Inproc", "service type", parameter.DATABASE, "error", err)
 	}
 
 	reply, err := controller.NewReply(db_service, database.logger)

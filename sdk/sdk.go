@@ -64,9 +64,9 @@ import (
 
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
+	service_credentials "github.com/blocklords/sds/app/parameter/auth"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/service"
-	service_credentials "github.com/blocklords/sds/app/service/auth"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/sdk/reader"
 	"github.com/blocklords/sds/sdk/subscriber"
@@ -104,7 +104,7 @@ func (sdk *Sdk) NewReader(address string) (*reader.Reader, error) {
 		return nil, err
 	}
 	if creds != nil {
-		service_creds, err := service_credentials.ServiceCredentials(service.GATEWAY, service.REMOTE, sdk.config)
+		service_creds, err := service_credentials.ServiceCredentials(parameter.GATEWAY, parameter.REMOTE, sdk.config)
 		if err != nil {
 			return nil, err
 		}
@@ -130,7 +130,7 @@ func (sdk *Sdk) NewWriter(address string) (*writer.Writer, error) {
 		return nil, err
 	}
 	if creds != nil {
-		service_creds, err := service_credentials.ServiceCredentials(service.GATEWAY, service.REMOTE, sdk.config)
+		service_creds, err := service_credentials.ServiceCredentials(parameter.GATEWAY, parameter.REMOTE, sdk.config)
 		if err != nil {
 			return nil, err
 		}
@@ -167,18 +167,18 @@ func (sdk *Sdk) NewSubscriber(topic_filter topic.TopicFilter) (*subscriber.Subsc
 
 // Returns the gateway environment variable
 // If the broadcast argument set true, then Gateway will require the broadcast to be set as well.
-func (sdk *Sdk) gateway_service() (*service.Service, error) {
-	var serv *service.Service
+func (sdk *Sdk) gateway_service() (*parameter.Service, error) {
+	var serv *parameter.Service
 	var err error
 	if sdk.config.Secure {
-		serv, err = service.NewExternal(service.GATEWAY, service.REMOTE, sdk.config)
+		serv, err = parameter.NewExternal(parameter.GATEWAY, parameter.REMOTE, sdk.config)
 		if err != nil {
-			return nil, fmt.Errorf("service.NewSecure: %w", err)
+			return nil, fmt.Errorf("parameter.NewSecure: %w", err)
 		}
 	} else {
-		serv, err = service.NewExternal(service.GATEWAY, service.REMOTE, sdk.config)
+		serv, err = parameter.NewExternal(parameter.GATEWAY, parameter.REMOTE, sdk.config)
 		if err != nil {
-			return nil, fmt.Errorf("service.NewExternal: %w", err)
+			return nil, fmt.Errorf("parameter.NewExternal: %w", err)
 		}
 	}
 

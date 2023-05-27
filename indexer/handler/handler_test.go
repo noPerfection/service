@@ -14,8 +14,8 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/common/blockchain"
@@ -58,14 +58,14 @@ type TestHandlerSuite struct {
 func (suite *TestHandlerSuite) setup_network_service() {
 	suite.app_config.SetDefault(network.SDS_BLOCKCHAIN_NETWORKS, network.DefaultConfiguration())
 	// router services
-	evm_router_service, err := service.NewExternal(service.EVM, service.THIS, suite.app_config)
+	evm_router_service, err := parameter.NewExternal(parameter.EVM, parameter.THIS, suite.app_config)
 	suite.Require().NoError(err, "failed to create indexer service")
 
 	// Run the background Reply Controllers
 	// Router's dealers will connect to them
 	network_id_1 := "1"
 	network_1_indexer_url := inproc.IndexerEndpoint(network_id_1)
-	network_1_indexer_service, _ := service.InprocessFromUrl(network_1_indexer_url)
+	network_1_indexer_service, _ := parameter.InprocessFromUrl(network_1_indexer_url)
 	network_1_indexer_reply, _ := controller.NewReply(network_1_indexer_service, suite.logger)
 
 	clients, _ := network.NewClientSockets(suite.app_config, suite.logger)
@@ -89,13 +89,13 @@ func (suite *TestHandlerSuite) setup_network_service() {
 
 	command_1 := blockchain_command.NEW_CATEGORIZED_SMARTCONTRACTS
 	command__1_handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
-		suite.logger.Info("reply back command", "service", service.INDEXER)
+		suite.logger.Info("reply back command", "service", parameter.INDEXER)
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
 				Set("id", command_1.String()).
-				Set("dealer", service.INDEXER.ToString()),
+				Set("dealer", parameter.INDEXER.ToString()),
 		}
 	}
 
@@ -178,7 +178,7 @@ func (suite *TestHandlerSuite) setup_db() {
 	// wait for initiation of the controller
 	time.Sleep(time.Second * 1)
 
-	database_service, err := service.Inprocess(service.DATABASE)
+	database_service, err := parameter.Inprocess(parameter.DATABASE)
 	suite.Require().NoError(err)
 	client, err := remote.InprocRequestSocket(database_service.Url(), suite.logger, suite.app_config)
 	suite.Require().NoError(err)

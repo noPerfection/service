@@ -12,8 +12,8 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/parameter"
 	remote_parameter "github.com/blocklords/sds/app/remote/parameter"
-	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db/handler"
 	hashicorp "github.com/hashicorp/vault/api"
@@ -162,9 +162,9 @@ func (vault *Vault) Run() {
 //
 // use controller.Controller through controller.NewReply()
 func (v *Vault) run_controller() {
-	service, err := service.InprocessFromUrl(VaultEndpoint())
+	service, err := parameter.InprocessFromUrl(VaultEndpoint())
 	if err != nil {
-		v.logger.Fatal("service.InprocessFromUrl", "error", err.Error())
+		v.logger.Fatal("parameter.InprocessFromUrl", "error", err.Error())
 	}
 	reply, err := controller.NewReply(service, v.logger)
 	if err != nil {

@@ -7,9 +7,9 @@ import (
 	"github.com/blocklords/sds/app/communication/command"
 	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/configuration"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/blockchain/handler"
 	"github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
@@ -55,9 +55,9 @@ func (suite *TestBlockchainSuite) SetupTest() {
 
 func (suite *TestBlockchainSuite) TestDeployedTransaction() {
 	// router services
-	evm_router_service, err := service.NewExternal(service.EVM, service.THIS, suite.app_config)
+	evm_router_service, err := parameter.NewExternal(parameter.EVM, parameter.THIS, suite.app_config)
 	suite.Require().NoError(err, "failed to create indexer service")
-	imx_router_service, err := service.NewExternal(service.IMX, service.THIS, suite.app_config)
+	imx_router_service, err := parameter.NewExternal(parameter.IMX, parameter.THIS, suite.app_config)
 	suite.Require().NoError(err, "failed to create indexer service")
 
 	// Run the background Reply Controllers
@@ -73,13 +73,13 @@ func (suite *TestBlockchainSuite) TestDeployedTransaction() {
 	network_imx_client_url := inproc.ClientEndpoint(network_id_imx)
 	network_56_client_url := inproc.ClientEndpoint(network_id_56)
 
-	network_1_indexer_service, _ := service.InprocessFromUrl(network_1_indexer_url)
-	network_56_indexer_service, _ := service.InprocessFromUrl(network_56_indexer_url)
-	network_imx_indexer_service, _ := service.InprocessFromUrl(network_imx_indexer_url)
+	network_1_indexer_service, _ := parameter.InprocessFromUrl(network_1_indexer_url)
+	network_56_indexer_service, _ := parameter.InprocessFromUrl(network_56_indexer_url)
+	network_imx_indexer_service, _ := parameter.InprocessFromUrl(network_imx_indexer_url)
 
-	network_1_client_service, _ := service.InprocessFromUrl(network_1_client_url)
-	network_56_client_service, _ := service.InprocessFromUrl(network_56_client_url)
-	network_imx_client_service, _ := service.InprocessFromUrl(network_imx_client_url)
+	network_1_client_service, _ := parameter.InprocessFromUrl(network_1_client_url)
+	network_56_client_service, _ := parameter.InprocessFromUrl(network_56_client_url)
+	network_imx_client_service, _ := parameter.InprocessFromUrl(network_imx_client_url)
 
 	network_1_indexer_reply, _ := controller.NewReply(network_1_indexer_service, suite.logger)
 	network_56_indexer_reply, _ := controller.NewReply(network_56_indexer_service, suite.logger)
@@ -139,13 +139,13 @@ func (suite *TestBlockchainSuite) TestDeployedTransaction() {
 	}
 	command_2 := command.New("command_2")
 	command_2_handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
-		suite.logger.Info("reply back command", "service", service.INDEXER)
+		suite.logger.Info("reply back command", "service", parameter.INDEXER)
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
 				Set("id", command_2.String()).
-				Set("dealer", service.INDEXER.ToString()),
+				Set("dealer", parameter.INDEXER.ToString()),
 		}
 	}
 	client_handlers := command.EmptyHandlers().

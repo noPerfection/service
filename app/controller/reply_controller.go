@@ -6,23 +6,23 @@ import (
 	"github.com/blocklords/sds/app/communication/command"
 	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 
 	zmq "github.com/pebbe/zmq4"
 )
 
 // Controller is the socket wrapper for the service.
 type Controller struct {
-	service     *service.Service
+	service     *parameter.Service
 	socket      *zmq.Socket
 	logger      log.Logger
 	socket_type zmq.Type
 }
 
 // NewReply creates a new synchrounous Reply controller.
-func NewReply(s *service.Service, logger log.Logger) (*Controller, error) {
+func NewReply(s *parameter.Service, logger log.Logger) (*Controller, error) {
 	if !s.IsThis() && !s.IsInproc() {
-		return nil, fmt.Errorf("service should be limited to service.THIS or inproc type")
+		return nil, fmt.Errorf("service should be limited to parameter.THIS or inproc type")
 	}
 	controller_logger, err := logger.Child("controller", "type", "reply", "service_name", s.Name, "inproc", s.IsInproc())
 

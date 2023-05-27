@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/blocklords/sds/app/communication/message"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 
@@ -159,10 +159,10 @@ func (command CommandName) Push(socket *zmq.Socket, request interface{}) error {
 //			request_parameters := key_value.Empty().
 //		        Set("gold", 123)
 //			set := New("SET") // create a command
-//	        db_service := service.DB
+//	        db_service := parameter.DB
 //			// Send SET command to the database via the authentication proxy.
 //			_ := set.RequestRouter(auth_socket, db_service, request_parameters, &reply_parameters)
-func (command CommandName) RequestRouter(socket *remote.ClientSocket, target_service *service.Service, request interface{}, reply interface{}) error {
+func (command CommandName) RequestRouter(socket *remote.ClientSocket, target_service *parameter.Service, request interface{}, reply interface{}) error {
 	_, ok := request.(message.Request)
 	if ok {
 		return fmt.Errorf("the request can not be of message.Request type")

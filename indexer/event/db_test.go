@@ -10,11 +10,11 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/indexer/smartcontract"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
@@ -84,7 +84,7 @@ func (suite *TestEventDbSuite) SetupTest() {
 	// wait for initiation of the controller
 	time.Sleep(time.Second * 1)
 
-	database_service, err := service.Inprocess(service.DATABASE)
+	database_service, err := parameter.Inprocess(parameter.DATABASE)
 	suite.Require().NoError(err)
 	client, err := remote.InprocRequestSocket(database_service.Url(), logger, app_config)
 	suite.Require().NoError(err)

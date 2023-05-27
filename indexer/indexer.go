@@ -23,7 +23,7 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 	blockchain_command "github.com/blocklords/sds/blockchain/handler"
 	"github.com/blocklords/sds/blockchain/network"
 	"github.com/blocklords/sds/indexer/handler"
@@ -34,8 +34,8 @@ var CommandHandlers = handler.CommandHandlers()
 
 // Returns this service's configuration
 // Could return nil, if the service is not found
-func Service() *service.Service {
-	service, _ := service.Inprocess(service.INDEXER)
+func Service() *parameter.Service {
+	service, _ := parameter.Inprocess(parameter.INDEXER)
 	return service
 }
 
@@ -49,9 +49,9 @@ func Run(app_config *configuration.Config) {
 
 	logger.Info("Starting by getting blockchain service parameters", "protocol", "inproc")
 
-	blockchain_service, err := service.Inprocess(service.BLOCKCHAIN)
+	blockchain_service, err := parameter.Inprocess(parameter.BLOCKCHAIN)
 	if err != nil {
-		logger.Fatal("failed to get inproc configuration for the service", "service type", service.BLOCKCHAIN, "error", err)
+		logger.Fatal("failed to get inproc configuration for the service", "service type", parameter.BLOCKCHAIN, "error", err)
 	}
 
 	logger.Info("Create a blockchain client socket", "protocol", "url", blockchain_service.Url())
@@ -85,9 +85,9 @@ func Run(app_config *configuration.Config) {
 
 	logger.Info("Get the database service parameters", "protocol", "inproc")
 
-	database_service, err := service.Inprocess(service.DATABASE)
+	database_service, err := parameter.Inprocess(parameter.DATABASE)
 	if err != nil {
-		logger.Fatal("service.Inprocess(service.DATABASE)", "error", err)
+		logger.Fatal("parameter.Inprocess(parameter.DATABASE)", "error", err)
 	}
 
 	logger.Info("Create a database client socket", "protocol", "inproc", "url", database_service.Url())

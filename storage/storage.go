@@ -12,7 +12,7 @@ import (
 	"github.com/blocklords/sds/app/controller"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/storage/abi"
@@ -26,8 +26,8 @@ var CommandHandlers = handler.CommandHandlers()
 
 // Returns this service's configuration
 // Returns nil if the service parameters doesn't exist in the app/service.service_types
-func Service() *service.Service {
-	service, _ := service.Inprocess(service.STORAGE)
+func Service() *parameter.Service {
+	service, _ := parameter.Inprocess(parameter.STORAGE)
 	return service
 }
 
@@ -41,7 +41,7 @@ func Run(app_config *configuration.Config) {
 
 	// Getting the services which has access to the SDS Storage
 	storage_env := Service()
-	database_service, err := service.Inprocess(service.DATABASE)
+	database_service, err := parameter.Inprocess(parameter.DATABASE)
 	if err != nil {
 		logger.Fatal("service.Inprocess(service.DATABASE)", "error", err)
 	}

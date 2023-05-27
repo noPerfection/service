@@ -5,7 +5,7 @@ import (
 
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -37,16 +37,16 @@ func (suite *TestSocketSuite) TestNewSockets() {
 	app_config, err := configuration.NewAppConfig(logger)
 	suite.NoError(err, "failed to create logger")
 
-	inproc_indexer_service, err := service.Inprocess(service.INDEXER)
+	inproc_indexer_service, err := parameter.Inprocess(parameter.INDEXER)
 	suite.Require().NoError(err)
 	_, err = NewTcpSocket(inproc_indexer_service, logger, app_config)
 	suite.Require().Error(err)
 
-	indexer_service, err := service.NewExternal(service.INDEXER, service.THIS, app_config)
+	indexer_service, err := parameter.NewExternal(parameter.INDEXER, parameter.THIS, app_config)
 	suite.Require().NoError(err)
-	client_service, err := service.NewExternal(service.INDEXER, service.REMOTE, app_config)
+	client_service, err := parameter.NewExternal(parameter.INDEXER, parameter.REMOTE, app_config)
 	suite.Require().NoError(err)
-	subscriber_service, err := service.NewExternal(service.INDEXER, service.SUBSCRIBE, app_config)
+	subscriber_service, err := parameter.NewExternal(parameter.INDEXER, parameter.SUBSCRIBE, app_config)
 	suite.Require().NoError(err)
 
 	// We can't initiate the socket with the THIS limit

@@ -1,4 +1,4 @@
-package service
+package parameter
 
 // Limit defines what kind of service is created.
 // Depending on the limit the service will prepare the parameters for the

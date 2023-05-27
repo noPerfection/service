@@ -9,8 +9,8 @@ import (
 	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/stretchr/testify/suite"
 )
@@ -37,20 +37,20 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	app_config, err := configuration.NewAppConfig(logger)
 	suite.NoError(err, "failed to create logger")
 
-	client_service, err := service.NewExternal(service.INDEXER, service.REMOTE, app_config)
+	client_service, err := parameter.NewExternal(parameter.INDEXER, parameter.REMOTE, app_config)
 	suite.Require().NoError(err)
-	tcp_service, err := service.NewExternal(service.INDEXER, service.THIS, app_config)
+	tcp_service, err := parameter.NewExternal(parameter.INDEXER, parameter.THIS, app_config)
 	suite.Require().NoError(err, "failed to create indexer service")
 
 	// todo test the inproc broadcasting
 	// todo add the exit
 	_, err = NewReply(client_service, logger)
-	suite.Require().Error(err, "remote limited service should be failed as the service.Url() will not return wildcard host")
+	suite.Require().Error(err, "remote limited service should be failed as the parameter.Url() will not return wildcard host")
 	tcp_controller, err := NewReply(tcp_service, logger)
 	suite.NoError(err)
 	suite.tcp_controller = tcp_controller
 
-	inproc_service, err := service.Inprocess(service.INDEXER)
+	inproc_service, err := parameter.Inprocess(parameter.INDEXER)
 	suite.NoError(err)
 	suite.NotEmpty(inproc_service)
 

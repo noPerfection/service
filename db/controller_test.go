@@ -10,7 +10,7 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/db/handler"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
@@ -75,7 +75,7 @@ func (suite *TestControllerSuite) SetupTest() {
 	// wait for initiation of the controller
 	time.Sleep(time.Second * 1)
 
-	database_service, err := service.Inprocess(service.DATABASE)
+	database_service, err := parameter.Inprocess(parameter.DATABASE)
 	suite.Require().NoError(err)
 	client, err := remote.InprocRequestSocket(database_service.Url(), logger, app_config)
 	suite.Require().NoError(err)

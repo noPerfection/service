@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	remote_parameter "github.com/blocklords/sds/app/remote/parameter"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/db/handler"
 	hashicorp "github.com/hashicorp/vault/api"
 )
@@ -62,7 +62,7 @@ func (v *Vault) periodically_renew_database_leases() {
 
 	database_client, err := handler.PushSocket()
 	if err != nil {
-		v.logger.Fatal("remote.InprocRequestSocket.Inproc", "service type", service.DATABASE, "error", err)
+		v.logger.Fatal("remote.InprocRequestSocket.Inproc", "service type", parameter.DATABASE, "error", err)
 	}
 
 	for {

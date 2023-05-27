@@ -1,4 +1,4 @@
-package service
+package parameter
 
 import (
 	"testing"

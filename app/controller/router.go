@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/app/communication/message"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 
 	"github.com/blocklords/sds/app/log"
 
@@ -19,7 +19,7 @@ import (
 type Dealer struct {
 	// The reply controller parameter
 	// Could be Remote or Inproc
-	service *service.Service
+	service *parameter.Service
 	// The client socket
 	socket *zmq.Socket
 }
@@ -27,13 +27,13 @@ type Dealer struct {
 // The Proxy Controller that connects the multiple
 // Reply Controllers together.
 type Router struct {
-	service *service.Service
+	service *parameter.Service
 	dealers []*Dealer
 	logger  log.Logger
 }
 
 // Returns the initiated Router whith the service parameters
-func NewRouter(service *service.Service, parent log.Logger) (Router, error) {
+func NewRouter(service *parameter.Service, parent log.Logger) (Router, error) {
 	logger, err := parent.Child("controller", "type", "router", "service_name", service.Name, "inproc", service.IsInproc())
 	if err != nil {
 		return Router{}, fmt.Errorf("error creating child logger: %w", err)
@@ -52,7 +52,7 @@ func NewRouter(service *service.Service, parent log.Logger) (Router, error) {
 
 // Whether the dealer for the service is added or not.
 // The service parameter should have the correct Limit or protocol type
-func (r *Router) service_registered(service *service.Service) bool {
+func (r *Router) service_registered(service *parameter.Service) bool {
 	for _, dealer := range r.dealers {
 		if dealer.service.Url() == service.Url() {
 			return true
@@ -66,14 +66,14 @@ func (r *Router) service_registered(service *service.Service) bool {
 // Verification of the service limit or service protocol type
 // is handled on outside. As a result, it doesn't return
 // any error.
-func (r *Router) add_service(service *service.Service) {
+func (r *Router) add_service(service *parameter.Service) {
 	dealer := Dealer{service: service, socket: nil}
 	r.dealers = append(r.dealers, &dealer)
 }
 
 // Registers the route from command to dealer.
 // SDS Core can have unique command handlers.
-func (router *Router) AddDealers(services ...*service.Service) error {
+func (router *Router) AddDealers(services ...*parameter.Service) error {
 	router.logger.Info("Adding client sockets that router will redirect")
 
 	if len(router.dealers) > 0 && router.dealers[0].socket != nil {
@@ -141,7 +141,7 @@ func (router *Router) get_dealer(name string) *Dealer {
 //
 //		0 - bytes request id
 //		1 - ""; empty delimiter
-//		2 - string (gosds/app/service.ServiceType) service name as a tag of dealer.
+//		2 - string (gosds/app/parameter.ServiceType) service name as a tag of dealer.
 //	     to identify which dealer to use
 //		3 - gosds/app/remote/message.Request the message that is redirected to the zmq.REP controller
 //

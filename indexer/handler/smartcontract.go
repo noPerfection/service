@@ -4,8 +4,8 @@ import (
 	"github.com/blocklords/sds/app/communication/command"
 	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/service"
 	blockchain_command "github.com/blocklords/sds/blockchain/handler"
 	blockchain_inproc "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
@@ -228,7 +228,7 @@ func SetSmartcontract(request message.Request, _ log.Logger, app_parameters ...i
 	}
 
 	url := blockchain_inproc.IndexerEndpoint(network.Id)
-	indexer_service, err := service.InprocessFromUrl(url)
+	indexer_service, err := parameter.InprocessFromUrl(url)
 	if err != nil {
 		return message.Fail("blockchain_inproc.IndexerEndpoint(network.Id): " + err.Error())
 	}

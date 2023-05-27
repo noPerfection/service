@@ -1,4 +1,4 @@
-package service
+package parameter
 
 import "fmt"
 
@@ -10,7 +10,7 @@ const (
 	CORE              ServiceType = "CORE"              // The github.com/blocklords/sds module. It's a Router controller
 	BLOCKCHAIN        ServiceType = "BLOCKCHAIN"        // The blockchain service is the gateway between blockchain networks and SDS
 	INDEXER           ServiceType = "INDEXER"           // The indexer service that keeps the decoded smartcontract event logs in the database
-	STORAGE            ServiceType = "STORAGE"            // The storage service keeps the smartcontracts, abis and configurations
+	STORAGE           ServiceType = "STORAGE"           // The storage service keeps the smartcontracts, abis and configurations
 	GATEWAY           ServiceType = "GATEWAY"           // The gateway is the service that is accessed by developers through SDK
 	DEVELOPER_GATEWAY ServiceType = "DEVELOPER_GATEWAY" // The gateway is the service that is accessed by smartcontract contract developers to register new smartcontract
 	READER            ServiceType = "READER"            // The service that reads the smartcontract parameters via blockchain service.

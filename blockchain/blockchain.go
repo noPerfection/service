@@ -17,6 +17,7 @@ package blockchain
 import (
 	"github.com/blocklords/sds/app/communication/command"
 	"github.com/blocklords/sds/app/log"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/blockchain/handler"
 	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/common/data_type/key_value"
@@ -24,7 +25,6 @@ import (
 	"github.com/blocklords/sds/blockchain/network"
 
 	"github.com/blocklords/sds/app/configuration"
-	"github.com/blocklords/sds/app/service"
 
 	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/controller"
@@ -75,9 +75,9 @@ func transaction_deployed_get(request message.Request, logger log.Logger, app_pa
 	}
 
 	url := blockchain_process.ClientEndpoint(request_parameters.NetworkId)
-	target_service, err := service.InprocessFromUrl(url)
+	target_service, err := parameter.InprocessFromUrl(url)
 	if err != nil {
-		return message.Fail("service.InprocessFromUrl(url): " + err.Error())
+		return message.Fail("parameter.InprocessFromUrl(url): " + err.Error())
 	}
 
 	req_parameters := handler.DeployedTransactionRequest{
@@ -229,8 +229,8 @@ func CommandHandlers() command.Handlers {
 }
 
 // Returns the parameter of the SDS Blockchain
-func Service() *service.Service {
-	service, _ := service.Inprocess(service.BLOCKCHAIN)
+func Service() *parameter.Service {
+	service, _ := parameter.Inprocess(parameter.BLOCKCHAIN)
 	return service
 }
 
@@ -252,18 +252,18 @@ func Run(app_config *configuration.Config) {
 		logger.Fatal("controller new", "message", err)
 	}
 
-	evm_service, err := service.NewExternal(service.EVM, service.REMOTE, app_config)
+	evm_service, err := parameter.NewExternal(parameter.EVM, parameter.REMOTE, app_config)
 	if err != nil {
-		logger.Fatal("service.NewExternal(service.EVM)", "error", err)
+		logger.Fatal("parameter.NewExternal(parameter.EVM)", "error", err)
 	}
 	evm_socket, err := remote.NewTcpSocket(evm_service, logger, app_config)
 	if err != nil {
 		logger.Fatal("remote.NewTcpSocket(EVM service)", "error", err)
 	}
 
-	imx_service, err := service.NewExternal(service.IMX, service.REMOTE, app_config)
+	imx_service, err := parameter.NewExternal(parameter.IMX, parameter.REMOTE, app_config)
 	if err != nil {
-		logger.Fatal("service.NewExternal(service.IMX)", "error", err)
+		logger.Fatal("parameter.NewExternal(parameter.IMX)", "error", err)
 	}
 	imx_socket, err := remote.NewTcpSocket(imx_service, logger, app_config)
 	if err != nil {

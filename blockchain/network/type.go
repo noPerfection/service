@@ -6,7 +6,7 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/blocklords/sds/common/data_type/key_value"
 )
 
@@ -46,15 +46,15 @@ func (network_type NetworkType) String() string {
 //
 // If the network type is not registered, then it's casted into
 // custom service type.
-func (network_type NetworkType) ServiceType() service.ServiceType {
+func (network_type NetworkType) ServiceType() parameter.ServiceType {
 	switch network_type {
 	case EVM:
-		return service.EVM
+		return parameter.EVM
 	case IMX:
-		return service.IMX
+		return parameter.IMX
 	}
 
-	return service.ServiceType(network_type)
+	return parameter.ServiceType(network_type)
 }
 
 // NewSockets returns client sockets to the remote network services.
@@ -62,17 +62,17 @@ func (network_type NetworkType) ServiceType() service.ServiceType {
 // The returned sockets is the key value where key is the network type,
 // and value is the socket.
 func NewClientSockets(app_config *configuration.Config, logger log.Logger) (key_value.KeyValue, error) {
-	evm_service, err := service.NewExternal(service.EVM, service.REMOTE, app_config)
+	evm_service, err := parameter.NewExternal(parameter.EVM, parameter.REMOTE, app_config)
 	if err != nil {
-		logger.Fatal("service.NewExternal(service.EVM)", "error", err)
+		logger.Fatal("parameter.NewExternal(parameter.EVM)", "error", err)
 	}
 	evm_socket, err := remote.NewTcpSocket(evm_service, logger, app_config)
 	if err != nil {
 		logger.Fatal("remote.NewTcpSocket(evm_service)", "message", err)
 	}
-	imx_service, err := service.NewExternal(service.IMX, service.REMOTE, app_config)
+	imx_service, err := parameter.NewExternal(parameter.IMX, parameter.REMOTE, app_config)
 	if err != nil {
-		logger.Fatal("service.NewExternal(service.IMX)", "error", err)
+		logger.Fatal("parameter.NewExternal(parameter.IMX)", "error", err)
 	}
 	imx_socket, err := remote.NewTcpSocket(imx_service, logger, app_config)
 	if err != nil {

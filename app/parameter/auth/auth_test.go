@@ -3,7 +3,7 @@ package auth
 import (
 	"testing"
 
-	"github.com/blocklords/sds/app/service"
+	"github.com/blocklords/sds/app/parameter"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -12,7 +12,7 @@ import (
 // returns the current testing context
 type TestServiceTypeSuite struct {
 	suite.Suite
-	service_type service.ServiceType
+	service_type parameter.ServiceType
 }
 
 // Todo test inprocess and external types of controllers
@@ -20,7 +20,7 @@ type TestServiceTypeSuite struct {
 // Make sure that Account is set to five
 // before each test
 func (suite *TestServiceTypeSuite) SetupTest() {
-	suite.service_type = service.BUNDLE
+	suite.service_type = parameter.BUNDLE
 }
 
 func (suite *TestServiceTypeSuite) TestVaultPath() {
