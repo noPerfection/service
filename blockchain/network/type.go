@@ -66,7 +66,7 @@ func NewClientSockets(app_config *configuration.Config, logger log.Logger) (key_
 	if err != nil {
 		logger.Fatal("parameter.NewExternal(parameter.EVM)", "error", err)
 	}
-	evm_socket, err := remote.NewTcpSocket(evm_service, logger, app_config)
+	evm_socket, err := remote.NewTcpSocket(evm_service, &logger, app_config)
 	if err != nil {
 		logger.Fatal("remote.NewTcpSocket(evm_service)", "message", err)
 	}
@@ -74,7 +74,7 @@ func NewClientSockets(app_config *configuration.Config, logger log.Logger) (key_
 	if err != nil {
 		logger.Fatal("parameter.NewExternal(parameter.IMX)", "error", err)
 	}
-	imx_socket, err := remote.NewTcpSocket(imx_service, logger, app_config)
+	imx_socket, err := remote.NewTcpSocket(imx_service, &logger, app_config)
 	if err != nil {
 		logger.Fatal("remote.NewTcpSocket(imx_service)", "message", err)
 	}
