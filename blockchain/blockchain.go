@@ -16,7 +16,6 @@ package blockchain
 
 import (
 	"github.com/blocklords/sds/blockchain/handler"
-	"github.com/blocklords/sds/service/communication/command"
 	"github.com/blocklords/sds/service/log"
 	"github.com/blocklords/sds/service/parameter"
 
@@ -24,7 +23,6 @@ import (
 
 	"github.com/blocklords/sds/service/configuration"
 
-	"github.com/blocklords/sds/service/communication/message"
 	"github.com/blocklords/sds/service/controller"
 )
 
@@ -34,134 +32,7 @@ import (
 //
 ////////////////////////////////////////////////////////////////////
 
-// Returns Network
-func get_network(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
-	if len(app_parameters) < 2 {
-		return message.Fail("missing app configuration and network sockets")
-	}
-
-	command_logger, err := logger.Child("handler", "command", request.Command)
-	if err != nil {
-		return message.Fail("network-get-command: " + err.Error())
-	}
-	command_logger.Info("Get network", "parameters", request.Parameters)
-
-	var request_parameters handler.GetNetworkRequest
-	err = request.Parameters.ToInterface(&request_parameters)
-	if err != nil {
-		return message.Fail("failed to parse request parameters " + err.Error())
-	}
-
-	app_config, ok := app_parameters[0].(*configuration.Config)
-	if !ok {
-		return message.Fail("the parameter is not app config")
-	}
-	networks, err := network.GetNetworks(app_config, request_parameters.NetworkType)
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-
-	n, err := networks.Get(request_parameters.NetworkId)
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-
-	var reply = *n
-	reply_message, err := command.Reply(reply)
-	if err != nil {
-		return message.Fail("failed to reply: " + err.Error())
-	}
-
-	return reply_message
-}
-
-// Returns an abi by the smartcontract key.
-func get_network_ids(request message.Request, _ log.Logger, app_parameters ...interface{}) message.Reply {
-	if len(app_parameters) < 2 {
-		return message.Fail("missing app configuration and network sockets")
-	}
-
-	var request_parameters handler.GetNetworkIdsRequest
-	err := request.Parameters.ToInterface(&request_parameters)
-	if err != nil {
-		return message.Fail("invalid parameters: " + err.Error())
-	}
-
-	app_config, ok := app_parameters[0].(*configuration.Config)
-	if !ok {
-		return message.Fail("the parameter is not app config")
-	}
-	network_ids, err := network.GetNetworkIds(app_config, request_parameters.NetworkType)
-	if err != nil {
-		return message.Fail(err.Error())
-	}
-
-	reply := handler.GetNetworkIdsReply{
-		NetworkIds: network_ids,
-	}
-	reply_message, err := command.Reply(reply)
-	if err != nil {
-		return message.Fail("failed to reply: " + err.Error())
-	}
-
-	return reply_message
-}
-
-// Returns an abi by the smartcontract key.
-func get_all_networks(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
-	if len(app_parameters) < 2 {
-		return message.Fail("missing app configuration and network sockets")
-	}
-
-	command_logger, err := logger.Child("handler", "command", request.Command)
-	if err != nil {
-		return message.Fail("network-get-all-command: " + err.Error())
-	}
-	command_logger.Info("Get all networks", "parameters", request.Parameters)
-
-	var request_parameters handler.GetNetworksRequest
-	err = request.Parameters.ToInterface(&request_parameters)
-	if err != nil {
-		return message.Fail("invalid parameters: " + err.Error())
-	}
-
-	app_config, ok := app_parameters[0].(*configuration.Config)
-	if !ok {
-		return message.Fail("the parameter is not app config")
-	}
-	networks, err := network.GetNetworks(app_config, request_parameters.NetworkType)
-	if err != nil {
-		return message.Fail("blockchain " + err.Error())
-	}
-
-	reply := handler.GetNetworksReply{
-		Networks: networks,
-	}
-	reply_message, err := command.Reply(&reply)
-	if err != nil {
-		return message.Fail("failed to reply: " + err.Error())
-	}
-
-	return reply_message
-}
-
-// CommandHandlers returns the list of commands and their handlers for SDS Blockchain reply
-// contorller. That means it will expose the following commands.
-//
-// SDS Blockchain defines has the following commands:
-//
-//   - handler.DEPLOYED_TRANSACTION_COMMAND
-//   - handler.NETWORK_IDS_COMMAND
-//   - handler.NETWORKS_COMMAND
-//   - handler NETWORK_COMMAND
-//
-// Check out "handler" sub package for the description of each command.
-func CommandHandlers() command.Handlers {
-	return command.EmptyHandlers().
-		Add(handler.NETWORK_IDS_COMMAND, get_network_ids).
-		Add(handler.NETWORKS_COMMAND, get_all_networks).
-		Add(handler.NETWORK_COMMAND, get_network)
-}
+var CommandHandler = handler.CommandHandlers()
 
 // Returns the parameter of the SDS Blockchain
 func Service() *parameter.Service {
@@ -187,7 +58,7 @@ func Run(app_config *configuration.Config) {
 		logger.Fatal("controller new", "message", err)
 	}
 
-	err = reply.Run(CommandHandlers(), app_config)
+	err = reply.Run(handler.CommandHandlers(), app_config)
 	if err != nil {
 		logger.Fatal("controller error", "error", err)
 	}
