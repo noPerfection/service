@@ -7,7 +7,7 @@
 // Core services are:
 //   - Static to keep the smartcontracts, their abi and topic
 //   - Blockchain to connect to the remote blockchain nodes in a smart way
-//   - Categorizer to decode the event logs and make sure users can interact with them over SDK.
+//   - Indexer to decode the event logs and make sure users can interact with them over SDK.
 //
 // For detailed documentation visit:
 // https://github.com/blocklords/sds
@@ -27,8 +27,8 @@ import (
 	"github.com/blocklords/sds/app/configuration"
 	"github.com/blocklords/sds/app/configuration/argument"
 	"github.com/blocklords/sds/blockchain"
-	"github.com/blocklords/sds/categorizer"
 	"github.com/blocklords/sds/db"
+	indexer "github.com/blocklords/sds/indexer"
 	"github.com/blocklords/sds/security"
 	"github.com/blocklords/sds/static"
 )
@@ -43,7 +43,7 @@ import (
 //
 // Router has the request.
 // Request could go to static
-// Request could go to categorizer
+// Request could go to indexer
 // Request could go to blockchain
 //
 // Each of the services has the reply controller.
@@ -91,8 +91,8 @@ func main() {
 
 		if service_type == service.STATIC {
 			dealers = []*service.Service{static.Service()}
-		} else if service_type == service.CATEGORIZER {
-			dealers = []*service.Service{categorizer.Service()}
+		} else if service_type == service.INDEXER {
+			dealers = []*service.Service{indexer.Service()}
 		} else if service_type == service.BLOCKCHAIN {
 			dealers = []*service.Service{blockchain.Service()}
 			run_db = false
@@ -100,7 +100,7 @@ func main() {
 			logger.Fatal("Unsupported service", "service_type", service_type)
 		}
 	} else {
-		dealers = []*service.Service{static.Service(), categorizer.Service(), blockchain.Service()}
+		dealers = []*service.Service{static.Service(), indexer.Service(), blockchain.Service()}
 	}
 
 	if run_db {
@@ -146,7 +146,7 @@ func main() {
 
 	// Start the core services
 	go static.Run(app_config)
-	go categorizer.Run(app_config)
+	go indexer.Run(app_config)
 	go blockchain.Run(app_config)
 
 	// Start the external services

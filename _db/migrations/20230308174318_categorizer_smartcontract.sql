@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE TABLE categorizer_smartcontract (
+CREATE TABLE indexer_smartcontract (
     network_id varchar(20) NOT NULL,
 	address varchar(255) NOT NULL,
     block_number bigint UNSIGNED,

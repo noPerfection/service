@@ -18,12 +18,12 @@ import (
 	"github.com/blocklords/sds/app/service"
 	"github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/blockchain/network"
-	"github.com/blocklords/sds/categorizer/event"
-	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/indexer/event"
+	"github.com/blocklords/sds/indexer/smartcontract"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )
@@ -59,14 +59,14 @@ func (suite *TestHandlerSuite) setup_network_service() {
 	suite.app_config.SetDefault(network.SDS_BLOCKCHAIN_NETWORKS, network.DefaultConfiguration())
 	// router services
 	evm_router_service, err := service.NewExternal(service.EVM, service.THIS, suite.app_config)
-	suite.Require().NoError(err, "failed to create categorizer service")
+	suite.Require().NoError(err, "failed to create indexer service")
 
 	// Run the background Reply Controllers
 	// Router's dealers will connect to them
 	network_id_1 := "1"
-	network_1_categorizer_url := inproc.CategorizerEndpoint(network_id_1)
-	network_1_categorizer_service, _ := service.InprocessFromUrl(network_1_categorizer_url)
-	network_1_categorizer_reply, _ := controller.NewReply(network_1_categorizer_service, suite.logger)
+	network_1_indexer_url := inproc.IndexerEndpoint(network_id_1)
+	network_1_indexer_service, _ := service.InprocessFromUrl(network_1_indexer_url)
+	network_1_indexer_reply, _ := controller.NewReply(network_1_indexer_service, suite.logger)
 
 	clients, _ := network.NewClientSockets(suite.app_config, suite.logger)
 	suite.clients = clients
@@ -89,30 +89,30 @@ func (suite *TestHandlerSuite) setup_network_service() {
 
 	command_1 := blockchain_command.NEW_CATEGORIZED_SMARTCONTRACTS
 	command__1_handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
-		suite.logger.Info("reply back command", "service", service.CATEGORIZER)
+		suite.logger.Info("reply back command", "service", service.INDEXER)
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
 				Set("id", command_1.String()).
-				Set("dealer", service.CATEGORIZER.ToString()),
+				Set("dealer", service.INDEXER.ToString()),
 		}
 	}
 
-	categorizer_handlers := command.EmptyHandlers().
+	indexer_handlers := command.EmptyHandlers().
 		Add(command_1, command__1_handler)
 
 	///////////////////////////////////////////////////////////////
 	// The network sub services
 	// The categorization and client
 	//
-	// Categorization sends the command to the categorizer
+	// Categorization sends the command to the indexer
 	//
 	// Client sends the command to the remote blockchain
-	go network_1_categorizer_reply.Run(categorizer_handlers)
+	go network_1_indexer_reply.Run(indexer_handlers)
 
 	err = suite.evm_router.AddDealers(
-		network_1_categorizer_service,
+		network_1_indexer_service,
 	)
 	suite.Require().NoError(err, "failed to add dealer, because limit is THIS")
 	go suite.evm_router.Run()
@@ -140,10 +140,10 @@ func (suite *TestHandlerSuite) setup_db() {
 	// prepare the database creation
 	suite.db_name = "test"
 	_, filename, _, _ := runtime.Caller(0)
-	static_smartcontract := "20230308174318_categorizer_smartcontract.sql"
+	static_smartcontract := "20230308174318_indexer_smartcontract.sql"
 	smartcontract_sql_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", static_smartcontract)
 
-	event_sql_name := "20230308174720_categorizer_event.sql"
+	event_sql_name := "20230308174720_indexer_event.sql"
 	event_sql_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", event_sql_name)
 
 	// run the container

@@ -11,11 +11,11 @@ import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/service"
-	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
 	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/indexer/smartcontract"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )
@@ -41,10 +41,10 @@ func (suite *TestEventDbSuite) SetupTest() {
 	suite.db_name = "test"
 	_, filename, _, _ := runtime.Caller(0)
 	// event table depends on the smartcontract table
-	smartcontract_sql_name := "20230308174318_categorizer_smartcontract.sql"
+	smartcontract_sql_name := "20230308174318_indexer_smartcontract.sql"
 	smartcontract_sql_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", smartcontract_sql_name)
 
-	event_sql_name := "20230308174720_categorizer_event.sql"
+	event_sql_name := "20230308174720_indexer_event.sql"
 	event_sql_path := filepath.Join(filepath.Dir(filename), "..", "..", "_db", "migrations", event_sql_name)
 
 	// run the container

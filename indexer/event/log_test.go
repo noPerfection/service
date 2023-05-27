@@ -5,10 +5,10 @@ import (
 
 	blockchain_event "github.com/blocklords/sds/blockchain/event"
 	"github.com/blocklords/sds/blockchain/transaction"
-	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
+	"github.com/blocklords/sds/indexer/smartcontract"
 	"github.com/stretchr/testify/suite"
 )
 

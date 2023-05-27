@@ -22,11 +22,11 @@ const (
 	//
 	// This command used by two packages.
 	//
-	//  1. evm/categorizer/recent uses it to fetch the most block number
+	//  1. evm/indexer/recent uses it to fetch the most block number
 	//     from blockchain client.
-	//  2. evm/categorizer/recent uses it to push new recent block number
-	//     to old categorizer and categorizer manager.
+	//  2. evm/indexer/recent uses it to push new recent block number
+	//     to old indexer and indexer manager.
 	RECENT_BLOCK_NUMBER command.CommandName = "recent-block-number"
-	// Internal from SDS Categorizer service to SDS Blockchain service
+	// Internal from SDS Indexer service to SDS Blockchain service
 	NEW_CATEGORIZED_SMARTCONTRACTS command.CommandName = "new-smartcontracts"
 )

@@ -56,14 +56,14 @@ func (suite *TestRouterSuite) SetupTest() {
 	client_service, err := service.NewExternal(service.CORE, service.REMOTE, app_config)
 	suite.Require().NoError(err)
 	tcp_service, err := service.NewExternal(service.CORE, service.THIS, app_config)
-	suite.Require().NoError(err, "failed to create categorizer service")
+	suite.Require().NoError(err, "failed to create indexer service")
 
 	// Run the background Reply Controllers
 	// Router's dealers will connect to them
 	blockchain_service, err := service.NewExternal(service.BLOCKCHAIN, service.THIS, app_config)
 	suite.Require().NoError(err, "failed to create blockchain service")
-	categorizer_service, err := service.NewExternal(service.CATEGORIZER, service.THIS, app_config)
-	suite.Require().NoError(err, "failed to create categorizer service")
+	indexer_service, err := service.NewExternal(service.INDEXER, service.THIS, app_config)
+	suite.Require().NoError(err, "failed to create indexer service")
 
 	////////////////////////////////////////////////////////
 	//
@@ -86,7 +86,7 @@ func (suite *TestRouterSuite) SetupTest() {
 	// Reply Controllers
 	blockchain_socket, err := NewReply(blockchain_service, logger)
 	suite.Require().NoError(err, "remote limited service should be failed as the service.Url() will not return wildcard host")
-	categorizer_socket, err := NewReply(categorizer_service, logger)
+	indexer_socket, err := NewReply(indexer_service, logger)
 	suite.Require().NoError(err, "remote limited service should be failed as the service.Url() will not return wildcard host")
 
 	////////////////////////////////////////////////////
@@ -106,19 +106,19 @@ func (suite *TestRouterSuite) SetupTest() {
 	}
 	command_2 := command.New("command_2")
 	command_2_handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
-		logger.Info("reply back command", "service", service.CATEGORIZER)
+		logger.Info("reply back command", "service", service.INDEXER)
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
 				Set("id", command_2.String()).
-				Set("dealer", service.CATEGORIZER.ToString()),
+				Set("dealer", service.INDEXER.ToString()),
 		}
 	}
 	blockchain_handlers := command.EmptyHandlers().
 		Add(command_1, command_1_handler)
 
-	categorizer_handlers := command.EmptyHandlers().
+	indexer_handlers := command.EmptyHandlers().
 		Add(command_2, command_2_handler)
 
 	suite.commands = []command.CommandName{
@@ -126,33 +126,33 @@ func (suite *TestRouterSuite) SetupTest() {
 	}
 
 	// todo
-	// add the reply controllers (BLOCKCHAIN, CATEGORIZER)
+	// add the reply controllers (BLOCKCHAIN, INDEXER)
 	// assign to suite.<>_repliers
 	//
-	// Add to the router the BLOCKCHAIN, CATEGORIZER, STATIC
+	// Add to the router the BLOCKCHAIN, INDEXER, STATIC
 	//
 	// send a command to in the goroutine -> loop
 	// BUNDLE (should return error as not registered)
 	// STATIC (should return timeout from the client side)
 	// BLOCKCHAIN
-	// CATEGORIZER
+	// INDEXER
 
-	suite.tcp_repliers = []*Controller{blockchain_socket, categorizer_socket}
+	suite.tcp_repliers = []*Controller{blockchain_socket, indexer_socket}
 	go blockchain_socket.Run(blockchain_handlers)
-	go categorizer_socket.Run(categorizer_handlers)
+	go indexer_socket.Run(indexer_handlers)
 
 	dealer_blockchain, err := service.NewExternal(service.BLOCKCHAIN, service.REMOTE, app_config)
 	suite.Require().NoError(err, "failed to create blockchain service")
-	dealer_categorizer, err := service.NewExternal(service.CATEGORIZER, service.REMOTE, app_config)
-	suite.Require().NoError(err, "failed to create categorizer service")
+	dealer_indexer, err := service.NewExternal(service.INDEXER, service.REMOTE, app_config)
+	suite.Require().NoError(err, "failed to create indexer service")
 	// The STATIC is registered on the router, but doesn't exist
 	// On the backend side.
 	dealer_static, err := service.NewExternal(service.STATIC, service.REMOTE, app_config)
-	suite.Require().NoError(err, "failed to create categorizer service")
+	suite.Require().NoError(err, "failed to create indexer service")
 
 	err = suite.tcp_router.AddDealers(blockchain_service)
 	suite.Require().Error(err, "failed to add dealer, because limit is THIS")
-	err = suite.tcp_router.AddDealers(dealer_blockchain, dealer_categorizer, dealer_static)
+	err = suite.tcp_router.AddDealers(dealer_blockchain, dealer_indexer, dealer_static)
 	suite.Require().NoError(err, "failed to create blockchain service")
 	go suite.tcp_router.Run()
 
@@ -176,7 +176,7 @@ func (suite *TestRouterSuite) TestRun() {
 			var reply_parameters key_value.KeyValue
 
 			command_index := 1
-			dealer, _ := service.Inprocess(service.CATEGORIZER)
+			dealer, _ := service.Inprocess(service.INDEXER)
 
 			err := suite.commands[command_index].RequestRouter(suite.tcp_client, dealer, request_parameters, &reply_parameters)
 			suite.NoError(err)

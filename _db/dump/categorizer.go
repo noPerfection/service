@@ -7,11 +7,11 @@ import (
 	"github.com/blocklords/sds/app/configuration/argument"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/blockchain/network"
-	"github.com/blocklords/sds/categorizer/event"
-	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/db"
+	"github.com/blocklords/sds/indexer/event"
+	"github.com/blocklords/sds/indexer/smartcontract"
 
 	faker "github.com/brianvoe/gofakeit/v6"
 )

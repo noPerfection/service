@@ -37,7 +37,7 @@ func (suite *TestCommandSuite) SetupTest() {
 	// atleast len(protocol prefix) + 1 = 9 + 1
 	_, err = remote.InprocRequestSocket(short_url, logger, app_config)
 	suite.Error(err)
-	no_protocol_url := "categorizer"
+	no_protocol_url := "indexer"
 	_, err = remote.InprocRequestSocket(no_protocol_url, logger, app_config)
 	suite.Error(err)
 
@@ -137,18 +137,18 @@ func (suite *TestCommandSuite) TestRun() {
 	err = command_2.Push(client, push_parameters)
 	suite.NoError(err)
 
-	categorizer_service, _ := service.Inprocess(service.CATEGORIZER)
+	indexer_service, _ := service.Inprocess(service.INDEXER)
 
 	// Test command.RequestRouter()
 	command_3 := New("command_router")
-	err = command_3.RequestRouter(suite.client, categorizer_service, request_parameters, &reply_parameters)
+	err = command_3.RequestRouter(suite.client, indexer_service, request_parameters, &reply_parameters)
 	suite.NoError(err)
 	replied_command, err := reply_parameters.GetString("command")
 	suite.NoError(err)
 	suite.EqualValues(replied_command, command_3.String())
 	replied_router, err := reply_parameters.GetString("router")
 	suite.NoError(err)
-	suite.EqualValues(replied_router, service.CATEGORIZER.ToString())
+	suite.EqualValues(replied_router, service.INDEXER.ToString())
 }
 
 // In order for 'go test' to run this suite, we need to create

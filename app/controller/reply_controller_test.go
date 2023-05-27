@@ -37,10 +37,10 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	app_config, err := configuration.NewAppConfig(logger)
 	suite.NoError(err, "failed to create logger")
 
-	client_service, err := service.NewExternal(service.CATEGORIZER, service.REMOTE, app_config)
+	client_service, err := service.NewExternal(service.INDEXER, service.REMOTE, app_config)
 	suite.Require().NoError(err)
-	tcp_service, err := service.NewExternal(service.CATEGORIZER, service.THIS, app_config)
-	suite.Require().NoError(err, "failed to create categorizer service")
+	tcp_service, err := service.NewExternal(service.INDEXER, service.THIS, app_config)
+	suite.Require().NoError(err, "failed to create indexer service")
 
 	// todo test the inproc broadcasting
 	// todo add the exit
@@ -50,7 +50,7 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	suite.NoError(err)
 	suite.tcp_controller = tcp_controller
 
-	inproc_service, err := service.Inprocess(service.CATEGORIZER)
+	inproc_service, err := service.Inprocess(service.INDEXER)
 	suite.NoError(err)
 	suite.NotEmpty(inproc_service)
 

@@ -15,7 +15,7 @@
 //	     	Smartcontract: "Crowns"
 //		}
 //
-// For example, use the topic in SDK to read the data from categorizer.
+// For example, use the topic in SDK to read the data from indexer.
 // Viola, we don't need to remember smartcontract address.
 package topic
 

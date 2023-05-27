@@ -1,5 +1,5 @@
 // Package handler defines the commands and the command handlers
-// exposed by categorizer service's reply controller and pull controller.
+// exposed by indexer service's reply controller and pull controller.
 package handler
 
 import (
@@ -24,13 +24,13 @@ const (
 	GET_SMARTCONTRACT command.CommandName = "smartcontract_get"
 	// Add a new smartcontract to categorize.
 	//
-	// This service then will call blockchain's sub categorizer services
+	// This service then will call blockchain's sub indexer services
 	// Through the router
 	SET_SMARTCONTRACT command.CommandName = "smartcontract_set"
 	// CATEGORIZATION command is sent from blockchain sub services to this service
 	// with the list of decoded smartcontract logs and new states.
 	//
-	// Internal from SDS network services to SDS Categorizer
+	// Internal from SDS network services to SDS Indexer
 	// Indicates that the list of smartcontracts are categorized
 	CATEGORIZATION command.CommandName = "categorize"
 )

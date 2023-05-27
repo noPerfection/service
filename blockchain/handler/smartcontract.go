@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/blocklords/sds/categorizer/smartcontract"
+	"github.com/blocklords/sds/indexer/smartcontract"
 )
 
 // PushNewSmartcontracts defines the required

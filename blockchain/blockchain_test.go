@@ -56,34 +56,34 @@ func (suite *TestBlockchainSuite) SetupTest() {
 func (suite *TestBlockchainSuite) TestDeployedTransaction() {
 	// router services
 	evm_router_service, err := service.NewExternal(service.EVM, service.THIS, suite.app_config)
-	suite.Require().NoError(err, "failed to create categorizer service")
+	suite.Require().NoError(err, "failed to create indexer service")
 	imx_router_service, err := service.NewExternal(service.IMX, service.THIS, suite.app_config)
-	suite.Require().NoError(err, "failed to create categorizer service")
+	suite.Require().NoError(err, "failed to create indexer service")
 
 	// Run the background Reply Controllers
 	// Router's dealers will connect to them
 	network_id_1 := "1"
 	network_id_56 := "56"
 	network_id_imx := "imx"
-	network_1_categorizer_url := inproc.CategorizerEndpoint(network_id_1)
-	network_56_categorizer_url := inproc.CategorizerEndpoint(network_id_56)
-	network_imx_categorizer_url := inproc.CategorizerEndpoint(network_id_imx)
+	network_1_indexer_url := inproc.IndexerEndpoint(network_id_1)
+	network_56_indexer_url := inproc.IndexerEndpoint(network_id_56)
+	network_imx_indexer_url := inproc.IndexerEndpoint(network_id_imx)
 
 	network_1_client_url := inproc.ClientEndpoint(network_id_1)
 	network_imx_client_url := inproc.ClientEndpoint(network_id_imx)
 	network_56_client_url := inproc.ClientEndpoint(network_id_56)
 
-	network_1_categorizer_service, _ := service.InprocessFromUrl(network_1_categorizer_url)
-	network_56_categorizer_service, _ := service.InprocessFromUrl(network_56_categorizer_url)
-	network_imx_categorizer_service, _ := service.InprocessFromUrl(network_imx_categorizer_url)
+	network_1_indexer_service, _ := service.InprocessFromUrl(network_1_indexer_url)
+	network_56_indexer_service, _ := service.InprocessFromUrl(network_56_indexer_url)
+	network_imx_indexer_service, _ := service.InprocessFromUrl(network_imx_indexer_url)
 
 	network_1_client_service, _ := service.InprocessFromUrl(network_1_client_url)
 	network_56_client_service, _ := service.InprocessFromUrl(network_56_client_url)
 	network_imx_client_service, _ := service.InprocessFromUrl(network_imx_client_url)
 
-	network_1_categorizer_reply, _ := controller.NewReply(network_1_categorizer_service, suite.logger)
-	network_56_categorizer_reply, _ := controller.NewReply(network_56_categorizer_service, suite.logger)
-	network_imx_categorizer_reply, _ := controller.NewReply(network_imx_categorizer_service, suite.logger)
+	network_1_indexer_reply, _ := controller.NewReply(network_1_indexer_service, suite.logger)
+	network_56_indexer_reply, _ := controller.NewReply(network_56_indexer_service, suite.logger)
+	network_imx_indexer_reply, _ := controller.NewReply(network_imx_indexer_service, suite.logger)
 
 	network_1_client_reply, _ := controller.NewReply(network_1_client_service, suite.logger)
 	network_56_client_reply, _ := controller.NewReply(network_56_client_service, suite.logger)
@@ -139,19 +139,19 @@ func (suite *TestBlockchainSuite) TestDeployedTransaction() {
 	}
 	command_2 := command.New("command_2")
 	command_2_handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
-		suite.logger.Info("reply back command", "service", service.CATEGORIZER)
+		suite.logger.Info("reply back command", "service", service.INDEXER)
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
 				Set("id", command_2.String()).
-				Set("dealer", service.CATEGORIZER.ToString()),
+				Set("dealer", service.INDEXER.ToString()),
 		}
 	}
 	client_handlers := command.EmptyHandlers().
 		Add(deployed_tx_command, command_1_handler)
 
-	categorizer_handlers := command.EmptyHandlers().
+	indexer_handlers := command.EmptyHandlers().
 		Add(command_2, command_2_handler)
 
 	suite.commands = []command.CommandName{
@@ -162,19 +162,19 @@ func (suite *TestBlockchainSuite) TestDeployedTransaction() {
 	// The network sub services
 	// The categorization and client
 	//
-	// Categorization sends the command to the categorizer
+	// Categorization sends the command to the indexer
 	//
 	// Client sends the command to the remote blockchain
-	go network_1_categorizer_reply.Run(categorizer_handlers)
-	go network_56_categorizer_reply.Run(categorizer_handlers)
-	go network_imx_categorizer_reply.Run(categorizer_handlers)
+	go network_1_indexer_reply.Run(indexer_handlers)
+	go network_56_indexer_reply.Run(indexer_handlers)
+	go network_imx_indexer_reply.Run(indexer_handlers)
 	go network_1_client_reply.Run(client_handlers)
 	go network_56_client_reply.Run(client_handlers)
 	go network_imx_client_reply.Run(client_handlers)
 
 	err = suite.evm_router.AddDealers(
-		network_1_categorizer_service,
-		network_56_categorizer_service,
+		network_1_indexer_service,
+		network_56_indexer_service,
 		network_1_client_service,
 		network_56_client_service,
 	)
@@ -182,7 +182,7 @@ func (suite *TestBlockchainSuite) TestDeployedTransaction() {
 	go suite.evm_router.Run()
 
 	err = suite.imx_router.AddDealers(
-		network_imx_categorizer_service,
+		network_imx_indexer_service,
 		network_imx_client_service,
 	)
 	suite.Require().NoError(err, "failed to add dealer, because limit is THIS")

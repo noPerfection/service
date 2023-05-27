@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	blockchain_log "github.com/blocklords/sds/blockchain/event"
-	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/blockchain"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/smartcontract_key"
+	"github.com/blocklords/sds/indexer/smartcontract"
 )
 
 // Log of smartcontract event after decoding

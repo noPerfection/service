@@ -18,7 +18,7 @@ const UPDATE_BLOCK_HEADER uint8 = 1
 func (sm *Smartcontract) Update(db *remote.ClientSocket, _ uint8) error {
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{"block_number", "block_timestamp"},
-		Tables: []string{"categorizer_smartcontract"},
+		Tables: []string{"indexer_smartcontract"},
 		Where:  " network_id = ? AND address = ? ",
 		Arguments: []interface{}{
 			sm.BlockHeader.Number,
@@ -42,7 +42,7 @@ func (sm *Smartcontract) Update(db *remote.ClientSocket, _ uint8) error {
 // Implements common/data_type/database.Crud interface
 func (sm *Smartcontract) Exist(db *remote.ClientSocket) bool {
 	request := handler.DatabaseQueryRequest{
-		Tables: []string{"categorizer_smartcontract"},
+		Tables: []string{"indexer_smartcontract"},
 		Where:  "network_id = ? AND address = ? ",
 		Arguments: []interface{}{
 			sm.SmartcontractKey.NetworkId,
@@ -64,7 +64,7 @@ func (sm *Smartcontract) Exist(db *remote.ClientSocket) bool {
 func (b *Smartcontract) Insert(db *remote.ClientSocket) error {
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{"network_id", "address", "block_number", "block_timestamp"},
-		Tables: []string{"categorizer_smartcontract"},
+		Tables: []string{"indexer_smartcontract"},
 		Arguments: []interface{}{
 			b.SmartcontractKey.NetworkId,
 			b.SmartcontractKey.Address,
@@ -87,7 +87,7 @@ func (b *Smartcontract) Insert(db *remote.ClientSocket) error {
 func (b *Smartcontract) Select(db *remote.ClientSocket) error {
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{"block_number", "block_timestamp"},
-		Tables: []string{"categorizer_smartcontract"},
+		Tables: []string{"indexer_smartcontract"},
 		Where:  "network_id = ? AND address = ? ",
 		Arguments: []interface{}{
 			b.SmartcontractKey.NetworkId,
@@ -123,7 +123,7 @@ func (b *Smartcontract) Select(db *remote.ClientSocket) error {
 func (b *Smartcontract) SelectAll(db *remote.ClientSocket, return_values interface{}) error {
 	request := handler.DatabaseQueryRequest{
 		Fields: []string{"network_id", "address", "block_number", "block_timestamp"},
-		Tables: []string{"categorizer_smartcontract"},
+		Tables: []string{"indexer_smartcontract"},
 	}
 	var reply handler.SelectAllReply
 	err := handler.SELECT_ALL.Request(db, request, &reply)
@@ -161,7 +161,7 @@ func (b *Smartcontract) SelectAll(db *remote.ClientSocket, return_values interfa
 	return err
 }
 
-// Returns list of the smartcontracts registered in the categorizer
+// Returns list of the smartcontracts registered in the indexer
 //
 // Implements common/data_type/database.Crud interface
 func (b *Smartcontract) SelectAllByCondition(db *remote.ClientSocket, condition key_value.KeyValue, return_values interface{}) error {
@@ -171,7 +171,7 @@ func (b *Smartcontract) SelectAllByCondition(db *remote.ClientSocket, condition 
 	}
 	request := handler.DatabaseQueryRequest{
 		Fields:    []string{"network_id", "address", "block_number", "block_timestamp"},
-		Tables:    []string{"categorizer_smartcontract"},
+		Tables:    []string{"indexer_smartcontract"},
 		Where:     " network_id = ? ",
 		Arguments: []interface{}{network_id},
 	}

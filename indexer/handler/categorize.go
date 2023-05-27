@@ -4,16 +4,16 @@ import (
 	"github.com/blocklords/sds/app/communication/message"
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/categorizer/event"
-	"github.com/blocklords/sds/categorizer/smartcontract"
 	"github.com/blocklords/sds/common/data_type/database"
 	"github.com/blocklords/sds/common/data_type/key_value"
+	"github.com/blocklords/sds/indexer/event"
+	"github.com/blocklords/sds/indexer/smartcontract"
 )
 
 // on_categorize command handles an update of the smartcontracts
 // as well as inserts new decoded event logs in the database.
 //
-// Send categorizer/handler.CATEGORIZER command from network categorizer sub service
+// Send indexer/handler.INDEXER command from network indexer sub service
 // to execute this function.
 func on_categorize(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
 	if app_parameters == nil || len(app_parameters) < 1 {

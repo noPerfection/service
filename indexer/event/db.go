@@ -33,7 +33,7 @@ func (t *Log) Insert(db_con *remote.ClientSocket) error {
 			"event_name",
 			"event_parameters",
 		},
-		Tables: []string{"categorizer_event"},
+		Tables: []string{"indexer_event"},
 		Arguments: []interface{}{
 			t.SmartcontractKey.Address,
 			t.TransactionKey.Id,
@@ -156,7 +156,7 @@ func (l *Log) SelectAllByCondition(db_con *remote.ClientSocket, condition key_va
 			"event_name",
 			"event_parameters",
 		},
-		Tables:    []string{"categorizer_event"},
+		Tables:    []string{"indexer_event"},
 		Where:     ` block_timestamp >= ? AND ` + smartcontracts_clause + ` ORDER BY block_timestamp ASC LIMIT ? `,
 		Arguments: args,
 	}

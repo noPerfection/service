@@ -28,7 +28,7 @@ func (suite *TestDefaultSuite) SetupTest() {
 func (suite *TestDefaultSuite) TestRandom() {
 	configs := DefaultConfigurations()
 	suite.Equal("CORE", configs[0].Title)
-	port, err := configs[2].Parameters.GetString("CATEGORIZER_PORT")
+	port, err := configs[2].Parameters.GetString("INDEXER_PORT")
 	suite.Require().NoError(err)
 	suite.Equal("4020", port)
 

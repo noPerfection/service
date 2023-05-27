@@ -37,20 +37,20 @@ func (suite *TestSocketSuite) TestNewSockets() {
 	app_config, err := configuration.NewAppConfig(logger)
 	suite.NoError(err, "failed to create logger")
 
-	inproc_categorizer_service, err := service.Inprocess(service.CATEGORIZER)
+	inproc_indexer_service, err := service.Inprocess(service.INDEXER)
 	suite.Require().NoError(err)
-	_, err = NewTcpSocket(inproc_categorizer_service, logger, app_config)
+	_, err = NewTcpSocket(inproc_indexer_service, logger, app_config)
 	suite.Require().Error(err)
 
-	categorizer_service, err := service.NewExternal(service.CATEGORIZER, service.THIS, app_config)
+	indexer_service, err := service.NewExternal(service.INDEXER, service.THIS, app_config)
 	suite.Require().NoError(err)
-	client_service, err := service.NewExternal(service.CATEGORIZER, service.REMOTE, app_config)
+	client_service, err := service.NewExternal(service.INDEXER, service.REMOTE, app_config)
 	suite.Require().NoError(err)
-	subscriber_service, err := service.NewExternal(service.CATEGORIZER, service.SUBSCRIBE, app_config)
+	subscriber_service, err := service.NewExternal(service.INDEXER, service.SUBSCRIBE, app_config)
 	suite.Require().NoError(err)
 
 	// We can't initiate the socket with the THIS limit
-	_, err = NewTcpSocket(categorizer_service, logger, app_config)
+	_, err = NewTcpSocket(indexer_service, logger, app_config)
 	suite.Require().Error(err)
 	// We can't initiate with the empty service
 	_, err = NewTcpSocket(client_service, logger, nil)
@@ -72,13 +72,13 @@ func (suite *TestSocketSuite) TestNewSockets() {
 	_, err = InprocRequestSocket("inproc://", logger, app_config)
 	suite.Require().NoError(err)
 	// We can't initiate with the non inproc url
-	_, err = InprocRequestSocket(categorizer_service.Url(), logger, app_config)
+	_, err = InprocRequestSocket(indexer_service.Url(), logger, app_config)
 	suite.Require().Error(err)
-	_, err = InprocRequestSocket(inproc_categorizer_service.Url(), logger, app_config)
+	_, err = InprocRequestSocket(inproc_indexer_service.Url(), logger, app_config)
 	suite.Require().NoError(err)
 
 	// We can't initiate the socket with the non SUBSCRIBE limit
-	_, err = NewTcpSubscriber(categorizer_service, "", nil, logger, app_config)
+	_, err = NewTcpSubscriber(indexer_service, "", nil, logger, app_config)
 	suite.Require().Error(err)
 	// We can't initiate with the empty service
 	_, err = NewTcpSubscriber(subscriber_service, "", nil, logger, nil)

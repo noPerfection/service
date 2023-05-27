@@ -15,31 +15,31 @@ func ClientEndpoint(network_id string) string {
 	return "inproc://blockchain_" + network_id
 }
 
-// RecentCategorizerEndpoint returns the recent smartcontract categorizer
+// RecentIndexerEndpoint returns the recent smartcontract indexer
 // manager url
 //
 // Used in evm sub process.
-func RecentCategorizerEndpoint(network_id string) string {
+func RecentIndexerEndpoint(network_id string) string {
 	return "inproc://cat_recent_" + network_id
 }
 
-// RecentCategorizerReplyEndpoint returns reply controller running in the recent categorizer
+// RecentIndexerReplyEndpoint returns reply controller running in the recent indexer
 //
 // Used in evm sub process.
-func RecentCategorizerReplyEndpoint(network_id string) string {
+func RecentIndexerReplyEndpoint(network_id string) string {
 	return "inproc://cat_recent_rep_" + network_id
 }
 
-// Returns the old smartcontract categorizer
+// Returns the old smartcontract indexer
 // manager url
 //
 // Used in evm sub process.
-func OldCategorizerEndpoint(network_id string) string {
+func OldIndexerEndpoint(network_id string) string {
 	return "inproc://cat_old_" + network_id
 }
 
-// CategorizerEndpoint returns the sub categorizer manager url
-func CategorizerEndpoint(network_id string) string {
+// IndexerEndpoint returns the sub indexer manager url
+func IndexerEndpoint(network_id string) string {
 	return "inproc://cat_" + network_id
 }
 
@@ -57,23 +57,23 @@ func NewInprocPusher(url string) (*zmq.Socket, error) {
 	return sock, nil
 }
 
-// RecentCategorizerManagerSocket returns the client socket
-// that is accessed to the [blockchain/evm/categorizer/recent] pull controller
-func RecentCategorizerManagerSocket(network_id string) (*zmq.Socket, error) {
-	url := RecentCategorizerEndpoint(network_id)
+// RecentIndexerManagerSocket returns the client socket
+// that is accessed to the [blockchain/evm/indexer/recent] pull controller
+func RecentIndexerManagerSocket(network_id string) (*zmq.Socket, error) {
+	url := RecentIndexerEndpoint(network_id)
 	return NewInprocPusher(url)
 }
 
-// OldCategorizerManagerSocket returns the client socket
-// that is accessed to the [blockchain/evm/categorizer/old] pull controller
-func OldCategorizerManagerSocket(network_id string) (*zmq.Socket, error) {
-	url := OldCategorizerEndpoint(network_id)
+// OldIndexerManagerSocket returns the client socket
+// that is accessed to the [blockchain/evm/indexer/old] pull controller
+func OldIndexerManagerSocket(network_id string) (*zmq.Socket, error) {
+	url := OldIndexerEndpoint(network_id)
 	return NewInprocPusher(url)
 }
 
-// CategorizerManagerSocket returns the client socket
-// that is accessed to the [blockchain/<network type>/categorizer] pull controller
-func CategorizerManagerSocket(network_id string) (*zmq.Socket, error) {
-	url := CategorizerEndpoint(network_id)
+// IndexerManagerSocket returns the client socket
+// that is accessed to the [blockchain/<network type>/indexer] pull controller
+func IndexerManagerSocket(network_id string) (*zmq.Socket, error) {
+	url := IndexerEndpoint(network_id)
 	return NewInprocPusher(url)
 }

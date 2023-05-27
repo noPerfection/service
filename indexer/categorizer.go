@@ -1,4 +1,4 @@
-// Package categorizer defines the service that
+// Package indexer defines the service that
 // decodes the raw smartcontract events based on the abi.
 //
 // The decoded parameters are then saved in the database.
@@ -6,16 +6,16 @@
 // This package defines the reply controller that allows external users
 // to request decoded smartcontract event logs.
 //
-// Categorizer is part of SDS Core.
+// Indexer is part of SDS Core.
 //
 // Note that this package doesn't connect to the remote blockchain node to fetch the smartcontract logs.
 //
-// Rather it works with the blockchain/<network type>/categorizer sub processes.
-// The categorizer sub processes in the the blockchain service will do all the work and
+// Rather it works with the blockchain/<network type>/indexer sub processes.
+// The indexer sub processes in the the blockchain service will do all the work and
 // notify this package with the ready to use event logs.
 //
 // This package will saves them in the database and allows users to fetch them.
-package categorizer
+package indexer
 
 import (
 	"github.com/blocklords/sds/app/log"
@@ -26,7 +26,7 @@ import (
 	"github.com/blocklords/sds/app/service"
 	blockchain_command "github.com/blocklords/sds/blockchain/handler"
 	"github.com/blocklords/sds/blockchain/network"
-	"github.com/blocklords/sds/categorizer/handler"
+	"github.com/blocklords/sds/indexer/handler"
 )
 
 // Return the list of command handlers for this service
@@ -35,7 +35,7 @@ var CommandHandlers = handler.CommandHandlers()
 // Returns this service's configuration
 // Could return nil, if the service is not found
 func Service() *service.Service {
-	service, _ := service.Inprocess(service.CATEGORIZER)
+	service, _ := service.Inprocess(service.INDEXER)
 	return service
 }
 
@@ -45,7 +45,7 @@ func Service() *service.Service {
 //
 // dep: SDS Blockchain core service
 func Run(app_config *configuration.Config) {
-	logger, _ := log.New("categorizer", log.WITH_TIMESTAMP)
+	logger, _ := log.New("indexer", log.WITH_TIMESTAMP)
 
 	logger.Info("Starting by getting blockchain service parameters", "protocol", "inproc")
 

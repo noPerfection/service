@@ -1,5 +1,5 @@
 // The subscriber package pushes to the SDK user the smartcontract event logs
-// From SDS Categorizer.
+// From SDS Indexer.
 //
 // How it works:
 //
@@ -18,9 +18,9 @@ import (
 	"github.com/blocklords/sds/app/remote"
 	"github.com/blocklords/sds/app/service"
 	service_credentials "github.com/blocklords/sds/app/service/auth"
-	"github.com/blocklords/sds/categorizer/event"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/common/topic"
+	"github.com/blocklords/sds/indexer/event"
 	"github.com/blocklords/sds/security/auth"
 )
 

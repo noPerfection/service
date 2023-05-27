@@ -9,7 +9,7 @@ type ServiceType string
 const (
 	CORE              ServiceType = "CORE"              // The github.com/blocklords/sds module. It's a Router controller
 	BLOCKCHAIN        ServiceType = "BLOCKCHAIN"        // The blockchain service is the gateway between blockchain networks and SDS
-	CATEGORIZER       ServiceType = "CATEGORIZER"       // The categorizer service that keeps the decoded smartcontract event logs in the database
+	INDEXER           ServiceType = "INDEXER"           // The indexer service that keeps the decoded smartcontract event logs in the database
 	STATIC            ServiceType = "STATIC"            // The static service keeps the smartcontracts, abis and configurations
 	GATEWAY           ServiceType = "GATEWAY"           // The gateway is the service that is accessed by developers through SDK
 	DEVELOPER_GATEWAY ServiceType = "DEVELOPER_GATEWAY" // The gateway is the service that is accessed by smartcontract contract developers to register new smartcontract
@@ -78,7 +78,7 @@ func service_types() []ServiceType {
 	return []ServiceType{
 		CORE,
 		BLOCKCHAIN,
-		CATEGORIZER,
+		INDEXER,
 		STATIC,
 		GATEWAY,
 		DEVELOPER_GATEWAY,

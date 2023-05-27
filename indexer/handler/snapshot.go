@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/blocklords/sds/app/log"
 	"github.com/blocklords/sds/app/remote"
-	"github.com/blocklords/sds/categorizer/event"
+	"github.com/blocklords/sds/indexer/event"
 
 	"github.com/blocklords/sds/app/communication/command"
 	"github.com/blocklords/sds/app/communication/message"

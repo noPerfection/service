@@ -37,10 +37,10 @@ func (suite *TestInprocSuite) TestEndpoints() {
 	empty_endpoint := ClientEndpoint("")
 	suite.Require().EqualValues("inproc://blockchain_", empty_endpoint)
 
-	suite.Require().EqualValues("inproc://cat_recent_1", RecentCategorizerEndpoint(suite.network_id))
-	suite.Require().EqualValues("inproc://cat_recent_rep_1", RecentCategorizerReplyEndpoint(suite.network_id))
-	suite.Require().EqualValues("inproc://cat_old_1", OldCategorizerEndpoint(suite.network_id))
-	suite.Require().EqualValues("inproc://cat_1", CategorizerEndpoint(suite.network_id))
+	suite.Require().EqualValues("inproc://cat_recent_1", RecentIndexerEndpoint(suite.network_id))
+	suite.Require().EqualValues("inproc://cat_recent_rep_1", RecentIndexerReplyEndpoint(suite.network_id))
+	suite.Require().EqualValues("inproc://cat_old_1", OldIndexerEndpoint(suite.network_id))
+	suite.Require().EqualValues("inproc://cat_1", IndexerEndpoint(suite.network_id))
 }
 
 // In order for 'go test' to run this suite, we need to create
