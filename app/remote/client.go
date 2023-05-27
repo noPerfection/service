@@ -335,7 +335,7 @@ func (socket *ClientSocket) SetSecurity(server_public_key string, client *auth.C
 // NewTcpSocket creates a new client socket over TCP protocol.
 //
 // The returned socket client then can send message to controller.Router and controller.Reply
-func NewTcpSocket(remote_service *service.Service, parent log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
+func NewTcpSocket(remote_service *service.Service, parent *log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
 	if app_config == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}
@@ -351,12 +351,15 @@ func NewTcpSocket(remote_service *service.Service, parent log.Logger, app_config
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
-	logger, err := parent.Child("client_socket",
-		"remote_service", remote_service.Name,
-		"protocol", "tcp",
-		"socket_type", "REQ",
-		"remote_service_url", remote_service.Url(),
-	)
+	var logger log.Logger
+	if parent != nil {
+		logger, err = parent.Child("client_socket",
+			"remote_service", remote_service.Name,
+			"protocol", "tcp",
+			"socket_type", "REQ",
+			"remote_service_url", remote_service.Url(),
+		)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("logger: %w", err)
 	}
