@@ -16,7 +16,6 @@ package blockchain
 
 import (
 	"github.com/blocklords/sds/blockchain/handler"
-	blockchain_process "github.com/blocklords/sds/blockchain/inproc"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/service/communication/command"
 	"github.com/blocklords/sds/service/log"
@@ -36,67 +35,6 @@ import (
 // Command handlers
 //
 ////////////////////////////////////////////////////////////////////
-
-// this function returns the smartcontract deployer, deployed block number
-// and block timestamp by a transaction hash of the smartcontract deployment.
-func transaction_deployed_get(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
-	if len(app_parameters) < 2 {
-		return message.Fail("missing app configuration and network sockets")
-	}
-
-	var request_parameters handler.DeployedTransactionRequest
-	err := request.Parameters.ToInterface(&request_parameters)
-	if err != nil {
-		return message.Fail("failed to parse request parameters " + err.Error())
-	}
-
-	app_config, ok := app_parameters[0].(*configuration.Config)
-	if !ok {
-		return message.Fail("the parameter is not app config")
-	}
-	networks, err := network.GetNetworks(app_config, network.ALL)
-	if err != nil {
-		return message.Fail("network: " + err.Error())
-	}
-
-	if !networks.Exist(request_parameters.NetworkId) {
-		return message.Fail("unsupported network id")
-	}
-
-	network, err := networks.Get(request_parameters.NetworkId)
-	if err != nil {
-		return message.Fail("network.Get: " + err.Error())
-	}
-
-	network_sockets := app_parameters[1].(key_value.KeyValue)
-	sock, ok := network_sockets[network.Type.String()].(*remote.ClientSocket)
-	if !ok {
-		return message.Fail("no network client socket was registered of for " + network.Type.String() + " network type")
-	}
-
-	url := blockchain_process.ClientEndpoint(request_parameters.NetworkId)
-	target_service, err := parameter.InprocessFromUrl(url)
-	if err != nil {
-		return message.Fail("parameter.InprocessFromUrl(url): " + err.Error())
-	}
-
-	req_parameters := handler.DeployedTransactionRequest{
-		NetworkId:     network.Id,
-		TransactionId: request_parameters.TransactionId,
-	}
-	var blockchain_reply handler.DeployedTransactionReply
-	err = handler.DEPLOYED_TRANSACTION_COMMAND.RequestRouter(sock, target_service, req_parameters, &blockchain_reply)
-	if err != nil {
-		return message.Fail("remote transaction_request: " + err.Error())
-	}
-
-	reply, err := command.Reply(blockchain_reply)
-	if err != nil {
-		return message.Fail("reply preparation: " + err.Error())
-	}
-
-	return reply
-}
 
 // Returns Network
 func get_network(request message.Request, logger log.Logger, app_parameters ...interface{}) message.Reply {
@@ -222,7 +160,6 @@ func get_all_networks(request message.Request, logger log.Logger, app_parameters
 // Check out "handler" sub package for the description of each command.
 func CommandHandlers() command.Handlers {
 	return command.EmptyHandlers().
-		Add(handler.DEPLOYED_TRANSACTION_COMMAND, transaction_deployed_get).
 		Add(handler.NETWORK_IDS_COMMAND, get_network_ids).
 		Add(handler.NETWORKS_COMMAND, get_all_networks).
 		Add(handler.NETWORK_COMMAND, get_network)
