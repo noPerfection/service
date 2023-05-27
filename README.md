@@ -143,8 +143,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/blocklords/sds/app/configuration/env"
-	"github.com/blocklords/sds/app/communication/message"
+	"github.com/blocklords/sds/service/configuration/env"
+	"github.com/blocklords/sds/service/communication/message"
 	"github.com/blocklords/sds/common/topic"
 	"github.com/blocklords/sds/sdk"
 )
