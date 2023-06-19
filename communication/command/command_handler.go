@@ -6,8 +6,8 @@
 package command
 
 import (
-	"github.com/Seascape-Foundation/sds-service-lib/service/communication/message"
-	"github.com/Seascape-Foundation/sds-service-lib/service/log"
+	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
+	"github.com/Seascape-Foundation/sds-service-lib/log"
 )
 
 // HandleFunc is the function type that manipulates the commands.

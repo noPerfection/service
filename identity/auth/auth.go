@@ -5,8 +5,8 @@ package auth
 import (
 	"fmt"
 
-	"github.com/Seascape-Foundation/sds-service-lib/service/configuration"
-	parameter "github.com/Seascape-Foundation/sds-service-lib/service/identity"
+	"github.com/Seascape-Foundation/sds-service-lib/configuration"
+	parameter "github.com/Seascape-Foundation/sds-service-lib/identity"
 
 	// move out dependency from security/auth and security/vault
 	"github.com/Seascape-Foundation/sds-service-lib/security/auth"

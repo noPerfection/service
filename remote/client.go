@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/Seascape-Foundation/sds-service-lib/common/data_type/key_value"
-	"github.com/Seascape-Foundation/sds-service-lib/service/communication/message"
-	"github.com/Seascape-Foundation/sds-service-lib/service/configuration"
-	service "github.com/Seascape-Foundation/sds-service-lib/service/identity"
-	"github.com/Seascape-Foundation/sds-service-lib/service/log"
-	"github.com/Seascape-Foundation/sds-service-lib/service/remote/parameter"
+	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
+	"github.com/Seascape-Foundation/sds-service-lib/configuration"
+	service "github.com/Seascape-Foundation/sds-service-lib/identity"
+	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/Seascape-Foundation/sds-service-lib/remote/parameter"
 
 	// move out dependency from security/auth
 	"github.com/Seascape-Foundation/sds-service-lib/security/auth"

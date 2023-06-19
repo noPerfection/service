@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/Seascape-Foundation/sds-service-lib/service/configuration"
+	"github.com/Seascape-Foundation/sds-service-lib/configuration"
 )
 
 // Service defines the parameters of the service.

@@ -3,7 +3,7 @@ package auth
 import (
 	"testing"
 
-	parameter "github.com/Seascape-Foundation/sds-service-lib/service/identity"
+	parameter "github.com/Seascape-Foundation/sds-service-lib/identity"
 	"github.com/stretchr/testify/suite"
 )
 

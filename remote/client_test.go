@@ -3,9 +3,9 @@ package remote
 import (
 	"testing"
 
-	"github.com/Seascape-Foundation/sds-service-lib/service/configuration"
-	parameter "github.com/Seascape-Foundation/sds-service-lib/service/identity"
-	"github.com/Seascape-Foundation/sds-service-lib/service/log"
+	"github.com/Seascape-Foundation/sds-service-lib/configuration"
+	parameter "github.com/Seascape-Foundation/sds-service-lib/identity"
+	"github.com/Seascape-Foundation/sds-service-lib/log"
 	"github.com/stretchr/testify/suite"
 )
 

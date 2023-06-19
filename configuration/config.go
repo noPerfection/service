@@ -9,9 +9,9 @@ package configuration
 import (
 	"fmt"
 
-	"github.com/Seascape-Foundation/sds-service-lib/service/configuration/argument"
-	"github.com/Seascape-Foundation/sds-service-lib/service/configuration/env"
-	"github.com/Seascape-Foundation/sds-service-lib/service/log"
+	"github.com/Seascape-Foundation/sds-service-lib/configuration/argument"
+	"github.com/Seascape-Foundation/sds-service-lib/configuration/env"
+	"github.com/Seascape-Foundation/sds-service-lib/log"
 	"github.com/spf13/viper"
 )
 

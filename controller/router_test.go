@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/Seascape-Foundation/sds-service-lib/common/data_type/key_value"
-	"github.com/Seascape-Foundation/sds-service-lib/service/communication/command"
-	"github.com/Seascape-Foundation/sds-service-lib/service/communication/message"
-	"github.com/Seascape-Foundation/sds-service-lib/service/configuration"
-	parameter "github.com/Seascape-Foundation/sds-service-lib/service/identity"
-	"github.com/Seascape-Foundation/sds-service-lib/service/log"
-	"github.com/Seascape-Foundation/sds-service-lib/service/remote"
+	"github.com/Seascape-Foundation/sds-service-lib/communication/command"
+	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
+	"github.com/Seascape-Foundation/sds-service-lib/configuration"
+	parameter "github.com/Seascape-Foundation/sds-service-lib/identity"
+	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/Seascape-Foundation/sds-service-lib/remote"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 )

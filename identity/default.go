@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/Seascape-Foundation/sds-service-lib/common/data_type/key_value"
-	"github.com/Seascape-Foundation/sds-service-lib/service/configuration"
+	"github.com/Seascape-Foundation/sds-service-lib/configuration"
 )
 
 const (

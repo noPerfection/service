@@ -3,8 +3,8 @@ package identity
 import (
 	"testing"
 
-	"github.com/Seascape-Foundation/sds-service-lib/service/configuration"
-	"github.com/Seascape-Foundation/sds-service-lib/service/log"
+	"github.com/Seascape-Foundation/sds-service-lib/configuration"
+	"github.com/Seascape-Foundation/sds-service-lib/log"
 	"github.com/stretchr/testify/suite"
 )
 

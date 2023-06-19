@@ -143,8 +143,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Seascape-Foundation/sds-service-lib/service/configuration/env"
-	"github.com/Seascape-Foundation/sds-service-lib/service/communication/message"
+	"github.com/Seascape-Foundation/sds-service-lib/configuration/env"
+	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
 	"github.com/Seascape-Foundation/sds-service-lib/common/topic"
 	"github.com/Seascape-Foundation/sds-service-lib/sdk"
 )
