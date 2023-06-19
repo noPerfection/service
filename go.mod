@@ -1,4 +1,4 @@
-module github.com/blocklords/sds
+module github.com/Seascape-Foundation/sds-service-lib
 
 go 1.19
 
