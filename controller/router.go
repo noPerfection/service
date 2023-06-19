@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
-	"github.com/Seascape-Foundation/sds-service-lib/parameter"
+	"github.com/Seascape-Foundation/sds-service-lib/identity"
 
 	"github.com/Seascape-Foundation/sds-service-lib/log"
 
@@ -19,7 +19,7 @@ import (
 type Dealer struct {
 	// The reply controller parameter
 	// Could be Remote or Inproc
-	service *parameter.Service
+	service *identity.Service
 	// The client socket
 	socket *zmq.Socket
 }
@@ -27,13 +27,13 @@ type Dealer struct {
 // The Proxy Controller that connects the multiple
 // Reply Controllers together.
 type Router struct {
-	service *parameter.Service
+	service *identity.Service
 	dealers []*Dealer
 	logger  log.Logger
 }
 
 // Returns the initiated Router whith the service parameters
-func NewRouter(service *parameter.Service, parent log.Logger) (Router, error) {
+func NewRouter(service *identity.Service, parent log.Logger) (Router, error) {
 	logger, err := parent.Child("controller", "type", "router", "service_name", service.Name, "inproc", service.IsInproc())
 	if err != nil {
 		return Router{}, fmt.Errorf("error creating child logger: %w", err)
@@ -52,7 +52,7 @@ func NewRouter(service *parameter.Service, parent log.Logger) (Router, error) {
 
 // Whether the dealer for the service is added or not.
 // The service parameter should have the correct Limit or protocol type
-func (r *Router) service_registered(service *parameter.Service) bool {
+func (r *Router) service_registered(service *identity.Service) bool {
 	for _, dealer := range r.dealers {
 		if dealer.service.Url() == service.Url() {
 			return true
@@ -66,14 +66,14 @@ func (r *Router) service_registered(service *parameter.Service) bool {
 // Verification of the service limit or service protocol type
 // is handled on outside. As a result, it doesn't return
 // any error.
-func (r *Router) add_service(service *parameter.Service) {
+func (r *Router) add_service(service *identity.Service) {
 	dealer := Dealer{service: service, socket: nil}
 	r.dealers = append(r.dealers, &dealer)
 }
 
 // Registers the route from command to dealer.
 // SDS Core can have unique command handlers.
-func (router *Router) AddDealers(services ...*parameter.Service) error {
+func (router *Router) AddDealers(services ...*identity.Service) error {
 	router.logger.Info("Adding client sockets that router will redirect")
 
 	if len(router.dealers) > 0 && router.dealers[0].socket != nil {

@@ -14,14 +14,14 @@ package controller
 import (
 	"fmt"
 
+	"github.com/Seascape-Foundation/sds-service-lib/identity"
 	"github.com/Seascape-Foundation/sds-service-lib/log"
-	"github.com/Seascape-Foundation/sds-service-lib/parameter"
 
 	zmq "github.com/pebbe/zmq4"
 )
 
 // NewPull creates a pull controller for the service.
-func NewPull(s *parameter.Service, logger log.Logger) (*Controller, error) {
+func NewPull(s *identity.Service, logger log.Logger) (*Controller, error) {
 	if !s.IsThis() && !s.IsInproc() {
 		return nil, fmt.Errorf("service should be limited to parameter.THIS or inproc type")
 	}

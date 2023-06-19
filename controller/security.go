@@ -1,10 +1,8 @@
 package controller
 
 import (
-	"fmt"
-
+	"github.com/Seascape-Foundation/sds-service-lib/identity"
 	"github.com/Seascape-Foundation/sds-service-lib/log"
-	"github.com/Seascape-Foundation/sds-service-lib/parameter"
 
 	// move out security/auth dependency
 	"github.com/Seascape-Foundation/sds-service-lib/security/auth"
@@ -13,7 +11,7 @@ import (
 )
 
 // Add whitelisted services
-func WhitelistAccess(logger log.Logger, blockchain_env *parameter.Service, public_keys []string) {
+func WhitelistAccess(logger log.Logger, blockchain_env *identity.Service, public_keys []string) {
 	logger.Info("get the whitelisted services")
 
 	// We set the whitelisted accounts that has access to this controller

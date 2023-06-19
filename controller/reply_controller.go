@@ -5,22 +5,22 @@ import (
 
 	"github.com/Seascape-Foundation/sds-service-lib/communication/command"
 	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
+	"github.com/Seascape-Foundation/sds-service-lib/identity"
 	"github.com/Seascape-Foundation/sds-service-lib/log"
-	"github.com/Seascape-Foundation/sds-service-lib/parameter"
 
 	zmq "github.com/pebbe/zmq4"
 )
 
 // Controller is the socket wrapper for the service.
 type Controller struct {
-	service     *parameter.Service
+	service     *identity.Service
 	socket      *zmq.Socket
 	logger      log.Logger
 	socket_type zmq.Type
 }
 
 // NewReply creates a new synchrounous Reply controller.
-func NewReply(s *parameter.Service, logger log.Logger) (*Controller, error) {
+func NewReply(s *identity.Service, logger log.Logger) (*Controller, error) {
 	if !s.IsThis() && !s.IsInproc() {
 		return nil, fmt.Errorf("service should be limited to parameter.THIS or inproc type")
 	}
