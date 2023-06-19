@@ -18,9 +18,9 @@ import (
 	"github.com/blocklords/sds/security/auth"
 	"github.com/blocklords/sds/service/communication/message"
 	"github.com/blocklords/sds/service/configuration"
+	parameter "github.com/blocklords/sds/service/identity"
+	service_credentials "github.com/blocklords/sds/service/identity/auth"
 	"github.com/blocklords/sds/service/log"
-	"github.com/blocklords/sds/service/parameter"
-	service_credentials "github.com/blocklords/sds/service/parameter/auth"
 	"github.com/blocklords/sds/service/remote"
 )
 

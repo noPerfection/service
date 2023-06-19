@@ -4,7 +4,7 @@
 // Supported request parameters:
 // - REQUEST_TIMEOUT how long the client waits until the controller doesn't reply.
 // - ATTEMPT how many attempts the client makes to send the Request before it returns an error.
-package parameter
+package identity
 
 import (
 	"context"

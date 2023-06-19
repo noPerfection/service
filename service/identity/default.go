@@ -1,8 +1,7 @@
-// Package service defines the SDS part and its parameters to identify it on
-// and connect to it.
+// Package parameter defines the service idendity.
 // For example, the parameters includes the host name and port if you want to connect to it
 // via TCP protocol.
-package parameter
+package identity
 
 import (
 	"strconv"

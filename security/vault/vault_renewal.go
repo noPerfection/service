@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/database/handler"
-	"github.com/blocklords/sds/service/parameter"
+	parameter "github.com/blocklords/sds/service/identity"
 	remote_parameter "github.com/blocklords/sds/service/remote/parameter"
 	hashicorp "github.com/hashicorp/vault/api"
 )

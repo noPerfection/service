@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/blocklords/sds/service/configuration"
-	"github.com/blocklords/sds/service/parameter"
+	parameter "github.com/blocklords/sds/service/identity"
 
 	// move out dependency from security/auth and security/vault
 	"github.com/blocklords/sds/security/auth"

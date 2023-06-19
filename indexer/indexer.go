@@ -25,7 +25,7 @@ import (
 	"github.com/blocklords/sds/indexer/handler"
 	"github.com/blocklords/sds/service/configuration"
 	"github.com/blocklords/sds/service/controller"
-	"github.com/blocklords/sds/service/parameter"
+	parameter "github.com/blocklords/sds/service/identity"
 	"github.com/blocklords/sds/service/remote"
 )
 

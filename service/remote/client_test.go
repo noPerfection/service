@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/blocklords/sds/service/configuration"
+	parameter "github.com/blocklords/sds/service/identity"
 	"github.com/blocklords/sds/service/log"
-	"github.com/blocklords/sds/service/parameter"
 	"github.com/stretchr/testify/suite"
 )
 

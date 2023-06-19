@@ -11,8 +11,8 @@ import (
 	"github.com/blocklords/sds/indexer/smartcontract"
 	"github.com/blocklords/sds/service/communication/command"
 	"github.com/blocklords/sds/service/communication/message"
+	parameter "github.com/blocklords/sds/service/identity"
 	"github.com/blocklords/sds/service/log"
-	"github.com/blocklords/sds/service/parameter"
 	"github.com/blocklords/sds/service/remote"
 )
 

@@ -1,9 +1,8 @@
-package auth
+package identity
 
 import (
 	"testing"
 
-	"github.com/blocklords/sds/service/parameter"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -12,7 +11,6 @@ import (
 // returns the current testing context
 type TestServiceTypeSuite struct {
 	suite.Suite
-	service_type parameter.ServiceType
 }
 
 // Todo test inprocess and external types of controllers
@@ -20,15 +18,25 @@ type TestServiceTypeSuite struct {
 // Make sure that Account is set to five
 // before each test
 func (suite *TestServiceTypeSuite) SetupTest() {
-	suite.service_type = parameter.BUNDLE
+	service := BUNDLE
+
+	suite.Equal("BUNDLE", service.ToString())
 }
 
-func (suite *TestServiceTypeSuite) TestVaultPath() {
-	name := vault_path(suite.service_type)
-	suite.Equal("BUNDLE_SECRET_KEY", name)
-
-	broadcast_name := vault_broadcast_path(suite.service_type)
-	suite.Equal("BUNDLE_BROADCAST_SECRET_KEY", broadcast_name)
+func (suite *TestServiceTypeSuite) TestTypes() {
+	types := service_types()
+	suite.Require().Len(types, 11)
+	suite.Equal(CORE, types[0])
+	suite.Equal(BLOCKCHAIN, types[1])
+	suite.Equal(INDEXER, types[2])
+	suite.Equal(STORAGE, types[3])
+	suite.Equal(GATEWAY, types[4])
+	suite.Equal(DEVELOPER_GATEWAY, types[5])
+	suite.Equal(READER, types[6])
+	suite.Equal(WRITER, types[7])
+	suite.Equal(BUNDLE, types[8])
+	suite.Equal(EVM, types[9])
+	suite.Equal(IMX, types[10])
 }
 
 // In order for 'go test' to run this suite, we need to create

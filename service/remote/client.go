@@ -7,8 +7,8 @@ import (
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/service/communication/message"
 	"github.com/blocklords/sds/service/configuration"
+	service "github.com/blocklords/sds/service/identity"
 	"github.com/blocklords/sds/service/log"
-	service "github.com/blocklords/sds/service/parameter"
 	"github.com/blocklords/sds/service/remote/parameter"
 
 	// move out dependency from security/auth

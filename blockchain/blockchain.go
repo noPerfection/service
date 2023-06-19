@@ -17,8 +17,8 @@ package blockchain
 import (
 	"github.com/blocklords/sds/service/configuration"
 	"github.com/blocklords/sds/service/controller"
+	parameter "github.com/blocklords/sds/service/identity"
 	"github.com/blocklords/sds/service/log"
-	"github.com/blocklords/sds/service/parameter"
 
 	"github.com/blocklords/sds/blockchain/handler"
 	"github.com/blocklords/sds/blockchain/network"

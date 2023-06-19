@@ -7,7 +7,7 @@ import (
 	"github.com/blocklords/sds/common/data_type"
 	"github.com/blocklords/sds/common/data_type/key_value"
 	"github.com/blocklords/sds/service/communication/message"
-	"github.com/blocklords/sds/service/parameter"
+	parameter "github.com/blocklords/sds/service/identity"
 	"github.com/blocklords/sds/service/remote"
 
 	zmq "github.com/pebbe/zmq4"

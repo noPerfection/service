@@ -66,8 +66,8 @@ import (
 	"github.com/blocklords/sds/sdk/writer"
 	"github.com/blocklords/sds/security/auth"
 	"github.com/blocklords/sds/security/vault"
-	"github.com/blocklords/sds/service/parameter"
-	service_credentials "github.com/blocklords/sds/service/parameter/auth"
+	parameter "github.com/blocklords/sds/service/identity"
+	service_credentials "github.com/blocklords/sds/service/identity/auth"
 	"github.com/blocklords/sds/service/remote"
 )
 
