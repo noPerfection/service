@@ -11,8 +11,9 @@ import (
 	"github.com/Seascape-Foundation/sds-service-lib/log"
 	"github.com/Seascape-Foundation/sds-service-lib/remote/parameter"
 
+	// todo
 	// move out dependency from security/auth
-	"github.com/Seascape-Foundation/sds-service-lib/security/auth"
+	// "github.com/Seascape-Foundation/sds-service-lib/security/auth"
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -21,15 +22,15 @@ import (
 type ClientSocket struct {
 	// The name of remote SDS service and its URL
 	// its used as a clarification
-	remote_service     *service.Service
-	client_credentials *auth.Credentials
-	server_public_key  string
-	poller             *zmq.Poller
-	socket             *zmq.Socket
-	protocol           string
-	inproc_url         string
-	logger             log.Logger
-	app_config         *configuration.Config
+	remote_service *service.Service
+	// client_credentials *auth.Credentials
+	server_public_key string
+	poller            *zmq.Poller
+	socket            *zmq.Socket
+	protocol          string
+	inproc_url        string
+	logger            log.Logger
+	app_config        *configuration.Config
 }
 
 // Initiates the socket with a timeout.
@@ -74,12 +75,12 @@ func (socket *ClientSocket) reconnect() error {
 		}
 	}
 
-	if socket.client_credentials != nil {
-		socket.client_credentials.SetClientAuthCurve(socket.socket, socket.server_public_key)
-		if err != nil {
-			return fmt.Errorf("auth.SetClientAuthCurve: %w", err)
-		}
-	}
+	// if socket.client_credentials != nil {
+	// socket.client_credentials.SetClientAuthCurve(socket.socket, socket.server_public_key)
+	// if err != nil {
+	// return fmt.Errorf("auth.SetClientAuthCurve: %w", err)
+	// }
+	// }
 
 	if err := socket.socket.Connect(socket.remote_service.Url()); err != nil {
 		return fmt.Errorf("socket connect: %w", err)
@@ -324,13 +325,13 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 	}
 }
 
-// SetSecurity will set the curve credentials in the socket to authenticate with the remote service.
-func (socket *ClientSocket) SetSecurity(server_public_key string, client *auth.Credentials) *ClientSocket {
-	socket.server_public_key = server_public_key
-	socket.client_credentials = client
+// // SetSecurity will set the curve credentials in the socket to authenticate with the remote service.
+// func (socket *ClientSocket) SetSecurity(server_public_key string, client *auth.Credentials) *ClientSocket {
+// 	socket.server_public_key = server_public_key
+// 	socket.client_credentials = client
 
-	return socket
-}
+// 	return socket
+// }
 
 // NewTcpSocket creates a new client socket over TCP protocol.
 //
@@ -365,12 +366,12 @@ func NewTcpSocket(remote_service *service.Service, parent *log.Logger, app_confi
 	}
 
 	new_socket := ClientSocket{
-		remote_service:     remote_service,
-		client_credentials: nil,
-		socket:             sock,
-		protocol:           "tcp",
-		logger:             logger,
-		app_config:         app_config,
+		remote_service: remote_service,
+		// client_credentials: nil,
+		socket:     sock,
+		protocol:   "tcp",
+		logger:     logger,
+		app_config: app_config,
 	}
 
 	return &new_socket, nil
@@ -406,64 +407,64 @@ func InprocRequestSocket(url string, parent log.Logger, app_config *configuratio
 	}
 
 	new_socket := ClientSocket{
-		socket:             sock,
-		protocol:           "inproc",
-		inproc_url:         url,
-		client_credentials: nil,
-		logger:             logger,
-		app_config:         app_config,
+		socket:     sock,
+		protocol:   "inproc",
+		inproc_url: url,
+		// client_credentials: nil,
+		logger:     logger,
+		app_config: app_config,
 	}
 
 	return &new_socket, nil
 }
 
-// NewTcpSubscriber create a new client socket on TCP protocol.
-// The created client can subscribe to broadcast.Broadcast
-func NewTcpSubscriber(e *service.Service, server_public_key string, client *auth.Credentials, parent log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
-	if app_config == nil {
-		return nil, fmt.Errorf("missing app_config")
-	}
-	if e == nil {
-		return nil, fmt.Errorf("missing service")
-	}
-	if !e.IsSubscribe() || e.IsInproc() {
-		return nil, fmt.Errorf("the service is a tcp or it doesn't SUBSCRIBE limit")
-	}
+// // NewTcpSubscriber create a new client socket on TCP protocol.
+// // The created client can subscribe to broadcast.Broadcast
+// func NewTcpSubscriber(e *service.Service, server_public_key string, client *auth.Credentials, parent log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
+// 	if app_config == nil {
+// 		return nil, fmt.Errorf("missing app_config")
+// 	}
+// 	if e == nil {
+// 		return nil, fmt.Errorf("missing service")
+// 	}
+// 	if !e.IsSubscribe() || e.IsInproc() {
+// 		return nil, fmt.Errorf("the service is a tcp or it doesn't SUBSCRIBE limit")
+// 	}
 
-	socket, sockErr := zmq.NewSocket(zmq.SUB)
-	if sockErr != nil {
-		return nil, fmt.Errorf("new sub socket: %w", sockErr)
-	}
+// 	socket, sockErr := zmq.NewSocket(zmq.SUB)
+// 	if sockErr != nil {
+// 		return nil, fmt.Errorf("new sub socket: %w", sockErr)
+// 	}
 
-	if client != nil {
-		err := client.SetClientAuthCurve(socket, server_public_key)
-		if err != nil {
-			return nil, fmt.Errorf("client.SetClientAuthCurve: %w", err)
-		}
-	}
+// 	if client != nil {
+// 		err := client.SetClientAuthCurve(socket, server_public_key)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("client.SetClientAuthCurve: %w", err)
+// 		}
+// 	}
 
-	conErr := socket.Connect(e.Url())
-	if conErr != nil {
-		return nil, fmt.Errorf("connect to broadcast: %w", conErr)
-	}
+// 	conErr := socket.Connect(e.Url())
+// 	if conErr != nil {
+// 		return nil, fmt.Errorf("connect to broadcast: %w", conErr)
+// 	}
 
-	logger, err := parent.Child("client_socket",
-		"remote_service", e.Name,
-		"protocol", "tcp",
-		"socket_type", "Subscriber",
-		"remote_service_url", e.Url(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("logger: %w", err)
-	}
+// 	logger, err := parent.Child("client_socket",
+// 		"remote_service", e.Name,
+// 		"protocol", "tcp",
+// 		"socket_type", "Subscriber",
+// 		"remote_service_url", e.Url(),
+// 	)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("logger: %w", err)
+// 	}
 
-	return &ClientSocket{
-		remote_service:     e,
-		socket:             socket,
-		client_credentials: client,
-		server_public_key:  server_public_key,
-		protocol:           "tcp",
-		logger:             logger,
-		app_config:         app_config,
-	}, nil
-}
+// 	return &ClientSocket{
+// 		remote_service:     e,
+// 		socket:             socket,
+// 		client_credentials: client,
+// 		server_public_key:  server_public_key,
+// 		protocol:           "tcp",
+// 		logger:             logger,
+// 		app_config:         app_config,
+// 	}, nil
+// }

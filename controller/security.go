@@ -4,8 +4,9 @@ import (
 	"github.com/Seascape-Foundation/sds-service-lib/identity"
 	"github.com/Seascape-Foundation/sds-service-lib/log"
 
+	// todo
 	// move out security/auth dependency
-	"github.com/Seascape-Foundation/sds-service-lib/security/auth"
+	// "github.com/Seascape-Foundation/sds-service-lib/security/auth"
 
 	zmq "github.com/pebbe/zmq4"
 )
@@ -20,12 +21,12 @@ func WhitelistAccess(logger log.Logger, blockchain_env *identity.Service, public
 	logger.Info("get the whitelisted subscribers")
 }
 
-// Set the private key, so connected clients can identify this controller
-// You call it before running the controller
-func (c *Controller) SetControllerPrivateKey(service_credentials *auth.Credentials) error {
-	err := service_credentials.SetSocketAuthCurve(c.socket, c.service.Name)
-	if err == nil {
-		return nil
-	}
-	return fmt.Errorf("ServerAuthCurve for domain %s: %w", c.service.Name, err)
-}
+// // Set the private key, so connected clients can identify this controller
+// // You call it before running the controller
+// func (c *Controller) SetControllerPrivateKey(service_credentials *auth.Credentials) error {
+// 	err := service_credentials.SetSocketAuthCurve(c.socket, c.service.Name)
+// 	if err == nil {
+// 		return nil
+// 	}
+// 	return fmt.Errorf("ServerAuthCurve for domain %s: %w", c.service.Name, err)
+// }
