@@ -145,7 +145,7 @@ import (
 
 	"github.com/Seascape-Foundation/sds-service-lib/configuration/env"
 	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
-	"github.com/Seascape-Foundation/sds-service-lib/common/topic"
+	"github.com/Seascape-Foundation/sds-common-libtopic"
 	"github.com/Seascape-Foundation/sds-service-lib/sdk"
 )
 

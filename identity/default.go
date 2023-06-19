@@ -6,7 +6,7 @@ package identity
 import (
 	"strconv"
 
-	"github.com/Seascape-Foundation/sds-service-lib/common/data_type/key_value"
+	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
 	"github.com/Seascape-Foundation/sds-service-lib/configuration"
 )
 

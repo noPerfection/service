@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Seascape-Foundation/sds-common-lib/blockchain"
+	"github.com/Seascape-Foundation/sds-common-lib/smartcontract_key"
 	blockchain_command "github.com/Seascape-Foundation/sds-service-lib/blockchain/handler"
 
+	"github.com/Seascape-Foundation/sds-common-lib/blockchain"
+	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
 	"github.com/Seascape-Foundation/sds-service-lib/blockchain/inproc"
 	"github.com/Seascape-Foundation/sds-service-lib/blockchain/network"
-	"github.com/Seascape-Foundation/sds-service-lib/common/blockchain"
-	"github.com/Seascape-Foundation/sds-service-lib/common/data_type/key_value"
-	"github.com/Seascape-Foundation/sds-service-lib/common/smartcontract_key"
 	"github.com/Seascape-Foundation/sds-service-lib/communication/command"
 	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
 	"github.com/Seascape-Foundation/sds-service-lib/configuration"

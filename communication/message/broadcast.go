@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Seascape-Foundation/sds-service-lib/common/data_type/key_value"
+	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
 )
 
 // Broadcast is the message that is submitted by Broadcast and received by Subscriber.

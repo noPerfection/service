@@ -4,7 +4,7 @@ package remote
 import (
 	"fmt"
 
-	"github.com/Seascape-Foundation/sds-service-lib/common/data_type/key_value"
+	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
 	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
 	"github.com/Seascape-Foundation/sds-service-lib/configuration"
 	service "github.com/Seascape-Foundation/sds-service-lib/identity"
