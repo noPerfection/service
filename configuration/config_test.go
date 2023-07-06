@@ -14,8 +14,8 @@ import (
 // returns the current testing context
 type TestEnvSuite struct {
 	suite.Suite
-	env_path   string
-	app_config *Config
+	envPath   string
+	appConfig *Config
 }
 
 // Make sure that Account is set to five
@@ -25,68 +25,68 @@ func (suite *TestEnvSuite) SetupTest() {
 	os.Args = append(os.Args, "--security-debug")
 	os.Args = append(os.Args, "--number-key=5")
 
-	env_file := "TRUE_KEY=true\n" +
+	envFile := "TRUE_KEY=true\n" +
 		"FALSE_KEY=false\n" +
 		"STRING_KEY=hello world\n" +
 		"NUMBER_KEY=123\n" +
 		"FLOAT_KEY=75.321\n"
 
-	suite.env_path = ".test.env"
-	os.Args = append(os.Args, suite.env_path)
+	suite.envPath = ".test.env"
+	os.Args = append(os.Args, suite.envPath)
 
-	file, err := os.Create(suite.env_path)
+	file, err := os.Create(suite.envPath)
 	suite.Require().NoError(err)
-	_, err = file.WriteString(env_file)
-	suite.Require().NoError(err, "failed to write the data into: "+suite.env_path)
+	_, err = file.WriteString(envFile)
+	suite.Require().NoError(err, "failed to write the data into: "+suite.envPath)
 	err = file.Close()
-	suite.Require().NoError(err, "delete the dump file: "+suite.env_path)
+	suite.Require().NoError(err, "delete the dump file: "+suite.envPath)
 
-	logger, err := log.New("test_suite", log.WITH_TIMESTAMP)
+	logger, err := log.New("test_suite", true)
 	suite.Require().NoError(err)
-	app_config, err := NewAppConfig(logger)
+	appConfig, err := NewAppConfig(logger)
 	suite.Require().NoError(err)
-	suite.app_config = app_config
+	suite.appConfig = appConfig
 
 }
 
 // All methods that begin with "Test" are run as tests within a
 // suite.
 func (suite *TestEnvSuite) TestRun() {
-	suite.Require().False(suite.app_config.Secure)
-	suite.Require().True(suite.app_config.DebugSecurity)
-	suite.Require().NotNil(suite.app_config.logger)
+	suite.Require().False(suite.appConfig.Secure)
+	suite.Require().True(suite.appConfig.DebugSecurity)
+	suite.Require().NotNil(suite.appConfig.logger)
 
-	suite.Require().False(suite.app_config.Exist("TURKISH_KEY"))
-	default_config := DefaultConfig{
+	suite.Require().False(suite.appConfig.Exist("TURKISH_KEY"))
+	defaultConfig := DefaultConfig{
 		Title: "TURKISH_KEYS",
 		Parameters: key_value.Empty().
 			// never will be written since env is already written
-			Set("STRING_KEY", "merhaba dunye").
-			Set("TURKISH_KEY", "merhaba"),
+			Set("STRING_KEY", "salam").
+			Set("TURKISH_KEY", "salam"),
 	}
-	suite.app_config.SetDefaults(default_config)
-	suite.Require().True(suite.app_config.Exist("TURKISH_KEY"))
-	suite.Require().Equal(suite.app_config.GetString("TURKISH_KEY"), "merhaba")
+	suite.appConfig.SetDefaults(defaultConfig)
+	suite.Require().True(suite.appConfig.Exist("TURKISH_KEY"))
+	suite.Require().Equal(suite.appConfig.GetString("TURKISH_KEY"), "salam")
 
 	key := "NOT_FOUND"
 	value := "random_text"
-	suite.Require().False(suite.app_config.Exist(key))
-	suite.Require().Empty(suite.app_config.GetString(key))
-	suite.app_config.SetDefault(key, value)
-	suite.Require().Equal(suite.app_config.GetString(key), value)
+	suite.Require().False(suite.appConfig.Exist(key))
+	suite.Require().Empty(suite.appConfig.GetString(key))
+	suite.appConfig.SetDefault(key, value)
+	suite.Require().Equal(suite.appConfig.GetString(key), value)
 
-	suite.Require().True(suite.app_config.Exist("TRUE_KEY"))
-	suite.Require().True(suite.app_config.GetBool("TRUE_KEY"))
-	suite.Require().True(suite.app_config.Exist("FALSE_KEY"))
-	suite.Require().False(suite.app_config.GetBool("FALSE_KEY"))
-	suite.Require().Equal(suite.app_config.GetString("STRING_KEY"), "hello world")
-	suite.Require().Equal(uint64(123), suite.app_config.GetUint64("NUMBER_KEY"))
-	suite.Require().True(suite.app_config.Exist("FLOAT_KEY"))
-	suite.Require().Equal(suite.app_config.GetString("FLOAT_KEY"), "75.321")
-	suite.Require().Empty(suite.app_config.GetUint64("FLOAT_KEY"))
+	suite.Require().True(suite.appConfig.Exist("TRUE_KEY"))
+	suite.Require().True(suite.appConfig.GetBool("TRUE_KEY"))
+	suite.Require().True(suite.appConfig.Exist("FALSE_KEY"))
+	suite.Require().False(suite.appConfig.GetBool("FALSE_KEY"))
+	suite.Require().Equal(suite.appConfig.GetString("STRING_KEY"), "hello world")
+	suite.Require().Equal(uint64(123), suite.appConfig.GetUint64("NUMBER_KEY"))
+	suite.Require().True(suite.appConfig.Exist("FLOAT_KEY"))
+	suite.Require().Equal(suite.appConfig.GetString("FLOAT_KEY"), "75.321")
+	suite.Require().Empty(suite.appConfig.GetUint64("FLOAT_KEY"))
 
-	err := os.Remove(suite.env_path)
-	suite.Require().NoError(err, "delete the dump file: "+suite.env_path)
+	err := os.Remove(suite.envPath)
+	suite.Require().NoError(err, "delete the dump file: "+suite.envPath)
 }
 
 // In order for 'go test' to run this suite, we need to create

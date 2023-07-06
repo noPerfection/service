@@ -235,7 +235,7 @@ func (suite *TestHandlerSuite) SetupTest() {
 			SmartcontractKey: suite.sm_0_key,
 			BlockHeader:      header,
 			TransactionKey: blockchain.TransactionKey{
-				Id:    "txid",
+				Id:    "transactionId",
 				Index: 0,
 			},
 			Index:      uint(i + 1),
@@ -536,7 +536,7 @@ func (suite *TestHandlerSuite) TestCommands() {
 	reply = on_categorize(request, suite.logger, suite.db_con)
 	suite.Require().False(reply.IsOK())
 
-	// inserting a log that was already adde should fail
+	// inserting a log that was already added should fail
 	log.Index = uint(6) // its added
 	categorize_parameters = PushCategorization{
 		Smartcontracts: []smartcontract.Smartcontract{suite.sm_1},
@@ -571,7 +571,7 @@ func (suite *TestHandlerSuite) TestCommands() {
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestHanlder(t *testing.T) {
+func TestHandler(t *testing.T) {
 	suite.Run(t, new(TestHandlerSuite))
 }
 */

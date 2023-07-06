@@ -13,12 +13,12 @@ type TestDefaultSuite struct {
 	suite.Suite
 }
 
-// Todo test inprocess and external types of controllers
+// Todo test in-process and external types of controllers
 // Todo test the business of the controller
 // Make sure that Account is set to five
 // before each test
 func (suite *TestDefaultSuite) SetupTest() {
-	types := service_types()
+	types := serviceTypes()
 	suite.Require().Len(types, 11)
 	configs := DefaultConfigurations()
 	suite.Require().Len(configs, len(types))
@@ -32,9 +32,9 @@ func (suite *TestDefaultSuite) TestRandom() {
 	suite.Require().NoError(err)
 	suite.Equal("4020", port)
 
-	broadcast_port, err := configs[5].Parameters.GetString("DEVELOPER_GATEWAY_BROADCAST_PORT")
+	broadcastPort, err := configs[5].Parameters.GetString("DEVELOPER_GATEWAY_BROADCAST_PORT")
 	suite.Require().NoError(err)
-	suite.Equal("4051", broadcast_port)
+	suite.Equal("4051", broadcastPort)
 }
 
 // In order for 'go test' to run this suite, we need to create

@@ -1,7 +1,8 @@
 package command
 
 import (
-	go_log "log"
+	service "github.com/Seascape-Foundation/sds-service-lib/identity"
+	goLog "log"
 	"testing"
 
 	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
@@ -26,22 +27,22 @@ type TestCommandSuite struct {
 // before each test
 func (suite *TestCommandSuite) SetupTest() {
 
-	logger, err := log.New("command_test", log.WITHOUT_TIMESTAMP)
+	logger, err := log.New("command_test", true)
 	suite.NoError(err, "failed to create logger")
 
-	app_config, err := configuration.NewAppConfig(logger)
+	appConfig, err := configuration.NewAppConfig(logger)
 	suite.NoError(err, "failed to create app config")
 
-	short_url := "short"
-	// atleast len(protocol prefix) + 1 = 9 + 1
-	_, err = remote.InprocRequestSocket(short_url, logger, app_config)
+	shortUrl := "short"
+	// at least len(protocol prefix) + 1 = 9 + 1
+	_, err = remote.InprocRequestSocket(shortUrl, logger, appConfig)
 	suite.Error(err)
-	no_protocol_url := "indexer"
-	_, err = remote.InprocRequestSocket(no_protocol_url, logger, app_config)
+	noProtocolUrl := "indexer"
+	_, err = remote.InprocRequestSocket(noProtocolUrl, logger, appConfig)
 	suite.Error(err)
 
 	url := "inproc://test_proc"
-	socket, err := remote.InprocRequestSocket(url, logger, app_config)
+	socket, err := remote.InprocRequestSocket(url, logger, appConfig)
 	suite.NoError(err)
 
 	controller, err := zmq.NewSocket(zmq.REP)
@@ -59,32 +60,32 @@ func (suite *TestCommandSuite) TestRun() {
 	go func() {
 		// Test command.Request
 		// Skip command.Push
-		recv_message, err := suite.controller.RecvMessage(0)
+		receiveMessage, err := suite.controller.RecvMessage(0)
 		suite.NoError(err)
-		request, err := message.ParseRequest(recv_message)
+		request, err := message.ParseRequest(receiveMessage)
 		suite.NoError(err)
-		go_log.Println("received by controller", request, recv_message)
+		goLog.Println("received by controller", request, receiveMessage)
 
 		reply := message.Reply{
 			Status:     message.OK,
 			Message:    "",
 			Parameters: request.Parameters.Set("command", request.Command),
 		}
-		reply_string, err := reply.ToString()
+		replyString, err := reply.String()
 		suite.NoError(err)
 
-		_, err = suite.controller.SendMessage(reply_string)
+		_, err = suite.controller.SendMessage(replyString)
 		suite.NoError(err)
 
 		// Test the router
-		recv_message, err = suite.controller.RecvMessage(0)
-		msg_parts := make([]string, len(recv_message)-1)
-		for i := 1; i < len(recv_message); i++ {
-			msg_parts[i-1] = recv_message[i]
+		receiveMessage, err = suite.controller.RecvMessage(0)
+		msgParts := make([]string, len(receiveMessage)-1)
+		for i := 1; i < len(receiveMessage); i++ {
+			msgParts[i-1] = receiveMessage[i]
 		}
 
 		suite.NoError(err)
-		request, err = message.ParseRequest(msg_parts)
+		request, err = message.ParseRequest(msgParts)
 		suite.NoError(err)
 
 		reply = message.Reply{
@@ -92,37 +93,37 @@ func (suite *TestCommandSuite) TestRun() {
 			Message: "",
 			Parameters: request.Parameters.
 				Set("command", request.Command).
-				Set("router", recv_message[0]),
+				Set("router", receiveMessage[0]),
 		}
-		reply_string, err = reply.ToString()
+		replyString, err = reply.String()
 		suite.NoError(err)
 
-		_, err = suite.controller.SendMessage(reply_string)
+		_, err = suite.controller.SendMessage(replyString)
 		suite.NoError(err)
 
-		suite.controller.Close()
+		_ = suite.controller.Close()
 	}()
 
 	// Test the Request
-	command_1 := New("command_1")
-	request_parameters := key_value.Empty()
-	var reply_parameters key_value.KeyValue
-	err := command_1.Request(suite.client, request_parameters, &reply_parameters)
+	command1 := New("command_1")
+	requestParameters := key_value.Empty()
+	var replyParameters key_value.KeyValue
+	err := command1.Request(suite.client, requestParameters, &replyParameters)
 	suite.NoError(err)
-	suite.NotEmpty(reply_parameters)
-	reply_command_param, err := reply_parameters.GetString("command")
+	suite.NotEmpty(replyParameters)
+	replyCommandParam, err := replyParameters.GetString("command")
 	suite.NoError(err)
-	suite.Equal(command_1.String(), reply_command_param)
+	suite.Equal(command1.String(), replyCommandParam)
 
 	// Test the Reply() function
-	expected_reply := message.Reply{
+	expectedReply := message.Reply{
 		Status:     message.OK,
 		Message:    "",
-		Parameters: reply_parameters,
+		Parameters: replyParameters,
 	}
-	created_reply, err := Reply(reply_parameters)
+	createdReply, err := Reply(replyParameters)
 	suite.NoError(err)
-	suite.EqualValues(expected_reply, created_reply)
+	suite.EqualValues(expectedReply, createdReply)
 
 	// Test command.Push()
 	url := "inproc://test_proc"
@@ -131,23 +132,23 @@ func (suite *TestCommandSuite) TestRun() {
 	err = client.Connect(url)
 	suite.NoError(err)
 
-	command_2 := New("command_2")
-	push_parameters := key_value.Empty()
-	err = command_2.Push(client, push_parameters)
+	command2 := New("command_2")
+	pushParameters := key_value.Empty()
+	err = command2.Push(client, pushParameters)
 	suite.NoError(err)
 
-	indexer_service, _ := service.Inprocess(service.INDEXER)
+	indexerService, _ := service.Inprocess(service.INDEXER)
 
 	// Test command.RequestRouter()
-	command_3 := New("command_router")
-	err = command_3.RequestRouter(suite.client, indexer_service, request_parameters, &reply_parameters)
+	command3 := New("command_router")
+	err = command3.RequestRouter(suite.client, indexerService, requestParameters, &replyParameters)
 	suite.NoError(err)
-	replied_command, err := reply_parameters.GetString("command")
+	repliedCommand, err := replyParameters.GetString("command")
 	suite.NoError(err)
-	suite.EqualValues(replied_command, command_3.String())
-	replied_router, err := reply_parameters.GetString("router")
+	suite.EqualValues(repliedCommand, command3.String())
+	repliedRouter, err := replyParameters.GetString("router")
 	suite.NoError(err)
-	suite.EqualValues(replied_router, service.INDEXER.ToString())
+	suite.EqualValues(repliedRouter, service.INDEXER.ToString())
 }
 
 // In order for 'go test' to run this suite, we need to create

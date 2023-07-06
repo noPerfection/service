@@ -28,38 +28,38 @@ type LoggerStyle struct {
 	separator lipgloss.Style
 }
 
-func random_style() (LoggerStyle, error) {
-	raw_palette, err := gamut.Generate(2, gamut.PastelGenerator{})
+func randomStyle() (LoggerStyle, error) {
+	rawPalette, err := gamut.Generate(2, gamut.PastelGenerator{})
 	if err != nil {
 		return LoggerStyle{}, fmt.Errorf("color.Generate: %w", err)
 	}
-	palette := make([]lipgloss.Color, len(raw_palette))
-	for i, raw_palette := range raw_palette {
-		lighter := gamut.Lighter(raw_palette, 0.05)
+	palette := make([]lipgloss.Color, len(rawPalette))
+	for i, rawPalette := range rawPalette {
+		lighter := gamut.Lighter(rawPalette, 0.05)
 		palette[i] = lipgloss.Color(gamut.ToHex(lighter))
 	}
 
 	// web: questions/42480000/python-ansi-colour-codes-transparent-background
-	background_color := lipgloss.Color("49m")
+	backgroundColor := lipgloss.Color("49m")
 
 	style := LoggerStyle{}
 
 	style.prefix = lipgloss.NewStyle().
 		Bold(true).
 		Faint(true).
-		Background(background_color).
+		Background(backgroundColor).
 		Foreground(palette[0])
 
 	// SeparatorStyle is the style for separators.
 	style.separator = lipgloss.NewStyle().
 		Faint(true).
-		Background(background_color).
+		Background(backgroundColor).
 		Foreground(palette[1])
 
 	return style, nil
 }
 
-func (style LoggerStyle) set_primary() LoggerStyle {
+func (style LoggerStyle) setPrimary() LoggerStyle {
 	log.PrefixStyle = style.prefix
 	log.SeparatorStyle = style.separator
 
@@ -69,7 +69,7 @@ func (style LoggerStyle) set_primary() LoggerStyle {
 // New logger with the prefix and timestamp.
 // It generates the random color style.
 func New(prefix string, timestamp bool) (Logger, error) {
-	random_style, err := random_style()
+	randomStyle, err := randomStyle()
 	if err != nil {
 		return Logger{}, fmt.Errorf("random_style: %w", err)
 	}
@@ -79,41 +79,41 @@ func New(prefix string, timestamp bool) (Logger, error) {
 	logger.SetReportCaller(false)
 	logger.SetReportTimestamp(timestamp)
 
-	new_logger := Logger{
+	newLogger := Logger{
 		logger: logger,
-		style:  random_style,
+		style:  randomStyle,
 	}
 
-	return new_logger, nil
+	return newLogger, nil
 }
 
 // Fatal calls the Error, then os.Exit()
-func Fatal(title string, keyval ...interface{}) {
-	log.Fatal(title, keyval...)
+func Fatal(title string, kv ...interface{}) {
+	log.Fatal(title, kv...)
 }
 
 // Info prints the information
-func (logger *Logger) Info(title string, keyval ...interface{}) {
-	logger.style.set_primary()
-	logger.logger.Info(title, keyval...)
+func (logger *Logger) Info(title string, kv ...interface{}) {
+	logger.style.setPrimary()
+	logger.logger.Info(title, kv...)
 }
 
 // Fatal prints the error message and then calls the os.Exit()
-func (logger *Logger) Fatal(title string, keyval ...interface{}) {
-	logger.style.set_primary()
-	logger.logger.Fatal(title, keyval...)
+func (logger *Logger) Fatal(title string, kv ...interface{}) {
+	logger.style.setPrimary()
+	logger.logger.Fatal(title, kv...)
 }
 
 // Warn prints the warning message
-func (logger *Logger) Warn(title string, keyval ...interface{}) {
-	logger.style.set_primary()
-	logger.logger.Warn(title, keyval...)
+func (logger *Logger) Warn(title string, kv ...interface{}) {
+	logger.style.setPrimary()
+	logger.logger.Warn(title, kv...)
 }
 
 // Error prints the error message
-func (logger *Logger) Error(title string, keyval ...interface{}) {
-	logger.style.set_primary()
-	logger.logger.Error(title, keyval...)
+func (logger *Logger) Error(title string, kv ...interface{}) {
+	logger.style.setPrimary()
+	logger.logger.Error(title, kv...)
 }
 
 // Child logger from the parent with its own color style.
@@ -134,20 +134,14 @@ func (logger *Logger) Error(title string, keyval ...interface{}) {
 //	// INFO main: starting: security_enabled=true
 //	// INFO main::database: starting
 //	// INFO main::controller: starting, port=443
-func (parent *Logger) Child(prefix string, keyval ...interface{}) (Logger, error) {
-	child := parent.logger.With(keyval...)
-	child.SetReportTimestamp(WITH_TIMESTAMP)
+func (logger *Logger) Child(prefix string, kv ...interface{}) (Logger, error) {
+	child := logger.logger.With(kv...)
+	child.SetReportTimestamp(true)
 
-	child.SetPrefix(parent.logger.GetPrefix() + "/" + prefix)
+	child.SetPrefix(logger.logger.GetPrefix() + "/" + prefix)
 
 	return Logger{
 		logger: child,
-		style:  parent.style,
+		style:  logger.style,
 	}, nil
 }
-
-// Flag to include the timestamps
-const WITH_TIMESTAMP = true
-
-// Flag to exclude the timestamps
-const WITHOUT_TIMESTAMP = false

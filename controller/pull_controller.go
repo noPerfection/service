@@ -25,7 +25,7 @@ func NewPull(s *identity.Service, logger log.Logger) (*Controller, error) {
 	if !s.IsThis() && !s.IsInproc() {
 		return nil, fmt.Errorf("service should be limited to parameter.THIS or inproc type")
 	}
-	controller_logger, err := logger.Child("controller", "type", "pull", "service_name", s.Name, "inproc", s.IsInproc())
+	controllerLogger, err := logger.Child("controller", "type", "pull", "service_name", s.Name, "inproc", s.IsInproc())
 	if err != nil {
 		return nil, fmt.Errorf("error creating child logger: %w", err)
 	}
@@ -37,9 +37,9 @@ func NewPull(s *identity.Service, logger log.Logger) (*Controller, error) {
 	}
 
 	return &Controller{
-		socket:      socket,
-		service:     s,
-		logger:      controller_logger,
-		socket_type: zmq.PULL,
+		socket:     socket,
+		service:    s,
+		logger:     controllerLogger,
+		socketType: zmq.PULL,
 	}, nil
 }

@@ -24,13 +24,13 @@ func (suite *TestReplySuite) SetupTest() {
 		Message:    "",
 		Parameters: key_value.Empty(),
 	}
-	fail_reply := Reply{
+	failReply := Reply{
 		Status:     FAIL,
 		Message:    "failed for testing purpose",
 		Parameters: key_value.Empty(),
 	}
 	suite.ok = reply
-	suite.fail = fail_reply
+	suite.fail = failReply
 }
 
 // All methods that begin with "Test" are run as tests within a
@@ -41,23 +41,23 @@ func (suite *TestReplySuite) TestIsOk() {
 }
 
 func (suite *TestReplySuite) TestToBytes() {
-	ok_string := `{"message":"","parameters":{},"status":"OK"}`
-	fail_string := `{"message":"failed for testing purpose","parameters":{},"status":"fail"}`
+	okString := `{"message":"","parameters":{},"status":"OK"}`
+	failString := `{"message":"failed for testing purpose","parameters":{},"status":"fail"}`
 
-	fail_bytes, err := suite.fail.ToBytes()
+	failBytes, err := suite.fail.Bytes()
 	suite.NoError(err)
-	ok_bytes, err := suite.ok.ToBytes()
+	okBytes, err := suite.ok.Bytes()
 	suite.NoError(err)
 
-	suite.EqualValues(ok_string, string(ok_bytes))
-	suite.EqualValues(fail_string, string(fail_bytes))
+	suite.EqualValues(okString, string(okBytes))
+	suite.EqualValues(failString, string(failBytes))
 
 	// The Parameters as a nil should fail
 	reply := Reply{
 		Status:  FAIL,
 		Message: "failed for testing purpose",
 	}
-	_, err = reply.ToBytes()
+	_, err = reply.Bytes()
 	suite.Error(err)
 
 	// The Failure reply can not have an empty message
@@ -65,7 +65,7 @@ func (suite *TestReplySuite) TestToBytes() {
 		Status:     FAIL,
 		Parameters: key_value.Empty(),
 	}
-	_, err = reply.ToBytes()
+	_, err = reply.Bytes()
 	suite.Error(err)
 
 	// The Failure reply can not have an empty message
@@ -73,63 +73,63 @@ func (suite *TestReplySuite) TestToBytes() {
 		Message:    "",
 		Parameters: key_value.Empty(),
 	}
-	_, err = reply.ToBytes()
+	_, err = reply.Bytes()
 	suite.Error(err)
 }
 
 func (suite *TestReplySuite) TestParsing() {
-	fail_string, _ := suite.fail.ToBytes()
-	ok_string, _ := suite.ok.ToBytes()
+	failString, _ := suite.fail.Bytes()
+	okString, _ := suite.ok.Bytes()
 
-	ok, err := ParseReply([]string{string(ok_string)})
+	ok, err := ParseReply([]string{string(okString)})
 	suite.Require().NoError(err)
-	fail, err := ParseReply([]string{string(fail_string)})
+	fail, err := ParseReply([]string{string(failString)})
 	suite.Require().NoError(err)
 
 	suite.EqualValues(suite.ok, ok)
 	suite.EqualValues(suite.fail, fail)
 
 	// Parsing a reply with the nil values should fail
-	invalid_reply := `{"message":"","parameters":null,"status":"OK"}`
-	_, err = ParseReply([]string{invalid_reply})
+	invalidReply := `{"message":"","parameters":null,"status":"OK"}`
+	_, err = ParseReply([]string{invalidReply})
 	suite.Error(err)
 
 	// Parsing a reply with an invalid error should fail
-	invalid_reply = `{"message":"","parameters":{},"status":""}`
-	_, err = ParseReply([]string{invalid_reply})
+	invalidReply = `{"message":"","parameters":{},"status":""}`
+	_, err = ParseReply([]string{invalidReply})
 	suite.Error(err)
 
 	// Parsing should fail for missing keys
-	invalid_reply = `{}`
-	_, err = ParseReply([]string{invalid_reply})
+	invalidReply = `{}`
+	_, err = ParseReply([]string{invalidReply})
 	suite.Error(err)
 
 	// Parsing the json with additional field should be
 	// successful, but skip the other parameters
-	invalid_reply = `{"message":"","parameters":{},"status":"OK", "sig": ""}`
-	_, err = ParseReply([]string{invalid_reply})
+	invalidReply = `{"message":"","parameters":{},"status":"OK", "sig": ""}`
+	_, err = ParseReply([]string{invalidReply})
 	suite.NoError(err)
 
 	// Parsing the failure with an empty message should fail
-	invalid_reply = `{"message":"","parameters":{},"status":"fail", "sig": ""}`
-	_, err = ParseReply([]string{invalid_reply})
+	invalidReply = `{"message":"","parameters":{},"status":"fail", "sig": ""}`
+	_, err = ParseReply([]string{invalidReply})
 	suite.Error(err)
 
 	// Parsing the reply with the missing field should fail
-	invalid_reply = `{"message":"","parameters":{}}`
-	_, err = ParseReply([]string{invalid_reply})
+	invalidReply = `{"message":"","parameters":{}}`
+	_, err = ParseReply([]string{invalidReply})
 	suite.Error(err)
 
 	// Parsing the reply with the missing field should fail
-	invalid_reply = `{"message":"","status":"OK"}`
-	_, err = ParseReply([]string{invalid_reply})
+	invalidReply = `{"message":"","status":"OK"}`
+	_, err = ParseReply([]string{invalidReply})
 	suite.Error(err)
 
 	// Parsing the reply with the missing scalar type
 	// should be successful, since we will set the default
 	// values
-	invalid_reply = `{"parameters":{}, "status":"OK"}`
-	_, err = ParseReply([]string{invalid_reply})
+	invalidReply = `{"parameters":{}, "status":"OK"}`
+	_, err = ParseReply([]string{invalidReply})
 	suite.NoError(err)
 }
 

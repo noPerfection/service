@@ -3,13 +3,13 @@ package remote
 
 import (
 	"fmt"
+	"github.com/Seascape-Foundation/sds-service-lib/remote/parameter"
 
 	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
 	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
 	"github.com/Seascape-Foundation/sds-service-lib/configuration"
 	service "github.com/Seascape-Foundation/sds-service-lib/identity"
 	"github.com/Seascape-Foundation/sds-service-lib/log"
-	"github.com/Seascape-Foundation/sds-service-lib/remote/parameter"
 
 	// todo
 	// move out dependency from security/auth
@@ -22,15 +22,15 @@ import (
 type ClientSocket struct {
 	// The name of remote SDS service and its URL
 	// its used as a clarification
-	remote_service *service.Service
+	remoteService *service.Service
 	// client_credentials *auth.Credentials
-	server_public_key string
-	poller            *zmq.Poller
-	socket            *zmq.Socket
-	protocol          string
-	inproc_url        string
-	logger            log.Logger
-	app_config        *configuration.Config
+	serverPublicKey string
+	poller          *zmq.Poller
+	socket          *zmq.Socket
+	protocol        string
+	inprocUrl       string
+	logger          log.Logger
+	appConfig       *configuration.Config
 }
 
 // Initiates the socket with a timeout.
@@ -39,18 +39,18 @@ type ClientSocket struct {
 //
 // If no socket is given, then initiates a zmq.REQ socket.
 func (socket *ClientSocket) reconnect() error {
-	var socket_ctx *zmq.Context
-	var socket_type zmq.Type
+	var socketCtx *zmq.Context
+	var socketType zmq.Type
 
 	if socket.socket != nil {
 		ctx, err := socket.socket.Context()
 		if err != nil {
 			return fmt.Errorf("failed to get context from zmq socket: %w", err)
 		} else {
-			socket_ctx = ctx
+			socketCtx = ctx
 		}
 
-		socket_type, err = socket.socket.GetType()
+		socketType, err = socket.socket.GetType()
 		if err != nil {
 			return fmt.Errorf("failed to get socket type from zmq socket: %w", err)
 		}
@@ -64,9 +64,9 @@ func (socket *ClientSocket) reconnect() error {
 		return fmt.Errorf("no socket initiated: %s", "reconnect")
 	}
 
-	sock, err := socket_ctx.NewSocket(socket_type)
+	sock, err := socketCtx.NewSocket(socketType)
 	if err != nil {
-		return fmt.Errorf("failed to create %s socket: %w", socket_type.String(), err)
+		return fmt.Errorf("failed to create %s socket: %w", socketType.String(), err)
 	} else {
 		socket.socket = sock
 		err = socket.socket.SetLinger(0)
@@ -82,7 +82,7 @@ func (socket *ClientSocket) reconnect() error {
 	// }
 	// }
 
-	if err := socket.socket.Connect(socket.remote_service.Url()); err != nil {
+	if err := socket.socket.Connect(socket.remoteService.Url()); err != nil {
 		return fmt.Errorf("socket connect: %w", err)
 	}
 
@@ -94,19 +94,19 @@ func (socket *ClientSocket) reconnect() error {
 
 // Attempts to connect to the endpoint.
 // The difference from socket.reconnect() is that it will not authenticate if security is enabled.
-func (socket *ClientSocket) inproc_reconnect() error {
-	var socket_ctx *zmq.Context
-	var socket_type zmq.Type
+func (socket *ClientSocket) inprocReconnect() error {
+	var socketCtx *zmq.Context
+	var socketType zmq.Type
 
 	if socket.socket != nil {
 		ctx, err := socket.socket.Context()
 		if err != nil {
 			return fmt.Errorf("failed to get context from zmq socket: %w", err)
 		} else {
-			socket_ctx = ctx
+			socketCtx = ctx
 		}
 
-		socket_type, err = socket.socket.GetType()
+		socketType, err = socket.socket.GetType()
 		if err != nil {
 			return fmt.Errorf("failed to get socket type from zmq socket: %w", err)
 		}
@@ -120,9 +120,9 @@ func (socket *ClientSocket) inproc_reconnect() error {
 		return fmt.Errorf("failed to create zmq context: %s", "inproc_reconnect")
 	}
 
-	sock, err := socket_ctx.NewSocket(socket_type)
+	sock, err := socketCtx.NewSocket(socketType)
 	if err != nil {
-		return fmt.Errorf("failed to create %s socket: %w", socket_type.String(), err)
+		return fmt.Errorf("failed to create %s socket: %w", socketType.String(), err)
 	} else {
 		socket.socket = sock
 		err = socket.socket.SetLinger(0)
@@ -131,8 +131,8 @@ func (socket *ClientSocket) inproc_reconnect() error {
 		}
 	}
 
-	if err := socket.socket.Connect(socket.inproc_url); err != nil {
-		return fmt.Errorf("error '%s' connect: %w", socket.inproc_url, err)
+	if err := socket.socket.Connect(socket.inprocUrl); err != nil {
+		return fmt.Errorf("error '%s' connect: %w", socket.inprocUrl, err)
 	}
 
 	socket.poller = zmq.NewPoller()
@@ -158,10 +158,10 @@ func (socket *ClientSocket) Close() error {
 //
 // The socket should be the router's socket.
 func (socket *ClientSocket) RequestRouter(service *service.Service, request *message.Request) (key_value.KeyValue, error) {
-	request_timeout := parameter.RequestTimeout(socket.app_config)
+	requestTimeout := parameter.RequestTimeout(socket.appConfig)
 
 	if socket.protocol == "inproc" {
-		err := socket.inproc_reconnect()
+		err := socket.inprocReconnect()
 		if err != nil {
 			return nil, fmt.Errorf("inproc_reconnect: %w", err)
 		}
@@ -173,22 +173,22 @@ func (socket *ClientSocket) RequestRouter(service *service.Service, request *mes
 		}
 	}
 
-	request_string, err := request.ToString()
+	requestString, err := request.ToString()
 	if err != nil {
 		return nil, fmt.Errorf("request.ToString: %w", err)
 	}
 
-	attempt := parameter.Attempt(socket.app_config)
+	attempt := parameter.Attempt(socket.appConfig)
 
 	// we attempt requests for an infinite amount of time.
 	for {
 		//  We send a request, then we work to get a reply
-		if _, err := socket.socket.SendMessage(service.Name, request_string); err != nil {
+		if _, err := socket.socket.SendMessage(service.Name, requestString); err != nil {
 			return nil, fmt.Errorf("failed to send the command '%s' to. socket error: %w", request.Command, err)
 		}
 
 		//  Poll socket for a reply, with timeout
-		sockets, err := socket.poller.Poll(request_timeout)
+		sockets, err := socket.poller.Poll(requestTimeout)
 		if err != nil {
 			return nil, fmt.Errorf("failed to to send the command '%s'. poll error: %w", request.Command, err)
 		}
@@ -216,10 +216,10 @@ func (socket *ClientSocket) RequestRouter(service *service.Service, request *mes
 
 			return reply.Parameters, nil
 		} else {
-			socket.logger.Warn("Timeout! Are you sure that remote service is running?", "target service name", service.Name, "request_command", request.Command, "attempts_left", attempt, "request_timeout", request_timeout)
+			socket.logger.Warn("Timeout! Are you sure that remote service is running?", "target service name", service.Name, "request_command", request.Command, "attempts_left", attempt, "request_timeout", requestTimeout)
 			// if attempts are 0, we reconnect to remove the buffer queue.
 			if socket.protocol == "inproc" {
-				err := socket.inproc_reconnect()
+				err := socket.inprocReconnect()
 				if err != nil {
 					return nil, fmt.Errorf("socket.inproc_reconnect: %w", err)
 				}
@@ -247,7 +247,7 @@ func (socket *ClientSocket) RequestRouter(service *service.Service, request *mes
 // The socket type should be REQ or PUSH.
 func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
 	if socket.protocol == "inproc" {
-		err := socket.inproc_reconnect()
+		err := socket.inprocReconnect()
 		if err != nil {
 			return nil, fmt.Errorf("socket connection: %w", err)
 		}
@@ -259,24 +259,24 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 		}
 	}
 
-	request_timeout := parameter.RequestTimeout(socket.app_config)
+	requestTimeout := parameter.RequestTimeout(socket.appConfig)
 
-	request_string, err := request.ToString()
+	requestString, err := request.ToString()
 	if err != nil {
 		return nil, fmt.Errorf("request.ToString: %w", err)
 	}
 
-	attempt := parameter.Attempt(socket.app_config)
+	attempt := parameter.Attempt(socket.appConfig)
 
 	// we attempt requests for an infinite amount of time.
 	for {
 		//  We send a request, then we work to get a reply
-		if _, err := socket.socket.SendMessage(request_string); err != nil {
+		if _, err := socket.socket.SendMessage(requestString); err != nil {
 			return nil, fmt.Errorf("failed to send the command '%s'. socket error: %w", request.Command, err)
 		}
 
 		//  Poll socket for a reply, with timeout
-		sockets, err := socket.poller.Poll(request_timeout)
+		sockets, err := socket.poller.Poll(requestTimeout)
 		if err != nil {
 			return nil, fmt.Errorf("failed to to send the command '%s'. poll error: %w", request.Command, err)
 		}
@@ -306,7 +306,7 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 		} else {
 			socket.logger.Warn("timeout", "request_command", request.Command, "attempts_left", attempt)
 			if socket.protocol == "inproc" {
-				err := socket.inproc_reconnect()
+				err := socket.inprocReconnect()
 				if err != nil {
 					return nil, fmt.Errorf("socket.inproc_reconnect: %w", err)
 				}
@@ -336,14 +336,14 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 // NewTcpSocket creates a new client socket over TCP protocol.
 //
 // The returned socket client then can send message to controller.Router and controller.Reply
-func NewTcpSocket(remote_service *service.Service, parent *log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
-	if app_config == nil {
+func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig *configuration.Config) (*ClientSocket, error) {
+	if appConfig == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}
 
-	if remote_service == nil ||
-		remote_service.IsInproc() ||
-		!remote_service.IsRemote() {
+	if remoteService == nil ||
+		remoteService.IsInproc() ||
+		!remoteService.IsRemote() {
 		return nil, fmt.Errorf("remote service is not a remote service with REMOTE limit")
 	}
 
@@ -355,34 +355,34 @@ func NewTcpSocket(remote_service *service.Service, parent *log.Logger, app_confi
 	var logger log.Logger
 	if parent != nil {
 		logger, err = parent.Child("client_socket",
-			"remote_service", remote_service.Name,
+			"remote_service", remoteService.Name,
 			"protocol", "tcp",
 			"socket_type", "REQ",
-			"remote_service_url", remote_service.Url(),
+			"remote_service_url", remoteService.Url(),
 		)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("logger: %w", err)
 	}
 
-	new_socket := ClientSocket{
-		remote_service: remote_service,
+	newSocket := ClientSocket{
+		remoteService: remoteService,
 		// client_credentials: nil,
-		socket:     sock,
-		protocol:   "tcp",
-		logger:     logger,
-		app_config: app_config,
+		socket:    sock,
+		protocol:  "tcp",
+		logger:    logger,
+		appConfig: appConfig,
 	}
 
-	return &new_socket, nil
+	return &newSocket, nil
 }
 
 // InprocRequestSocket creates a client socket with inproc protocol.
 // The created client socket can connect to controller.Router or controller.Reply.
 //
 // The `url` parameter must start with `inproc://`
-func InprocRequestSocket(url string, parent log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
-	if app_config == nil {
+func InprocRequestSocket(url string, parent log.Logger, appConfig *configuration.Config) (*ClientSocket, error) {
+	if appConfig == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}
 
@@ -406,16 +406,16 @@ func InprocRequestSocket(url string, parent log.Logger, app_config *configuratio
 		return nil, fmt.Errorf("logger: %w", err)
 	}
 
-	new_socket := ClientSocket{
-		socket:     sock,
-		protocol:   "inproc",
-		inproc_url: url,
+	newSocket := ClientSocket{
+		socket:    sock,
+		protocol:  "inproc",
+		inprocUrl: url,
 		// client_credentials: nil,
-		logger:     logger,
-		app_config: app_config,
+		logger:    logger,
+		appConfig: appConfig,
 	}
 
-	return &new_socket, nil
+	return &newSocket, nil
 }
 
 // // NewTcpSubscriber create a new client socket on TCP protocol.
@@ -428,7 +428,7 @@ func InprocRequestSocket(url string, parent log.Logger, app_config *configuratio
 // 		return nil, fmt.Errorf("missing service")
 // 	}
 // 	if !e.IsSubscribe() || e.IsInproc() {
-// 		return nil, fmt.Errorf("the service is a tcp or it doesn't SUBSCRIBE limit")
+// 		return nil, fmt.Errorf("the service is of tcp protocol, or it doesn't SUBSCRIBE limit")
 // 	}
 
 // 	socket, sockErr := zmq.NewSocket(zmq.SUB)

@@ -21,39 +21,39 @@ func (suite *TestCommandHandler) SetupTest() {
 	handlers := EmptyHandlers()
 	suite.Len(handlers, 0)
 
-	command_1 := New("command_1")
-	command_1_handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+	command1 := New("command_1")
+	command1Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",
 			Parameters: request.Parameters.Set("id", uint64(1)),
 		}
 	}
-	command_2 := New("command_2")
-	command_2_handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+	command2 := New("command_2")
+	command2Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",
 			Parameters: request.Parameters.Set("id", uint64(2)),
 		}
 	}
-	handlers = handlers.Add(command_1, command_1_handler)
+	handlers = handlers.Add(command1, command1Handler)
 	suite.Len(handlers, 1)
-	suite.True(handlers.Exist(command_1))
-	suite.False(handlers.Exist(command_2))
+	suite.True(handlers.Exist(command1))
+	suite.False(handlers.Exist(command2))
 
-	handlers = handlers.Add(command_2, command_2_handler)
+	handlers = handlers.Add(command2, command2Handler)
 	suite.Len(handlers, 2)
-	suite.True(handlers.Exist(command_1))
-	suite.True(handlers.Exist(command_2))
+	suite.True(handlers.Exist(command1))
+	suite.True(handlers.Exist(command2))
 
-	command_names := handlers.CommandNames()
-	suite.Equal(len(handlers), len(command_names))
-	command_name_strings := []string{
-		command_1.String(),
-		command_2.String(),
+	commandNames := handlers.CommandNames()
+	suite.Equal(len(handlers), len(commandNames))
+	commandNameStrings := []string{
+		command1.String(),
+		command2.String(),
 	}
-	suite.EqualValues(command_names, command_name_strings)
+	suite.EqualValues(commandNames, commandNameStrings)
 }
 
 // In order for 'go test' to run this suite, we need to create

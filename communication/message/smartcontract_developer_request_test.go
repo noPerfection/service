@@ -14,48 +14,48 @@ import (
 // returns the current testing context
 type TestSmRequestSuite struct {
 	suite.Suite
-	ok           SmartcontractDeveloperRequest
-	sample_nonce uint64
+	ok          SmartcontractDeveloperRequest
+	sampleNonce uint64
 }
 
 // Make sure that Account is set to five
 // before each test
 func (suite *TestSmRequestSuite) SetupTest() {
-	suite.sample_nonce = uint64(12312)
+	suite.sampleNonce = uint64(12312)
 	request := Request{
 		Command: "get_data",
 		Parameters: key_value.Empty().
 			Set("_address", "0xdead").
-			Set("_nonce_timestamp", suite.sample_nonce).
+			Set("_nonce_timestamp", suite.sampleNonce).
 			Set("_signature", "0xdead").
 			// the "get_data" command parameters
 			Set("data_id", uint64(1)),
 	}
 
-	sm_request, err := ToSmartcontractDeveloperRequest(request)
+	smRequest, err := ToSmartcontractDeveloperRequest(request)
 	suite.NoError(err)
-	_, err = sm_request.Request.Parameters.GetString("_address")
+	_, err = smRequest.Request.Parameters.GetString("_address")
 	suite.Error(err)
-	_, err = sm_request.Request.Parameters.GetString("_signature")
+	_, err = smRequest.Request.Parameters.GetString("_signature")
 	suite.Error(err)
-	_, err = sm_request.Request.Parameters.GetUint64("_nonce_timestamp")
+	_, err = smRequest.Request.Parameters.GetUint64("_nonce_timestamp")
 	suite.Error(err)
 
 	// The command parameters should be kept
-	_, err = sm_request.Request.Parameters.GetUint64("data_id")
+	_, err = smRequest.Request.Parameters.GetUint64("data_id")
 	suite.NoError(err)
 
-	suite.EqualValues(sm_request.NonceTimestamp, suite.sample_nonce)
-	suite.EqualValues(sm_request.Signature, "0xdead")
-	suite.EqualValues(sm_request.Address, "0xdead")
-	suite.Equal(sm_request.Request.Command, "get_data")
+	suite.EqualValues(smRequest.NonceTimestamp, suite.sampleNonce)
+	suite.EqualValues(smRequest.Signature, "0xdead")
+	suite.EqualValues(smRequest.Address, "0xdead")
+	suite.Equal(smRequest.Request.Command, "get_data")
 
-	suite.ok = sm_request
+	suite.ok = smRequest
 }
 
 func (suite *TestSmRequestSuite) TestParsing() {
 	// todo
-	// check that request's sm developer parmaters
+	// check that request's sm developer parameters
 	// deleted after its been converted into sm developer
 	// request.
 
@@ -63,7 +63,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 	request := Request{
 		Command: "get_data",
 		Parameters: key_value.Empty().
-			Set("_nonce_timestamp", suite.sample_nonce).
+			Set("_nonce_timestamp", suite.sampleNonce).
 			Set("_signature", "0xdead").
 			// the "get_data" command parameters
 			Set("data_id", 1),
@@ -76,7 +76,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 		Command: "get_data",
 		Parameters: key_value.Empty().
 			Set("_address", "").
-			Set("_nonce_timestamp", suite.sample_nonce).
+			Set("_nonce_timestamp", suite.sampleNonce).
 			Set("_signature", "0xdead").
 			// the "get_data" command parameters
 			Set("data_id", 1),
@@ -88,7 +88,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 	// Should return an error
 	request = Request{
 		Parameters: key_value.Empty().
-			Set("_nonce_timestamp", suite.sample_nonce).
+			Set("_nonce_timestamp", suite.sampleNonce).
 			Set("_signature", "0xdead").
 			// the "get_data" command parameters
 			Set("data_id", 1),
@@ -102,7 +102,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 		Command: "",
 		Parameters: key_value.Empty().
 			Set("_address", "0xdead").
-			Set("_nonce_timestamp", suite.sample_nonce).
+			Set("_nonce_timestamp", suite.sampleNonce).
 			Set("_signature", "0xdead").
 			// the "get_data" command parameters
 			Set("data_id", 1),
@@ -132,7 +132,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 	_, err = ToSmartcontractDeveloperRequest(request)
 	suite.Require().Error(err)
 
-	// Invalid request (in this case missing _nonce_timestmap)
+	// Invalid request (in this case missing _nonce_timestamp)
 	// Should return an error
 	request = Request{
 		Command: "get_data",
@@ -150,7 +150,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 		Command: "get_data",
 		Parameters: key_value.Empty().
 			Set("_address", "0xdead").
-			Set("_nonce_timestamp", suite.sample_nonce).
+			Set("_nonce_timestamp", suite.sampleNonce).
 			// the "get_data" command parameters
 			Set("data_id", 1),
 	}
@@ -163,7 +163,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 		Command: "get_data",
 		Parameters: key_value.Empty().
 			Set("_address", "0xdead").
-			Set("_nonce_timestamp", suite.sample_nonce).
+			Set("_nonce_timestamp", suite.sampleNonce).
 			Set("_signature", "").
 			// the "get_data" command parameters
 			Set("data_id", 1),
@@ -177,7 +177,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 		Command: "get_data",
 		Parameters: key_value.Empty().
 			Set("_address", "dead").
-			Set("_nonce_timestamp", suite.sample_nonce).
+			Set("_nonce_timestamp", suite.sampleNonce).
 			Set("_signature", "0xdead").
 			// the "get_data" command parameters
 			Set("data_id", 1),
@@ -185,13 +185,13 @@ func (suite *TestSmRequestSuite) TestParsing() {
 	_, err = ToSmartcontractDeveloperRequest(request)
 	suite.Require().Error(err)
 
-	// empty _address should have a 0x prefix is case insentive
+	// empty _address should have a 0x prefix is case inventive
 	// Should return an error
 	request = Request{
 		Command: "get_data",
 		Parameters: key_value.Empty().
-			Set("_address", "0Xdead").
-			Set("_nonce_timestamp", suite.sample_nonce).
+			Set("_address", "0Dead").
+			Set("_nonce_timestamp", suite.sampleNonce).
 			Set("_signature", "0xdead").
 			// the "get_data" command parameters
 			Set("data_id", 1),
@@ -205,7 +205,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 		Command: "get_data",
 		Parameters: key_value.Empty().
 			Set("_address", "0xdead").
-			Set("_nonce_timestamp", suite.sample_nonce).
+			Set("_nonce_timestamp", suite.sampleNonce).
 			Set("_signature", "dead").
 			// the "get_data" command parameters
 			Set("data_id", 1),
@@ -213,13 +213,13 @@ func (suite *TestSmRequestSuite) TestParsing() {
 	_, err = ToSmartcontractDeveloperRequest(request)
 	suite.Require().Error(err)
 
-	// empty _address should have a one value after prefix atleast
+	// empty _address should have a one value after prefix at least
 	// Should return an error
 	request = Request{
 		Command: "get_data",
 		Parameters: key_value.Empty().
 			Set("_address", "0x").
-			Set("_nonce_timestamp", suite.sample_nonce).
+			Set("_nonce_timestamp", suite.sampleNonce).
 			Set("_signature", "0xdead").
 			// the "get_data" command parameters
 			Set("data_id", 1),
@@ -227,7 +227,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 	_, err = ToSmartcontractDeveloperRequest(request)
 	suite.Require().Error(err)
 
-	suite.ok.message_hash()
+	_, _ = suite.ok.messageHash()
 }
 
 // Prepare the request's message hash
@@ -239,17 +239,17 @@ func (suite *TestSmRequestSuite) TestHashing() {
 
 	// Use the request string in the link
 	// https://emn178.github.io/online-tools/keccak_256.html
-	expected_hash, _ := hex.DecodeString("a71cd8b2a2004b3d41ce9c9f33c405f663858d963c6dc4c7fe6a22a7d5c18451")
-	calculated_hash := crypto.Keccak256Hash(request)
+	expectedHash, _ := hex.DecodeString("a71cd8b2a2004b3d41ce9c9f33c405f663858d963c6dc4c7fe6a22a7d5c18451")
+	calculatedHash := crypto.Keccak256Hash(request)
 
-	hash_bytes, err := suite.ok.message_hash()
+	hashBytes, err := suite.ok.messageHash()
 	suite.Require().NoError(err)
-	suite.Require().Equal(expected_hash, hash_bytes)
-	suite.Require().Equal(calculated_hash.Bytes(), hash_bytes)
+	suite.Require().Equal(expectedHash, hashBytes)
+	suite.Require().Equal(calculatedHash.Bytes(), hashBytes)
 
 	prefix := []byte("\x19Ethereum Signed Message:\n32")
-	full_message := append(prefix, hash_bytes...)
-	calculated_digest_hash := crypto.Keccak256Hash(full_message)
+	fullMessage := append(prefix, hashBytes...)
+	calculatedDigestHash := crypto.Keccak256Hash(fullMessage)
 
 	// Use the prefix in the hex format:
 	// full_message := append(hex.EncodeToString(prefix), hash_bytes...)
@@ -257,12 +257,12 @@ func (suite *TestSmRequestSuite) TestHashing() {
 	//
 	// Then pass the full_hash to
 	// https://emn178.github.io/online-tools/keccak_256.html
-	expected_digest_hash, _ := hex.DecodeString("337dc5266f47b40d69ff6df7a9ca09513aaf81bd951ed1dd5fcb71f8432e2bee")
+	expectedDigestHash, _ := hex.DecodeString("337dc5266f47b40d69ff6df7a9ca09513aaf81bd951ed1dd5fcb71f8432e2bee")
 
-	digested_hash, err := suite.ok.DigestedMessage()
+	digestedHash, err := suite.ok.DigestedMessage()
 	suite.Require().NoError(err)
-	suite.Require().Equal(expected_digest_hash, digested_hash)
-	suite.Require().Equal(calculated_digest_hash.Bytes(), digested_hash)
+	suite.Require().Equal(expectedDigestHash, digestedHash)
+	suite.Require().Equal(calculatedDigestHash.Bytes(), digestedHash)
 
 }
 

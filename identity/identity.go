@@ -17,16 +17,16 @@ type Service struct {
 }
 
 // Inprocess creates the service with the parameters but without any information
-func Inprocess(service_type ServiceType) (*Service, error) {
-	if err := service_type.valid(); err != nil {
-		if inproc_err := service_type.inproc_valid(); inproc_err != nil {
-			return nil, fmt.Errorf("valid or inproc_valid: %w", inproc_err)
+func Inprocess(serviceType ServiceType) (*Service, error) {
+	if err := serviceType.valid(); err != nil {
+		if inprocErr := serviceType.inprocValid(); inprocErr != nil {
+			return nil, fmt.Errorf("valid or inproc_valid: %w", inprocErr)
 		}
 	}
-	name := service_type.ToString()
+	name := serviceType.ToString()
 
 	s := Service{
-		ServiceType: service_type,
+		ServiceType: serviceType,
 		Name:        name,
 		inproc:      true,
 		url:         "inproc://SERVICE_" + name,
@@ -36,7 +36,7 @@ func Inprocess(service_type ServiceType) (*Service, error) {
 	return &s, nil
 }
 
-// Creates the inprocess service by url.
+// InprocessFromUrl Creates the inprocess service by url.
 // The name of the service is custom. With this function you can create
 // services that are not registered in the service type.
 //
@@ -61,26 +61,26 @@ func InprocessFromUrl(endpoint string) (*Service, error) {
 }
 
 // NewExternal creates the service with the parameters but without any information
-func NewExternal(service_type ServiceType, limit Limit, app_config *configuration.Config) (*Service, error) {
-	if app_config == nil {
+func NewExternal(serviceType ServiceType, limit Limit, appConfig *configuration.Config) (*Service, error) {
+	if appConfig == nil {
 		return nil, fmt.Errorf("missing app config")
 	}
 
-	if err := service_type.valid(); err != nil {
+	if err := serviceType.valid(); err != nil {
 		return nil, fmt.Errorf("valid: %w", err)
 	}
 
-	default_configuration := DefaultConfiguration(service_type)
-	app_config.SetDefaults(default_configuration)
+	defaultConfiguration := DefaultConfiguration(serviceType)
+	appConfig.SetDefaults(defaultConfiguration)
 
-	name := service_type.ToString()
-	host_env := name + "_HOST"
-	port_env := name + "_PORT"
-	broadcast_host_env := name + "_BROADCAST_HOST"
-	broadcast_port_env := name + "_BROADCAST_PORT"
+	name := serviceType.ToString()
+	hostEnv := name + "_HOST"
+	portEnv := name + "_PORT"
+	broadcastHostEnv := name + "_BROADCAST_HOST"
+	broadcastPortEnv := name + "_BROADCAST_PORT"
 
 	s := Service{
-		ServiceType: service_type,
+		ServiceType: serviceType,
 		Name:        name,
 		inproc:      false,
 		limit:       limit,
@@ -88,13 +88,13 @@ func NewExternal(service_type ServiceType, limit Limit, app_config *configuratio
 
 	switch limit {
 	case REMOTE:
-		s.url = fmt.Sprintf("tcp://%s:%s", app_config.GetString(host_env), app_config.GetString(port_env))
+		s.url = fmt.Sprintf("tcp://%s:%s", appConfig.GetString(hostEnv), appConfig.GetString(portEnv))
 	case THIS:
-		s.url = fmt.Sprintf("tcp://*:%s", app_config.GetString(port_env))
+		s.url = fmt.Sprintf("tcp://*:%s", appConfig.GetString(portEnv))
 	case SUBSCRIBE:
-		s.url = fmt.Sprintf("tcp://%s:%s", app_config.GetString(broadcast_host_env), app_config.GetString(broadcast_port_env))
+		s.url = fmt.Sprintf("tcp://%s:%s", appConfig.GetString(broadcastHostEnv), appConfig.GetString(broadcastPortEnv))
 	case BROADCAST:
-		s.url = fmt.Sprintf("tcp://*:%s", app_config.GetString(broadcast_port_env))
+		s.url = fmt.Sprintf("tcp://*:%s", appConfig.GetString(broadcastPortEnv))
 	default:
 		return nil, fmt.Errorf("unsupported limit: %v", limit)
 	}
@@ -102,7 +102,7 @@ func NewExternal(service_type ServiceType, limit Limit, app_config *configuratio
 	return &s, nil
 }
 
-// Returns the endpoint of the service.
+// Url Returns the endpoint of the service.
 // The sockets are using this parameter.
 func (e *Service) Url() string {
 	return e.url
@@ -133,7 +133,7 @@ func (e *Service) IsThis() bool {
 }
 
 // IsInproc defines whether the protocol of service is "inproc".
-// Incase of "tcp" protocol it will return false.
+// In case of "tcp" protocol it will return false.
 func (e *Service) IsInproc() bool {
 	return e.inproc
 }

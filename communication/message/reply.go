@@ -15,7 +15,7 @@ const (
 	FAIL ReplyStatus = "fail"
 )
 
-// SDS Service returns the reply. Anyone who sends a request to the SDS Service gets this message.
+// Reply SDS Service returns the reply. Anyone who sends a request to the SDS Service gets this message.
 type Reply struct {
 	Status     ReplyStatus        `json:"status"`     // message.OK or message.FAIL
 	Message    string             `json:"message"`    // If Status is fail, then field will contain error message.
@@ -29,8 +29,8 @@ func Fail(message string) Reply {
 }
 
 // Validates the status of the reply.
-// It should be ethier OK or fail.
-func (reply *Reply) valid_status() error {
+// It should be either OK or fail.
+func (reply *Reply) validStatus() error {
 	if reply.Status != FAIL && reply.Status != OK {
 		return fmt.Errorf("status is either '%s' or '%s', but given: '%s'", OK, FAIL, reply.Status)
 	}
@@ -40,7 +40,7 @@ func (reply *Reply) valid_status() error {
 
 // If the reply type is failure then
 // THe message should be given too
-func (reply *Reply) valid_fail() error {
+func (reply *Reply) validFail() error {
 	if reply.Status == FAIL && len(reply.Message) == 0 {
 		return fmt.Errorf("failure should not have an empty message")
 	}
@@ -48,12 +48,12 @@ func (reply *Reply) valid_fail() error {
 	return nil
 }
 
-// IsOK returnes the Status of the message.
-func (r *Reply) IsOK() bool { return r.Status == OK }
+// IsOK returns the Status of the message.
+func (reply *Reply) IsOK() bool { return reply.Status == OK }
 
-// ToString converts the Reply to the string format
-func (reply *Reply) ToString() (string, error) {
-	bytes, err := reply.ToBytes()
+// String converts the Reply to the string format
+func (reply *Reply) String() (string, error) {
+	bytes, err := reply.Bytes()
 	if err != nil {
 		return "", fmt.Errorf("reply.ToBytes: %w", err)
 	}
@@ -61,13 +61,13 @@ func (reply *Reply) ToString() (string, error) {
 	return string(bytes), nil
 }
 
-// ToBytes converts Reply to the sequence of bytes
-func (reply *Reply) ToBytes() ([]byte, error) {
-	err := reply.valid_fail()
+// Bytes converts Reply to the sequence of bytes
+func (reply *Reply) Bytes() ([]byte, error) {
+	err := reply.validFail()
 	if err != nil {
 		return nil, fmt.Errorf("failure validation: %w", err)
 	}
-	err = reply.valid_status()
+	err = reply.validStatus()
 	if err != nil {
 		return nil, fmt.Errorf("status validation: %w", err)
 	}
@@ -86,8 +86,8 @@ func (reply *Reply) ToBytes() ([]byte, error) {
 }
 
 // ParseReply decodes the Zeromq messages into the Reply.
-func ParseReply(msgs []string) (Reply, error) {
-	msg := ToString(msgs)
+func ParseReply(messages []string) (Reply, error) {
+	msg := ToString(messages)
 	data, err := key_value.NewFromString(msg)
 	if err != nil {
 		return Reply{}, fmt.Errorf("key_value.NewFromString: %w", err)
@@ -112,7 +112,7 @@ func ParseJsonReply(dat key_value.KeyValue) (Reply, error) {
 	// It will call
 	// valid_fail(), valid_status() and
 	// check for missing values
-	_, err = reply.ToBytes()
+	_, err = reply.Bytes()
 	if err != nil {
 		return Reply{}, fmt.Errorf("validation: %w", err)
 	}

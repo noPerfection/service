@@ -22,16 +22,16 @@ import (
 type TestRouterSuite struct {
 	suite.Suite
 
-	client_service *parameter.Service
-	tcp_router     *Router
-	tcp_repliers   []*Controller
-	tcp_client     *remote.ClientSocket
-	logger         log.Logger
+	clientService *parameter.Service
+	tcpRouter     *Router
+	tcpRepliers   []*Controller
+	tcpClient     *remote.ClientSocket
+	logger        log.Logger
 
-	commands []command.CommandName
+	commands []command.Name
 }
 
-// Todo test inprocess and external types of controllers
+// Todo test in-process and external types of controllers
 // Todo test the business of the controller
 // Make sure that Account is set to five
 // before each test
@@ -43,26 +43,26 @@ func (suite *TestRouterSuite) SetupTest() {
 	/////////////////////////////////////////////////////
 
 	// Logger and app configs are needed for External services
-	logger, err := log.New("log", log.WITH_TIMESTAMP)
+	logger, err := log.New("log", true)
 	suite.NoError(err, "failed to create logger")
-	app_config, err := configuration.NewAppConfig(logger)
+	appConfig, err := configuration.NewAppConfig(logger)
 	suite.NoError(err, "failed to create logger")
-	app_config.SetDefault("SDS_REQUEST_TIMEOUT", 2)
+	appConfig.SetDefault("SDS_REQUEST_TIMEOUT", 2)
 
 	logger.Info("setup test")
 	suite.logger = logger
 
 	// Services
-	client_service, err := parameter.NewExternal(parameter.CORE, parameter.REMOTE, app_config)
+	clientService, err := parameter.NewExternal(parameter.CORE, parameter.REMOTE, appConfig)
 	suite.Require().NoError(err)
-	tcp_service, err := parameter.NewExternal(parameter.CORE, parameter.THIS, app_config)
+	tcpService, err := parameter.NewExternal(parameter.CORE, parameter.THIS, appConfig)
 	suite.Require().NoError(err, "failed to create indexer service")
 
 	// Run the background Reply Controllers
 	// Router's dealers will connect to them
-	blockchain_service, err := parameter.NewExternal(parameter.BLOCKCHAIN, parameter.THIS, app_config)
+	blockchainService, err := parameter.NewExternal(parameter.BLOCKCHAIN, parameter.THIS, appConfig)
 	suite.Require().NoError(err, "failed to create blockchain service")
-	indexer_service, err := parameter.NewExternal(parameter.INDEXER, parameter.THIS, app_config)
+	indexerService, err := parameter.NewExternal(parameter.INDEXER, parameter.THIS, appConfig)
 	suite.Require().NoError(err, "failed to create indexer service")
 
 	////////////////////////////////////////////////////////
@@ -72,21 +72,21 @@ func (suite *TestRouterSuite) SetupTest() {
 	////////////////////////////////////////////////////////
 	// client_service's limit is REMOTE, not this.
 	// Router requires THIS limit
-	_, err = NewRouter(client_service, logger)
+	_, err = NewRouter(clientService, logger)
 	suite.Require().Error(err, "remote limited service should be failed as the parameter.Url() will not return wildcard host")
-	tcp_router, err := NewRouter(tcp_service, logger)
+	tcpRouter, err := NewRouter(tcpService, logger)
 	suite.Require().NoError(err)
-	suite.tcp_router = &tcp_router
+	suite.tcpRouter = &tcpRouter
 
 	// Client
-	tcp_client_socket, err := remote.NewTcpSocket(client_service, logger, app_config)
+	tcpClientSocket, err := remote.NewTcpSocket(clientService, &logger, appConfig)
 	suite.Require().NoError(err, "failed to create subscriber socket")
-	suite.tcp_client = tcp_client_socket
+	suite.tcpClient = tcpClientSocket
 
 	// Reply Controllers
-	blockchain_socket, err := NewReply(blockchain_service, logger)
+	blockchainSocket, err := NewReply(blockchainService, logger)
 	suite.Require().NoError(err, "remote limited service should be failed as the parameter.Url() will not return wildcard host")
-	indexer_socket, err := NewReply(indexer_service, logger)
+	indexerSocket, err := NewReply(indexerService, logger)
 	suite.Require().NoError(err, "remote limited service should be failed as the parameter.Url() will not return wildcard host")
 
 	////////////////////////////////////////////////////
@@ -94,35 +94,35 @@ func (suite *TestRouterSuite) SetupTest() {
 	// Run the sockets
 	//
 	////////////////////////////////////////////////////
-	command_1 := command.New("command_1")
-	command_1_handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+	command1 := command.New("command_1")
+	command1Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
-				Set("id", command_1.String()).
+				Set("id", command1.String()).
 				Set("dealer", parameter.BLOCKCHAIN.ToString()),
 		}
 	}
-	command_2 := command.New("command_2")
-	command_2_handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+	command2 := command.New("command_2")
+	command2Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
 		logger.Info("reply back command", "service", parameter.INDEXER)
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
-				Set("id", command_2.String()).
+				Set("id", command2.String()).
 				Set("dealer", parameter.INDEXER.ToString()),
 		}
 	}
-	blockchain_handlers := command.EmptyHandlers().
-		Add(command_1, command_1_handler)
+	blockchainHandlers := command.EmptyHandlers().
+		Add(command1, command1Handler)
 
-	indexer_handlers := command.EmptyHandlers().
-		Add(command_2, command_2_handler)
+	indexerHandlers := command.EmptyHandlers().
+		Add(command2, command2Handler)
 
-	suite.commands = []command.CommandName{
-		command_1, command_2,
+	suite.commands = []command.Name{
+		command1, command2,
 	}
 
 	// todo
@@ -137,26 +137,30 @@ func (suite *TestRouterSuite) SetupTest() {
 	// BLOCKCHAIN
 	// INDEXER
 
-	suite.tcp_repliers = []*Controller{blockchain_socket, indexer_socket}
-	go blockchain_socket.Run(blockchain_handlers)
-	go indexer_socket.Run(indexer_handlers)
+	suite.tcpRepliers = []*Controller{blockchainSocket, indexerSocket}
+	go func() {
+		_ = blockchainSocket.Run(blockchainHandlers)
+	}()
+	go func() {
+		_ = indexerSocket.Run(indexerHandlers)
+	}()
 
-	dealer_blockchain, err := parameter.NewExternal(parameter.BLOCKCHAIN, parameter.REMOTE, app_config)
+	dealerBlockchain, err := parameter.NewExternal(parameter.BLOCKCHAIN, parameter.REMOTE, appConfig)
 	suite.Require().NoError(err, "failed to create blockchain service")
-	dealer_indexer, err := parameter.NewExternal(parameter.INDEXER, parameter.REMOTE, app_config)
+	dealerIndexer, err := parameter.NewExternal(parameter.INDEXER, parameter.REMOTE, appConfig)
 	suite.Require().NoError(err, "failed to create indexer service")
 	// The STORAGE is registered on the router, but doesn't exist
 	// On the backend side.
-	dealer_storage, err := parameter.NewExternal(parameter.STORAGE, parameter.REMOTE, app_config)
+	dealerStorage, err := parameter.NewExternal(parameter.STORAGE, parameter.REMOTE, appConfig)
 	suite.Require().NoError(err, "failed to create indexer service")
 
-	err = suite.tcp_router.AddDealers(blockchain_service)
+	err = suite.tcpRouter.AddDealers(blockchainService)
 	suite.Require().Error(err, "failed to add dealer, because limit is THIS")
-	err = suite.tcp_router.AddDealers(dealer_blockchain, dealer_indexer, dealer_storage)
+	err = suite.tcpRouter.AddDealers(dealerBlockchain, dealerIndexer, dealerStorage)
 	suite.Require().NoError(err, "failed to create blockchain service")
-	go suite.tcp_router.Run()
+	go suite.tcpRouter.Run()
 
-	suite.client_service = client_service
+	suite.clientService = clientService
 
 	// Prepare for the controllers to be ready
 	time.Sleep(time.Millisecond * 200)
@@ -171,62 +175,62 @@ func (suite *TestRouterSuite) TestRun() {
 	// tcp client
 	go func() {
 		for i := 0; i < 5; i++ {
-			request_parameters := key_value.Empty().
+			requestParameters := key_value.Empty().
 				Set("counter", uint64(i))
-			var reply_parameters key_value.KeyValue
+			var replyParameters key_value.KeyValue
 
-			command_index := 1
+			commandIndex := 1
 			dealer, _ := parameter.Inprocess(parameter.INDEXER)
 
-			err := suite.commands[command_index].RequestRouter(suite.tcp_client, dealer, request_parameters, &reply_parameters)
+			err := suite.commands[commandIndex].RequestRouter(suite.tcpClient, dealer, requestParameters, &replyParameters)
 			suite.NoError(err)
 
-			counter, err := reply_parameters.GetUint64("counter")
+			counter, err := replyParameters.GetUint64("counter")
 			suite.Require().NoError(err)
 			suite.Equal(counter, uint64(i))
 
-			id, err := reply_parameters.GetString("id")
+			id, err := replyParameters.GetString("id")
 			suite.Require().NoError(err)
-			suite.Equal(id, suite.commands[command_index].String())
+			suite.Equal(id, suite.commands[commandIndex].String())
 		}
 
 		for i := 0; i < 5; i++ {
-			request_parameters := key_value.Empty().
+			requestParameters := key_value.Empty().
 				Set("counter", uint64(i))
-			var reply_parameters key_value.KeyValue
+			var replyParameters key_value.KeyValue
 
-			command_index := 0
+			commandIndex := 0
 			dealer, _ := parameter.Inprocess(parameter.BLOCKCHAIN)
 
-			err := suite.commands[command_index].RequestRouter(suite.tcp_client, dealer, request_parameters, &reply_parameters)
+			err := suite.commands[commandIndex].RequestRouter(suite.tcpClient, dealer, requestParameters, &replyParameters)
 			suite.NoError(err)
 
-			counter, err := reply_parameters.GetUint64("counter")
+			counter, err := replyParameters.GetUint64("counter")
 			suite.Require().NoError(err)
 			suite.Equal(counter, uint64(i))
 
-			id, err := reply_parameters.GetString("id")
+			id, err := replyParameters.GetString("id")
 			suite.Require().NoError(err)
-			suite.Equal(id, suite.commands[command_index].String())
+			suite.Equal(id, suite.commands[commandIndex].String())
 		}
 
 		// no command found
-		command_3 := command.New("command_3")
-		request_3 := message.Request{
-			Command:    command_3.String(),
+		command3 := command.New("command_3")
+		request3 := message.Request{
+			Command:    command3.String(),
 			Parameters: key_value.Empty(),
 		}
 
-		blockchain_socket, _ := parameter.Inprocess(parameter.BLOCKCHAIN)
+		blockchainSocket, _ := parameter.Inprocess(parameter.BLOCKCHAIN)
 
-		_, err := suite.tcp_client.RequestRouter(blockchain_socket, &request_3)
+		_, err := suite.tcpClient.RequestRouter(blockchainSocket, &request3)
 		suite.Require().Error(err)
 
 		suite.logger.Info("before requesting unhandled reply controller's dealer")
 
-		storage_socket, _ := parameter.Inprocess(parameter.STORAGE)
+		storageSocket, _ := parameter.Inprocess(parameter.STORAGE)
 
-		_, err = suite.tcp_client.RequestRouter(storage_socket, &request_3)
+		_, err = suite.tcpClient.RequestRouter(storageSocket, &request3)
 		suite.Require().Error(err)
 
 		suite.logger.Info("after requesting unhandled reply controller's dealer")
@@ -237,12 +241,12 @@ func (suite *TestRouterSuite) TestRun() {
 
 	wg.Add(1)
 	go func() {
-		suite.logger.Info("test the high water mark, message overbuffer")
+		suite.logger.Info("test the high water mark, message over-buffer")
 		socket, err := zmq.NewSocket(zmq.DEALER)
 		if err != nil {
 			suite.logger.Fatal("error creating socket: %w", err)
 		}
-		err = socket.Connect(suite.client_service.Url())
+		err = socket.Connect(suite.clientService.Url())
 		if err != nil {
 			suite.logger.Fatal("setup of dealer socket: %w", err)
 		}
@@ -251,8 +255,8 @@ func (suite *TestRouterSuite) TestRun() {
 			request := message.Request{
 				Command: "no_existing",
 			}
-			request_string, _ := request.ToString()
-			_, err = socket.SendMessage(parameter.STORAGE, request_string)
+			requestString, _ := request.ToString()
+			_, err = socket.SendMessage(parameter.STORAGE, requestString)
 			suite.Require().NoError(err)
 		}
 

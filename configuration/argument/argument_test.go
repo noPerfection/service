@@ -26,7 +26,7 @@ func (suite *TestArgumentSuite) SetupTest() {
 	os.Args = append(os.Args, "--number-key=5")
 	os.Args = append(os.Args, "./.test.env")
 
-	logger, err := log.New("test_suite", log.WITHOUT_TIMESTAMP)
+	logger, err := log.New("test_suite", false)
 	suite.NoError(err)
 
 	suite.arguments = []string{
@@ -44,9 +44,9 @@ func (suite *TestArgumentSuite) TestRun() {
 	arguments := GetArguments(&suite.logger)
 	suite.Require().EqualValues(suite.arguments, arguments)
 
-	path_arguments := GetEnvPaths()
-	suite.Require().Len(path_arguments, 1)
-	path_arguments[0] = "./.test.env"
+	pathArguments := GetEnvPaths()
+	suite.Require().Len(pathArguments, 1)
+	pathArguments[0] = "./.test.env"
 
 	// This -- prefixed key doesn't exist
 	suite.False(Has(arguments, "not_exist"))

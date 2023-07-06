@@ -10,12 +10,12 @@ import (
 type Request struct {
 	Command    string             `json:"command"`
 	Parameters key_value.KeyValue `json:"parameters"`
-	public_key string
+	publicKey  string
 }
 
 // If the reply type is failure then
 // THe message should be given too
-func (request *Request) valid_command() error {
+func (request *Request) validCommand() error {
 	if len(request.Command) == 0 {
 		return fmt.Errorf("command is missing")
 	}
@@ -25,7 +25,7 @@ func (request *Request) valid_command() error {
 
 // ToBytes converts the message to the sequence of bytes
 func (request *Request) ToBytes() ([]byte, error) {
-	err := request.valid_command()
+	err := request.validCommand()
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate command: %w", err)
 	}
@@ -43,14 +43,14 @@ func (request *Request) ToBytes() ([]byte, error) {
 	return bytes, nil
 }
 
-// For security; Work in Progress.
-func (request *Request) SetPublicKey(public_key string) {
-	request.public_key = public_key
+// SetPublicKey For security; Work in Progress.
+func (request *Request) SetPublicKey(publicKey string) {
+	request.publicKey = publicKey
 }
 
-// For security; Work in Progress.
+// GetPublicKey For security; Work in Progress.
 func (request *Request) GetPublicKey() string {
-	return request.public_key
+	return request.publicKey
 }
 
 // ToString the message
@@ -64,17 +64,17 @@ func (request *Request) ToString() (string, error) {
 }
 
 // ToString into the single string the array of zeromq messages
-func ToString(msgs []string) string {
+func ToString(messages []string) string {
 	msg := ""
-	for _, v := range msgs {
+	for _, v := range messages {
 		msg += v
 	}
 	return msg
 }
 
 // ParseRequest from the zeromq messages
-func ParseRequest(msgs []string) (Request, error) {
-	msg := ToString(msgs)
+func ParseRequest(messages []string) (Request, error) {
+	msg := ToString(messages)
 
 	data, err := key_value.NewFromString(msg)
 	if err != nil {

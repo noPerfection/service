@@ -12,8 +12,8 @@ import (
 // returns the current testing context
 type TestBroadcastSuite struct {
 	suite.Suite
-	fail_broadcast Broadcast
-	ok_broadcast   Broadcast
+	failBroadcast Broadcast
+	okBroadcast   Broadcast
 }
 
 // Make sure that Account is set to five
@@ -25,44 +25,44 @@ func (suite *TestBroadcastSuite) SetupTest() {
 		Message:    "",
 		Parameters: key_value.Empty(),
 	}
-	fail_reply := Reply{
+	failReply := Reply{
 		Status:     FAIL,
 		Message:    "failed for testing purpose",
 		Parameters: key_value.Empty(),
 	}
-	suite.ok_broadcast = NewBroadcast(topic, reply)
-	suite.fail_broadcast = NewBroadcast(topic, fail_reply)
+	suite.okBroadcast = NewBroadcast(topic, reply)
+	suite.failBroadcast = NewBroadcast(topic, failReply)
 }
 
 // All methods that begin with "Test" are run as tests within a
 // suite.
 func (suite *TestBroadcastSuite) TestIsOk() {
-	suite.True(suite.ok_broadcast.IsOK())
-	suite.False(suite.fail_broadcast.IsOK())
+	suite.True(suite.okBroadcast.IsOK())
+	suite.False(suite.failBroadcast.IsOK())
 }
 
 func (suite *TestBroadcastSuite) TestToBytes() {
-	ok_string := `{"reply":{"message":"","parameters":{},"status":"OK"},"topic":"random_topic"}`
-	fail_string := `{"reply":{"message":"failed for testing purpose","parameters":{},"status":"fail"},"topic":"random_topic"}`
+	okString := `{"reply":{"message":"","parameters":{},"status":"OK"},"topic":"random_topic"}`
+	failString := `{"reply":{"message":"failed for testing purpose","parameters":{},"status":"fail"},"topic":"random_topic"}`
 
-	fail_bytes := suite.fail_broadcast.ToBytes()
-	ok_bytes := suite.ok_broadcast.ToBytes()
+	failBytes := suite.failBroadcast.ToBytes()
+	okBytes := suite.okBroadcast.ToBytes()
 
-	suite.EqualValues(ok_string, string(ok_bytes))
-	suite.EqualValues(fail_string, string(fail_bytes))
+	suite.EqualValues(okString, string(okBytes))
+	suite.EqualValues(failString, string(failBytes))
 }
 
 func (suite *TestBroadcastSuite) TestParsing() {
-	fail_string := string(suite.fail_broadcast.ToBytes())
-	ok_string := string(suite.ok_broadcast.ToBytes())
+	failString := string(suite.failBroadcast.ToBytes())
+	okString := string(suite.okBroadcast.ToBytes())
 
-	ok_broadcast, err := ParseBroadcast([]string{suite.ok_broadcast.Topic, ok_string})
+	okBroadcast, err := ParseBroadcast([]string{suite.okBroadcast.Topic, okString})
 	suite.Require().NoError(err)
-	fail_broadcast, err := ParseBroadcast([]string{suite.fail_broadcast.Topic, fail_string})
+	failBroadcast, err := ParseBroadcast([]string{suite.failBroadcast.Topic, failString})
 	suite.Require().NoError(err)
 
-	suite.EqualValues(suite.ok_broadcast, ok_broadcast)
-	suite.EqualValues(suite.fail_broadcast, fail_broadcast)
+	suite.EqualValues(suite.okBroadcast, okBroadcast)
+	suite.EqualValues(suite.failBroadcast, failBroadcast)
 }
 
 // In order for 'go test' to run this suite, we need to create

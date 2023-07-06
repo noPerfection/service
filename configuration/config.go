@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Configuration Engine based on viper.Viper
+// Config Configuration Engine based on viper.Viper
 type Config struct {
 	viper *viper.Viper // used to keep default values
 
@@ -39,7 +39,7 @@ func NewAppConfig(parent log.Logger) (*Config, error) {
 
 	conf := Config{
 		Secure:        argument.Has(arguments, argument.SECURE),
-		DebugSecurity: argument.Has(arguments, argument.SECURITY_DEBUG),
+		DebugSecurity: argument.Has(arguments, argument.SecurityDebug),
 		logger:        &logger,
 	}
 	logger.Info("Loading environment files passed as app arguments")
@@ -59,46 +59,46 @@ func NewAppConfig(parent log.Logger) (*Config, error) {
 	return &conf, nil
 }
 
-// Set the default configuration parameters.
-func (config *Config) SetDefaults(default_config DefaultConfig) {
-	for name, value := range default_config.Parameters {
+// SetDefaults sets the default configuration parameters.
+func (c *Config) SetDefaults(defaultConfig DefaultConfig) {
+	for name, value := range defaultConfig.Parameters {
 		if value == nil {
 			continue
 		}
 		// already set, don't use the default
-		if config.viper.IsSet(name) {
+		if c.viper.IsSet(name) {
 			continue
 		}
-		config.logger.Info("Set default for "+default_config.Title, name, value)
-		config.SetDefault(name, value)
+		c.logger.Info("Set default for "+defaultConfig.Title, name, value)
+		c.SetDefault(name, value)
 	}
 }
 
-// Sets the default configuration name to the value
+// SetDefault sets the default configuration name to the value
 func (c *Config) SetDefault(name string, value interface{}) {
 	c.viper.SetDefault(name, value)
 }
 
-// Checks whether the configuration variable exists or not
+// Exist Checks whether the configuration variable exists or not
 // If the configuration exists or its default value exists, then returns true.
 func (c *Config) Exist(name string) bool {
 	value := c.viper.GetString(name)
 	return len(value) > 0
 }
 
-// Returns the configuration parameter as a string
+// GetString Returns the configuration parameter as a string
 func (c *Config) GetString(name string) string {
 	value := c.viper.GetString(name)
 	return value
 }
 
-// Returns the configuration parameter as an unsigned 64 bit number
+// GetUint64 Returns the configuration parameter as an unsigned 64-bit number
 func (c *Config) GetUint64(name string) uint64 {
 	value := c.viper.GetUint64(name)
 	return value
 }
 
-// Returns the configuration parameter as a boolean
+// GetBool Returns the configuration parameter as a boolean
 func (c *Config) GetBool(name string) bool {
 	value := c.viper.GetBool(name)
 	return value

@@ -13,19 +13,19 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// CommandName is the string
-// Its included in the message.Request when another thread or user requests
+// Name is the string
+// It's included in the message.Request when another thread or user requests
 // the SDS Service
-type CommandName string
+type Name string
 
 // String representation of the CommandName
-func (c CommandName) String() string {
-	return string(c)
+func (command Name) String() string {
+	return string(command)
 }
 
-// Converts the given string to the CommandName
-func New(value string) CommandName {
-	return CommandName(value)
+// New Converts the given string to the CommandName
+func New(value string) Name {
+	return Name(value)
 }
 
 // Request the command to the remote thread or service with the
@@ -43,7 +43,7 @@ func New(value string) CommandName {
 //	    // Send PING command to the socket.
 //		_ := ping_command.Request(socket, request_parameters, &reply_parameters)
 //		pong, _ := reply_parameters.GetString("pong")
-func (command CommandName) Request(socket *remote.ClientSocket, request interface{}, reply interface{}) error {
+func (command Name) Request(socket *remote.ClientSocket, request interface{}, reply interface{}) error {
 	_, ok := request.(message.Request)
 	if ok {
 		return fmt.Errorf("the request can not be of message.Request type")
@@ -65,22 +65,22 @@ func (command CommandName) Request(socket *remote.ClientSocket, request interfac
 		return fmt.Errorf("the reply is not passed by pointer")
 	}
 
-	request_parameters, err := key_value.NewFromInterface(request)
+	requestParameters, err := key_value.NewFromInterface(request)
 	if err != nil {
 		return fmt.Errorf("convert parameters to: %w", err)
 	}
 
-	request_message := message.Request{
+	requestMessage := message.Request{
 		Command:    command.String(),
-		Parameters: request_parameters,
+		Parameters: requestParameters,
 	}
 
-	reply_parameters, err := socket.RequestRemoteService(&request_message)
+	replyParameters, err := socket.RequestRemoteService(&requestMessage)
 	if err != nil {
 		return fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
 
-	err = reply_parameters.ToInterface(reply)
+	err = replyParameters.ToInterface(reply)
 	if err != nil {
 		return fmt.Errorf("reply.Parameters.ToInterface: %w", err)
 	}
@@ -91,7 +91,7 @@ func (command CommandName) Request(socket *remote.ClientSocket, request interfac
 // Push the command to the remote thread or service with the
 // given request parameters via the socket.
 //
-// The Push is equavilanet of Request without waiting for the remote socket's response.
+// The Push is equivalent of Request without waiting for the remote socket's response.
 //
 // Example:
 //
@@ -101,13 +101,13 @@ func (command CommandName) Request(socket *remote.ClientSocket, request interfac
 //		    // Send HEARTBEAT command to the socket.
 //			_ := heartbeat.Request(socket, request_parameters)
 //			server_timestamp, _ := reply_parameters.GetUint64("server_timestamp")
-func (command CommandName) Push(socket *zmq.Socket, request interface{}) error {
-	socket_type, err := socket.GetType()
+func (command Name) Push(socket *zmq.Socket, request interface{}) error {
+	socketType, err := socket.GetType()
 	if err != nil {
 		return fmt.Errorf("socket.GetType: %w", err)
 	}
-	if socket_type != zmq.PUSH {
-		return fmt.Errorf("socket type %s not supported. Only is supported PUSH", socket_type)
+	if socketType != zmq.PUSH {
+		return fmt.Errorf("socket type %s not supported. Only is supported PUSH", socketType)
 	}
 
 	_, ok := request.(message.Request)
@@ -120,23 +120,23 @@ func (command CommandName) Push(socket *zmq.Socket, request interface{}) error {
 	}
 
 	var mu sync.Mutex
-	request_parameters, err := key_value.NewFromInterface(request)
+	requestParameters, err := key_value.NewFromInterface(request)
 	if err != nil {
 		return fmt.Errorf("convert parameters to: %w", err)
 	}
 
-	request_message := message.Request{
+	requestMessage := message.Request{
 		Command:    command.String(),
-		Parameters: request_parameters,
+		Parameters: requestParameters,
 	}
 
-	request_string, err := request_message.ToString()
+	requestString, err := requestMessage.ToString()
 	if err != nil {
 		return fmt.Errorf("failed to stringify message: %w", err)
 	}
 
 	mu.Lock()
-	_, err = socket.SendMessage(request_string)
+	_, err = socket.SendMessage(requestString)
 	mu.Unlock()
 	if err != nil {
 		return fmt.Errorf("failed to send to blockchain package: %w", err)
@@ -162,7 +162,7 @@ func (command CommandName) Push(socket *zmq.Socket, request interface{}) error {
 //	        db_service := parameter.DB
 //			// Send SET command to the database via the authentication proxy.
 //			_ := set.RequestRouter(auth_socket, db_service, request_parameters, &reply_parameters)
-func (command CommandName) RequestRouter(socket *remote.ClientSocket, target_service *parameter.Service, request interface{}, reply interface{}) error {
+func (command Name) RequestRouter(socket *remote.ClientSocket, targetService *parameter.Service, request interface{}, reply interface{}) error {
 	_, ok := request.(message.Request)
 	if ok {
 		return fmt.Errorf("the request can not be of message.Request type")
@@ -184,28 +184,28 @@ func (command CommandName) RequestRouter(socket *remote.ClientSocket, target_ser
 		return fmt.Errorf("the reply must be passed by pointer")
 	}
 
-	request_parameters, err := key_value.NewFromInterface(request)
+	requestParameters, err := key_value.NewFromInterface(request)
 	if err != nil {
 		return fmt.Errorf("convert parameters to: %w", err)
 	}
 
-	request_message := message.Request{
+	requestMessage := message.Request{
 		Command:    command.String(),
-		Parameters: request_parameters,
+		Parameters: requestParameters,
 	}
 
-	reply_parameters, err := socket.RequestRouter(target_service, &request_message)
+	replyParameters, err := socket.RequestRouter(targetService, &requestMessage)
 	if err != nil {
 		return fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
 
-	err = reply_parameters.ToInterface(reply)
+	err = replyParameters.ToInterface(reply)
 	return err
 }
 
 // Reply creates a successful message.Reply with the given reply parameters.
 func Reply(reply interface{}) (message.Reply, error) {
-	reply_parameters, err := key_value.NewFromInterface(reply)
+	replyParameters, err := key_value.NewFromInterface(reply)
 	if err != nil {
 		return message.Reply{}, fmt.Errorf("failed to encode reply: %w", err)
 	}
@@ -213,6 +213,6 @@ func Reply(reply interface{}) (message.Reply, error) {
 	return message.Reply{
 		Status:     message.OK,
 		Message:    "",
-		Parameters: reply_parameters,
+		Parameters: replyParameters,
 	}, nil
 }

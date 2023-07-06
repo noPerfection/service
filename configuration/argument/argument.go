@@ -10,24 +10,11 @@ import (
 )
 
 const (
-	SECURE    = "secure"    // If passed, then TCP sockets will require authentication. Default is false
-	BROADCAST = "broadcast" // runs only broadcaster
-	REPLY     = "reply"     // runs only request-reply server
-	SERVICE   = "service"   // App runs with the one service only
-
-	// network id, support only this network.
-	// example:
-	//    --network-id=5
-	//
-	//    support only network id 5
-	NETWORK_ID = "network-id"
-
-	// Set this arguments to print the logs
-	BROADCAST_DEBUG = "broadcast-debug"
-	SECURITY_DEBUG  = "security-debug"
+	SECURE        = "secure" // If passed, then TCP sockets will require authentication. Default is false
+	SecurityDebug = "security-debug"
 )
 
-// any command line data that comes after the files are .env file paths
+// GetEnvPaths any command line data that comes after the files are .env file paths
 // Any argument for application without '--' prefix is considered to be path to the
 // environment file.
 func GetEnvPaths() []string {
@@ -43,8 +30,8 @@ func GetEnvPaths() []string {
 			continue
 		}
 
-		last_part := arg[len(arg)-4:]
-		if last_part != ".env" {
+		lastPart := arg[len(arg)-4:]
+		if lastPart != ".env" {
 			continue
 		}
 
@@ -57,22 +44,22 @@ func GetEnvPaths() []string {
 	return paths
 }
 
-// Load arguments, not the environment variable paths.
+// GetArguments Load arguments, not the environment variable paths.
 // Arguments starts with '--'
 func GetArguments(parent *log.Logger) []string {
 	var logger *log.Logger
 	if parent != nil {
-		new_logger, err := parent.Child("argument")
+		newLogger, err := parent.Child("argument")
 		if err != nil {
 			logger.Warn("parent.Child", "error", err)
 			return []string{}
 		}
-		logger = &new_logger
+		logger = &newLogger
 
 		logger.Info("Supported app arguments",
 			"--"+SECURE,
 			"Enables security service",
-			"--"+SECURITY_DEBUG,
+			"--"+SecurityDebug,
 			"To print the authentication logs",
 		)
 	}
@@ -100,19 +87,19 @@ func GetArguments(parent *log.Logger) []string {
 	return parameters
 }
 
-// This function is same as `env.HasArgument`,
+// Exist This function is same as `env.HasArgument`,
 // except `env.ArgumentExist()` loads arguments automatically.
 func Exist(argument string) bool {
 	return Has(GetArguments(nil), argument)
 }
 
-// Extracts the value of the argument if it has.
+// ExtractValue Extracts the value of the argument if it has.
 // The argument value comes after "=".
 //
 // This function gets the arguments from the CLI automatically.
 //
 // If the argument doesn't exist, then returns an empty string.
-// Therefore you should check for the argument existence by calling `argument.Exist()`
+// Therefore, you should check for the argument existence by calling `argument.Exist()`
 func ExtractValue(arguments []string, required string) (string, error) {
 	found := ""
 	for _, argument := range arguments {
@@ -136,13 +123,13 @@ func ExtractValue(arguments []string, required string) (string, error) {
 	return value, nil
 }
 
-// Extracts the value of the argument if it's exists.
+// Value Extracts the value of the argument if it's exists.
 // Similar to GetValue() but doesn't accept the
 func Value(name string) (string, error) {
 	return ExtractValue(GetArguments(nil), name)
 }
 
-// Extracts the value of the argument.
+// GetValue Extracts the value of the argument.
 // Argument comes after '='
 func GetValue(argument string) (string, error) {
 	parts := strings.Split(argument, "=")
@@ -153,7 +140,7 @@ func GetValue(argument string) (string, error) {
 	return parts[1], nil
 }
 
-// Whehter the given argument exists or not.
+// Has checks is the required argument exists among arguments or not.
 func Has(arguments []string, required string) bool {
 	for _, argument := range arguments {
 		if argument == required {

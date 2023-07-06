@@ -12,21 +12,21 @@ import (
 // returns the current testing context
 type TestEnvSuite struct {
 	suite.Suite
-	env_path string
+	envPath string
 }
 
 // Make sure that Account is set to five
 // before each test
 func (suite *TestEnvSuite) SetupTest() {
-	suite.env_path = ".test.env"
-	os.Args = append(os.Args, suite.env_path)
+	suite.envPath = ".test.env"
+	os.Args = append(os.Args, suite.envPath)
 
-	file, err := os.Create(suite.env_path)
+	file, err := os.Create(suite.envPath)
 	suite.Require().NoError(err)
 	_, err = file.WriteString("")
-	suite.Require().NoError(err, "failed to write the data into: "+suite.env_path)
+	suite.Require().NoError(err, "failed to write the data into: "+suite.envPath)
 	err = file.Close()
-	suite.Require().NoError(err, "delete the dump file: "+suite.env_path)
+	suite.Require().NoError(err, "delete the dump file: "+suite.envPath)
 }
 
 // All methods that begin with "Test" are run as tests within a
@@ -34,8 +34,8 @@ func (suite *TestEnvSuite) SetupTest() {
 func (suite *TestEnvSuite) TestRun() {
 	err := LoadAnyEnv()
 	suite.Require().NoError(err)
-	err = os.Remove(suite.env_path)
-	suite.Require().NoError(err, "delete the dump file: "+suite.env_path)
+	err = os.Remove(suite.envPath)
+	suite.Require().NoError(err, "delete the dump file: "+suite.envPath)
 }
 
 // In order for 'go test' to run this suite, we need to create

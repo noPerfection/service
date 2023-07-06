@@ -1,4 +1,4 @@
-// Package parameter defines the service idendity.
+// Package identity defines the service identity.
 // For example, the parameters includes the host name and port if you want to connect to it
 // via TCP protocol.
 package identity
@@ -12,62 +12,62 @@ import (
 
 const (
 	localhost   = "localhost"
-	intial_port = 4000
-	port_offset = 10
+	initialPort = 4000
+	portOffset  = 10
 )
 
-// i is the service index
-func calculate_port(i int) int {
-	return intial_port + (i * port_offset)
+// is the service index
+func calculatePort(i int) int {
+	return initialPort + (i * portOffset)
 }
 
-// Returns the default configuration for the service
+// DefaultConfiguration Returns the default configuration for the service
 //
 // The first service's launched in the initial_port.
 // At most the service should have 10 available ports.
 //
 // Each service's port number is incremented by 10.
-func DefaultConfiguration(service_type ServiceType) configuration.DefaultConfig {
-	service_types := service_types()
+func DefaultConfiguration(serviceType ServiceType) configuration.DefaultConfig {
+	serviceTypes := serviceTypes()
 
-	for i, value := range service_types {
-		if service_type != value {
+	for i, value := range serviceTypes {
+		if serviceType != value {
 			continue
 		}
-		name := service_type.ToString()
+		name := serviceType.ToString()
 
-		port_value := calculate_port(i)
-		broadcast_port_value := port_value + 1
+		portValue := calculatePort(i)
+		broadcastPortValue := portValue + 1
 
 		// names
 		parameters := map[string]interface{}{
 			name + "_HOST": localhost,
-			name + "_PORT": strconv.Itoa(port_value),
+			name + "_PORT": strconv.Itoa(portValue),
 
 			name + "_BROADCAST_HOST": localhost,
-			name + "_BROADCAST_PORT": strconv.Itoa(broadcast_port_value),
+			name + "_BROADCAST_PORT": strconv.Itoa(broadcastPortValue),
 		}
 
-		default_config := configuration.DefaultConfig{
-			Title:      "SERVICE " + service_type.ToString(),
+		defaultConfig := configuration.DefaultConfig{
+			Title:      "SERVICE " + serviceType.ToString(),
 			Parameters: key_value.New(parameters),
 		}
 
-		return default_config
+		return defaultConfig
 	}
 
 	return configuration.DefaultConfig{Title: ""}
 }
 
-// Returns the list of default configurations for all services
+// DefaultConfigurations Returns the list of default configurations for all services
 func DefaultConfigurations() []configuration.DefaultConfig {
-	service_types := service_types()
-	default_configs := make([]configuration.DefaultConfig, len(service_types))
+	serviceTypes := serviceTypes()
+	defaultConfigs := make([]configuration.DefaultConfig, len(serviceTypes))
 
-	for i, service_type := range service_types {
-		default_config := DefaultConfiguration(service_type)
-		default_configs[i] = default_config
+	for i, serviceType := range serviceTypes {
+		defaultConfig := DefaultConfiguration(serviceType)
+		defaultConfigs[i] = defaultConfig
 	}
 
-	return default_configs
+	return defaultConfigs
 }

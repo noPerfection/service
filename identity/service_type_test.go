@@ -13,7 +13,7 @@ type TestServiceTypeSuite struct {
 	suite.Suite
 }
 
-// Todo test inprocess and external types of controllers
+// Todo test in-process and external types of controllers
 // Todo test the business of the controller
 // Make sure that Account is set to five
 // before each test
@@ -24,7 +24,7 @@ func (suite *TestServiceTypeSuite) SetupTest() {
 }
 
 func (suite *TestServiceTypeSuite) TestTypes() {
-	types := service_types()
+	types := serviceTypes()
 	suite.Require().Len(types, 11)
 	suite.Equal(CORE, types[0])
 	suite.Equal(BLOCKCHAIN, types[1])

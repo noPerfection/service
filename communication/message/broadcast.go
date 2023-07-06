@@ -3,14 +3,14 @@
 //
 // The message types are:
 //
-//   - Broadcast message sent by broadcas.Broadcast and received by the Subscriber.
+//   - Broadcast message sent by broadcast.Broadcast and received by the Subscriber.
 //
 //   - Request message sent by the client sockets to the remote services.
 //
 //   - Reply message sent back to clients by the Controller socket.
 //
 //   - SmartcontractDeveloperRequest message sent by client sockets to the Controller.
-//     Its similar to the Request message, but includes the authentication parameters based on
+//     It's similar to the Request message, but includes the authentication parameters based on
 //     Blockchain public/private keys.
 //
 //     This message is intended to be sent to the controller that has no CURVE authentication.
@@ -29,7 +29,7 @@ import (
 
 // Broadcast is the message that is submitted by Broadcast and received by Subscriber.
 type Broadcast struct {
-	// The parameters of the broadcasted message and its status.
+	// The parameters of the broadcast message and its status.
 	Reply Reply `json:"reply"`
 	// The topic to filter the incoming messages by the Subscriber.
 	Topic string `json:"topic"`
@@ -43,8 +43,8 @@ func NewBroadcast(topic string, reply Reply) Broadcast {
 	}
 }
 
-// Broadcast was successful? Call it in the subscriber to verify the message state.
-func (r *Broadcast) IsOK() bool { return r.Reply.IsOK() }
+// IsOK Broadcast was successful? Call it in the subscriber to verify the message state.
+func (b *Broadcast) IsOK() bool { return b.Reply.IsOK() }
 
 // ToBytes returns bytes representation of the Broadcast
 func (b *Broadcast) ToBytes() []byte {
@@ -59,8 +59,8 @@ func (b *Broadcast) ToBytes() []byte {
 }
 
 // ParseBroadcast creates the Broadcast from the zeromq messages.
-func ParseBroadcast(msgs []string) (Broadcast, error) {
-	msg := ToString(msgs)
+func ParseBroadcast(messages []string) (Broadcast, error) {
+	msg := ToString(messages)
 	i := strings.Index(msg, "{")
 
 	if i == -1 {
@@ -79,12 +79,12 @@ func ParseBroadcast(msgs []string) (Broadcast, error) {
 		return Broadcast{}, fmt.Errorf("broadcast.GetString(`topic`): %w", err)
 	}
 
-	raw_reply, err := dat.GetKeyValue("reply")
+	rawReply, err := dat.GetKeyValue("reply")
 	if err != nil {
 		return Broadcast{}, fmt.Errorf("broadcast.GetKeyValue(`reply`): %w", err)
 	}
 
-	reply, err := ParseJsonReply(raw_reply)
+	reply, err := ParseJsonReply(rawReply)
 	if err != nil {
 		return Broadcast{}, fmt.Errorf("ParseJsonReply: %w", err)
 	}

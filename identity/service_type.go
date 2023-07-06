@@ -10,7 +10,7 @@ const (
 	CORE              ServiceType = "CORE"              // The github.com/Seascape-Foundation/sds-service-lib module. It's a Router controller
 	BLOCKCHAIN        ServiceType = "BLOCKCHAIN"        // The blockchain service is the gateway between blockchain networks and SDS
 	INDEXER           ServiceType = "INDEXER"           // The indexer service that keeps the decoded smartcontract event logs in the database
-	STORAGE           ServiceType = "STORAGE"           // The storage service keeps the smartcontracts, abis and configurations
+	STORAGE           ServiceType = "STORAGE"           // The storage service keeps the smartcontracts, abi and configurations
 	GATEWAY           ServiceType = "GATEWAY"           // The gateway is the service that is accessed by developers through SDK
 	DEVELOPER_GATEWAY ServiceType = "DEVELOPER_GATEWAY" // The gateway is the service that is accessed by smartcontract contract developers to register new smartcontract
 	READER            ServiceType = "READER"            // The service that reads the smartcontract parameters via blockchain service.
@@ -19,7 +19,7 @@ const (
 	EVM               ServiceType = "EVM"               // The service that handles EVM blockchains.
 	IMX               ServiceType = "IMX"               // The service that handles IMX blockchains.
 
-	// The services to be used within application.
+	// DATABASE The services to be used within application.
 	// Don't call them on TCP protocol.
 	DATABASE ServiceType = "DATABASE" // The service of database operations. Intended to be on inproc protocol.
 	SECURITY ServiceType = "SECURITY" // The service of authentication and vault starter. Intended to be on inproc protocol.
@@ -27,25 +27,25 @@ const (
 )
 
 // NewServiceType converts the string into service type and validates it.
-// Validation includes checking of of [ServiceType.valid].
+// Validation includes checking of [ServiceType.valid].
 func NewServiceType(str string) (ServiceType, error) {
-	service_type := ServiceType(str)
-	if err := service_type.valid(); err != nil {
+	serviceType := ServiceType(str)
+	if err := serviceType.valid(); err != nil {
 		return "", fmt.Errorf("service_type.valid() failed: %v", err)
 	}
 
-	return service_type, nil
+	return serviceType, nil
 }
 
-// ToString returns the string represantion of the service type
+// ToString returns the string representation of the service type
 func (s ServiceType) ToString() string {
 	return string(s)
 }
 
 func (s ServiceType) valid() error {
-	types := service_types()
-	for _, service_type := range types {
-		if service_type == s {
+	types := serviceTypes()
+	for _, serviceType := range types {
+		if serviceType == s {
 			return nil
 		}
 	}
@@ -53,10 +53,10 @@ func (s ServiceType) valid() error {
 	return fmt.Errorf("the '%s' service type not registered", s.ToString())
 }
 
-func (s ServiceType) inproc_valid() error {
-	types := inproc_service_types()
-	for _, service_type := range types {
-		if service_type == s {
+func (s ServiceType) inprocValid() error {
+	types := inprocServiceTypes()
+	for _, serviceType := range types {
+		if serviceType == s {
 			return nil
 		}
 	}
@@ -65,7 +65,7 @@ func (s ServiceType) inproc_valid() error {
 }
 
 // Returns the services that are available for use within application only
-func inproc_service_types() []ServiceType {
+func inprocServiceTypes() []ServiceType {
 	return []ServiceType{
 		DATABASE,
 		SECURITY,
@@ -74,7 +74,7 @@ func inproc_service_types() []ServiceType {
 }
 
 // Returns all registered services for TCP connection
-func service_types() []ServiceType {
+func serviceTypes() []ServiceType {
 	return []ServiceType{
 		CORE,
 		BLOCKCHAIN,

@@ -11,14 +11,14 @@ import (
 )
 
 // HandleFunc is the function type that manipulates the commands.
-// It accepts atleast message.Request and log.Logger then returns message.Reply.
+// It accepts at least message.Request and log.Logger then returns message.Reply.
 //
 // Optionally the controller can pass the shared states in the additional parameters.
 // The most use case for optional parameter is to pass the link to the Database.
 type HandleFunc = func(message.Request, log.Logger, ...interface{}) message.Reply
 
-// Binding of Command to the Command Handler.
-type Handlers map[CommandName]HandleFunc
+// Handlers Binding of Command to the Command Handler.
+type Handlers map[Name]HandleFunc
 
 // EmptyHandlers returns an empty handler
 func EmptyHandlers() Handlers {
@@ -26,13 +26,13 @@ func EmptyHandlers() Handlers {
 }
 
 // Exist returns true if the handler function exists for the command.
-func (c Handlers) Exist(command CommandName) bool {
+func (c Handlers) Exist(command Name) bool {
 	_, ok := c[command]
 	return ok
 }
 
-// Adds the Binding of command to handler in the handlers
-func (c Handlers) Add(command CommandName, handler HandleFunc) Handlers {
+// Add Adds the Binding of command to handler in the handlers
+func (c Handlers) Add(command Name, handler HandleFunc) Handlers {
 	c[command] = handler
 	return c
 }

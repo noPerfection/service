@@ -20,79 +20,83 @@ import (
 // returns the current testing context
 type TestReplyControllerSuite struct {
 	suite.Suite
-	tcp_controller    *Controller
-	inproc_controller *Controller
-	tcp_client        *remote.ClientSocket
-	inproc_client     *remote.ClientSocket
-	commands          []command.CommandName
+	tcpController    *Controller
+	inprocController *Controller
+	tcpClient        *remote.ClientSocket
+	inprocClient     *remote.ClientSocket
+	commands         []command.Name
 }
 
-// Todo test inprocess and external types of controllers
+// Todo test in-process and external types of controllers
 // Todo test the business of the controller
 // Make sure that Account is set to five
 // before each test
 func (suite *TestReplyControllerSuite) SetupTest() {
-	logger, err := log.New("log", log.WITHOUT_TIMESTAMP)
+	logger, err := log.New("log", false)
 	suite.NoError(err, "failed to create logger")
-	app_config, err := configuration.NewAppConfig(logger)
+	appConfig, err := configuration.NewAppConfig(logger)
 	suite.NoError(err, "failed to create logger")
 
-	client_service, err := parameter.NewExternal(parameter.INDEXER, parameter.REMOTE, app_config)
+	clientService, err := parameter.NewExternal(parameter.INDEXER, parameter.REMOTE, appConfig)
 	suite.Require().NoError(err)
-	tcp_service, err := parameter.NewExternal(parameter.INDEXER, parameter.THIS, app_config)
+	tcpService, err := parameter.NewExternal(parameter.INDEXER, parameter.THIS, appConfig)
 	suite.Require().NoError(err, "failed to create indexer service")
 
 	// todo test the inproc broadcasting
 	// todo add the exit
-	_, err = NewReply(client_service, logger)
+	_, err = NewReply(clientService, logger)
 	suite.Require().Error(err, "remote limited service should be failed as the parameter.Url() will not return wildcard host")
-	tcp_controller, err := NewReply(tcp_service, logger)
+	tcpController, err := NewReply(tcpService, logger)
 	suite.NoError(err)
-	suite.tcp_controller = tcp_controller
+	suite.tcpController = tcpController
 
-	inproc_service, err := parameter.Inprocess(parameter.INDEXER)
+	inprocService, err := parameter.Inprocess(parameter.INDEXER)
 	suite.NoError(err)
-	suite.NotEmpty(inproc_service)
+	suite.NotEmpty(inprocService)
 
-	inproc_controller, err := NewReply(inproc_service, logger)
+	inprocController, err := NewReply(inprocService, logger)
 	suite.NoError(err)
-	suite.inproc_controller = inproc_controller
+	suite.inprocController = inprocController
 
 	// Socket to talk to clients
-	tcp_client_socket, err := remote.NewTcpSocket(client_service, logger, app_config)
+	tcpClientSocket, err := remote.NewTcpSocket(clientService, &logger, appConfig)
 	suite.Require().NoError(err, "failed to create subscriber socket")
-	suite.tcp_client = tcp_client_socket
+	suite.tcpClient = tcpClientSocket
 
-	inproc_client_socket, err := remote.InprocRequestSocket(inproc_service.Url(), logger, app_config)
+	inprocClientSocket, err := remote.InprocRequestSocket(inprocService.Url(), logger, appConfig)
 	suite.Require().NoError(err, "failed to connect subscriber socket")
-	suite.inproc_client = inproc_client_socket
+	suite.inprocClient = inprocClientSocket
 
-	command_1 := command.New("command_1")
-	command_1_handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+	command1 := command.New("command_1")
+	command1Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",
-			Parameters: request.Parameters.Set("id", command_1.String()),
+			Parameters: request.Parameters.Set("id", command1.String()),
 		}
 	}
-	command_2 := command.New("command_2")
-	command_2_handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+	command2 := command.New("command_2")
+	command2Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",
-			Parameters: request.Parameters.Set("id", command_2.String()),
+			Parameters: request.Parameters.Set("id", command2.String()),
 		}
 	}
 	handlers := command.EmptyHandlers().
-		Add(command_1, command_1_handler).
-		Add(command_2, command_2_handler)
+		Add(command1, command1Handler).
+		Add(command2, command2Handler)
 
-	suite.commands = []command.CommandName{
-		command_1, command_2,
+	suite.commands = []command.Name{
+		command1, command2,
 	}
 
-	go suite.inproc_controller.Run(handlers)
-	go suite.tcp_controller.Run(handlers)
+	go func() {
+		_ = suite.inprocController.Run(handlers)
+	}()
+	go func() {
+		_ = suite.tcpController.Run(handlers)
+	}()
 
 	// Prepare for the controllers to be ready
 	time.Sleep(time.Millisecond * 200)
@@ -107,31 +111,31 @@ func (suite *TestReplyControllerSuite) TestRun() {
 	// tcp client
 	go func() {
 		for i := 0; i < 5; i++ {
-			request_parameters := key_value.Empty().
+			requestParameters := key_value.Empty().
 				Set("counter", uint64(i))
-			var reply_parameters key_value.KeyValue
+			var replyParameters key_value.KeyValue
 
-			command_index := i % 2
+			commandIndex := i % 2
 
-			err := suite.commands[command_index].Request(suite.tcp_client, request_parameters, &reply_parameters)
+			err := suite.commands[commandIndex].Request(suite.tcpClient, requestParameters, &replyParameters)
 			suite.NoError(err)
 
-			counter, err := reply_parameters.GetUint64("counter")
+			counter, err := replyParameters.GetUint64("counter")
 			suite.Require().NoError(err)
 			suite.Equal(counter, uint64(i))
 
-			id, err := reply_parameters.GetString("id")
+			id, err := replyParameters.GetString("id")
 			suite.Require().NoError(err)
-			suite.Equal(id, suite.commands[command_index].String())
+			suite.Equal(id, suite.commands[commandIndex].String())
 		}
 
 		// no command found
-		command_3 := command.New("command_3")
-		request_3 := message.Request{
-			Command:    command_3.String(),
+		command3 := command.New("command_3")
+		request3 := message.Request{
+			Command:    command3.String(),
 			Parameters: key_value.Empty(),
 		}
-		_, err := suite.tcp_client.RequestRemoteService(&request_3)
+		_, err := suite.tcpClient.RequestRemoteService(&request3)
 		suite.Require().Error(err)
 
 		wg.Done()
@@ -141,22 +145,22 @@ func (suite *TestReplyControllerSuite) TestRun() {
 	// tcp client
 	go func() {
 		for i := 0; i < 5; i++ {
-			request_parameters := key_value.Empty().
+			requestParameters := key_value.Empty().
 				Set("counter", uint64(i))
-			var reply_parameters key_value.KeyValue
+			var replyParameters key_value.KeyValue
 
-			command_index := i % 2
+			commandIndex := i % 2
 
-			err := suite.commands[command_index].Request(suite.inproc_client, request_parameters, &reply_parameters)
+			err := suite.commands[commandIndex].Request(suite.inprocClient, requestParameters, &replyParameters)
 			suite.NoError(err)
 
-			counter, err := reply_parameters.GetUint64("counter")
+			counter, err := replyParameters.GetUint64("counter")
 			suite.Require().NoError(err)
 			suite.Equal(counter, uint64(i))
 
-			id, err := reply_parameters.GetString("id")
+			id, err := replyParameters.GetString("id")
 			suite.Require().NoError(err)
-			suite.Equal(id, suite.commands[command_index].String())
+			suite.Equal(id, suite.commands[commandIndex].String())
 		}
 		wg.Done()
 	}()
