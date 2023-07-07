@@ -32,7 +32,7 @@ const Url = "inproc://" + ControllerName
 // The socket.Type must be zmq.DEALER
 type DestinationClient struct {
 	// Could be Remote or Inproc
-	config *configuration.ControllerInstance
+	Config *configuration.ControllerInstance
 	// The client socket
 	socket *zmq.Socket
 }
@@ -70,7 +70,7 @@ func (r *Controller) SetRequestHandler(handler HandleFunc) {
 // The service parameter should have the correct Limit or protocol type
 func (r *Controller) destinationRegistered(destinationConfig *configuration.ControllerInstance) bool {
 	for _, client := range r.destinationClients {
-		if client.config.Instance == destinationConfig.Instance {
+		if client.Config.Instance == destinationConfig.Instance {
 			return true
 		}
 	}
@@ -90,7 +90,7 @@ func (r *Controller) RegisterDestination(destinationConfig *configuration.Contro
 		return fmt.Errorf("duplicate destination instance url '%s'", destinationConfig.Instance)
 	}
 
-	destinationClient := DestinationClient{config: destinationConfig, socket: nil}
+	destinationClient := DestinationClient{Config: destinationConfig, socket: nil}
 	r.destinationClients = append(r.destinationClients, &destinationClient)
 	return nil
 }
@@ -109,7 +109,7 @@ func (r *Controller) setSocket(index uint64) error {
 	if err != nil {
 		return fmt.Errorf("error creating socket: %w", err)
 	}
-	err = socket.Connect(remote.ClientUrl(r.destinationClients[index].config.Name, r.destinationClients[index].config.Port))
+	err = socket.Connect(remote.ClientUrl(r.destinationClients[index].Config.Name, r.destinationClients[index].Config.Port))
 	if err != nil {
 		return fmt.Errorf("setup of dealer socket: %w", err)
 	}
@@ -123,7 +123,7 @@ func (r *Controller) setSocket(index uint64) error {
 // Case-sensitive.
 func (r *Controller) getClient(instance string) *DestinationClient {
 	for _, dealer := range r.destinationClients {
-		if dealer.config.Instance == instance {
+		if dealer.Config.Instance == instance {
 			return dealer
 		}
 	}
@@ -169,7 +169,7 @@ func (r *Controller) Run() {
 	for index := range r.destinationClients {
 		err := r.setSocket(uint64(index))
 		if err != nil {
-			r.logger.Fatal("setSocket", "destination #", index, "destination instance", r.destinationClients[index].config.Instance)
+			r.logger.Fatal("setSocket", "destination #", index, "destination instance", r.destinationClients[index].Config.Instance)
 		}
 		poller.Add(r.destinationClients[index].socket, zmq.POLLIN)
 	}
