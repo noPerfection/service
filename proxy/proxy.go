@@ -20,7 +20,7 @@ import (
 
 type Proxy struct {
 	configuration configuration.Service
-	controllers   key_value.KeyValue
+	sources       key_value.KeyValue
 	controller    *Controller
 }
 
@@ -92,7 +92,7 @@ func New(serviceConf configuration.Service, logger log.Logger) (*Proxy, error) {
 
 	service := Proxy{
 		configuration: serviceConf,
-		controllers:   key_value.Empty(),
+		sources:       key_value.Empty(),
 		controller:    proxyController,
 	}
 
@@ -104,13 +104,14 @@ func (service *Proxy) SetRequestHandler(handler HandleFunc) {
 	service.controller.SetRequestHandler(handler)
 }
 
-func (service *Proxy) AddController(name string, controller *controller.Controller) error {
+// AddSourceController sets the source controller, and invokes the source controller's
+func (service *Proxy) AddSourceController(name string, source controller.Interface) error {
 	controllerConf, err := service.configuration.GetController(name)
 	if err != nil {
 		return fmt.Errorf("the '%s' controller configuration wasn't found: %v", name, err)
 	}
-	controller.AddConfig(controllerConf)
-	service.controllers.Set(name, controller)
+	source.AddConfig(controllerConf)
+	service.sources.Set(name, source)
 
 	return nil
 }
@@ -119,19 +120,20 @@ func (service *Proxy) AddController(name string, controller *controller.Controll
 func (service *Proxy) Run() {
 	var wg sync.WaitGroup
 
+	// Run the sources
 	for _, c := range service.configuration.Controllers {
-		if err := service.controllers.Exist(c.Name); err != nil {
-			fmt.Println("the config doesn't exist", c, "error", err)
+		if err := service.sources.Exist(c.Name); err != nil {
+			fmt.Println("the source is not included", c, "error", err)
 			continue
 		}
-		controllerList := service.controllers.Map()
-		var c, ok = controllerList[c.Name].(*controller.Controller)
+		controllerList := service.sources.Map()
+		var c, ok = controllerList[c.Name].(controller.Interface)
 		if !ok {
 			fmt.Println("interface -> key-value", c)
 			continue
 		}
 
-		// add the extensions required by the controller
+		// add the extensions required by the source controller
 		requiredExtensions := c.RequiredExtensions()
 		for _, name := range requiredExtensions {
 			extension, err := service.configuration.GetExtension(name)
