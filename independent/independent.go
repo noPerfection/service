@@ -50,7 +50,7 @@ func (service *Independent) Run() {
 			continue
 		}
 		var c *controller.Controller
-		err = kv.ToInterface(c)
+		err = kv.Interface(c)
 		if err != nil {
 			continue
 		}

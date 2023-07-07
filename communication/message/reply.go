@@ -77,7 +77,7 @@ func (reply *Reply) Bytes() ([]byte, error) {
 		return nil, fmt.Errorf("failed to serialize Reply to key-value %v: %v", reply, err)
 	}
 
-	bytes, err := kv.ToBytes()
+	bytes, err := kv.Bytes()
 	if err != nil {
 		return nil, fmt.Errorf("serialized key-value.ToBytes: %w", err)
 	}
@@ -104,7 +104,7 @@ func ParseReply(messages []string) (Reply, error) {
 // ParseJsonReply creates the 'Reply' message from a key value
 func ParseJsonReply(dat key_value.KeyValue) (Reply, error) {
 	var reply Reply
-	err := dat.ToInterface(&reply)
+	err := dat.Interface(&reply)
 	if err != nil {
 		return Reply{}, fmt.Errorf("failed to serialize key-value to msg.Reply: %v", err)
 	}

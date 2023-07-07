@@ -84,7 +84,7 @@ func NewAppConfig(parent log.Logger) (*Config, error) {
 			logger.Fatal("failed to convert raw config service into map", "error", err)
 		}
 		var serv Service
-		err = kv.ToInterface(&serv)
+		err = kv.Interface(&serv)
 		if err != nil {
 			logger.Fatal("failed to convert raw config service to configuration.Service", "error", err)
 		}

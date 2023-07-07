@@ -37,24 +37,22 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	appConfig, err := configuration.NewAppConfig(logger)
 	suite.NoError(err, "failed to create logger")
 
-	clientService, err := parameter.NewExternal(parameter.INDEXER, parameter.REMOTE, appConfig)
+	clientService, err := parameter.NewExternal("INDEXER", parameter.REMOTE, appConfig)
 	suite.Require().NoError(err)
-	tcpService, err := parameter.NewExternal(parameter.INDEXER, parameter.THIS, appConfig)
-	suite.Require().NoError(err, "failed to create indexer service")
 
 	// todo test the inproc broadcasting
 	// todo add the exit
-	_, err = NewReply(clientService, logger)
+	_, err = NewReplier(logger)
 	suite.Require().Error(err, "remote limited service should be failed as the parameter.Url() will not return wildcard host")
-	tcpController, err := NewReply(tcpService, logger)
+	tcpController, err := NewReplier(logger)
 	suite.NoError(err)
 	suite.tcpController = tcpController
 
-	inprocService, err := parameter.Inprocess(parameter.INDEXER)
+	inprocService, err := parameter.Inprocess("INDEXER")
 	suite.NoError(err)
 	suite.NotEmpty(inprocService)
 
-	inprocController, err := NewReply(inprocService, logger)
+	inprocController, err := NewReplier(logger)
 	suite.NoError(err)
 	suite.inprocController = inprocController
 
@@ -68,7 +66,7 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	suite.inprocClient = inprocClientSocket
 
 	command1 := command.New("command_1")
-	command1Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+	command1Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",
@@ -76,26 +74,25 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 		}
 	}
 	command2 := command.New("command_2")
-	command2Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+	command2Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",
 			Parameters: request.Parameters.Set("id", command2.String()),
 		}
 	}
-	handlers := command.EmptyHandlers().
-		Add(command1, command1Handler).
-		Add(command2, command2Handler)
+	suite.inprocController.RegisterCommand(command1, command1Handler)
+	suite.inprocController.RegisterCommand(command2, command2Handler)
 
 	suite.commands = []command.Name{
 		command1, command2,
 	}
 
 	go func() {
-		_ = suite.inprocController.Run(handlers)
+		_ = suite.inprocController.Run()
 	}()
 	go func() {
-		_ = suite.tcpController.Run(handlers)
+		_ = suite.tcpController.Run()
 	}()
 
 	// Prepare for the controllers to be ready

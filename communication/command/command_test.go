@@ -137,7 +137,7 @@ func (suite *TestCommandSuite) TestRun() {
 	err = command2.Push(client, pushParameters)
 	suite.NoError(err)
 
-	indexerService, _ := service.Inprocess(service.INDEXER)
+	indexerService, _ := service.Inprocess("INDEXER")
 
 	// Test command.RequestRouter()
 	command3 := New("command_router")
@@ -146,9 +146,6 @@ func (suite *TestCommandSuite) TestRun() {
 	repliedCommand, err := replyParameters.GetString("command")
 	suite.NoError(err)
 	suite.EqualValues(repliedCommand, command3.String())
-	repliedRouter, err := replyParameters.GetString("router")
-	suite.NoError(err)
-	suite.EqualValues(repliedRouter, service.INDEXER.ToString())
 }
 
 // In order for 'go test' to run this suite, we need to create

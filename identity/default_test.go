@@ -18,10 +18,8 @@ type TestDefaultSuite struct {
 // Make sure that Account is set to five
 // before each test
 func (suite *TestDefaultSuite) SetupTest() {
-	types := serviceTypes()
-	suite.Require().Len(types, 11)
 	configs := DefaultConfigurations()
-	suite.Require().Len(configs, len(types))
+	suite.Require().Len(configs, 10)
 
 }
 

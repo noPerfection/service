@@ -80,7 +80,7 @@ func (command Name) Request(socket *remote.ClientSocket, request interface{}, re
 		return fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
 
-	err = replyParameters.ToInterface(reply)
+	err = replyParameters.Interface(reply)
 	if err != nil {
 		return fmt.Errorf("reply.Parameters.ToInterface: %w", err)
 	}
@@ -199,7 +199,7 @@ func (command Name) RequestRouter(socket *remote.ClientSocket, targetService *pa
 		return fmt.Errorf("socket.RequestRemoteService: %w", err)
 	}
 
-	err = replyParameters.ToInterface(reply)
+	err = replyParameters.Interface(reply)
 	return err
 }
 

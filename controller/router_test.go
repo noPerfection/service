@@ -53,17 +53,15 @@ func (suite *TestRouterSuite) SetupTest() {
 	suite.logger = logger
 
 	// Services
-	clientService, err := parameter.NewExternal(parameter.CORE, parameter.REMOTE, appConfig)
+	clientService, err := parameter.NewExternal("CORE", parameter.REMOTE, appConfig)
 	suite.Require().NoError(err)
-	tcpService, err := parameter.NewExternal(parameter.CORE, parameter.THIS, appConfig)
+	tcpService, err := parameter.NewExternal("CORE", parameter.THIS, appConfig)
 	suite.Require().NoError(err, "failed to create indexer service")
 
 	// Run the background Reply Controllers
 	// Router's dealers will connect to them
-	blockchainService, err := parameter.NewExternal(parameter.BLOCKCHAIN, parameter.THIS, appConfig)
+	blockchainService, err := parameter.NewExternal("BLOCKCHAIN", parameter.THIS, appConfig)
 	suite.Require().NoError(err, "failed to create blockchain service")
-	indexerService, err := parameter.NewExternal(parameter.INDEXER, parameter.THIS, appConfig)
-	suite.Require().NoError(err, "failed to create indexer service")
 
 	////////////////////////////////////////////////////////
 	//
@@ -84,9 +82,9 @@ func (suite *TestRouterSuite) SetupTest() {
 	suite.tcpClient = tcpClientSocket
 
 	// Reply Controllers
-	blockchainSocket, err := NewReply(blockchainService, logger)
+	blockchainSocket, err := NewReplier(logger)
 	suite.Require().NoError(err, "remote limited service should be failed as the parameter.Url() will not return wildcard host")
-	indexerSocket, err := NewReply(indexerService, logger)
+	indexerSocket, err := NewReplier(logger)
 	suite.Require().NoError(err, "remote limited service should be failed as the parameter.Url() will not return wildcard host")
 
 	////////////////////////////////////////////////////
@@ -95,31 +93,28 @@ func (suite *TestRouterSuite) SetupTest() {
 	//
 	////////////////////////////////////////////////////
 	command1 := command.New("command_1")
-	command1Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+	command1Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
 				Set("id", command1.String()).
-				Set("dealer", parameter.BLOCKCHAIN.ToString()),
+				Set("dealer", "BLOCKCHAIN"),
 		}
 	}
 	command2 := command.New("command_2")
-	command2Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
-		logger.Info("reply back command", "service", parameter.INDEXER)
+	command2Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
+		logger.Info("reply back command", "service", "INDEXER")
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
 				Set("id", command2.String()).
-				Set("dealer", parameter.INDEXER.ToString()),
+				Set("dealer", "INDEXER"),
 		}
 	}
-	blockchainHandlers := command.EmptyHandlers().
-		Add(command1, command1Handler)
-
-	indexerHandlers := command.EmptyHandlers().
-		Add(command2, command2Handler)
+	blockchainSocket.RegisterCommand(command1, command1Handler)
+	indexerSocket.RegisterCommand(command2, command2Handler)
 
 	suite.commands = []command.Name{
 		command1, command2,
@@ -139,19 +134,19 @@ func (suite *TestRouterSuite) SetupTest() {
 
 	suite.tcpRepliers = []*Controller{blockchainSocket, indexerSocket}
 	go func() {
-		_ = blockchainSocket.Run(blockchainHandlers)
+		_ = blockchainSocket.Run()
 	}()
 	go func() {
-		_ = indexerSocket.Run(indexerHandlers)
+		_ = indexerSocket.Run()
 	}()
 
-	dealerBlockchain, err := parameter.NewExternal(parameter.BLOCKCHAIN, parameter.REMOTE, appConfig)
+	dealerBlockchain, err := parameter.NewExternal("BLOCKCHAIN", parameter.REMOTE, appConfig)
 	suite.Require().NoError(err, "failed to create blockchain service")
-	dealerIndexer, err := parameter.NewExternal(parameter.INDEXER, parameter.REMOTE, appConfig)
+	dealerIndexer, err := parameter.NewExternal("INDEXER", parameter.REMOTE, appConfig)
 	suite.Require().NoError(err, "failed to create indexer service")
 	// The STORAGE is registered on the router, but doesn't exist
 	// On the backend side.
-	dealerStorage, err := parameter.NewExternal(parameter.STORAGE, parameter.REMOTE, appConfig)
+	dealerStorage, err := parameter.NewExternal("STORAGE", parameter.REMOTE, appConfig)
 	suite.Require().NoError(err, "failed to create indexer service")
 
 	err = suite.tcpRouter.AddDealers(blockchainService)
@@ -180,7 +175,7 @@ func (suite *TestRouterSuite) TestRun() {
 			var replyParameters key_value.KeyValue
 
 			commandIndex := 1
-			dealer, _ := parameter.Inprocess(parameter.INDEXER)
+			dealer, _ := parameter.Inprocess("INDEXER")
 
 			err := suite.commands[commandIndex].RequestRouter(suite.tcpClient, dealer, requestParameters, &replyParameters)
 			suite.NoError(err)
@@ -200,7 +195,7 @@ func (suite *TestRouterSuite) TestRun() {
 			var replyParameters key_value.KeyValue
 
 			commandIndex := 0
-			dealer, _ := parameter.Inprocess(parameter.BLOCKCHAIN)
+			dealer, _ := parameter.Inprocess("BLOCKCHAIN")
 
 			err := suite.commands[commandIndex].RequestRouter(suite.tcpClient, dealer, requestParameters, &replyParameters)
 			suite.NoError(err)
@@ -221,14 +216,14 @@ func (suite *TestRouterSuite) TestRun() {
 			Parameters: key_value.Empty(),
 		}
 
-		blockchainSocket, _ := parameter.Inprocess(parameter.BLOCKCHAIN)
+		blockchainSocket, _ := parameter.Inprocess("BLOCKCHAIN")
 
 		_, err := suite.tcpClient.RequestRouter(blockchainSocket, &request3)
 		suite.Require().Error(err)
 
 		suite.logger.Info("before requesting unhandled reply controller's dealer")
 
-		storageSocket, _ := parameter.Inprocess(parameter.STORAGE)
+		storageSocket, _ := parameter.Inprocess("STORAGE")
 
 		_, err = suite.tcpClient.RequestRouter(storageSocket, &request3)
 		suite.Require().Error(err)
@@ -256,7 +251,7 @@ func (suite *TestRouterSuite) TestRun() {
 				Command: "no_existing",
 			}
 			requestString, _ := request.ToString()
-			_, err = socket.SendMessage(parameter.STORAGE, requestString)
+			_, err = socket.SendMessage("STORAGE", requestString)
 			suite.Require().NoError(err)
 		}
 

@@ -51,7 +51,7 @@ func ClientExist(clients Clients, name string) bool {
 
 // GetClient returns the client from the list
 func GetClient(clients Clients, name string) *ClientSocket {
-	kv := clients.ToMap()
+	kv := clients.Map()
 	return kv[name].(*ClientSocket)
 }
 

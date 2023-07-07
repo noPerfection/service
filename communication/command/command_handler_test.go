@@ -1,6 +1,7 @@
 package command
 
 import (
+	"github.com/Seascape-Foundation/sds-service-lib/remote"
 	"testing"
 
 	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
@@ -22,7 +23,7 @@ func (suite *TestCommandHandler) SetupTest() {
 	suite.Len(handlers, 0)
 
 	command1 := New("command_1")
-	command1Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+	command1Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",
@@ -30,7 +31,7 @@ func (suite *TestCommandHandler) SetupTest() {
 		}
 	}
 	command2 := New("command_2")
-	command2Handler := func(request message.Request, _ log.Logger, _ ...interface{}) message.Reply {
+	command2Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",

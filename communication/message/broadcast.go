@@ -53,7 +53,7 @@ func (b *Broadcast) ToBytes() []byte {
 		return []byte{}
 	}
 
-	bytes, _ := kv.ToBytes()
+	bytes, _ := kv.Bytes()
 
 	return bytes
 }

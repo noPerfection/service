@@ -59,7 +59,7 @@ func (smReq *SmartcontractDeveloperRequest) Bytes() ([]byte, error) {
 		return nil, fmt.Errorf("failed to serialize SmartcontractDeveloper Request to key-value %v: %v", smReq, err)
 	}
 
-	bytes, err := kv.ToBytes()
+	bytes, err := kv.Bytes()
 	if err != nil {
 		return nil, fmt.Errorf("kv.ToBytes: %w", err)
 	}
@@ -98,7 +98,7 @@ func (smReq *SmartcontractDeveloperRequest) messageHash() ([]byte, error) {
 	}
 	delete(jsonObject, "signature")
 
-	bytes, err := key_value.New(jsonObject).ToBytes()
+	bytes, err := key_value.New(jsonObject).Bytes()
 	if err != nil {
 		return []byte{}, fmt.Errorf("key_value.ToBytes: %w", err)
 	}

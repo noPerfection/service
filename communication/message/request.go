@@ -35,7 +35,7 @@ func (request *Request) ToBytes() ([]byte, error) {
 		return nil, fmt.Errorf("failed to serialize Request to key-value %v: %v", request, err)
 	}
 
-	bytes, err := kv.ToBytes()
+	bytes, err := kv.Bytes()
 	if err != nil {
 		return nil, fmt.Errorf("kv.ToBytes: %w", err)
 	}
@@ -82,7 +82,7 @@ func ParseRequest(messages []string) (Request, error) {
 	}
 
 	var request Request
-	err = data.ToInterface(&request)
+	err = data.Interface(&request)
 	if err != nil {
 		return Request{}, fmt.Errorf("failed to convert key-value %v to intermediate interface: %v", data, err)
 	}

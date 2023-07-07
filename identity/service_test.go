@@ -52,26 +52,26 @@ func (suite *TestServiceSuite) SetupTest() {
 	suite.Require().Error(err)
 
 	// the limit is
-	_, err = NewExternal(INDEXER, Limit(5), appConfig)
+	_, err = NewExternal("indexer", Limit(5), appConfig)
 	suite.Require().Error(err)
 
 	// the app config is empty
-	_, err = NewExternal(INDEXER, THIS, nil)
+	_, err = NewExternal("INDEXER", THIS, nil)
 	suite.Require().Error(err)
 
-	service, err := NewExternal(INDEXER, THIS, appConfig)
+	service, err := NewExternal("INDEXER", THIS, appConfig)
 	suite.Require().NoError(err)
 	suite.thisService = service
 
-	service, err = NewExternal(INDEXER, SUBSCRIBE, appConfig)
+	service, err = NewExternal("INDEXER", SUBSCRIBE, appConfig)
 	suite.Require().NoError(err)
 	suite.subscriberService = service
 
-	service, err = NewExternal(INDEXER, BROADCAST, appConfig)
+	service, err = NewExternal("INDEXER", BROADCAST, appConfig)
 	suite.Require().NoError(err)
 	suite.broadcastService = service
 
-	service, err = NewExternal(INDEXER, REMOTE, appConfig)
+	service, err = NewExternal("INDEXER", REMOTE, appConfig)
 	suite.Require().NoError(err)
 	suite.remoteService = service
 }

@@ -37,16 +37,16 @@ func (suite *TestSocketSuite) TestNewSockets() {
 	appConfig, err := configuration.NewAppConfig(logger)
 	suite.NoError(err, "failed to create logger")
 
-	inprocIndexerService, err := parameter.Inprocess(parameter.INDEXER)
+	inprocIndexerService, err := parameter.Inprocess("indexer")
 	suite.Require().NoError(err)
 	_, err = NewTcpSocket(inprocIndexerService, &logger, appConfig)
 	suite.Require().Error(err)
 
-	indexerService, err := parameter.NewExternal(parameter.INDEXER, parameter.THIS, appConfig)
+	indexerService, err := parameter.NewExternal("indexer", parameter.THIS, appConfig)
 	suite.Require().NoError(err)
-	clientService, err := parameter.NewExternal(parameter.INDEXER, parameter.REMOTE, appConfig)
+	clientService, err := parameter.NewExternal("indexer", parameter.REMOTE, appConfig)
 	suite.Require().NoError(err)
-	_, err = parameter.NewExternal(parameter.INDEXER, parameter.SUBSCRIBE, appConfig)
+	_, err = parameter.NewExternal("indexer", parameter.SUBSCRIBE, appConfig)
 	suite.Require().NoError(err)
 
 	// We can't initiate the socket with THIS limit
