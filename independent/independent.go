@@ -43,17 +43,16 @@ func (service *Independent) AddController(name string, controller *controller.Co
 // Run the independent service.
 func (service *Independent) Run() {
 	var wg sync.WaitGroup
+
 	for _, c := range service.configuration.Controllers {
 		if err := service.controllers.Exist(c.Name); err != nil {
+			fmt.Println("the config doesn't exist", c, "error", err)
 			continue
 		}
-		kv, err := service.controllers.GetKeyValue(c.Name)
-		if err != nil {
-			continue
-		}
-		var c *controller.Controller
-		err = kv.Interface(c)
-		if err != nil {
+		controllerList := service.controllers.Map()
+		var c, ok = controllerList[c.Name].(*controller.Controller)
+		if !ok {
+			fmt.Println("interface -> key-value", c)
 			continue
 		}
 
