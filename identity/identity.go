@@ -2,14 +2,12 @@ package identity
 
 import (
 	"fmt"
-	"net/url"
-
 	"github.com/Seascape-Foundation/sds-service-lib/configuration"
 )
 
 // Service defines the parameters of the service.
 type Service struct {
-	ServiceType ServiceType
+	ServiceType configuration.ServiceType
 	Name        string // Service name
 	inproc      bool
 	url         string
@@ -17,13 +15,11 @@ type Service struct {
 }
 
 // Inprocess creates the service with the parameters but without any information
-func Inprocess(serviceType ServiceType) (*Service, error) {
-	if err := serviceType.valid(); err != nil {
-		if inprocErr := serviceType.inprocValid(); inprocErr != nil {
-			return nil, fmt.Errorf("valid or inproc_valid: %w", inprocErr)
-		}
+func Inprocess(serviceType configuration.ServiceType) (*Service, error) {
+	if inprocErr := configuration.ValidateServiceType(serviceType); inprocErr != nil {
+		return nil, fmt.Errorf("valid or inproc_valid: %w", inprocErr)
 	}
-	name := serviceType.ToString()
+	name := serviceType.String()
 
 	s := Service{
 		ServiceType: serviceType,
@@ -41,39 +37,21 @@ func Inprocess(serviceType ServiceType) (*Service, error) {
 // services that are not registered in the service type.
 //
 // Url should include inproc:// protocol prefix
-func InprocessFromUrl(endpoint string) (*Service, error) {
-	u, err := url.ParseRequestURI(endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("invalid endpoint '%s': %w", endpoint, err)
-	}
-	if u.Scheme != "inproc" {
-		return nil, fmt.Errorf("invalid '%s' provider protocol. Expected either 'inproc'. But given '%s'", endpoint, u.Scheme)
-	}
-
-	s := Service{
-		Name:   u.Hostname(),
-		inproc: true,
-		url:    endpoint,
-		limit:  THIS,
-	}
-
-	return &s, nil
-}
 
 // NewExternal creates the service with the parameters but without any information
-func NewExternal(serviceType ServiceType, limit Limit, appConfig *configuration.Config) (*Service, error) {
+func NewExternal(serviceType configuration.ServiceType, limit Limit, appConfig *configuration.Config) (*Service, error) {
 	if appConfig == nil {
 		return nil, fmt.Errorf("missing app config")
 	}
 
-	if err := serviceType.valid(); err != nil {
+	if err := configuration.ValidateServiceType(serviceType); err != nil {
 		return nil, fmt.Errorf("valid: %w", err)
 	}
 
 	defaultConfiguration := DefaultConfiguration(serviceType)
 	appConfig.SetDefaults(defaultConfiguration)
 
-	name := serviceType.ToString()
+	name := serviceType.String()
 	hostEnv := name + "_HOST"
 	portEnv := name + "_PORT"
 	broadcastHostEnv := name + "_BROADCAST_HOST"

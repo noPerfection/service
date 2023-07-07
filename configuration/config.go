@@ -8,6 +8,7 @@ package configuration
 
 import (
 	"fmt"
+	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
 
 	"github.com/Seascape-Foundation/sds-service-lib/configuration/argument"
 	"github.com/Seascape-Foundation/sds-service-lib/configuration/env"
@@ -22,6 +23,7 @@ type Config struct {
 	Secure        bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
 	DebugSecurity bool        // Passed as --debug-security command line argument. If true then app prints the security logs.
 	logger        *log.Logger // debug purpose only
+	Services      Services
 }
 
 // NewAppConfig creates a global configuration for the entire application.
@@ -41,6 +43,7 @@ func NewAppConfig(parent log.Logger) (*Config, error) {
 		Secure:        argument.Has(arguments, argument.SECURE),
 		DebugSecurity: argument.Has(arguments, argument.SecurityDebug),
 		logger:        &logger,
+		Services:      make(Services, 0),
 	}
 	logger.Info("Loading environment files passed as app arguments")
 
@@ -56,7 +59,54 @@ func NewAppConfig(parent log.Logger) (*Config, error) {
 	conf.viper = viper.New()
 	conf.viper.AutomaticEnv()
 
+	conf.viper.SetConfigName("seascape")
+	conf.viper.SetConfigType("yaml")
+	conf.viper.AddConfigPath(".")
+	err = conf.viper.ReadInConfig()
+	notFound := false
+	_, notFound = err.(viper.ConfigFileNotFoundError)
+	if err != nil && !notFound {
+		logger.Fatal("failed to read seascape.yml", "error", err)
+	} else if notFound {
+		logger.Warn("the seascape.yml configuration wasn't found", "engine error", err)
+		return &conf, nil
+	}
+
+	services, ok := conf.viper.Get("services").([]interface{})
+	if !ok {
+		logger.Info("services", "Services", services, "raw", conf.viper.Get("services"))
+		logger.Fatal("seascape.yml Services should be a list not a one object")
+	}
+
+	for _, raw := range services {
+		kv, err := key_value.NewFromInterface(raw)
+		if err != nil {
+			logger.Fatal("failed to convert raw config service into map", "error", err)
+		}
+		var serv Service
+		err = kv.ToInterface(&serv)
+		if err != nil {
+			logger.Fatal("failed to convert raw config service to configuration.Service", "error", err)
+		}
+		err = serv.Validate()
+		if err != nil {
+			logger.Fatal("configuration.Service.Validate", "error", err)
+		}
+		logger.Info("todo", "todo 1", "make sure that proxy pipeline is correct",
+			"todo 2", "make sure that only one kind of proxies are given",
+			"todo 3", "make sure that only one kind of extensions are given",
+			"todo 4", "make sure that services are all of the same kind but of different instance",
+			"todo 5", "make sure that all controllers have the unique name in the config")
+		conf.Services = append(conf.Services, serv)
+	}
+
 	return &conf, nil
+}
+
+// Engine returns the underlying configuration engine.
+// In our case it will be Viper.
+func (c *Config) Engine() *viper.Viper {
+	return c.viper
 }
 
 // SetDefaults sets the default configuration parameters.

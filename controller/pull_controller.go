@@ -14,18 +14,14 @@ package controller
 import (
 	"fmt"
 
-	"github.com/Seascape-Foundation/sds-service-lib/identity"
 	"github.com/Seascape-Foundation/sds-service-lib/log"
 
 	zmq "github.com/pebbe/zmq4"
 )
 
 // NewPull creates a pull controller for the service.
-func NewPull(s *identity.Service, logger log.Logger) (*Controller, error) {
-	if !s.IsThis() && !s.IsInproc() {
-		return nil, fmt.Errorf("service should be limited to parameter.THIS or inproc type")
-	}
-	controllerLogger, err := logger.Child("controller", "type", "pull", "service_name", s.Name, "inproc", s.IsInproc())
+func NewPull(logger log.Logger) (*Controller, error) {
+	controllerLogger, err := logger.Child("controller", "type", "puller")
 	if err != nil {
 		return nil, fmt.Errorf("error creating child logger: %w", err)
 	}
@@ -38,7 +34,6 @@ func NewPull(s *identity.Service, logger log.Logger) (*Controller, error) {
 
 	return &Controller{
 		socket:     socket,
-		service:    s,
 		logger:     controllerLogger,
 		socketType: zmq.PULL,
 	}, nil

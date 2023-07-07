@@ -8,6 +8,7 @@ package command
 import (
 	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
 	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/Seascape-Foundation/sds-service-lib/remote"
 )
 
 // HandleFunc is the function type that manipulates the commands.
@@ -15,7 +16,7 @@ import (
 //
 // Optionally the controller can pass the shared states in the additional parameters.
 // The most use case for optional parameter is to pass the link to the Database.
-type HandleFunc = func(message.Request, log.Logger, ...interface{}) message.Reply
+type HandleFunc = func(message.Request, log.Logger, remote.Clients) message.Reply
 
 // Handlers Binding of Command to the Command Handler.
 type Handlers map[Name]HandleFunc

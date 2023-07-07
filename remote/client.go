@@ -31,6 +31,28 @@ type ClientSocket struct {
 	inprocUrl       string
 	logger          log.Logger
 	appConfig       *configuration.Config
+	serviceName     string
+	servicePort     uint64
+}
+
+// Clients is the key value but with the additional functions
+// to cast the interface{} to ClientSocket
+type Clients = key_value.KeyValue
+
+// AddClient Adds the client to the list of the clients
+func AddClient(clients Clients, name string, socket *ClientSocket) {
+	clients.Set(name, socket)
+}
+
+// ClientExist checks whether the client exists or not
+func ClientExist(clients Clients, name string) bool {
+	return clients.Exist(name) == nil
+}
+
+// GetClient returns the client from the list
+func GetClient(clients Clients, name string) *ClientSocket {
+	kv := clients.ToMap()
+	return kv[name].(*ClientSocket)
 }
 
 // Initiates the socket with a timeout.
@@ -377,6 +399,41 @@ func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig 
 	return &newSocket, nil
 }
 
+// NewReq creates a new client to connect to the service labelled as name.
+//
+// The returned socket client then can send message to the controller.Replier
+func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error) {
+	sock, err := zmq.NewSocket(zmq.REQ)
+	if err != nil {
+		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
+	}
+
+	var logger log.Logger
+	if parent != nil {
+		logger, err = parent.Child("client",
+			"service name", name,
+			"protocol", "tcp",
+			"socket_type", "REQ",
+			"remote_service_url", clientUrl(port),
+		)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("logger: %w", err)
+	}
+
+	newSocket := ClientSocket{
+		remoteService: nil,
+		socket:        sock,
+		protocol:      "tcp",
+		logger:        logger,
+		appConfig:     nil,
+		serviceName:   name,
+		servicePort:   port,
+	}
+
+	return &newSocket, nil
+}
+
 // InprocRequestSocket creates a client socket with inproc protocol.
 // The created client socket can connect to controller.Router or controller.Reply.
 //
@@ -468,3 +525,9 @@ func InprocRequestSocket(url string, parent log.Logger, appConfig *configuration
 // 		app_config:         app_config,
 // 	}, nil
 // }
+
+// controllerUrl creates url of the controller for the client to connect
+func clientUrl(port uint64) string {
+	url := fmt.Sprintf("tcp://localhost:%d", port)
+	return url
+}
