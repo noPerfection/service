@@ -7,6 +7,7 @@ import (
 	"github.com/Seascape-Foundation/sds-service-lib/configuration"
 	"github.com/Seascape-Foundation/sds-service-lib/controller"
 	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"sync"
 )
 
 type Extension struct {
@@ -42,6 +43,7 @@ func (service *Extension) initController(logger log.Logger) error {
 		return fmt.Errorf("controller configuration wasn't found: %v", err)
 	}
 	replier.AddConfig(controllerConf)
+
 	service.controllers = append(service.controllers, replier)
 
 	return nil
@@ -54,6 +56,8 @@ func (service *Extension) GetFirstController() *controller.Controller {
 
 // Run the independent service.
 func (service *Extension) Run() {
+	var wg sync.WaitGroup
+
 	for _, c := range service.controllers {
 		// add the extensions required by the controller
 		requiredExtensions := c.RequiredExtensions()
@@ -66,11 +70,15 @@ func (service *Extension) Run() {
 			c.AddExtensionConfig(extension)
 		}
 
+		wg.Add(1)
 		go func() {
 			err := c.Run()
+			wg.Done()
 			if err != nil {
 				log.Fatal("failed to run the controller", "error", err)
 			}
 		}()
 	}
+
+	wg.Wait()
 }

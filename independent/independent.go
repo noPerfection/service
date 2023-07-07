@@ -8,6 +8,7 @@ import (
 	"github.com/Seascape-Foundation/sds-service-lib/configuration"
 	"github.com/Seascape-Foundation/sds-service-lib/controller"
 	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"sync"
 )
 
 type Independent struct {
@@ -41,6 +42,7 @@ func (service *Independent) AddController(name string, controller *controller.Co
 
 // Run the independent service.
 func (service *Independent) Run() {
+	var wg sync.WaitGroup
 	for _, c := range service.configuration.Controllers {
 		if err := service.controllers.Exist(c.Name); err != nil {
 			continue
@@ -66,11 +68,15 @@ func (service *Independent) Run() {
 			c.AddExtensionConfig(extension)
 		}
 
+		wg.Add(1)
 		go func() {
 			err := c.Run()
+			wg.Done()
 			if err != nil {
 				log.Fatal("failed to run the controller", "error", err)
 			}
 		}()
 	}
+	println("waiting for the wait group")
+	wg.Wait()
 }
