@@ -19,8 +19,11 @@ import (
 // the first argument is the message without the identity and delimiter.
 type HandleFunc = func([]string, log.Logger, []*DestinationClient, remote.Clients) ([]string, string, error)
 
+// ControllerName is the name of the proxy for other processes
+const ControllerName = "proxy_controller"
+
 // Url defines the proxy controller path
-const Url = "inproc://proxy_controller"
+const Url = "inproc://" + ControllerName
 
 // DestinationClient Asynchronous Requests.
 // The Dealer is the Request from Router to the
@@ -106,7 +109,7 @@ func (r *Controller) setSocket(index uint64) error {
 	if err != nil {
 		return fmt.Errorf("error creating socket: %w", err)
 	}
-	err = socket.Connect(remote.ClientUrl(r.destinationClients[index].config.Port))
+	err = socket.Connect(remote.ClientUrl(r.destinationClients[index].config.Name, r.destinationClients[index].config.Port))
 	if err != nil {
 		return fmt.Errorf("setup of dealer socket: %w", err)
 	}
