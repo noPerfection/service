@@ -414,7 +414,7 @@ func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error)
 			"service name", name,
 			"protocol", "tcp",
 			"socket_type", "REQ",
-			"remote_service_url", ClientUrl(port),
+			"remote_service_url", ClientUrl(name, port),
 		)
 	}
 	if err != nil {
@@ -527,7 +527,12 @@ func InprocRequestSocket(url string, parent log.Logger, appConfig *configuration
 // }
 
 // ClientUrl creates url of the controller for the client to connect
-func ClientUrl(port uint64) string {
+//
+// If the port is 0, then the client will be inproc, not as tcp
+func ClientUrl(name string, port uint64) string {
+	if port == 0 {
+		return fmt.Sprintf("inproc://%s", name)
+	}
 	url := fmt.Sprintf("tcp://localhost:%d", port)
 	return url
 }
