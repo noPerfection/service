@@ -414,7 +414,7 @@ func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error)
 			"service name", name,
 			"protocol", "tcp",
 			"socket_type", "REQ",
-			"remote_service_url", clientUrl(port),
+			"remote_service_url", ClientUrl(port),
 		)
 	}
 	if err != nil {
@@ -526,8 +526,8 @@ func InprocRequestSocket(url string, parent log.Logger, appConfig *configuration
 // 	}, nil
 // }
 
-// controllerUrl creates url of the controller for the client to connect
-func clientUrl(port uint64) string {
+// ClientUrl creates url of the controller for the client to connect
+func ClientUrl(port uint64) string {
 	url := fmt.Sprintf("tcp://localhost:%d", port)
 	return url
 }
