@@ -153,6 +153,15 @@ func (service *Proxy) Run() {
 			}
 		}()
 	}
+
+	// Run the proxy controller. Proxy controller itself on the other hand
+	// will run the destination clients
+	wg.Add(1)
+	go func() {
+		service.controller.Run()
+		wg.Done()
+	}()
+
 	println("waiting for the wait group")
 	wg.Wait()
 }
