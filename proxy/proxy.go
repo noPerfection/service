@@ -27,6 +27,15 @@ type Proxy struct {
 const sourceName = "source"
 const destinationName = "destination"
 
+// extension creates the parameters of the proxy controller.
+// The proxy controller itself is added as the extension to the source controllers
+func extension() *configuration.Extension {
+	return &configuration.Extension{
+		Name: ControllerName,
+		Port: 0,
+	}
+}
+
 func validateConfiguration(service configuration.Service) error {
 	if len(service.Controllers) < 2 {
 		return fmt.Errorf("not enough controllers were given. atleast 'source' and 'destination' should be")
@@ -120,6 +129,8 @@ func (service *Proxy) AddSourceController(name string, source controller.Interfa
 func (service *Proxy) Run() {
 	var wg sync.WaitGroup
 
+	proxyExtension := extension()
+
 	// Run the sources
 	for _, c := range service.configuration.Controllers {
 		if err := service.sources.Exist(c.Name); err != nil {
@@ -143,6 +154,10 @@ func (service *Proxy) Run() {
 
 			c.AddExtensionConfig(extension)
 		}
+
+		// The proxy adds itself as the extension to the sources
+		c.RequireExtension(proxyExtension.Name)
+		c.AddExtensionConfig(proxyExtension)
 
 		wg.Add(1)
 		go func() {
