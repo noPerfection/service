@@ -126,7 +126,7 @@ func (c *Controller) extensionsAdded() error {
 // as it's intended.
 func (c *Controller) initExtensionClients() error {
 	for _, extensionInterface := range c.extensionConfigs {
-		extensionConfig := extensionInterface.(configuration.Extension)
+		extensionConfig := extensionInterface.(*configuration.Extension)
 		extension, err := remote.NewReq(extensionConfig.Name, extensionConfig.Port, &c.logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a request client: %w", err)
