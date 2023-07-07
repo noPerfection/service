@@ -7,6 +7,7 @@ import (
 type ControllerInstance struct {
 	Port     uint64
 	Instance string
+	Name     string
 }
 
 type Controller struct {
@@ -45,6 +46,32 @@ func (s *Service) Validate() error {
 	for _, c := range s.Controllers {
 		if err := ValidateControllerType(c.Type); err != nil {
 			return fmt.Errorf("controller.ValidateControllerType: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// Lint is used to use the nested configurations separately,
+// we lint them with the parameters of their parents.
+//
+// For now, only controller instances could be used independently
+func (s *Service) Lint() error {
+	// Lint controller instances to the controllers
+	for _, c := range s.Controllers {
+		for _, instance := range c.Instances {
+			if len(instance.Name) > 0 {
+				if instance.Name != c.Name {
+					return fmt.Errorf("invalid name for controller instance. "+
+						"In service instance '%s', controller '%s', instance '%s'. "+
+						"the '%s' name in the controller instance should be '%s'",
+						s.Instance, c.Name, instance.Instance, instance.Name, c.Name)
+				} else {
+					continue
+				}
+			}
+
+			instance.Name = c.Name
 		}
 	}
 

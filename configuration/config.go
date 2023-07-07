@@ -92,6 +92,10 @@ func NewAppConfig(parent log.Logger) (*Config, error) {
 		if err != nil {
 			logger.Fatal("configuration.Service.Validate", "error", err)
 		}
+		err = serv.Lint()
+		if err != nil {
+			logger.Fatal("configuration.Service.Lint", "error", err)
+		}
 		logger.Info("todo", "todo 1", "make sure that proxy pipeline is correct",
 			"todo 2", "make sure that only one kind of proxies are given",
 			"todo 3", "make sure that only one kind of extensions are given",
