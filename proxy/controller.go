@@ -84,7 +84,7 @@ func (r *Controller) destinationRegistered(destinationConfig *configuration.Cont
 // any error.
 // SDS Core can have unique command handlers.
 func (r *Controller) RegisterDestination(destinationConfig *configuration.ControllerInstance) error {
-	r.logger.Info("Adding client sockets that router will redirect")
+	r.logger.Info("Adding client sockets that router will redirect", "destinationConfig", *destinationConfig)
 
 	if r.destinationRegistered(destinationConfig) {
 		return fmt.Errorf("duplicate destination instance url '%s'", destinationConfig.Instance)
