@@ -7,8 +7,8 @@ Services:
     Controllers:
       - Type: Replier # Replier or Pusher or Publisher or Router
         Name: "userApi"
-        Ports:
-          - Value: 2302
+        Instances:
+          - Port: 2302
             Instance: ""
     Proxies:
       - Name: "auth"
