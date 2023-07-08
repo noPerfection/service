@@ -58,8 +58,8 @@ func (s *Service) Validate() error {
 // For now, only controller instances could be used independently
 func (s *Service) Lint() error {
 	// Lint controller instances to the controllers
-	for _, c := range s.Controllers {
-		for _, instance := range c.Instances {
+	for cI, c := range s.Controllers {
+		for iI, instance := range c.Instances {
 			if len(instance.Name) > 0 {
 				if instance.Name != c.Name {
 					return fmt.Errorf("invalid name for controller instance. "+
@@ -72,7 +72,10 @@ func (s *Service) Lint() error {
 			}
 
 			instance.Name = c.Name
+			c.Instances[iI] = instance
 		}
+
+		s.Controllers[cI] = c
 	}
 
 	return nil
