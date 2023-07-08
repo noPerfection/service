@@ -28,7 +28,6 @@ type ClientSocket struct {
 	poller          *zmq.Poller
 	socket          *zmq.Socket
 	protocol        string
-	inprocUrl       string
 	logger          log.Logger
 	appConfig       *configuration.Config
 	serviceName     string
@@ -104,7 +103,7 @@ func (socket *ClientSocket) reconnect() error {
 	// }
 	// }
 
-	if err := socket.socket.Connect(socket.remoteService.Url()); err != nil {
+	if err := socket.socket.Connect(ClientUrl(socket.serviceName, socket.servicePort)); err != nil {
 		return fmt.Errorf("socket connect: %w", err)
 	}
 
@@ -153,8 +152,8 @@ func (socket *ClientSocket) inprocReconnect() error {
 		}
 	}
 
-	if err := socket.socket.Connect(socket.inprocUrl); err != nil {
-		return fmt.Errorf("error '%s' connect: %w", socket.inprocUrl, err)
+	if err := socket.socket.Connect(ClientUrl(socket.serviceName, socket.servicePort)); err != nil {
+		return fmt.Errorf("socket.socket.Connect: %w", err)
 	}
 
 	socket.poller = zmq.NewPoller()
@@ -421,10 +420,15 @@ func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error)
 		return nil, fmt.Errorf("logger: %w", err)
 	}
 
+	protocol := "tcp"
+	if port == 0 {
+		protocol = "inproc"
+	}
+
 	newSocket := ClientSocket{
 		remoteService: nil,
 		socket:        sock,
-		protocol:      "tcp",
+		protocol:      protocol,
 		logger:        logger,
 		appConfig:     nil,
 		serviceName:   name,
@@ -464,9 +468,8 @@ func InprocRequestSocket(url string, parent log.Logger, appConfig *configuration
 	}
 
 	newSocket := ClientSocket{
-		socket:    sock,
-		protocol:  "inproc",
-		inprocUrl: url,
+		socket:   sock,
+		protocol: "inproc",
 		// client_credentials: nil,
 		logger:    logger,
 		appConfig: appConfig,
