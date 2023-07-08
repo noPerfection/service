@@ -346,6 +346,72 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 	}
 }
 
+func (socket *ClientSocket) RequestRawMessage(requestString string) ([]string, error) {
+	if socket.protocol == "inproc" {
+		err := socket.inprocReconnect()
+		if err != nil {
+			return nil, fmt.Errorf("socket connection: %w", err)
+		}
+
+	} else {
+		err := socket.reconnect()
+		if err != nil {
+			return nil, fmt.Errorf("socket connection: %w", err)
+		}
+	}
+
+	requestTimeout := parameter.RequestTimeout(socket.appConfig)
+
+	attempt := parameter.Attempt(socket.appConfig)
+
+	// we attempt requests for an infinite amount of time.
+	for {
+		//  We send a request, then we work to get a reply
+		if _, err := socket.socket.SendMessage(requestString); err != nil {
+			return nil, fmt.Errorf("failed to send the message. socket error: %w", err)
+		}
+
+		//  Poll socket for a reply, with timeout
+		sockets, err := socket.poller.Poll(requestTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("poll error: %w", err)
+		}
+
+		//  Here we process a server reply and exit our loop if the
+		//  reply is valid. If we didn't a reply we close the client
+		//  socket and resend the request. We try a number of times
+		//  before finally abandoning:
+
+		if len(sockets) > 0 {
+			// Wait for reply.
+			r, err := socket.socket.RecvMessage(0)
+			if err != nil {
+				return nil, fmt.Errorf("failed to message. socket error: %w", err)
+			}
+
+			return r, nil
+		} else {
+			socket.logger.Warn("timeout", "attempts_left", attempt)
+			if socket.protocol == "inproc" {
+				err := socket.inprocReconnect()
+				if err != nil {
+					return nil, fmt.Errorf("socket.inproc_reconnect: %w", err)
+				}
+			} else {
+				err := socket.reconnect()
+				if err != nil {
+					return nil, fmt.Errorf("socket.reconnect: %w", err)
+				}
+			}
+
+			if attempt == 0 {
+				return nil, fmt.Errorf("timeout")
+			}
+			attempt--
+		}
+	}
+}
+
 // // SetSecurity will set the curve credentials in the socket to authenticate with the remote service.
 // func (socket *ClientSocket) SetSecurity(server_public_key string, client *auth.Credentials) *ClientSocket {
 // 	socket.server_public_key = server_public_key
