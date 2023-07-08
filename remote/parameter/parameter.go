@@ -41,7 +41,7 @@ func NewContextWithTimeout(parent context.Context, appConfig *configuration.Conf
 // If the configuration doesn't exist, then return the default value.
 func RequestTimeout(appConfig *configuration.Config) time.Duration {
 	requestTimeout := DefaultTimeout
-	if appConfig.Exist("SDS_REQUEST_TIMEOUT") {
+	if appConfig != nil && appConfig.Exist("SDS_REQUEST_TIMEOUT") {
 		envTimeout := appConfig.GetUint64("SDS_REQUEST_TIMEOUT")
 		if envTimeout != 0 {
 			requestTimeout = time.Duration(envTimeout) * time.Second
@@ -57,7 +57,7 @@ func RequestTimeout(appConfig *configuration.Config) time.Duration {
 // If the configuration doesn't exist, then we the default value.
 func Attempt(appConfig *configuration.Config) uint {
 	attempt := DefaultAttempt
-	if appConfig.Exist("SDS_REQUEST_ATTEMPT") {
+	if appConfig != nil && appConfig.Exist("SDS_REQUEST_ATTEMPT") {
 		envAttempt := appConfig.GetUint64("SDS_REQUEST_ATTEMPT")
 		if envAttempt != 0 {
 			attempt = uint(envAttempt)
