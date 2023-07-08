@@ -24,8 +24,8 @@ type Proxy struct {
 	controller    *Controller
 }
 
-const sourceName = "source"
-const destinationName = "destination"
+const SourceName = "source"
+const DestinationName = "destination"
 
 // extension creates the parameters of the proxy controller.
 // The proxy controller itself is added as the extension to the source controllers
@@ -44,29 +44,29 @@ func validateConfiguration(service configuration.Service) error {
 	sourceFound := false
 	destinationFound := false
 	for _, c := range service.Controllers {
-		if c.Name == sourceName {
+		if c.Name == SourceName {
 			sourceFound = true
-		} else if c.Name == destinationName {
+		} else if c.Name == DestinationName {
 			destinationFound = true
 		}
 	}
 
 	if !sourceFound {
-		return fmt.Errorf("proxy service '%s' in seascape.yml doesn't have '%s' controller", service.Name, sourceName)
+		return fmt.Errorf("proxy service '%s' in seascape.yml doesn't have '%s' controller", service.Name, SourceName)
 	}
 
 	if !destinationFound {
-		return fmt.Errorf("proxy service '%s' in seascape.yml doesn't have '%s' controller", service.Name, destinationName)
+		return fmt.Errorf("proxy service '%s' in seascape.yml doesn't have '%s' controller", service.Name, DestinationName)
 	}
 
 	return nil
 }
 
 // registerNonSources registers the controller instances as the destination.
-// it skips the sourceName named controllers as the destination.
+// it skips the SourceName named controllers as the destination.
 func registerNonSources(controllers []configuration.Controller, proxyController *Controller) error {
 	for _, c := range controllers {
-		if c.Name == sourceName {
+		if c.Name == SourceName {
 			continue
 		}
 
