@@ -39,7 +39,9 @@ type SelectAllReply struct {
 }
 
 // InsertReply keeps the parameters of WRITE command reply by controller
-type InsertReply struct{}
+type InsertReply struct {
+	Id string `json:"id"`
+}
 
 // ExistReply keeps the parameters of Exist command reply by controller
 type ExistReply struct {
@@ -47,17 +49,13 @@ type ExistReply struct {
 }
 
 // DeleteReply keeps the parameters of Delete command reply by controller
-type DeleteReply struct{}
+type DeleteReply struct {
+	Id string `json:"id"`
+}
 
 // UpdateReply keeps the parameters of Update command reply by controller
-type UpdateReply struct{}
-
-// PullerEndpoint returns the inproc pull controller to
-// database.
-//
-// The pull controller receives the message from database
-func PullerEndpoint() string {
-	return "inproc://database_renew"
+type UpdateReply struct {
+	Id string `json:"id"`
 }
 
 // DeserializeBytes If no arguments were given, or no need to serialize, then return nil
