@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/ahmetson/service-lib/log"
 	"github.com/stretchr/testify/suite"
 )
 

@@ -10,7 +10,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Seascape-Foundation/sds-service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration"
 )
 
 // todo remove the functions

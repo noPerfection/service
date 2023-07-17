@@ -1,12 +1,12 @@
 package controller
 
 import (
-	"github.com/Seascape-Foundation/sds-service-lib/identity"
-	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/ahmetson/service-lib/identity"
+	"github.com/ahmetson/service-lib/log"
 
 	// todo
 	// move out security/auth dependency
-	// "github.com/Seascape-Foundation/sds-service-lib/security/auth"
+	// "github.com/ahmetson/service-lib/security/auth"
 
 	zmq "github.com/pebbe/zmq4"
 )

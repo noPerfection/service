@@ -4,7 +4,7 @@ package auth
 //import (
 //	"testing"
 //
-//	parameter "github.com/Seascape-Foundation/sds-service-lib/identity"
+//	parameter "github.com/ahmetson/service-lib/identity"
 //	"github.com/stretchr/testify/suite"
 //)
 //

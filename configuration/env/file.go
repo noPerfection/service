@@ -4,7 +4,7 @@ package env
 import (
 	"fmt"
 
-	"github.com/Seascape-Foundation/sds-service-lib/configuration/argument"
+	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/joho/godotenv"
 )
 

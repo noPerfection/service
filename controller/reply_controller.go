@@ -3,12 +3,12 @@ package controller
 import (
 	"fmt"
 	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
-	"github.com/Seascape-Foundation/sds-service-lib/configuration"
-	"github.com/Seascape-Foundation/sds-service-lib/remote"
+	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/remote"
 
-	"github.com/Seascape-Foundation/sds-service-lib/communication/command"
-	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
-	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/ahmetson/service-lib/communication/command"
+	"github.com/ahmetson/service-lib/communication/message"
+	"github.com/ahmetson/service-lib/log"
 
 	zmq "github.com/pebbe/zmq4"
 )

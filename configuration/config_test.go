@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
-	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/ahmetson/service-lib/log"
 	"github.com/stretchr/testify/suite"
 )
 

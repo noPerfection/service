@@ -2,12 +2,12 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
-	"github.com/Seascape-Foundation/sds-service-lib/configuration"
-	"github.com/Seascape-Foundation/sds-service-lib/remote"
+	"github.com/ahmetson/service-lib/communication/message"
+	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/remote"
 	zmq "github.com/pebbe/zmq4"
 
-	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/ahmetson/service-lib/log"
 )
 
 // HandleFunc is working over the string.

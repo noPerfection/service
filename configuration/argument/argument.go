@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/ahmetson/service-lib/log"
 )
 
 const (

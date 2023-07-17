@@ -58,7 +58,7 @@ Visit the [go](https://go.dev/) official website for installation instructions.
 Once you have go installed, you can import SDS into your go project as:
 
 ```sh
-go get github.com/Seascape-Foundation/sds-service-lib
+go get github.com/ahmetson/service-lib
 ```
 
 ###ZeroMQ
@@ -111,7 +111,7 @@ go init github.com/example/hello-sds
 
 Then install the SDS package:
 ```bash
-go get github.com/Seascape-Foundation/sds-service-lib
+go get github.com/ahmetson/service-lib
 ```
 
 >Let's assume that the smartcontract developer deployed the smartcontract on a blockchain. He did it using SDS CLI. Now our smartcontract is registered on SeascapeSDS.
@@ -143,10 +143,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Seascape-Foundation/sds-service-lib/configuration/env"
-	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
+	"github.com/ahmetson/service-lib/configuration/env"
+	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/Seascape-Foundation/sds-common-libtopic"
-	"github.com/Seascape-Foundation/sds-service-lib/sdk"
+	"github.com/ahmetson/service-lib/sdk"
 )
 
 func main() {
@@ -376,7 +376,7 @@ The following set ups are necessary for running on your machine:
 
 * [Vault](https://vaultproject.io/) for keeping credentials
 * [Mysql Database](https://mysql.com/) 
-* [sds-ts](https://github.com/Seascape-Foundation/sds-service-lib-ts/) keeps the other core services that are written in Typescript.
+* [sds-ts](https://github.com/ahmetson/service-lib-ts/) keeps the other core services that are written in Typescript.
 * .env with the SeascapeSDS Service ports, its configuration, vault access and database parameters.
 
 # SDS Configuration

@@ -1,4 +1,4 @@
-module github.com/Seascape-Foundation/sds-service-lib
+module github.com/ahmetson/service-lib
 
 go 1.19
 

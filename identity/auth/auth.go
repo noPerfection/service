@@ -6,12 +6,12 @@ package auth
 //import (
 //	"fmt"
 //
-//	"github.com/Seascape-Foundation/sds-service-lib/configuration"
-//	parameter "github.com/Seascape-Foundation/sds-service-lib/identity"
+//	"github.com/ahmetson/service-lib/configuration"
+//	parameter "github.com/ahmetson/service-lib/identity"
 //	// todo
 //	// move out dependency from security/auth and security/vault
-//	// "github.com/Seascape-Foundation/sds-service-lib/security/auth"
-//	// "github.com/Seascape-Foundation/sds-service-lib/security/vault"
+//	// "github.com/ahmetson/service-lib/security/auth"
+//	// "github.com/ahmetson/service-lib/security/vault"
 //)
 //
 //// The vault bucket name where we keep the service's curve private keys.

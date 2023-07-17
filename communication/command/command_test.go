@@ -1,15 +1,15 @@
 package command
 
 import (
-	service "github.com/Seascape-Foundation/sds-service-lib/identity"
+	service "github.com/ahmetson/service-lib/identity"
 	goLog "log"
 	"testing"
 
 	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
-	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
-	"github.com/Seascape-Foundation/sds-service-lib/configuration"
-	"github.com/Seascape-Foundation/sds-service-lib/log"
-	"github.com/Seascape-Foundation/sds-service-lib/remote"
+	"github.com/ahmetson/service-lib/communication/message"
+	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/service-lib/remote"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 )

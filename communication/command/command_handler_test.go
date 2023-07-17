@@ -1,11 +1,11 @@
 package command
 
 import (
-	"github.com/Seascape-Foundation/sds-service-lib/remote"
+	"github.com/ahmetson/service-lib/remote"
 	"testing"
 
-	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
-	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/ahmetson/service-lib/communication/message"
+	"github.com/ahmetson/service-lib/log"
 	"github.com/stretchr/testify/suite"
 )
 

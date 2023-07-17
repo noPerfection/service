@@ -2,7 +2,7 @@ package identity
 
 import (
 	"fmt"
-	"github.com/Seascape-Foundation/sds-service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration"
 )
 
 // Service defines the parameters of the service.

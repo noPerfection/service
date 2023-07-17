@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
 
-	"github.com/Seascape-Foundation/sds-service-lib/configuration/argument"
-	"github.com/Seascape-Foundation/sds-service-lib/configuration/env"
-	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/ahmetson/service-lib/configuration/argument"
+	"github.com/ahmetson/service-lib/configuration/env"
+	"github.com/ahmetson/service-lib/log"
 	"github.com/spf13/viper"
 )
 

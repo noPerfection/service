@@ -5,9 +5,9 @@ package independent
 import (
 	"fmt"
 	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
-	"github.com/Seascape-Foundation/sds-service-lib/configuration"
-	"github.com/Seascape-Foundation/sds-service-lib/controller"
-	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/controller"
+	"github.com/ahmetson/service-lib/log"
 	"sync"
 )
 

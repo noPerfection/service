@@ -3,10 +3,10 @@ package controller
 import (
 	"fmt"
 
-	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
-	"github.com/Seascape-Foundation/sds-service-lib/identity"
+	"github.com/ahmetson/service-lib/communication/message"
+	"github.com/ahmetson/service-lib/identity"
 
-	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/ahmetson/service-lib/log"
 
 	zmq "github.com/pebbe/zmq4"
 )

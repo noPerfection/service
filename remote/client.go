@@ -3,17 +3,17 @@ package remote
 
 import (
 	"fmt"
-	"github.com/Seascape-Foundation/sds-service-lib/remote/parameter"
+	"github.com/ahmetson/service-lib/remote/parameter"
 
 	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
-	"github.com/Seascape-Foundation/sds-service-lib/communication/message"
-	"github.com/Seascape-Foundation/sds-service-lib/configuration"
-	service "github.com/Seascape-Foundation/sds-service-lib/identity"
-	"github.com/Seascape-Foundation/sds-service-lib/log"
+	"github.com/ahmetson/service-lib/communication/message"
+	"github.com/ahmetson/service-lib/configuration"
+	service "github.com/ahmetson/service-lib/identity"
+	"github.com/ahmetson/service-lib/log"
 
 	// todo
 	// move out dependency from security/auth
-	// "github.com/Seascape-Foundation/sds-service-lib/security/auth"
+	// "github.com/ahmetson/service-lib/security/auth"
 	zmq "github.com/pebbe/zmq4"
 )
 
