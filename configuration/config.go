@@ -59,9 +59,12 @@ func NewAppConfig(parent log.Logger) (*Config, error) {
 	conf.viper = viper.New()
 	conf.viper.AutomaticEnv()
 
-	conf.viper.SetConfigName("seascape")
+	conf.viper.SetDefault("SERVICE_CONFIG_NAME", "service")
+	conf.viper.SetDefault("SERVICE_CONFIG_PATH", ".")
+
+	conf.viper.SetConfigName(conf.viper.GetString("SERVICE_CONFIG_NAME"))
 	conf.viper.SetConfigType("yaml")
-	conf.viper.AddConfigPath(".")
+	conf.viper.AddConfigPath(conf.viper.GetString("SERVICE_CONFIG_PATH"))
 	err = conf.viper.ReadInConfig()
 	notFound := false
 	_, notFound = err.(viper.ConfigFileNotFoundError)
