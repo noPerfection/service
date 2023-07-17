@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/stretchr/testify/suite"
 )

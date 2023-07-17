@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Seascape-Foundation/sds-common-lib/blockchain"
-	"github.com/Seascape-Foundation/sds-common-lib/smartcontract_key"
+	"github.com/ahmetson/common-lib/blockchain"
+	"github.com/ahmetson/common-lib/smartcontract_key"
 	blockchain_command "github.com/ahmetson/service-lib/blockchain/handler"
 
-	"github.com/Seascape-Foundation/sds-common-lib/blockchain"
-	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
+	"github.com/ahmetson/common-lib/blockchain"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/blockchain/inproc"
 	"github.com/ahmetson/service-lib/blockchain/network"
 	"github.com/ahmetson/service-lib/communication/command"

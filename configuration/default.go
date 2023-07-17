@@ -1,7 +1,7 @@
 package configuration
 
 import (
-	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 )
 
 // DefaultConfig Default configuration for the package

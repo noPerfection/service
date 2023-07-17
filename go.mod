@@ -3,7 +3,7 @@ module github.com/ahmetson/service-lib
 go 1.19
 
 require (
-	github.com/Seascape-Foundation/sds-common-lib v0.0.0-20230706114026-ffdae7101871
+	github.com/ahmetson/common-lib v0.0.0-20230706114026-ffdae7101871
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/charmbracelet/log v0.1.2
 	github.com/ethereum/go-ethereum v1.10.25

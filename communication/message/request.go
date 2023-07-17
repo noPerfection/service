@@ -3,7 +3,7 @@ package message
 import (
 	"fmt"
 
-	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 )
 
 // Request message sent by Client socket and accepted by Controller socket.

@@ -2,7 +2,7 @@ package controller
 
 import (
 	"fmt"
-	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/remote"
 

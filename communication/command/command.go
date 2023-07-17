@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Seascape-Foundation/sds-common-lib/data_type"
-	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
+	"github.com/ahmetson/common-lib/data_type"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/message"
 	parameter "github.com/ahmetson/service-lib/identity"
 	"github.com/ahmetson/service-lib/remote"

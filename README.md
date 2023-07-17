@@ -145,7 +145,7 @@ import (
 
 	"github.com/ahmetson/service-lib/configuration/env"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/Seascape-Foundation/sds-common-libtopic"
+	"github.com/ahmetson/common-libtopic"
 	"github.com/ahmetson/service-lib/sdk"
 )
 

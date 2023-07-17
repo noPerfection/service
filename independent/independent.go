@@ -4,7 +4,7 @@ package independent
 
 import (
 	"fmt"
-	"github.com/Seascape-Foundation/sds-common-lib/data_type/key_value"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
