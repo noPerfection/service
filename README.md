@@ -65,6 +65,75 @@ Proxy can be nested to each other by organizing a pipeline.
 > * BSON (rather than json get the data in BSON format)
 > * Validate
 
+## Configuration
+Any apps created by this module is loading environment
+variables by default.
+
+As well as it requires the *configuration* in yaml format.
+
+You can set the Yaml file name as well as it's path
+using the following environment variables:
+```bash
+SERVICE_CONFIG_NAME=service
+SERVICE_CONFIG_PATH=.
+```
+
+By default, the service will look for `service.yml` in the `.` directory.
+
+The configuration format is this:
+```yaml
+Services:
+  - Type: Independent # or Proxy | Extension
+    Name: 
+    Instance: 
+    Controllers:
+      - Type: Replier # or Puller | Publisher | Router
+        Name: "myApi"
+        Instances:
+          - Port: 2302
+            Instance: 
+    Proxies:
+      - Name: "auth"
+        Port: 8000
+
+    Pipelines:
+      - "auth->myApi"
+
+    Extensions:
+      - Name: "database"
+        Port: 8002
+```
+
+At root, it has `Services` with at least one Service defined.
+The service has the following parameters:
+
+* Type which defines what kind of service it is. It could be `Independent`, `Proxy` or `Extension`.
+* Name of the service. If you define multiple services, then their Type and Name should match.
+* Instance is the unique identifier of this service. If you have multiple services, then it should have different instance.
+* Controllers lists what kind of command handlers it has.
+* Proxies lists what kind of proxies it has.
+* Pipelines should have one or more proxy pipeline. The last name should name of the controller instance.
+* Extensions lists the extensions that this service depends on. All these extensions are passed to the controllers.
+
+The **controllers** are the command handlers. All incoming requests
+from the users (whether it's through proxy or not) are handled by the controllers.
+The parameters of the controllers:
+* Type which defines what kind of controller it is. It could be Replier, Puller, Publisher or Router.
+* Name of the controller to classify it.
+* Instances describes the unique controllers of this type.
+
+The controller instances have the following parameters:
+* Instance is the unique id of the controller within all service
+* Port where the controller exposes itself
+
+Proxy has the following parameters:
+* Name of the proxy
+* Port where the proxy set too.
+
+Extension has the following parameters:
+* Name of the extension
+* Port where the extension set too.
+
 ## Proxy service
 The proxy service should have at least two controllers:
 *source* and *destination*.
