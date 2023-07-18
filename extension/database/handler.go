@@ -5,6 +5,7 @@ import (
 	"github.com/ahmetson/common-lib/data_type"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/command"
+	"github.com/ahmetson/service-lib/communication/message"
 )
 
 const (
@@ -59,15 +60,15 @@ type UpdateReply struct {
 }
 
 // DeserializeBytes If no arguments were given, or no need to serialize, then return nil
-func (request QueryRequest) DeserializeBytes() error {
-	for i, rawArg := range request.Arguments {
+func (requestParameters QueryRequest) DeserializeBytes() error {
+	for i, rawArg := range requestParameters.Arguments {
 		baseStr, ok := rawArg.(string)
 		if !ok {
 			continue
 		}
 		str := data_type.DecodeJsonPrefixed(baseStr)
 		if len(str) > 0 {
-			request.Arguments[i] = []byte(str)
+			requestParameters.Arguments[i] = []byte(str)
 			continue
 		}
 	}
