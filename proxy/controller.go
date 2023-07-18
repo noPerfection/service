@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"fmt"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/remote"
@@ -10,7 +11,7 @@ import (
 	"github.com/ahmetson/service-lib/log"
 )
 
-// HandleFunc is working over the string.
+// RequestHandler is working over the string.
 // If the string passes, then the final way is returned. Otherwise, it returns the error.
 //
 // Intention of the Proxy services is that, if the error is given, then message is returned back.
@@ -19,7 +20,12 @@ import (
 // the first argument is the message without the identity and delimiter.
 //
 // returns request message to the destination, and error
-type HandleFunc = func([]string, log.Logger, []*DestinationClient, remote.Clients) ([]string, error)
+type RequestHandler = func([]string, log.Logger, []*DestinationClient, remote.Clients) ([]string, error)
+
+// ReplyHandler is working over the string.
+// The first argument is the message.Reply received from the destination.
+// The second argument is the request messages received from the client (without delimiter and id)
+type ReplyHandler = func([]string, []string, log.Logger) []string
 
 // ControllerName is the name of the proxy for other processes
 const ControllerName = "proxy_controller"
@@ -44,7 +50,9 @@ type DestinationClient struct {
 type Controller struct {
 	destinationClients []*DestinationClient
 	logger             log.Logger
-	requestHandler     HandleFunc
+	requestHandler     RequestHandler
+	replyHandler       ReplyHandler
+	requestMessages    *key_value.List
 }
 
 // newController Returns the initiated Router with the service parameters
@@ -58,14 +66,22 @@ func newController(parent log.Logger) (*Controller, error) {
 		logger:             logger,
 		destinationClients: make([]*DestinationClient, 0),
 		requestHandler:     nil,
+		replyHandler:       nil,
+		requestMessages:    key_value.NewList(),
 	}, nil
 }
 
 // SetRequestHandler sets the request handler.
 // If the request handler succeeds then the request handler will have the final message
 // in the "destination"
-func (r *Controller) SetRequestHandler(handler HandleFunc) {
+func (r *Controller) SetRequestHandler(handler RequestHandler) {
 	r.requestHandler = handler
+}
+
+// SetReplyHandler sets the reply handler.
+// The reply handler's error will be printed, but it doesn't mean that client will receive it.
+func (r *Controller) SetReplyHandler(handler ReplyHandler) {
+	r.replyHandler = handler
 }
 
 // Whether the dealer for the service is added or not.
@@ -194,7 +210,12 @@ func (r *Controller) Run() {
 
 	poller.Add(frontend, zmq.POLLIN)
 
-	r.logger.Info("The proxy controller waits for client requests")
+	r.logger.Info("The proxy controller waits for client requestMessages")
+
+	if r.replyHandler != nil {
+		r.logger.Warn("the reply handler was given, we will track all messages",
+			"todo 1", "clean the messages after timeout")
+	}
 
 	//  Switch messages between sockets
 	for {
@@ -227,7 +248,7 @@ func (r *Controller) Run() {
 				if len(destinationMessages) > 2 &&
 					destinationMessages[0] == messages[0] &&
 					destinationMessages[1] == messages[1] {
-					err := fmt.Errorf("don't return the identity and delimtere, they are added by proxy controller")
+					err := fmt.Errorf("don't return the identity and delimeter, they are added by proxy controller")
 					if err := replyErrorMessage(frontend, err, messages); err != nil {
 						r.logger.Fatal("reply_error_message", "error", err)
 					}
@@ -242,6 +263,16 @@ func (r *Controller) Run() {
 						r.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
+				}
+
+				if r.replyHandler != nil {
+					err = r.requestMessages.Add(messages[0], messages[2:])
+					if err != nil {
+						if replyErr := replyErrorMessage(frontend, err, messages); replyErr != nil {
+							r.logger.Fatal("reply_error_message", "error", replyErr)
+						}
+						continue
+					}
 				}
 
 				// send the id
@@ -272,28 +303,34 @@ func (r *Controller) Run() {
 					}
 				}
 
-				// end of handling requests from source
+				// end of handling requestMessages from source
 				///////////////////////////////////////
 			} else {
 				for {
-					msg, err := zmqSocket.Recv(0)
+					messages, err := zmqSocket.RecvMessage(0)
 					if err != nil {
 						r.logger.Fatal("receive from dealer", "error", err)
 					}
-					if more, err := zmqSocket.GetRcvmore(); more {
-						if err != nil {
-							r.logger.Fatal("receive more messages from dealer", "error", err)
+
+					if r.replyHandler != nil {
+						if !r.requestMessages.Exist(messages[0]) {
+							r.logger.Fatal("reply handler needs request messages but not found", "id", messages[0])
 						}
-						_, err := frontend.Send(msg, zmq.SNDMORE)
+
+						rawRequestMessages, err := r.requestMessages.Take(messages[0])
 						if err != nil {
-							r.logger.Fatal("send from dealer to frontend", "error", err)
+							r.logger.Fatal("failed to take the request messages", "error", err)
 						}
-					} else {
-						_, err := frontend.Send(msg, 0)
-						if err != nil {
-							r.logger.Fatal("send from dealer to frontend", "error", err)
+						requestMessages, ok := rawRequestMessages.([]string)
+						if !ok {
+							r.logger.Fatal("failed to decompose interfaces into the request message", "raw messages", requestMessages)
 						}
-						break
+						messages = r.replyHandler(messages, requestMessages, r.logger)
+					}
+
+					_, err = frontend.SendMessage(messages, 0)
+					if err != nil {
+						r.logger.Fatal("send from dealer to frontend", "error", err)
 					}
 				}
 			}

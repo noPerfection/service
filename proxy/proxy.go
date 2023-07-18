@@ -108,9 +108,13 @@ func New(serviceConf configuration.Service, logger log.Logger) (*Proxy, error) {
 	return &service, nil
 }
 
-// SetRequestHandler sets the handler for all incoming requests
-func (service *Proxy) SetRequestHandler(handler HandleFunc) {
+// SetRequestHandler sets the handler for all incoming requestMessages
+func (service *Proxy) SetRequestHandler(handler RequestHandler) {
 	service.controller.SetRequestHandler(handler)
+}
+
+func (service *Proxy) SetReplyHandler(handler ReplyHandler) {
+	service.controller.SetReplyHandler(handler)
 }
 
 // AddSourceController sets the source controller, and invokes the source controller's
