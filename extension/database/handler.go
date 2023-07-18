@@ -74,3 +74,14 @@ func (request QueryRequest) DeserializeBytes() error {
 
 	return nil
 }
+
+// Request returns a message.Request from the query request parameters
+func (requestParameters QueryRequest) Request(commandName command.Name) message.Request {
+	parametersKv, _ := key_value.NewFromInterface(requestParameters)
+	requestMessage := message.Request{
+		Command:    commandName.String(),
+		Parameters: parametersKv,
+	}
+
+	return requestMessage
+}
