@@ -18,6 +18,9 @@ import (
 // the SDS Service
 type Name string
 
+// Any command
+const Any Name = "*"
+
 // String representation of the CommandName
 func (command Name) String() string {
 	return string(command)
