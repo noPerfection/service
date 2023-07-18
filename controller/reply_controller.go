@@ -185,7 +185,10 @@ func (c *Controller) Run() error {
 			}
 			continue
 		}
-		request.SetPublicKey(metadata["pub_key"])
+		pubKey, ok := metadata["pub_key"]
+		if ok {
+			request.SetPublicKey(pubKey)
+		}
 
 		requestCommand := command.New(request.Command)
 
