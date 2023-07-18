@@ -193,7 +193,7 @@ func (c *Controller) Run() error {
 		requestCommand := command.New(request.Command)
 
 		// Any request types is compatible with the Request.
-		if !c.handlers.Exist(requestCommand) {
+		if !c.handlers.Exist(command.Any) && !c.handlers.Exist(requestCommand) {
 			newErr := fmt.Errorf("handler not found for command: %s", request.Command)
 			if err := c.replyError(newErr); err != nil {
 				return err
@@ -201,8 +201,13 @@ func (c *Controller) Run() error {
 			continue
 		}
 
-		// for puller's it returns an error that occurred on the blockchain.
-		reply := c.handlers[requestCommand](request, c.logger, c.extensions)
+		var reply message.Reply
+		if c.handlers.Exist(requestCommand) {
+			// for puller's it returns an error that occurred on the blockchain.
+			reply = c.handlers[requestCommand](request, c.logger, c.extensions)
+		} else {
+			reply = c.handlers[command.Any](request, c.logger, c.extensions)
+		}
 		if err := c.reply(reply); err != nil {
 			return err
 		}
