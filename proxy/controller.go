@@ -17,7 +17,9 @@ import (
 // Otherwise, the message directed forward to the destination clients.
 //
 // the first argument is the message without the identity and delimiter.
-type HandleFunc = func([]string, log.Logger, []*DestinationClient, remote.Clients) ([]string, string, error)
+//
+// returns request message to the destination, and error
+type HandleFunc = func([]string, log.Logger, []*DestinationClient, remote.Clients) ([]string, error)
 
 // ControllerName is the name of the proxy for other processes
 const ControllerName = "proxy_controller"
@@ -215,7 +217,7 @@ func (r *Controller) Run() {
 				}
 
 				// Let's bypass the string
-				destinationMessages, instance, err := r.requestHandler(messages[2:], r.logger, r.destinationClients, nil)
+				destinationMessages, err := r.requestHandler(messages[2:], r.logger, r.destinationClients, nil)
 				if err != nil {
 					if err := replyErrorMessage(frontend, err, messages); err != nil {
 						r.logger.Fatal("replyErrorMessage", "error", err)
@@ -232,7 +234,8 @@ func (r *Controller) Run() {
 					continue
 				}
 
-				client := r.getClient(instance)
+				r.logger.Info("todo", "currently", "proxy redirects to the first destination", "todo", "need to direct through pipeline")
+				client := r.destinationClients[0]
 				if client == nil {
 					err := fmt.Errorf("'%s' dealer wasn't registered", messages[2])
 					if err := replyErrorMessage(frontend, err, messages); err != nil {
