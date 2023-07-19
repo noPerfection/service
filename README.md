@@ -7,6 +7,7 @@ references for each type of services
 
 * [Proxy](./PROXY.md) to define proxy services.
 * [Extension](./EXTENSION.md) to define extension services.
+* [Independent](./INDEPENDENT.md) to define independent services.
 
 ## What is SDS?
 SDS connects all developers by making all APIs 
