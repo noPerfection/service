@@ -6,8 +6,8 @@ Create a new go project:
 
 ```sh
 mkdir my-proxy
-cd proxy
-go init github.com/account/my-proxy
+cd my-proxy
+go mod init github.com/account/my-proxy
 ```
 
 Get the `service-lib` module:
@@ -196,4 +196,3 @@ Finally, we can start the service:
 ```go
 service.Run()
 ```
-
