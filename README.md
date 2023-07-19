@@ -1,69 +1,139 @@
 # Service Lib
 
-> SDS connects all developers to help each other.
-> 
-> SDS connects all APIs in the world.
-> 
-> Need to find a customer for your service? Use this SDS.
-> 
-> ### How it works?
-> 
-> You as developer -> your app -> sds -> third party
-> 
->                                        -----------
->                                        database (sql, cache)
->                                        cdn (cloudflare, aws)
->                                        auth (google, custom)
->                                        payment (crypto, fiat)
-> SDS creates a single interface to access all API.
-> 
-> 
-> other developer -> other app -> sds -> third party
->  
->                                        -----------
->                                        database (sql, cache)
->                                        your app
-> 
-> SDS makes your app as a service for other developers.
+Here is the reference to the SDS first.
 
-**Service Lib** module is used to
-create various inter-connectible backend services.
+After reading this README, read the specific
+references for each type of services
 
-There are three types of services:
-* Independent
-* Proxy
-* Extension
+* [Proxy](./PROXY.md) to define proxy services.
 
-The independent services are stand-alone service
-that aims to solve one specific challenge.
+## What is SDS?
+SDS connects all developers by making all APIs 
+in the world inter-changeable. 
 
-> Example of independent service:
-> * Reading smartcontract data
-> * Sending data to the smartcontract
+SDS itself gives a single account, 
+a payment solution for them. 
 
-The extension services are handling the task that could
-be shared by many services. 
+With SDS, the developers can manage the invoices for APIs in a single place.
 
-> Example of extension services:
-> * Database connection (SQL)
-> * Database connection (Filesystem)
-> * Store private keys in Vault
+Discover the services on SDS Hub. 
+If it doesn't exist, create it using **Service Lib** and publish for others.
+
+---
+
+### Service
+A **service** is a solution for a one problem as an independent
+software. An **app** is an interconnection of the services. 
+
+> Since services are independent software, then, an **app** 
+will be considered as a distributed system.
+
+> Single service itself also acts as an **app**. Here, we just refer as **app**
+> to the specific business case of your need.
+
+
+
+The services are created using **Service Lib**. 
+The goal of **Service Lib** is to write re-usable solutions that will be
+useful to another project with a minimal setup. Hence, why the services are
+standalone applications .
+
+To compose an app from the services in a structured way, the services are
+divided into three categories.
+
+#### Independent
+The first type of the services are **independent** services. Read it
+as an independent software. Your app should have one independent service
+that keeps the core logic of your application.
+
+Independent services will rarely be shared. So the source
+code could be private.
+
+#### Extension
+The second type of the services are **extension** services. The extensions
+are the solutions that could be re-used by multiple projects.
+
+This is the core part that all makes the services as re-usable.
+
+The extensions are allowed to be connected from the independent services.
+And doesn't work with the users directly.
+
+#### Proxy
+The third and last type of the services are **proxy** services. The proxy
+acts as a switch between a user/service and a user/service. Depending on 
+the proxy result the request will be forwarded or returned back to the client.
+
+### Controller
+Since the services are the units of distributed system, services
+has to talk to each other. And services has to talk with the external world.
+
+Therefore, each service acts as a server. The service mechanism 
+transfers in or out some messages. 
+This mechanism is implemented through controllers.
+
+> Controller is an alias of server.
 > 
-> *All extensions could be used by many services for their own needs*
+> Controller term comes from the MPC pattern.
 
-Finally, the **proxy services** are set between external
-user and destination service. If there is a proxy,
-then the destination service will block its own controller.
-Instead, the destination service will receive data only from
-the proxy service.
-Proxy can be nested to each other by organizing a pipeline.
+A service may have multiple controllers, at least one. 
+The controllers receive the messages. Then controller is routing
+the messages to the handlers. To find the right handler, the messages 
+include the commands.
 
-> Example of proxy services:
-> * Web (enable Http portal)
-> * WebSocket (enable the websocket protocol)
-> * Auth (authenticate the message)
-> * BSON (rather than json get the data in BSON format)
-> * Validate
+For optimization needs, there are different kinds of controllers.
+
+#### Replier
+A **replier** controller handles a one request at a time. All incoming
+requests are queued internally, until the current request is not executed.
+When the request is executed, the controller returns the status to the callee.
+Then replier will execute the next request in the queue.
+
+> The requester will be waiting the response of the controller
+
+#### Router
+A **router** controller handles many requests at a time. Upon the execution,
+the router will reply the status back to the callee.
+
+> The requester will be waiting the response of the controller
+
+#### Puller
+A **puller** controller handles a one request at a time. All requests will be
+queued internally. When the controller finishes the execution, it will
+execute the next request in the queue.
+
+Puller will not respond back to the callee about the status.
+
+> The requester will not wait for the response of the controller.
+> So this one is faster.
+
+#### Publisher
+A **publisher** controller sends messages to the subscribers. It doesn't
+receive the request from outside. But has internal **puller** controller
+that the **publisher** is connected too. Any message coming into the **puller**
+invokes mass message broadcast by the **publisher**.
+
+> The subscriber waits for the controller, but doesn't request to the publisher.
+> The invoker of the puller doesn't wait for the response of the publisher.
+
+### Service building checklist
+* Define the type of the service
+* Define the controllers
+* Define commands
+* Define the handlers for each commands
+* Add the handlers to the controllers
+* Add the controllers to the service
+* If the command require another service, then define the extensions
+* Create a configuration with: service, controllers and extensions.
+* If the service should be behind the proxy, then add the proxy to configuration
+
+### App building checklist
+* Create a configuration
+* Define the independent service
+* Define the controllers of the independent service
+* Define the extensions
+* If the independent service needs, add the proxy
+
+---
 
 ## Configuration
 Any apps created by this module is loading environment
@@ -133,24 +203,3 @@ Proxy has the following parameters:
 Extension has the following parameters:
 * Name of the extension
 * Port where the extension set too.
-
-## Proxy service
-The proxy service should have at least two controllers:
-*source* and *destination*.
-
-The *source* controller is created by the developer or
-the proxy service. The users are connecting to the 
-*source* controller.
-
-Once the data is received from the *source*, the proxy service
-sends it to the next controller: *destination*.
-The destination is not the controller in the proxy, rather
-it's the controller on another service.
-
-The proxy itself creates a router controller set in: 
-`inprox://proxy_router`. The proxy router accepts only
-one single command handler. Any incoming message is passed
-to the handler.
-
-The *source* controller has a client connected to the router.
-While the router itself has a client connected to *destination*.
