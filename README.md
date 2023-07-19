@@ -6,6 +6,7 @@ After reading this README, read the specific
 references for each type of services
 
 * [Proxy](./PROXY.md) to define proxy services.
+* [Extension](./EXTENSION.md) to define extension services.
 
 ## What is SDS?
 SDS connects all developers by making all APIs 
