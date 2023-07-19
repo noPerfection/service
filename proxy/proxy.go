@@ -108,6 +108,35 @@ func New(serviceConf configuration.Service, logger log.Logger) (*Proxy, error) {
 	return &service, nil
 }
 
+// NewSourceController creates a source controller of the given type.
+//
+// It loads the source name automatically.
+func (service *Proxy) NewSourceController(controllerType configuration.Type) error {
+	var source controller.Interface
+	if controllerType == configuration.ReplierType {
+		sourceController, err := controller.NewReplier(service.controller.logger)
+		if err != nil {
+			fmt.Errorf("failed to create a source as controller.NewReplier: %w", err)
+		}
+		source = sourceController
+	} else if controllerType == configuration.PusherType {
+		sourceController, err := controller.NewPull(service.controller.logger)
+		if err != nil {
+			fmt.Errorf("failed to create a source as controller.NewPull: %w", err)
+		}
+		source = sourceController
+	} else {
+		return fmt.Errorf("the '%s' controller type not supported", controllerType)
+	}
+
+	err := service.AddSourceController(SourceName, source)
+	if err != nil {
+		return fmt.Errorf("failed to add source controller: %w", err)
+	}
+
+	return nil
+}
+
 // SetRequestHandler sets the handler for all incoming requestMessages
 func (service *Proxy) SetRequestHandler(handler RequestHandler) {
 	service.controller.SetRequestHandler(handler)
