@@ -52,6 +52,12 @@ func (s *Service) Validate() error {
 	return nil
 }
 
+// NewInternalExtension returns the extension that is on another thread, but not on remote.
+// The extension will be connected using the inproc protocol, not over TCP.
+func NewInternalExtension(name string) *Extension {
+	return &Extension{Name: name, Port: 0}
+}
+
 // Lint is used to use the nested configurations separately,
 // we lint them with the parameters of their parents.
 //

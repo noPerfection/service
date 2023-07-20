@@ -10,22 +10,24 @@ import (
 	"sync"
 )
 
-type Proxy struct {
+// Service of the proxy type
+type Service struct {
 	configuration configuration.Service
 	sources       key_value.KeyValue
 	controller    *Controller
 }
 
+// SourceName of this type should be listed within the controllers in the configuration
 const SourceName = "source"
+
+// DestinationName of this type should be listed within the controllers in the configuration
 const DestinationName = "destination"
 
-// extension creates the parameters of the proxy controller.
-// The proxy controller itself is added as the extension to the source controllers
+// extension creates the configuration of the proxy controller.
+// The proxy controller itself is added as the extension to the source controllers,
+// to the request handlers and to the reply handlers.
 func extension() *configuration.Extension {
-	return &configuration.Extension{
-		Name: ControllerName,
-		Port: 0,
-	}
+	return configuration.NewInternalExtension(ControllerName)
 }
 
 func validateConfiguration(service configuration.Service) error {
@@ -73,8 +75,8 @@ func registerNonSources(controllers []configuration.Controller, proxyController 
 	return nil
 }
 
-// New Proxy service based on the configurations
-func New(serviceConf configuration.Service, logger log.Logger) (*Proxy, error) {
+// New proxy service based on the configurations
+func New(serviceConf configuration.Service, logger log.Logger) (*Service, error) {
 	if serviceConf.Type != configuration.ProxyType {
 		return nil, fmt.Errorf("service type in the configuration is not Independent. It's '%s'", serviceConf.Type)
 	}
@@ -91,7 +93,7 @@ func New(serviceConf configuration.Service, logger log.Logger) (*Proxy, error) {
 		return nil, fmt.Errorf("registerNonSources: %w", err)
 	}
 
-	service := Proxy{
+	service := Service{
 		configuration: serviceConf,
 		sources:       key_value.Empty(),
 		controller:    proxyController,
@@ -103,7 +105,7 @@ func New(serviceConf configuration.Service, logger log.Logger) (*Proxy, error) {
 // NewSourceController creates a source controller of the given type.
 //
 // It loads the source name automatically.
-func (service *Proxy) NewSourceController(controllerType configuration.Type) error {
+func (service *Service) NewSourceController(controllerType configuration.Type) error {
 	var source controller.Interface
 	if controllerType == configuration.ReplierType {
 		sourceController, err := controller.NewReplier(service.controller.logger)
@@ -130,16 +132,16 @@ func (service *Proxy) NewSourceController(controllerType configuration.Type) err
 }
 
 // SetRequestHandler sets the handler for all incoming requestMessages
-func (service *Proxy) SetRequestHandler(handler RequestHandler) {
+func (service *Service) SetRequestHandler(handler RequestHandler) {
 	service.controller.SetRequestHandler(handler)
 }
 
-func (service *Proxy) SetReplyHandler(handler ReplyHandler) {
+func (service *Service) SetReplyHandler(handler ReplyHandler) {
 	service.controller.SetReplyHandler(handler)
 }
 
 // AddSourceController sets the source controller, and invokes the source controller's
-func (service *Proxy) AddSourceController(name string, source controller.Interface) error {
+func (service *Service) AddSourceController(name string, source controller.Interface) error {
 	controllerConf, err := service.configuration.GetController(name)
 	if err != nil {
 		return fmt.Errorf("the '%s' controller configuration wasn't found: %v", name, err)
@@ -151,7 +153,7 @@ func (service *Proxy) AddSourceController(name string, source controller.Interfa
 }
 
 // Run the independent service.
-func (service *Proxy) Run() {
+func (service *Service) Run() {
 	var wg sync.WaitGroup
 
 	proxyExtension := extension()
@@ -194,7 +196,7 @@ func (service *Proxy) Run() {
 		}()
 	}
 
-	// Run the proxy controller. Proxy controller itself on the other hand
+	// Run the proxy controller. Service controller itself on the other hand
 	// will run the destination clients
 	wg.Add(1)
 	go func() {
