@@ -98,6 +98,10 @@ func (logger *Logger) Info(title string, kv ...interface{}) {
 	logger.logger.Info(title, kv...)
 }
 
+func (logger *Logger) Prefix() string {
+	return logger.Prefix()
+}
+
 // Fatal prints the error message and then calls the os.Exit()
 func (logger *Logger) Fatal(title string, kv ...interface{}) {
 	logger.style.setPrimary()
@@ -134,13 +138,13 @@ func (logger *Logger) Error(title string, kv ...interface{}) {
 //	// INFO main: starting: security_enabled=true
 //	// INFO main::database: starting
 //	// INFO main::controller: starting, port=443
-func (logger *Logger) Child(prefix string, kv ...interface{}) Logger {
+func (logger *Logger) Child(prefix string, kv ...interface{}) *Logger {
 	child := logger.logger.With(kv...)
 	child.SetReportTimestamp(true)
 
 	child.SetPrefix(logger.logger.GetPrefix() + "/" + prefix)
 
-	return Logger{
+	return &Logger{
 		logger: child,
 		style:  logger.style,
 	}

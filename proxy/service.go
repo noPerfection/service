@@ -33,44 +33,14 @@ func extension() *configuration.Extension {
 	return configuration.NewInternalExtension(ControllerName)
 }
 
-func validateConfiguration(service configuration.Service) error {
-	if len(service.Controllers) < 2 {
-		return fmt.Errorf("not enough controllers were given. atleast 'source' and 'destination' should be")
-	}
-
-	sourceFound := false
-	destinationFound := false
-	for _, c := range service.Controllers {
-		if c.Name == SourceName {
-			sourceFound = true
-		} else if c.Name == DestinationName {
-			destinationFound = true
+// registerDestination registers the controller instances as the destination.
+func (service *Service) registerDestination() {
+	for _, c := range service.configuration.Service.Controllers {
+		if c.Name == DestinationName {
+			service.Controller.RegisterDestination(c)
+			break
 		}
 	}
-
-	if !sourceFound {
-		return fmt.Errorf("proxy service '%s' in seascape.yml doesn't have '%s' controller", service.Name, SourceName)
-	}
-
-	if !destinationFound {
-		return fmt.Errorf("proxy service '%s' in seascape.yml doesn't have '%s' controller", service.Name, DestinationName)
-	}
-
-	return nil
-}
-
-// registerNonSources registers the controller instances as the destination.
-// it skips the SourceName named controllers as the destination.
-func registerNonSources(controllers []configuration.Controller, proxyController *Controller) error {
-	for _, c := range controllers {
-		if c.Name == SourceName {
-			continue
-		}
-
-		proxyController.RegisterDestination(&c)
-	}
-
-	return nil
 }
 
 // New proxy service along with its controller.
@@ -87,38 +57,131 @@ func New(config *configuration.Config, logger log.Logger) *Service {
 	return &service
 }
 
-func (service *Service) Prepare() error {
-	serviceConf := service.configuration.Service
-	if serviceConf.Type != configuration.ProxyType {
-		return fmt.Errorf("service type in the configuration is not Independent. It's '%s'", serviceConf.Type)
-	}
-	if err := validateConfiguration(serviceConf); err != nil {
-		return fmt.Errorf("validateConfiguration: %w", err)
-	}
-
-	err := registerNonSources(serviceConf.Controllers, service.Controller)
-	if err != nil {
-		return fmt.Errorf("registerNonSources: %w", err)
+// prepareConfiguration creates a configuration.
+// If the configuration was already given, then it validates it.
+func (service *Service) prepareConfiguration() error {
+	// validate the service itself
+	config := service.configuration
+	serviceConfig := service.configuration.Service
+	if serviceConfig == nil {
+		serviceConfig = &configuration.Service{
+			Type:     configuration.ProxyType,
+			Name:     config.Name + "proxy",
+			Instance: config.Name + " 1",
+		}
+	} else if serviceConfig.Type != configuration.ProxyType {
+		return fmt.Errorf("service type is overwritten. It's not proxy its '%s'", serviceConfig.Type)
 	}
 
 	// validate the controllers
-	// validate the extensions that the controllers required extensions are in the source.
+	// it means it should have two controllers: source and destination
+	sourceConfig := &configuration.Controller{}
+	destinationConfig := &configuration.Controller{}
+	for _, c := range serviceConfig.Controllers {
+		if c.Name == SourceName {
+			sourceConfig = c
+		} else if c.Name == DestinationName {
+			destinationConfig = c
+		}
+	}
+
+	if sourceConfig == nil {
+		sourceConfig = &configuration.Controller{
+			Type: service.source.ControllerType(),
+			Name: SourceName,
+		}
+
+		serviceConfig.Controllers = append(serviceConfig.Controllers, sourceConfig)
+	} else {
+		if sourceConfig.Type != service.source.ControllerType() {
+			return fmt.Errorf("source expected to be of %s type, but in the config it's %s of type",
+				service.source.ControllerType(), sourceConfig.Type)
+		}
+	}
+
+	if destinationConfig == nil {
+		destinationConfig = &configuration.Controller{
+			Type: service.Controller.requiredDestination,
+			Name: DestinationName,
+		}
+
+		serviceConfig.Controllers = append(serviceConfig.Controllers, destinationConfig)
+	} else {
+		if destinationConfig.Type != service.Controller.requiredDestination {
+			return fmt.Errorf("destination expected to be of %s type, but in the config it's %s of type",
+				service.Controller.requiredDestination, destinationConfig.Type)
+		}
+	}
+
+	// validate the controller instances
+	// make sure that they are tpc type
+	if len(sourceConfig.Instances) == 0 {
+		port := service.configuration.GetFreePort()
+
+		sourceInstance := &configuration.ControllerInstance{
+			Name:     sourceConfig.Name,
+			Instance: sourceConfig.Name + "1",
+			Port:     uint64(port),
+		}
+		sourceConfig.Instances = append(sourceConfig.Instances, sourceInstance)
+	} else {
+		if sourceConfig.Instances[0].Port == 0 {
+			return fmt.Errorf("the port should not be 0 in the source")
+		}
+	}
+
+	if len(destinationConfig.Instances) == 0 {
+		port := service.configuration.GetFreePort()
+
+		sourceInstance := &configuration.ControllerInstance{
+			Name:     destinationConfig.Name,
+			Instance: destinationConfig.Name + "1",
+			Port:     uint64(port),
+		}
+		destinationConfig.Instances = append(destinationConfig.Instances, sourceInstance)
+	} else {
+		if destinationConfig.Instances[0].Port == 0 {
+			return fmt.Errorf("the port should not be 0 in the source")
+		}
+	}
+
+	// todo validate the extensions
+	// todo validate the proxies
+	return nil
+}
+
+func (service *Service) Prepare() error {
+	if service.source == nil {
+		return fmt.Errorf("missing source. call service.SetDefaultSource")
+	}
+
+	if service.Controller.requiredDestination == configuration.UnknownType {
+		return fmt.Errorf("missing the required destination. call service.Controller.RequireDestination")
+	}
+
+	err := service.prepareConfiguration()
+	if err != nil {
+		return fmt.Errorf("prepareConfiguration: %w", err)
+	}
+
+	service.registerDestination()
 
 	proxyExtension := extension()
 
 	// Run the sources
 	// add the extensions required by the source controller
-	requiredExtensions := service.source.RequiredExtensions()
-	for _, name := range requiredExtensions {
-		extension, err := service.configuration.Service.GetExtension(name)
-		if err != nil {
-			log.Fatal("extension required by the controller doesn't exist in the configuration", "error", err)
-		}
-
-		service.source.AddExtensionConfig(extension)
-	}
+	//requiredExtensions := service.source.RequiredExtensions()
+	//for _, name := range requiredExtensions {
+	//	extension, err := service.configuration.Service.GetExtension(name)
+	//	if err != nil {
+	//		log.Fatal("extension required by the controller doesn't exist in the configuration", "error", err)
+	//	}
+	//
+	//	service.source.AddExtensionConfig(extension)
+	//}
 
 	// The proxy adds itself as the extension to the sources
+	// after validation of the previous extensions
 	service.source.RequireExtension(proxyExtension.Name)
 	service.source.AddExtensionConfig(proxyExtension)
 
@@ -169,7 +232,7 @@ func (service *Service) SetCustomSource(source controller.Interface) error {
 	return nil
 }
 
-// Run the independent service.
+// Run the proxy service.
 func (service *Service) Run() {
 	var wg sync.WaitGroup
 

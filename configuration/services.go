@@ -13,7 +13,7 @@ type ControllerInstance struct {
 type Controller struct {
 	Type      Type
 	Name      string
-	Instances []ControllerInstance
+	Instances []*ControllerInstance
 }
 
 type Proxy struct {
@@ -31,9 +31,9 @@ type Service struct {
 	Type        ServiceType
 	Name        string
 	Instance    string
-	Controllers []Controller
-	Proxies     []Proxy
-	Extensions  []Extension
+	Controllers []*Controller
+	Proxies     []*Proxy
+	Extensions  []*Extension
 	Pipelines   []string
 }
 
@@ -95,7 +95,7 @@ func (s *Service) Lint() error {
 func (s *Service) GetController(name string) (*Controller, error) {
 	for _, c := range s.Controllers {
 		if c.Name == name {
-			return &c, nil
+			return c, nil
 		}
 	}
 
@@ -110,7 +110,7 @@ func (s *Service) GetFirstController() (*Controller, error) {
 	}
 
 	controller := s.Controllers[0]
-	return &controller, nil
+	return controller, nil
 }
 
 // GetExtension returns the extension configuration by the extension name.
@@ -118,7 +118,7 @@ func (s *Service) GetFirstController() (*Controller, error) {
 func (s *Service) GetExtension(name string) (*Extension, error) {
 	for _, e := range s.Extensions {
 		if e.Name == name {
-			return &e, nil
+			return e, nil
 		}
 	}
 

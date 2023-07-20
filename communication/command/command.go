@@ -61,7 +61,7 @@ func (route *Route) filterExtensionClients(clients remote.Clients) []*remote.Cli
 	return routeClients
 }
 
-func (route *Route) Handle(request message.Request, logger log.Logger, allExtensions remote.Clients) message.Reply {
+func (route *Route) Handle(request message.Request, logger *log.Logger, allExtensions remote.Clients) message.Reply {
 	extensions := route.filterExtensionClients(allExtensions)
 	return route.handler(request, logger, extensions...)
 }

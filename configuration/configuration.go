@@ -9,6 +9,7 @@ package configuration
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/phayes/freeport"
 
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/env"
@@ -18,6 +19,7 @@ import (
 
 // Config Configuration Engine based on viper.Viper
 type Config struct {
+	Name  string       // application name
 	viper *viper.Viper // used to keep default values
 
 	Secure        bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
@@ -37,9 +39,10 @@ func New(logger log.Logger) (*Config, error) {
 	arguments := argument.GetArguments(&logger)
 
 	conf := Config{
+		Name:          logger.Prefix(),
 		Secure:        argument.Has(arguments, argument.Secure),
 		DebugSecurity: argument.Has(arguments, argument.SecurityDebug),
-		logger:        &logger,
+		logger:        logger.Child("configuration"),
 		Service:       nil,
 	}
 	logger.Info("Loading environment files passed as app arguments")
@@ -75,6 +78,20 @@ func New(logger log.Logger) (*Config, error) {
 	}
 
 	return &conf, nil
+}
+
+// GetFreePort returns a TCP port to use
+func (config *Config) GetFreePort() int {
+	port, err := freeport.GetFreePort()
+	if err != nil {
+		config.logger.Fatal("kernel error", "error", err)
+	}
+
+	return port
+}
+
+func (config *Config) IsValidPort(port int) {
+
 }
 
 // unmarshalService decodes the yaml into the configuration.

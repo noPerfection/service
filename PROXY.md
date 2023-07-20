@@ -20,31 +20,24 @@ go mod vendor
 
 ## Internal process
 
-The proxy contains the three parts. *source*, *destination*,
-*request handler*, *reply handler*. 
-The proxy service has the internal controller that binds all four: *proxy controller*.
+The proxy service is composed of: 
+* *source* &ndash; a controller
+* *destination* &ndash; a client. It's connected to the remote service controller,
+* *request handler* &ndash; a function, 
+* *reply handler* &ndash; a function,
+* *proxy controller* &ndash; an internal controller binding all above.
 
-> The *proxy controller* is set in `inprox://proxy_router`. 
+> The *proxy controller* is set on `inprox://proxy_router`. 
 
-The *source* is a controller. The *handler*
-is the function. And the *destination* is the client. A client
-that connects to a controller of another service.
+The *source* controller receives the messages. 
+The incoming requests are then passed to *proxy controller*. 
+The *proxy controller* executes the *request handler*.  
+If handling passes the execution, then the message is sent to the *destination*.
 
-The source controller receives the messages from the external world.
-It then passes it to *proxy controller*. The proxy controller
-executes the *handler* function. Handler function returns two parameters to
-the *proxy controller*: message and error.
-If there is an error, then *proxy controller* returns error back to the *source
-controller*.
-If there is no error, then *proxy controller* redirects the message to the
-*destination*.
-
-The destination client gets the reply from the destination service.
-If the destination gets the reply, then it passes it to *proxy controller*.
-The proxy controller checks for the optional *reply handler*.
-If there is a reply handler, then call reply handler. If reply handler
-failed, then return to the source controller error. Otherwise,
-return the message returned from the reply handler.
+The *reply handler* is an optional function.
+When it's set, the replies from *destination* is executed with *reply handler*.
+The result of the execution is returned to the *source*.
+When the *reply handler* is not set, then *proxy controller* returns it to *source*.
 ---
 
 ## Configure
@@ -104,26 +97,47 @@ package main
 import (
 	"github.com/ahmetson/service-lib"
 	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/proxy"
 )
 
 func main() {
-	logger, appConfig, err := service.New("my-proxy")
-	if err != nil {
-		log.Fatal("failed to init service", "error", err)
-    }
-	
-	// setup requirements
+	logger, _ := log.New("my proxy")
+	appConfig, _ := configuration.New(logger)
+
 	// setup service
+	service := proxy.New(appConfig, logger.Child("proxy"))
+	
+	// setup a default source
+	service.AddDefaultSource(configuration.ReplierType)
+	// or
+	// service.AddCustomSource(customController)
+
+	// destinations, handlers are part of the controller
+	service.Controller.AddDestination(configuration.ReplierType)
+	service.Controller.SetRequestHandler()
+	service.Controller.SetReplyHandler()
+	
+	// validate before running it
+	err := service.Prepare()
+	
+	service.Run()
 }
 ```
 
-The `service.New("my-proxy")` is the first thing to call
-when you create a service with **Service Lib**.
+> TODO
+> 
+> Before adding source, add the extensions
+> That means, we need to change the request handler, reply handler.
+> The handlers in the controller should receive extensions.
+> ```go
+> // List the dependency
+> //service.RequireExtension("")
+> ```
 
-The function accepts only one argument which is the log prefix.
-The function returns the prefixed logger, loaded app configuration
-and an error.
+The `appConfig` is always needed for any service created with **Service Lib**.
+
+It loads the environment variables, and optionally `service.yml`.
 
 Now we are ready to set the proxy service starting with the setup.
 

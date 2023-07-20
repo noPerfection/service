@@ -17,8 +17,8 @@ import (
 type Controller struct {
 	config             *configuration.Controller
 	socket             *zmq.Socket
-	logger             log.Logger
-	socketType         zmq.Type
+	logger             *log.Logger
+	controllerType     configuration.Type
 	routes             command.Routes
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
@@ -27,11 +27,7 @@ type Controller struct {
 
 // NewReplier creates a new synchronous Reply controller.
 func NewReplier(logger log.Logger) (*Controller, error) {
-	controllerLogger, err := logger.Child("controller", "type", "reply")
-
-	if err != nil {
-		return nil, fmt.Errorf("error creating child logger: %w", err)
-	}
+	controllerLogger := logger.Child("controller", "type", configuration.ReplierType)
 
 	// Socket to talk to clients
 	socket, err := zmq.NewSocket(zmq.REP)
@@ -42,7 +38,7 @@ func NewReplier(logger log.Logger) (*Controller, error) {
 	return &Controller{
 		socket:             socket,
 		logger:             controllerLogger,
-		socketType:         zmq.REP,
+		controllerType:     configuration.ReplierType,
 		routes:             command.NewRoutes(),
 		requiredExtensions: make([]string, 0),
 		extensionConfigs:   key_value.Empty(),
@@ -73,7 +69,7 @@ func (c *Controller) RequiredExtensions() []string {
 }
 
 func (c *Controller) isReply() bool {
-	return c.socketType == zmq.REP
+	return c.controllerType == configuration.ReplierType
 }
 
 // reply sends to the caller the message.
@@ -123,6 +119,10 @@ func (c *Controller) extensionsAdded() error {
 	return nil
 }
 
+func (c *Controller) ControllerType() configuration.Type {
+	return c.controllerType
+}
+
 // initExtensionClients will set up the extension clients for this controller.
 // it will be called by c.Run(), automatically.
 //
@@ -134,7 +134,7 @@ func (c *Controller) extensionsAdded() error {
 func (c *Controller) initExtensionClients() error {
 	for _, extensionInterface := range c.extensionConfigs {
 		extensionConfig := extensionInterface.(*configuration.Extension)
-		extension, err := remote.NewReq(extensionConfig.Name, extensionConfig.Port, &c.logger)
+		extension, err := remote.NewReq(extensionConfig.Name, extensionConfig.Port, c.logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a request client: %w", err)
 		}

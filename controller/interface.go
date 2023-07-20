@@ -27,5 +27,8 @@ type Interface interface {
 	// AddRoute registers a new command and it's handlers for this controller
 	AddRoute(route *command.Route) error
 
+	// ControllerType returns the type of the controller
+	ControllerType() configuration.Type
+
 	Run() error
 }

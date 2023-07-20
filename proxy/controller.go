@@ -14,14 +14,14 @@ import (
 // RequestHandler handles all raw requests from source.
 //
 // Returns the raw message to send to the destination
-type RequestHandler = func([]string, log.Logger) ([]string, error)
+type RequestHandler = func([]string, *log.Logger) ([]string, error)
 
 // ReplyHandler handles all raw requests from destination.
 // The first argument is the raw message.Reply received from the destination.
 // The second argument is the request messages received from the client (without delimiter and id)
 //
 // Returns the raw message to send to the source.
-type ReplyHandler = func([]string, []string, log.Logger) []string
+type ReplyHandler = func([]string, []string, *log.Logger) []string
 
 // ControllerName is the name of the proxy router that connects source and destination
 const ControllerName = "proxy_controller"
@@ -46,7 +46,7 @@ type Controller struct {
 	destination *Destination
 	// type of the required destination
 	requiredDestination configuration.Type
-	logger              log.Logger
+	logger              *log.Logger
 	requestHandler      RequestHandler
 	replyHandler        ReplyHandler
 	requestMessages     *key_value.List
@@ -54,13 +54,14 @@ type Controller struct {
 
 // newController Returns the initiated Router with the service parameters that connects source and destination.
 // along within the route, it will execute request handler and reply handler.
-func newController(logger log.Logger) *Controller {
+func newController(logger *log.Logger) *Controller {
 	return &Controller{
-		logger:          logger,
-		destination:     nil,
-		requestHandler:  nil,
-		replyHandler:    nil,
-		requestMessages: key_value.NewList(),
+		logger:              logger,
+		destination:         nil,
+		requiredDestination: configuration.UnknownType,
+		requestHandler:      nil,
+		replyHandler:        nil,
+		requestMessages:     key_value.NewList(),
 	}
 }
 
@@ -78,7 +79,9 @@ func (controller *Controller) SetReplyHandler(handler ReplyHandler) {
 }
 
 func (controller *Controller) RequireDestination(controllerType configuration.Type) {
-	controller.requiredDestination = controllerType
+	if controllerType != configuration.UnknownType {
+		controller.requiredDestination = controllerType
+	}
 }
 
 // RegisterDestination Adds a new client that is connected to the Reply Controller.

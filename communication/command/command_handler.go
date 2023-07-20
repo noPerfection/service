@@ -17,7 +17,7 @@ import (
 //
 // Optionally the controller can pass the shared states in the additional parameters.
 // The most use case for optional parameter is to pass the link to the Database.
-type HandleFunc = func(message.Request, log.Logger, ...*remote.ClientSocket) message.Reply
+type HandleFunc = func(message.Request, *log.Logger, ...*remote.ClientSocket) message.Reply
 
 // Routes Binding of Command to the Command Handler.
 type Routes = key_value.List

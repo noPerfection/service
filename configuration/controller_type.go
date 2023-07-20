@@ -17,7 +17,8 @@ const (
 	// PublisherType controllers are broadcasting the message to all subscribers
 	PublisherType Type = "Publisher"
 	// RouterType controllers are the asynchronous Replier
-	RouterType Type = "Router"
+	RouterType  Type = "Router"
+	UnknownType Type = ""
 )
 
 // ValidateControllerType checks whether the given string is the valid or not.

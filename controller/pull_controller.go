@@ -13,6 +13,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/ahmetson/service-lib/configuration"
 
 	"github.com/ahmetson/service-lib/log"
 
@@ -21,10 +22,7 @@ import (
 
 // NewPull creates a pull controller for the service.
 func NewPull(logger log.Logger) (*Controller, error) {
-	controllerLogger, err := logger.Child("controller", "type", "puller")
-	if err != nil {
-		return nil, fmt.Errorf("error creating child logger: %w", err)
-	}
+	controllerLogger := logger.Child("controller", "type", configuration.PusherType)
 
 	// Socket to talk to clients
 	socket, err := zmq.NewSocket(zmq.PULL)
@@ -33,8 +31,8 @@ func NewPull(logger log.Logger) (*Controller, error) {
 	}
 
 	return &Controller{
-		socket:     socket,
-		logger:     controllerLogger,
-		socketType: zmq.PULL,
+		socket:         socket,
+		logger:         controllerLogger,
+		controllerType: configuration.PusherType,
 	}, nil
 }
