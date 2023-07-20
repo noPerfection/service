@@ -43,7 +43,7 @@ func (suite *TestEnvSuite) SetupTest() {
 
 	logger, err := log.New("test_suite", true)
 	suite.Require().NoError(err)
-	appConfig, err := NewAppConfig(logger)
+	appConfig, err := New(logger)
 	suite.Require().NoError(err)
 	suite.appConfig = appConfig
 

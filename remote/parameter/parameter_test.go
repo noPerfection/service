@@ -23,7 +23,7 @@ func (suite *TestBroadcastSuite) SetupTest() {
 	logger, err := log.New("parameter", true)
 	suite.Require().NoError(err)
 
-	appConfig, err := configuration.NewAppConfig(logger)
+	appConfig, err := configuration.New(logger)
 	suite.Require().NoError(err)
 
 	suite.appConfig = appConfig

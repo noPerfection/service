@@ -13,7 +13,7 @@ func New(prefix string) (*log.Logger, *configuration.Config, error) {
 		return nil, nil, fmt.Errorf("failed to create a logger with prefix %s: %w", prefix, err)
 	}
 
-	appConfig, err := configuration.NewAppConfig(logger)
+	appConfig, err := configuration.New(logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load the app configuration: %w", err)
 	}

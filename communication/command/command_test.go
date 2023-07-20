@@ -30,7 +30,7 @@ func (suite *TestCommandSuite) SetupTest() {
 	logger, err := log.New("command_test", true)
 	suite.NoError(err, "failed to create logger")
 
-	appConfig, err := configuration.NewAppConfig(logger)
+	appConfig, err := configuration.New(logger)
 	suite.NoError(err, "failed to create app config")
 
 	shortUrl := "short"

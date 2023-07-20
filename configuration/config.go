@@ -26,10 +26,10 @@ type Config struct {
 	Services      Services
 }
 
-// NewAppConfig creates a global configuration for the entire application.
+// New creates a global configuration for the entire application.
 // Automatically reads the command line arguments.
 // Loads the environment variables.
-func NewAppConfig(parent log.Logger) (*Config, error) {
+func New(parent log.Logger) (*Config, error) {
 	logger, err := parent.Child("configuration")
 	if err != nil {
 		return nil, fmt.Errorf("error creating child logger: %w", err)

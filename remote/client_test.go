@@ -34,7 +34,7 @@ func (suite *TestSocketSuite) SetupTest() {
 func (suite *TestSocketSuite) TestNewSockets() {
 	logger, err := log.New("log", false)
 	suite.NoError(err, "failed to create logger")
-	appConfig, err := configuration.NewAppConfig(logger)
+	appConfig, err := configuration.New(logger)
 	suite.NoError(err, "failed to create logger")
 
 	inprocIndexerService, err := parameter.Inprocess("indexer")

@@ -34,7 +34,7 @@ type TestReplyControllerSuite struct {
 func (suite *TestReplyControllerSuite) SetupTest() {
 	logger, err := log.New("log", false)
 	suite.NoError(err, "failed to create logger")
-	appConfig, err := configuration.NewAppConfig(logger)
+	appConfig, err := configuration.New(logger)
 	suite.NoError(err, "failed to create logger")
 
 	clientService, err := parameter.NewExternal("INDEXER", parameter.REMOTE, appConfig)

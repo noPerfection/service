@@ -45,7 +45,7 @@ func (suite *TestRouterSuite) SetupTest() {
 	// Logger and app configs are needed for External services
 	logger, err := log.New("log", true)
 	suite.NoError(err, "failed to create logger")
-	appConfig, err := configuration.NewAppConfig(logger)
+	appConfig, err := configuration.New(logger)
 	suite.NoError(err, "failed to create logger")
 	appConfig.SetDefault("SDS_REQUEST_TIMEOUT", 2)
 

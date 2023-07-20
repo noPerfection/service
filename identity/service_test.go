@@ -44,7 +44,7 @@ func (suite *TestServiceSuite) SetupTest() {
 	////////////////////////////////////////////////
 	logger, err := log.New("test-suite", true)
 	suite.Require().NoError(err)
-	appConfig, err := configuration.NewAppConfig(logger)
+	appConfig, err := configuration.New(logger)
 	suite.Require().NoError(err)
 
 	// the service type is invalid.
