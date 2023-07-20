@@ -23,32 +23,29 @@ type Config struct {
 	Secure        bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
 	DebugSecurity bool        // Passed as --debug-security command line argument. If true then app prints the security logs.
 	logger        *log.Logger // debug purpose only
-	Services      Services
+	Service       *Service
 }
 
 // New creates a global configuration for the entire application.
+//
 // Automatically reads the command line arguments.
 // Loads the environment variables.
-func New(parent log.Logger) (*Config, error) {
-	logger, err := parent.Child("configuration")
-	if err != nil {
-		return nil, fmt.Errorf("error creating child logger: %w", err)
-	}
+func New(logger log.Logger) (*Config, error) {
 	logger.Info("Reading command line arguments for application parameters")
 
 	// First we check the parameters of the application arguments
 	arguments := argument.GetArguments(&logger)
 
 	conf := Config{
-		Secure:        argument.Has(arguments, argument.SECURE),
+		Secure:        argument.Has(arguments, argument.Secure),
 		DebugSecurity: argument.Has(arguments, argument.SecurityDebug),
 		logger:        &logger,
-		Services:      make(Services, 0),
+		Service:       nil,
 	}
 	logger.Info("Loading environment files passed as app arguments")
 
 	// First we load the environment variables
-	err = env.LoadAnyEnv()
+	err := env.LoadAnyEnv()
 	if err != nil {
 		return nil, fmt.Errorf("loading environment variables: %w", err)
 	}
@@ -73,90 +70,96 @@ func New(parent log.Logger) (*Config, error) {
 	} else if notFound {
 		logger.Warn("the seascape.yml configuration wasn't found", "engine error", err)
 		return &conf, nil
-	}
-
-	services, ok := conf.viper.Get("services").([]interface{})
-	if !ok {
-		logger.Info("services", "Services", services, "raw", conf.viper.Get("services"))
-		logger.Fatal("seascape.yml Services should be a list not a one object")
-	}
-
-	for _, raw := range services {
-		kv, err := key_value.NewFromInterface(raw)
-		if err != nil {
-			logger.Fatal("failed to convert raw config service into map", "error", err)
-		}
-		var serv Service
-		err = kv.Interface(&serv)
-		if err != nil {
-			logger.Fatal("failed to convert raw config service to configuration.Service", "error", err)
-		}
-		err = serv.Validate()
-		if err != nil {
-			logger.Fatal("configuration.Service.Validate", "error", err)
-		}
-		err = serv.Lint()
-		if err != nil {
-			logger.Fatal("configuration.Service.Lint", "error", err)
-		}
-		logger.Info("todo", "todo 1", "make sure that proxy pipeline is correct",
-			"todo 2", "make sure that only one kind of proxies are given",
-			"todo 3", "make sure that only one kind of extensions are given",
-			"todo 4", "make sure that services are all of the same kind but of different instance",
-			"todo 5", "make sure that all controllers have the unique name in the config")
-		conf.Services = append(conf.Services, serv)
+	} else {
+		conf.unmarshalService()
 	}
 
 	return &conf, nil
 }
 
+// unmarshalService decodes the yaml into the configuration.
+func (config *Config) unmarshalService() {
+	services, ok := config.viper.Get("services").([]interface{})
+	if !ok {
+		config.logger.Info("services", "Service", services, "raw", config.viper.Get("services"))
+		config.logger.Fatal("seascape.yml Service should be a list not a one object")
+	}
+
+	if len(services) == 0 {
+		config.logger.Warn("missing services in the configuration")
+		return
+	}
+
+	kv, err := key_value.NewFromInterface(services[0])
+	if err != nil {
+		config.logger.Fatal("failed to convert raw config service into map", "error", err)
+	}
+	err = kv.Interface(config.Service)
+	if err != nil {
+		config.logger.Fatal("failed to convert raw config service to configuration.Service", "error", err)
+	}
+	err = config.Service.ValidateTypes()
+	if err != nil {
+		config.logger.Fatal("configuration.Service.ValidateTypes", "error", err)
+	}
+	err = config.Service.Lint()
+	if err != nil {
+		config.logger.Fatal("configuration.Service.Lint", "error", err)
+	}
+	config.logger.Info("todo", "todo 1", "make sure that proxy pipeline is correct",
+		"todo 2", "make sure that only one kind of proxies are given",
+		"todo 3", "make sure that only one kind of extensions are given",
+		"todo 4", "make sure that services are all of the same kind but of different instance",
+		"todo 5", "make sure that all controllers have the unique name in the config")
+}
+
 // Engine returns the underlying configuration engine.
 // In our case it will be Viper.
-func (c *Config) Engine() *viper.Viper {
-	return c.viper
+func (config *Config) Engine() *viper.Viper {
+	return config.viper
 }
 
 // SetDefaults sets the default configuration parameters.
-func (c *Config) SetDefaults(defaultConfig DefaultConfig) {
+func (config *Config) SetDefaults(defaultConfig DefaultConfig) {
 	for name, value := range defaultConfig.Parameters {
 		if value == nil {
 			continue
 		}
 		// already set, don't use the default
-		if c.viper.IsSet(name) {
+		if config.viper.IsSet(name) {
 			continue
 		}
-		c.logger.Info("Set default for "+defaultConfig.Title, name, value)
-		c.SetDefault(name, value)
+		config.logger.Info("Set default for "+defaultConfig.Title, name, value)
+		config.SetDefault(name, value)
 	}
 }
 
 // SetDefault sets the default configuration name to the value
-func (c *Config) SetDefault(name string, value interface{}) {
-	c.viper.SetDefault(name, value)
+func (config *Config) SetDefault(name string, value interface{}) {
+	config.viper.SetDefault(name, value)
 }
 
 // Exist Checks whether the configuration variable exists or not
 // If the configuration exists or its default value exists, then returns true.
-func (c *Config) Exist(name string) bool {
-	value := c.viper.GetString(name)
+func (config *Config) Exist(name string) bool {
+	value := config.viper.GetString(name)
 	return len(value) > 0
 }
 
 // GetString Returns the configuration parameter as a string
-func (c *Config) GetString(name string) string {
-	value := c.viper.GetString(name)
+func (config *Config) GetString(name string) string {
+	value := config.viper.GetString(name)
 	return value
 }
 
 // GetUint64 Returns the configuration parameter as an unsigned 64-bit number
-func (c *Config) GetUint64(name string) uint64 {
-	value := c.viper.GetUint64(name)
+func (config *Config) GetUint64(name string) uint64 {
+	value := config.viper.GetUint64(name)
 	return value
 }
 
 // GetBool Returns the configuration parameter as a boolean
-func (c *Config) GetBool(name string) bool {
-	value := c.viper.GetBool(name)
+func (config *Config) GetBool(name string) bool {
+	value := config.viper.GetBool(name)
 	return value
 }

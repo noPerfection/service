@@ -18,7 +18,7 @@ func New(prefix string) (*log.Logger, *configuration.Config, error) {
 		return nil, nil, fmt.Errorf("failed to load the app configuration: %w", err)
 	}
 
-	if len(appConfig.Services) == 0 {
+	if len(appConfig.Service) == 0 {
 		return nil, nil, fmt.Errorf("services is empty: %w", err)
 	}
 

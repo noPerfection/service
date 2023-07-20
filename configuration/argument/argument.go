@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	SECURE        = "secure" // If passed, then TCP sockets will require authentication. Default is false
+	Secure        = "secure" // If passed, then TCP sockets will require authentication. Default is false
 	SecurityDebug = "security-debug"
 )
 
@@ -57,7 +57,7 @@ func GetArguments(parent *log.Logger) []string {
 		logger = &newLogger
 
 		logger.Info("Supported app arguments",
-			"--"+SECURE,
+			"--"+Secure,
 			"Enables security service",
 			"--"+SecurityDebug,
 			"To print the authentication logs",

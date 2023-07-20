@@ -37,8 +37,8 @@ type Service struct {
 	Pipelines   []string
 }
 
-// Validate the parameters of the service
-func (s *Service) Validate() error {
+// ValidateTypes the parameters of the service
+func (s *Service) ValidateTypes() error {
 	if err := ValidateServiceType(s.Type); err != nil {
 		return fmt.Errorf("identity.ValidateServiceType: %v", err)
 	}
@@ -58,10 +58,13 @@ func NewInternalExtension(name string) *Extension {
 	return &Extension{Name: name, Port: 0}
 }
 
-// Lint is used to use the nested configurations separately,
-// we lint them with the parameters of their parents.
+// Lint sets the reference to the parent from the child.
 //
-// For now, only controller instances could be used independently
+// If the child configuration is used independently, then
+// there is no way to know to which parent it belongs too.
+//
+// In this case, it sets the reference to the controller from the controller reference.
+// If the controller instances are used independently, then other services may know to which service they belong too.
 func (s *Service) Lint() error {
 	// Lint controller instances to the controllers
 	for cI, c := range s.Controllers {

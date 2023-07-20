@@ -1,4 +1,4 @@
-// Package command defines the request commands that SDS Services will accept.
+// Package command defines the request commands that SDS Service will accept.
 // Besides the commands, this package also defines the HandleFunc.
 //
 // The HandleFunc is the function that executes the command and then returns the result

@@ -557,7 +557,7 @@ func InprocRequestSocket(url string, parent log.Logger, appConfig *configuration
 
 // // NewTcpSubscriber create a new client socket on TCP protocol.
 // // The created client can subscribe to broadcast.Broadcast
-// func NewTcpSubscriber(e *service.Service, server_public_key string, client *auth.Credentials, parent log.Logger, app_config *configuration.Config) (*ClientSocket, error) {
+// func NewTcpSubscriber(e *service.Service, server_public_key string, client *auth.Credentials, parent log.Logger, app_config *configuration.Configuration) (*ClientSocket, error) {
 // 	if app_config == nil {
 // 		return nil, fmt.Errorf("missing app_config")
 // 	}

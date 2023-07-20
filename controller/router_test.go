@@ -38,7 +38,7 @@ type TestRouterSuite struct {
 func (suite *TestRouterSuite) SetupTest() {
 	/////////////////////////////////////////////////////
 	//
-	// Services
+	// Service
 	//
 	/////////////////////////////////////////////////////
 
@@ -52,7 +52,7 @@ func (suite *TestRouterSuite) SetupTest() {
 	logger.Info("setup test")
 	suite.logger = logger
 
-	// Services
+	// Service
 	clientService, err := parameter.NewExternal("CORE", parameter.REMOTE, appConfig)
 	suite.Require().NoError(err)
 	tcpService, err := parameter.NewExternal("CORE", parameter.THIS, appConfig)

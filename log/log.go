@@ -134,7 +134,7 @@ func (logger *Logger) Error(title string, kv ...interface{}) {
 //	// INFO main: starting: security_enabled=true
 //	// INFO main::database: starting
 //	// INFO main::controller: starting, port=443
-func (logger *Logger) Child(prefix string, kv ...interface{}) (Logger, error) {
+func (logger *Logger) Child(prefix string, kv ...interface{}) Logger {
 	child := logger.logger.With(kv...)
 	child.SetReportTimestamp(true)
 
@@ -143,5 +143,5 @@ func (logger *Logger) Child(prefix string, kv ...interface{}) (Logger, error) {
 	return Logger{
 		logger: child,
 		style:  logger.style,
-	}, nil
+	}
 }
