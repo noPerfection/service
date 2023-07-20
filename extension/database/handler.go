@@ -4,17 +4,16 @@ package database
 import (
 	"github.com/ahmetson/common-lib/data_type"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 )
 
 const (
-	SelectRow command.Name = "select-row" // Get one row, if it doesn't exist, return error
-	SelectAll command.Name = "select"     // Read multiple line
-	Insert    command.Name = "insert"     // insert new row
-	Update    command.Name = "update"     // update the existing row
-	Exist     command.Name = "exist"      // Returns true or false if select query has some rows
-	Delete    command.Name = "delete"     // Delete some rows from database
+	SelectRow string = "select-row" // Get one row, if it doesn't exist, return error
+	SelectAll string = "select"     // Read multiple line
+	Insert    string = "insert"     // insert new row
+	Update    string = "update"     // update the existing row
+	Exist     string = "exist"      // Returns true or false if select query has some rows
+	Delete    string = "delete"     // Delete some rows from database
 )
 
 // QueryRequest has the sql and it's parameters on part with commands.
@@ -77,10 +76,10 @@ func (requestParameters QueryRequest) DeserializeBytes() error {
 }
 
 // Request returns a message.Request from the query request parameters
-func (requestParameters QueryRequest) Request(commandName command.Name) message.Request {
+func (requestParameters QueryRequest) Request(commandName string) message.Request {
 	parametersKv, _ := key_value.NewFromInterface(requestParameters)
 	requestMessage := message.Request{
-		Command:    commandName.String(),
+		Command:    commandName,
 		Parameters: parametersKv,
 	}
 

@@ -19,7 +19,7 @@ type Controller struct {
 	socket             *zmq.Socket
 	logger             log.Logger
 	socketType         zmq.Type
-	handlers           command.Handlers
+	routes             command.Routes
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
 	extensions         remote.Clients
@@ -43,7 +43,7 @@ func NewReplier(logger log.Logger) (*Controller, error) {
 		socket:             socket,
 		logger:             controllerLogger,
 		socketType:         zmq.REP,
-		handlers:           command.EmptyHandlers(),
+		routes:             command.NewRoutes(),
 		requiredExtensions: make([]string, 0),
 		extensionConfigs:   key_value.Empty(),
 		extensions:         key_value.Empty(),
@@ -98,11 +98,18 @@ func (c *Controller) replyError(err error) error {
 	return c.reply(message.Fail(err.Error()))
 }
 
-// RegisterCommand adds a command along with its handler to this controller
-func (c *Controller) RegisterCommand(name command.Name, handler command.HandleFunc) {
-	if !c.handlers.Exist(name) {
-		c.handlers.Add(name, handler)
+// AddRoute adds a command along with its handler to this controller
+func (c *Controller) AddRoute(route *command.Route) error {
+	if c.routes.Exist(route.Command) {
+		return nil
 	}
+
+	err := c.routes.Add(route.Command, route)
+	if err != nil {
+		return fmt.Errorf("failed to add a route: %w", err)
+	}
+
+	return nil
 }
 
 // extensionsAdded checks that the required extensions are added into the controller.
@@ -190,24 +197,25 @@ func (c *Controller) Run() error {
 			request.SetPublicKey(pubKey)
 		}
 
-		requestCommand := command.New(request.Command)
-
-		// Any request types is compatible with the Request.
-		if !c.handlers.Exist(command.Any) && !c.handlers.Exist(requestCommand) {
-			newErr := fmt.Errorf("handler not found for command: %s", request.Command)
-			if err := c.replyError(newErr); err != nil {
-				return err
-			}
-			continue
-		}
-
 		var reply message.Reply
-		if c.handlers.Exist(requestCommand) {
-			// for puller's it returns an error that occurred on the blockchain.
-			reply = c.handlers[requestCommand](request, c.logger, c.extensions)
+		var routeInterface interface{}
+
+		if c.routes.Exist(request.Command) {
+			routeInterface, err = c.routes.Get(request.Command)
+		} else if c.routes.Exist(command.Any) {
+			routeInterface, err = c.routes.Get(command.Any)
 		} else {
-			reply = c.handlers[command.Any](request, c.logger, c.extensions)
+			err = fmt.Errorf("handler not found for command: %s", request.Command)
 		}
+
+		if err != nil {
+			reply = message.Fail("route get " + request.Command + " failed: " + err.Error())
+		} else {
+			route := routeInterface.(*command.Route)
+			// for puller's it returns an error that occurred on the blockchain.
+			reply = route.Handle(request, c.logger, c.extensions)
+		}
+
 		if err := c.reply(reply); err != nil {
 			return err
 		}

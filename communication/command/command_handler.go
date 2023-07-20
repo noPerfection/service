@@ -6,6 +6,7 @@
 package command
 
 import (
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/remote"
@@ -16,35 +17,25 @@ import (
 //
 // Optionally the controller can pass the shared states in the additional parameters.
 // The most use case for optional parameter is to pass the link to the Database.
-type HandleFunc = func(message.Request, log.Logger, remote.Clients) message.Reply
+type HandleFunc = func(message.Request, log.Logger, ...*remote.ClientSocket) message.Reply
 
-// Handlers Binding of Command to the Command Handler.
-type Handlers map[Name]HandleFunc
+// Routes Binding of Command to the Command Handler.
+type Routes = key_value.List
 
-// EmptyHandlers returns an empty handler
-func EmptyHandlers() Handlers {
-	return Handlers{}
+// NewRoutes returns an empty routes
+func NewRoutes() Routes {
+	return Routes{}
 }
 
-// Exist returns true if the handler function exists for the command.
-func (c Handlers) Exist(command Name) bool {
-	_, ok := c[command]
-	return ok
-}
+// Commands returns the commands from the routes
+func Commands(routes Routes) []string {
+	commands := make([]string, routes.Len())
 
-// Add Adds the Binding of command to handler in the handlers
-func (c Handlers) Add(command Name, handler HandleFunc) Handlers {
-	c[command] = handler
-	return c
-}
-
-// CommandNames is the list of command names without handlers
-func (c Handlers) CommandNames() []string {
-	commands := make([]string, len(c))
+	list := routes.List()
 
 	i := 0
-	for name := range c {
-		commands[i] = name.String()
+	for name := range list {
+		commands[i] = name.(string)
 		i++
 	}
 

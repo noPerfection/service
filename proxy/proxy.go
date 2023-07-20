@@ -1,14 +1,6 @@
 // Package proxy defines the script that acts as the middleware
 package proxy
 
-// For proxy, there is no controllers.
-// But only two kind of functions.
-// The proxy enables the request and reply handlers.
-//
-//
-/*Package independent is used to scaffold the independent service
- */
-
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"

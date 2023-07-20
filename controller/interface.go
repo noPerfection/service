@@ -24,7 +24,8 @@ type Interface interface {
 	// RequiredExtensions returns the list of extension names required by this controller
 	RequiredExtensions() []string
 
-	RegisterCommand(name command.Name, handler command.HandleFunc)
+	// AddRoute registers a new command and it's handlers for this controller
+	AddRoute(route *command.Route) error
 
 	Run() error
 }

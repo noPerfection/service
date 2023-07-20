@@ -105,7 +105,9 @@ func (suite *TestCommandSuite) TestRun() {
 	}()
 
 	// Test the Request
-	command1 := New("command_1")
+	command1 := Route{
+		Command: "command_1",
+	}
 	requestParameters := key_value.Empty()
 	var replyParameters key_value.KeyValue
 	err := command1.Request(suite.client, requestParameters, &replyParameters)
@@ -113,7 +115,7 @@ func (suite *TestCommandSuite) TestRun() {
 	suite.NotEmpty(replyParameters)
 	replyCommandParam, err := replyParameters.GetString("command")
 	suite.NoError(err)
-	suite.Equal(command1.String(), replyCommandParam)
+	suite.Equal(command1.Command, replyCommandParam)
 
 	// Test the Reply() function
 	expectedReply := message.Reply{
@@ -132,7 +134,9 @@ func (suite *TestCommandSuite) TestRun() {
 	err = client.Connect(url)
 	suite.NoError(err)
 
-	command2 := New("command_2")
+	command2 := Route{
+		Command: "command_2",
+	}
 	pushParameters := key_value.Empty()
 	err = command2.Push(client, pushParameters)
 	suite.NoError(err)
@@ -140,12 +144,14 @@ func (suite *TestCommandSuite) TestRun() {
 	indexerService, _ := service.Inprocess("INDEXER")
 
 	// Test command.RequestRouter()
-	command3 := New("command_router")
+	command3 := Route{
+		Command: "command_router",
+	}
 	err = command3.RequestRouter(suite.client, indexerService, requestParameters, &replyParameters)
 	suite.NoError(err)
 	repliedCommand, err := replyParameters.GetString("command")
 	suite.NoError(err)
-	suite.EqualValues(repliedCommand, command3.String())
+	suite.EqualValues(repliedCommand, command3.Command)
 }
 
 // In order for 'go test' to run this suite, we need to create

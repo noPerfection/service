@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"github.com/ahmetson/service-lib/log"
 	"sync"
 
 	"github.com/ahmetson/common-lib/data_type"
@@ -13,22 +14,56 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// Name is the string
-// It's included in the message.Request when another thread or user requests
-// the SDS Service
-type Name string
-
-// Any command
-const Any Name = "*"
-
-// String representation of the CommandName
-func (command Name) String() string {
-	return string(command)
+// Route is the command, handler of the command
+// and the extensions that this command depends on.
+type Route struct {
+	Command    string
+	Extensions []string
+	handler    HandleFunc
 }
 
-// New Converts the given string to the CommandName
-func New(value string) Name {
-	return Name(value)
+// Any command name
+const Any string = "*"
+
+// NewRoute returns a new command handler. It's used by the controllers.
+func NewRoute(command string, handler HandleFunc, extensions ...string) *Route {
+	return &Route{
+		Command:    command,
+		Extensions: extensions,
+		handler:    handler,
+	}
+}
+
+// AddHandler if the handler already exists then it will throw an error
+func (route *Route) AddHandler(handler HandleFunc) error {
+	if route.handler == nil {
+		route.handler = handler
+		return nil
+	}
+
+	return fmt.Errorf("handler exists in %s route", route.Command)
+}
+
+// FilterExtensionClients returns the list of the clients specific for this command
+func (route *Route) filterExtensionClients(clients remote.Clients) []*remote.ClientSocket {
+	routeClients := make([]*remote.ClientSocket, len(route.Extensions))
+
+	added := 0
+	for extensionName := range clients {
+		for i := 0; i < len(route.Extensions); i++ {
+			if route.Extensions[i] == extensionName {
+				routeClients[added] = clients[extensionName].(*remote.ClientSocket)
+				added++
+			}
+		}
+	}
+
+	return routeClients
+}
+
+func (route *Route) Handle(request message.Request, logger log.Logger, allExtensions remote.Clients) message.Reply {
+	extensions := route.filterExtensionClients(allExtensions)
+	return route.handler(request, logger, extensions...)
 }
 
 // Request the command to the remote thread or service with the
@@ -46,7 +81,7 @@ func New(value string) Name {
 //	    // Send PING command to the socket.
 //		_ := ping_command.Request(socket, request_parameters, &reply_parameters)
 //		pong, _ := reply_parameters.GetString("pong")
-func (command Name) Request(socket *remote.ClientSocket, request interface{}, reply interface{}) error {
+func (route *Route) Request(socket *remote.ClientSocket, request interface{}, reply interface{}) error {
 	_, ok := request.(message.Request)
 	if ok {
 		return fmt.Errorf("the request can not be of message.Request type")
@@ -74,7 +109,7 @@ func (command Name) Request(socket *remote.ClientSocket, request interface{}, re
 	}
 
 	requestMessage := message.Request{
-		Command:    command.String(),
+		Command:    route.Command,
 		Parameters: requestParameters,
 	}
 
@@ -104,7 +139,7 @@ func (command Name) Request(socket *remote.ClientSocket, request interface{}, re
 //		    // Send HEARTBEAT command to the socket.
 //			_ := heartbeat.Request(socket, request_parameters)
 //			server_timestamp, _ := reply_parameters.GetUint64("server_timestamp")
-func (command Name) Push(socket *zmq.Socket, request interface{}) error {
+func (route *Route) Push(socket *zmq.Socket, request interface{}) error {
 	socketType, err := socket.GetType()
 	if err != nil {
 		return fmt.Errorf("socket.GetType: %w", err)
@@ -129,7 +164,7 @@ func (command Name) Push(socket *zmq.Socket, request interface{}) error {
 	}
 
 	requestMessage := message.Request{
-		Command:    command.String(),
+		Command:    route.Command,
 		Parameters: requestParameters,
 	}
 
@@ -165,7 +200,7 @@ func (command Name) Push(socket *zmq.Socket, request interface{}) error {
 //	        db_service := parameter.DB
 //			// Send SET command to the database via the authentication proxy.
 //			_ := set.RequestRouter(auth_socket, db_service, request_parameters, &reply_parameters)
-func (command Name) RequestRouter(socket *remote.ClientSocket, targetService *parameter.Service, request interface{}, reply interface{}) error {
+func (route *Route) RequestRouter(socket *remote.ClientSocket, targetService *parameter.Service, request interface{}, reply interface{}) error {
 	_, ok := request.(message.Request)
 	if ok {
 		return fmt.Errorf("the request can not be of message.Request type")
@@ -193,7 +228,7 @@ func (command Name) RequestRouter(socket *remote.ClientSocket, targetService *pa
 	}
 
 	requestMessage := message.Request{
-		Command:    command.String(),
+		Command:    route.Command,
 		Parameters: requestParameters,
 	}
 

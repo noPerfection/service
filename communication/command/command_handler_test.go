@@ -19,10 +19,10 @@ type TestCommandHandler struct {
 // Make sure that Account is set to five
 // before each test
 func (suite *TestCommandHandler) SetupTest() {
-	handlers := EmptyHandlers()
+	handlers := NewRoutes()
 	suite.Len(handlers, 0)
 
-	command1 := New("command_1")
+	command1 := "command_1"
 	command1Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
@@ -30,7 +30,7 @@ func (suite *TestCommandHandler) SetupTest() {
 			Parameters: request.Parameters.Set("id", uint64(1)),
 		}
 	}
-	command2 := New("command_2")
+	command2 := "command_2"
 	command2Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
@@ -38,21 +38,21 @@ func (suite *TestCommandHandler) SetupTest() {
 			Parameters: request.Parameters.Set("id", uint64(2)),
 		}
 	}
-	handlers = handlers.Add(command1, command1Handler)
-	suite.Len(handlers, 1)
+	handlers.Add(command1, command1Handler)
+	suite.Equal(handlers.Len(), 1)
 	suite.True(handlers.Exist(command1))
 	suite.False(handlers.Exist(command2))
 
-	handlers = handlers.Add(command2, command2Handler)
-	suite.Len(handlers, 2)
+	handlers.Add(command2, command2Handler)
+	suite.Equal(handlers.Len(), 2)
 	suite.True(handlers.Exist(command1))
 	suite.True(handlers.Exist(command2))
 
-	commandNames := handlers.CommandNames()
-	suite.Equal(len(handlers), len(commandNames))
+	commandNames := Commands(handlers)
+	suite.Equal(handlers.Len(), len(commandNames))
 	commandNameStrings := []string{
-		command1.String(),
-		command2.String(),
+		command1,
+		command2,
 	}
 	suite.EqualValues(commandNames, commandNameStrings)
 }

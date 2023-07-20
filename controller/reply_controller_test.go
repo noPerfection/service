@@ -24,7 +24,7 @@ type TestReplyControllerSuite struct {
 	inprocController *Controller
 	tcpClient        *remote.ClientSocket
 	inprocClient     *remote.ClientSocket
-	commands         []command.Name
+	commands         []command.Route
 }
 
 // Todo test in-process and external types of controllers
@@ -65,28 +65,30 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	suite.Require().NoError(err, "failed to connect subscriber socket")
 	suite.inprocClient = inprocClientSocket
 
-	command1 := command.New("command_1")
-	command1Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
+	command1 := command.Route{Command: "command_1"}
+	var command1Handler command.HandleFunc = func(request message.Request, _ log.Logger, _ ...*remote.ClientSocket) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",
-			Parameters: request.Parameters.Set("id", command1.String()),
+			Parameters: request.Parameters.Set("id", command1.Command),
 		}
 	}
-	command2 := command.New("command_2")
-	command2Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
-		return message.Reply{
-			Status:     message.OK,
-			Message:    "",
-			Parameters: request.Parameters.Set("id", command2.String()),
-		}
-	}
-	suite.inprocController.RegisterCommand(command1, command1Handler)
-	suite.inprocController.RegisterCommand(command2, command2Handler)
+	command1.AddHandler(command1Handler)
 
-	suite.commands = []command.Name{
-		command1, command2,
+	command2 := command.Route{Command: "command_2"}
+	command2Handler := func(request message.Request, _ log.Logger, _ ...*remote.ClientSocket) message.Reply {
+		return message.Reply{
+			Status:     message.OK,
+			Message:    "",
+			Parameters: request.Parameters.Set("id", command2.Command),
+		}
 	}
+	command2.AddHandler(command2Handler)
+	suite.inprocController.AddRoute(&command1)
+	suite.inprocController.AddRoute(&command2)
+
+	suite.commands = append(suite.commands, command1)
+	suite.commands = append(suite.commands, command2)
 
 	go func() {
 		_ = suite.inprocController.Run()
@@ -123,13 +125,13 @@ func (suite *TestReplyControllerSuite) TestRun() {
 
 			id, err := replyParameters.GetString("id")
 			suite.Require().NoError(err)
-			suite.Equal(id, suite.commands[commandIndex].String())
+			suite.Equal(id, suite.commands[commandIndex].Command)
 		}
 
 		// no command found
-		command3 := command.New("command_3")
+		command3 := command.Route{Command: "command_3"}
 		request3 := message.Request{
-			Command:    command3.String(),
+			Command:    command3.Command,
 			Parameters: key_value.Empty(),
 		}
 		_, err := suite.tcpClient.RequestRemoteService(&request3)
@@ -157,7 +159,7 @@ func (suite *TestReplyControllerSuite) TestRun() {
 
 			id, err := replyParameters.GetString("id")
 			suite.Require().NoError(err)
-			suite.Equal(id, suite.commands[commandIndex].String())
+			suite.Equal(id, suite.commands[commandIndex].Command)
 		}
 		wg.Done()
 	}()

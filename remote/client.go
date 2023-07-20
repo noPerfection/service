@@ -54,6 +54,17 @@ func GetClient(clients Clients, name string) *ClientSocket {
 	return kv[name].(*ClientSocket)
 }
 
+// FindClient returns the client from the list
+func FindClient(clients []*ClientSocket, name string) *ClientSocket {
+	for _, client := range clients {
+		if client.serviceName == name {
+			return client
+		}
+	}
+
+	return nil
+}
+
 // Initiates the socket with a timeout.
 // If the socket is already given, then reconnect() closes it.
 // Then creates a new socket.

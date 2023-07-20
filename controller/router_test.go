@@ -28,7 +28,7 @@ type TestRouterSuite struct {
 	tcpClient     *remote.ClientSocket
 	logger        log.Logger
 
-	commands []command.Name
+	commands []*command.Route
 }
 
 // Todo test in-process and external types of controllers
@@ -92,33 +92,34 @@ func (suite *TestRouterSuite) SetupTest() {
 	// Run the sockets
 	//
 	////////////////////////////////////////////////////
-	command1 := command.New("command_1")
-	command1Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
+	command1 := command.Route{Command: "command_1"}
+	command1Handler := func(request message.Request, _ log.Logger, _ ...*remote.ClientSocket) message.Reply {
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
-				Set("id", command1.String()).
+				Set("id", command1.Command).
 				Set("dealer", "BLOCKCHAIN"),
 		}
 	}
-	command2 := command.New("command_2")
-	command2Handler := func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
+	command1.AddHandler(command1Handler)
+	command2 := command.Route{Command: "command_2"}
+	command2Handler := func(request message.Request, _ log.Logger, _ ...*remote.ClientSocket) message.Reply {
 		logger.Info("reply back command", "service", "INDEXER")
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
-				Set("id", command2.String()).
+				Set("id", command2.Command).
 				Set("dealer", "INDEXER"),
 		}
 	}
-	blockchainSocket.RegisterCommand(command1, command1Handler)
-	indexerSocket.RegisterCommand(command2, command2Handler)
+	command2.AddHandler(command2Handler)
+	blockchainSocket.AddRoute(&command1)
+	indexerSocket.AddRoute(&command2)
 
-	suite.commands = []command.Name{
-		command1, command2,
-	}
+	suite.commands = append(suite.commands, &command1)
+	suite.commands = append(suite.commands, &command2)
 
 	// todo
 	// add the reply controllers (BLOCKCHAIN, INDEXER)
@@ -186,7 +187,7 @@ func (suite *TestRouterSuite) TestRun() {
 
 			id, err := replyParameters.GetString("id")
 			suite.Require().NoError(err)
-			suite.Equal(id, suite.commands[commandIndex].String())
+			suite.Equal(id, suite.commands[commandIndex].Command)
 		}
 
 		for i := 0; i < 5; i++ {
@@ -206,13 +207,13 @@ func (suite *TestRouterSuite) TestRun() {
 
 			id, err := replyParameters.GetString("id")
 			suite.Require().NoError(err)
-			suite.Equal(id, suite.commands[commandIndex].String())
+			suite.Equal(id, suite.commands[commandIndex].Command)
 		}
 
 		// no command found
-		command3 := command.New("command_3")
+		command3 := command.Route{Command: "command_3"}
 		request3 := message.Request{
-			Command:    command3.String(),
+			Command:    command3.Command,
 			Parameters: key_value.Empty(),
 		}
 
