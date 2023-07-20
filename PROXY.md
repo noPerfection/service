@@ -119,7 +119,7 @@ func main() {
 	service.Controller.SetReplyHandler()
 	
 	// validate before running it
-	err := service.Prepare()
+	service.Prepare()
 	
 	service.Run()
 }
@@ -136,6 +136,8 @@ func main() {
 > ```
 
 The `appConfig` is always needed for any service created with **Service Lib**.
+AppConfig should get the logger at the root level. Because it
+will get the app name from the logger.
 
 It loads the environment variables, and optionally `service.yml`.
 
@@ -173,40 +175,4 @@ The reply handler is the function of the type:
 
 `github.com/ahmetson/service-lib/proxy.ReplyHandler`
 
-## Proxy Service
 
-Finally, when our parameters are ready,
-we can initialize the proxy service.
-
-```go
-service, _ := proxy.New(appConfig.Services[0], logger)
-```
-
-We need to set up the source controller to the proxy service.
-
-
-```go
-// if the source controller, then add as this:
-service.AddSourceController(proxy.SourceName, web)
-
-// otherwise, if we want to use the built-in controller:
-service.NewSourceController(configuration.ReplierType)
-```
-
-We need to set the request handler
-
-```go
-service.SetRequestHandler(requestHandler)
-```
-
-Optionally, we need to set up the reply handler
-
-```go
-service.SetReplyHandler(replyHandler)
-```
-
-Finally, we can start the service:
-
-```go
-service.Run()
-```
