@@ -11,13 +11,13 @@ import (
 	"github.com/ahmetson/service-lib/log"
 )
 
-// RequestHandler is executes the request in a raw format. The first parameter is the raw messages without identity.
+// RequestHandler handles all raw requests from source.
 //
 // Returns the raw message to send to the destination
-type RequestHandler = func([]string, log.Logger, []*DestinationClient, remote.Clients) ([]string, error)
+type RequestHandler = func([]string, log.Logger) ([]string, error)
 
-// ReplyHandler is working over the string.
-// The first argument is the message.Reply received from the destination.
+// ReplyHandler handles all raw requests from destination.
+// The first argument is the raw message.Reply received from the destination.
 // The second argument is the request messages received from the client (without delimiter and id)
 //
 // Returns the raw message to send to the source.
@@ -29,68 +29,56 @@ const ControllerName = "proxy_controller"
 // Url defines the proxy controller path
 const Url = "inproc://" + ControllerName
 
-// DestinationClient Asynchronous Requests.
+// Destination is the client connected to the controller of the remote service.
 // The Dealer is the Request from Router to the
 // Reply Controller.
 //
 // The socket.Type must be zmq.DEALER
-type DestinationClient struct {
+type Destination struct {
 	// Could be Remote or Inproc
-	Config *configuration.ControllerInstance
+	Configuration *configuration.Controller
 	// The client socket
 	socket *zmq.Socket
 }
 
-// Controller The Service Controller that connects the multiple
-// Reply Controllers together.
+// Controller is the internal process connecting source and destination.
 type Controller struct {
-	destinationClients []*DestinationClient
-	logger             log.Logger
-	requestHandler     RequestHandler
-	replyHandler       ReplyHandler
-	requestMessages    *key_value.List
+	destination *Destination
+	// type of the required destination
+	requiredDestination configuration.Type
+	logger              log.Logger
+	requestHandler      RequestHandler
+	replyHandler        ReplyHandler
+	requestMessages     *key_value.List
 }
 
 // newController Returns the initiated Router with the service parameters that connects source and destination.
 // along within the route, it will execute request handler and reply handler.
-func newController(parent log.Logger) (*Controller, error) {
-	logger, err := parent.Child("proxy_controller")
-	if err != nil {
-		return nil, fmt.Errorf("error creating child logger: %w", err)
-	}
-
+func newController(logger log.Logger) *Controller {
 	return &Controller{
-		logger:             logger,
-		destinationClients: make([]*DestinationClient, 0),
-		requestHandler:     nil,
-		replyHandler:       nil,
-		requestMessages:    key_value.NewList(),
-	}, nil
+		logger:          logger,
+		destination:     nil,
+		requestHandler:  nil,
+		replyHandler:    nil,
+		requestMessages: key_value.NewList(),
+	}
 }
 
 // SetRequestHandler sets the request handler.
 // If the request handler succeeds then the request handler will have the final message
 // in the "destination"
-func (r *Controller) SetRequestHandler(handler RequestHandler) {
-	r.requestHandler = handler
+func (controller *Controller) SetRequestHandler(handler RequestHandler) {
+	controller.requestHandler = handler
 }
 
 // SetReplyHandler sets the reply handler.
 // The reply handler's error will be printed, but it doesn't mean that client will receive it.
-func (r *Controller) SetReplyHandler(handler ReplyHandler) {
-	r.replyHandler = handler
+func (controller *Controller) SetReplyHandler(handler ReplyHandler) {
+	controller.replyHandler = handler
 }
 
-// Whether the dealer for the service is added or not.
-// The service parameter should have the correct Limit or protocol type
-func (r *Controller) destinationRegistered(destinationConfig *configuration.ControllerInstance) bool {
-	for _, client := range r.destinationClients {
-		if client.Config.Instance == destinationConfig.Instance {
-			return true
-		}
-	}
-
-	return false
+func (controller *Controller) RequireDestination(controllerType configuration.Type) {
+	controller.requiredDestination = controllerType
 }
 
 // RegisterDestination Adds a new client that is connected to the Reply Controller.
@@ -98,16 +86,10 @@ func (r *Controller) destinationRegistered(destinationConfig *configuration.Cont
 // is handled on outside. As a result, it doesn't return
 // any error.
 // SDS Core can have unique command handlers.
-func (r *Controller) RegisterDestination(destinationConfig *configuration.ControllerInstance) error {
-	r.logger.Info("Adding client sockets that router will redirect", "destinationConfig", *destinationConfig)
+func (controller *Controller) RegisterDestination(destinationConfig *configuration.Controller) {
+	controller.logger.Info("Adding client sockets that router will redirect", "destinationConfig", *destinationConfig)
 
-	if r.destinationRegistered(destinationConfig) {
-		return fmt.Errorf("duplicate destination instance url '%s'", destinationConfig.Instance)
-	}
-
-	destinationClient := DestinationClient{Config: destinationConfig, socket: nil}
-	r.destinationClients = append(r.destinationClients, &destinationClient)
-	return nil
+	controller.destination = &Destination{Configuration: destinationConfig, socket: nil}
 }
 
 // Internal function that assigns the socket
@@ -119,29 +101,17 @@ func (r *Controller) RegisterDestination(destinationConfig *configuration.Contro
 // If the Router creating thread calls
 // then as thread-unsafely, will lead to the unexpected
 // behaviours.
-func (r *Controller) setSocket(index uint64) error {
+func (controller *Controller) setDestinationSocket() error {
 	socket, err := zmq.NewSocket(zmq.DEALER)
 	if err != nil {
 		return fmt.Errorf("error creating socket: %w", err)
 	}
-	err = socket.Connect(remote.ClientUrl(r.destinationClients[index].Config.Name, r.destinationClients[index].Config.Port))
+	err = socket.Connect(remote.ClientUrl(controller.destination.Configuration.Instances[0].Name, controller.destination.Configuration.Instances[0].Port))
 	if err != nil {
 		return fmt.Errorf("setup of dealer socket: %w", err)
 	}
 
-	r.destinationClients[index].socket = socket
-
-	return nil
-}
-
-// Returns the route to the dealer based on the command name.
-// Case-sensitive.
-func (r *Controller) getClient(instance string) *DestinationClient {
-	for _, dealer := range r.destinationClients {
-		if dealer.Config.Instance == instance {
-			return dealer
-		}
-	}
+	controller.destination.socket = socket
 
 	return nil
 }
@@ -169,48 +139,48 @@ func (r *Controller) getClient(instance string) *DestinationClient {
 //
 //	// route the msg[3] to the SDS Storage
 //	msg := [0: "uid-123", 1: "", 2: "storage", 3: "{`command`: `smartcontract_get`, `parameters`: {}}"]
-func (r *Controller) Run() {
-	if len(r.destinationClients) == 0 {
-		r.logger.Fatal("no destinations registered in the proxy", "hint", "call router.RegisterDestination()")
+func (controller *Controller) Run() {
+	if controller.destination == nil {
+		controller.logger.Fatal("no destinations registered in the proxy", "hint", "call router.RegisterDestination()")
 	}
-	if r.requestHandler == nil {
-		r.logger.Fatal("request handler wasn't set")
+
+	if controller.requestHandler == nil {
+		controller.logger.Fatal("request handler wasn't set")
 	}
-	r.logger.Info("setup the dealer sockets")
+
+	controller.logger.Info("setup the dealer sockets")
 	//  Initialize poll set
 	poller := zmq.NewPoller()
 
 	// let's set the socket
-	for index := range r.destinationClients {
-		err := r.setSocket(uint64(index))
-		if err != nil {
-			r.logger.Fatal("setSocket", "destination #", index, "destination instance", r.destinationClients[index].Config.Instance)
-		}
-		poller.Add(r.destinationClients[index].socket, zmq.POLLIN)
+	err := controller.setDestinationSocket()
+	if err != nil {
+		controller.logger.Fatal("setDestinationSocket", "destination instance", controller.destination.Configuration.Instances[0].Instance)
 	}
-	r.logger.Info("dealers set up successfully")
-	r.logger.Info("setup router", "url", Url)
+	poller.Add(controller.destination.socket, zmq.POLLIN)
+	controller.logger.Info("dealers set up successfully")
+	controller.logger.Info("setup router", "url", Url)
 
 	frontend, _ := zmq.NewSocket(zmq.ROUTER)
 	defer func() {
 		err := frontend.Close()
 		if err != nil {
-			r.logger.Fatal("failed to close the socket", "error", err)
+			controller.logger.Fatal("failed to close the socket", "error", err)
 		}
 	}()
-	err := frontend.Bind(Url)
+	err = frontend.Bind(Url)
 	if err != nil {
-		r.logger.Fatal("zmq new router", "error", err)
+		controller.logger.Fatal("zmq new router", "error", err)
 	}
 	hwm, _ := frontend.GetRcvhwm()
-	r.logger.Warn("high watermark from router", hwm)
+	controller.logger.Warn("high watermark from router", hwm)
 
 	poller.Add(frontend, zmq.POLLIN)
 
-	r.logger.Info("The proxy controller waits for client requestMessages")
+	controller.logger.Info("The proxy controller waits for client requestMessages")
 
-	if r.replyHandler != nil {
-		r.logger.Warn("the reply handler was given, we will track all messages",
+	if controller.replyHandler != nil {
+		controller.logger.Warn("the reply handler was given, we will track all messages",
 			"todo 1", "clean the messages after timeout")
 	}
 
@@ -220,7 +190,7 @@ func (r *Controller) Run() {
 		// infinite amount of time.
 		sockets, err := poller.Poll(-1)
 		if err != nil {
-			r.logger.Fatal("poller", "error", err)
+			controller.logger.Fatal("poller", "error", err)
 		}
 		for _, socket := range sockets {
 			zmqSocket := socket.Socket
@@ -229,16 +199,16 @@ func (r *Controller) Run() {
 				messages, err := zmqSocket.RecvMessage(0)
 				if err != nil {
 					if err := replyErrorMessage(frontend, err, messages); err != nil {
-						r.logger.Fatal("reply_error_message", "error", err)
+						controller.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
 				}
 
 				// Let's bypass the string
-				destinationMessages, err := r.requestHandler(messages[2:], r.logger, r.destinationClients, nil)
+				destinationMessages, err := controller.requestHandler(messages[2:], controller.logger)
 				if err != nil {
 					if err := replyErrorMessage(frontend, err, messages); err != nil {
-						r.logger.Fatal("replyErrorMessage", "error", err)
+						controller.logger.Fatal("replyErrorMessage", "error", err)
 					}
 					continue
 				}
@@ -247,26 +217,26 @@ func (r *Controller) Run() {
 					destinationMessages[1] == messages[1] {
 					err := fmt.Errorf("don't return the identity and delimeter, they are added by proxy controller")
 					if err := replyErrorMessage(frontend, err, messages); err != nil {
-						r.logger.Fatal("reply_error_message", "error", err)
+						controller.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
 				}
 
-				r.logger.Info("todo", "currently", "proxy redirects to the first destination", "todo", "need to direct through pipeline")
-				client := r.destinationClients[0]
+				controller.logger.Info("todo", "currently", "proxy redirects to the first destination", "todo", "need to direct through pipeline")
+				client := controller.destination
 				if client == nil {
 					err := fmt.Errorf("'%s' dealer wasn't registered", messages[2])
 					if err := replyErrorMessage(frontend, err, messages); err != nil {
-						r.logger.Fatal("reply_error_message", "error", err)
+						controller.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
 				}
 
-				if r.replyHandler != nil {
-					err = r.requestMessages.Add(messages[0], messages[2:])
+				if controller.replyHandler != nil {
+					err = controller.requestMessages.Add(messages[0], messages[2:])
 					if err != nil {
 						if replyErr := replyErrorMessage(frontend, err, messages); replyErr != nil {
-							r.logger.Fatal("reply_error_message", "error", replyErr)
+							controller.logger.Fatal("reply_error_message", "error", replyErr)
 						}
 						continue
 					}
@@ -275,12 +245,12 @@ func (r *Controller) Run() {
 				// send the id
 				_, err = client.socket.Send(messages[0], zmq.SNDMORE)
 				if err != nil {
-					r.logger.Fatal("send to dealer", "error", err)
+					controller.logger.Fatal("send to dealer", "error", err)
 				}
 				// send the delimiter
 				_, err = client.socket.Send(messages[1], zmq.SNDMORE)
 				if err != nil {
-					r.logger.Fatal("send to dealer", "error", err)
+					controller.logger.Fatal("send to dealer", "error", err)
 				}
 				// skip the command name
 				// we skip the router name,
@@ -290,12 +260,12 @@ func (r *Controller) Run() {
 					if i == lastIndex {
 						_, err := client.socket.Send(destinationMessages[i], 0)
 						if err != nil {
-							r.logger.Fatal("send to dealer", "error", err)
+							controller.logger.Fatal("send to dealer", "error", err)
 						}
 					} else {
 						_, err := client.socket.Send(destinationMessages[i], zmq.SNDMORE)
 						if err != nil {
-							r.logger.Fatal("send to dealer", "error", err)
+							controller.logger.Fatal("send to dealer", "error", err)
 						}
 					}
 				}
@@ -306,28 +276,28 @@ func (r *Controller) Run() {
 				for {
 					messages, err := zmqSocket.RecvMessage(0)
 					if err != nil {
-						r.logger.Fatal("receive from dealer", "error", err)
+						controller.logger.Fatal("receive from dealer", "error", err)
 					}
 
-					if r.replyHandler != nil {
-						if !r.requestMessages.Exist(messages[0]) {
-							r.logger.Fatal("reply handler needs request messages but not found", "id", messages[0])
+					if controller.replyHandler != nil {
+						if !controller.requestMessages.Exist(messages[0]) {
+							controller.logger.Fatal("reply handler needs request messages but not found", "id", messages[0])
 						}
 
-						rawRequestMessages, err := r.requestMessages.Take(messages[0])
+						rawRequestMessages, err := controller.requestMessages.Take(messages[0])
 						if err != nil {
-							r.logger.Fatal("failed to take the request messages", "error", err)
+							controller.logger.Fatal("failed to take the request messages", "error", err)
 						}
 						requestMessages, ok := rawRequestMessages.([]string)
 						if !ok {
-							r.logger.Fatal("failed to decompose interfaces into the request message", "raw messages", requestMessages)
+							controller.logger.Fatal("failed to decompose interfaces into the request message", "raw messages", requestMessages)
 						}
-						messages = r.replyHandler(messages, requestMessages, r.logger)
+						messages = controller.replyHandler(messages, requestMessages, controller.logger)
 					}
 
 					_, err = frontend.SendMessage(messages, 0)
 					if err != nil {
-						r.logger.Fatal("send from dealer to frontend", "error", err)
+						controller.logger.Fatal("send from dealer to frontend", "error", err)
 					}
 				}
 			}
