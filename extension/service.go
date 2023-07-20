@@ -10,17 +10,18 @@ import (
 	"sync"
 )
 
-type Extension struct {
+// Service of the extension type
+type Service struct {
 	configuration configuration.Service
 	controllers   []*controller.Controller
 }
 
-// New Extension service based on the configurations
-func New(serviceConf configuration.Service, logger log.Logger) (*Extension, error) {
+// New extension service based on the configurations
+func New(serviceConf configuration.Service, logger log.Logger) (*Service, error) {
 	if serviceConf.Type != configuration.ExtensionType {
-		return nil, fmt.Errorf("service type in the configuration is not Extension. It's '%s'", serviceConf.Type)
+		return nil, fmt.Errorf("service type in the configuration is not Service. It's '%s'", serviceConf.Type)
 	}
-	service := Extension{
+	service := Service{
 		configuration: serviceConf,
 		controllers:   make([]*controller.Controller, 0),
 	}
@@ -32,7 +33,8 @@ func New(serviceConf configuration.Service, logger log.Logger) (*Extension, erro
 	return &service, nil
 }
 
-func (service *Extension) initController(logger log.Logger) error {
+// initController takes the first controller from configuration and adds them into the Service.
+func (service *Service) initController(logger log.Logger) error {
 	replier, err := controller.NewReplier(logger)
 	if err != nil {
 		return fmt.Errorf("controller.NewReplier: %w", err)
@@ -50,12 +52,12 @@ func (service *Extension) initController(logger log.Logger) error {
 }
 
 // GetFirstController returns the first controller of this extension
-func (service *Extension) GetFirstController() *controller.Controller {
+func (service *Service) GetFirstController() *controller.Controller {
 	return service.controllers[0]
 }
 
 // Run the independent service.
-func (service *Extension) Run() {
+func (service *Service) Run() {
 	var wg sync.WaitGroup
 
 	for _, c := range service.controllers {
