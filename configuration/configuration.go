@@ -33,13 +33,15 @@ type Config struct {
 //
 // Automatically reads the command line arguments.
 // Loads the environment variables.
-func New(logger *log.Logger) (*Config, error) {
+//
+// logger should be a parent
+func New(parent *log.Logger) (*Config, error) {
 	conf := Config{
-		Name:    logger.Prefix(),
-		logger:  logger.Child("configuration"),
+		Name:    parent.Prefix(),
+		logger:  parent.Child("configuration"),
 		Service: nil,
 	}
-	logger.Info("Loading environment files passed as app arguments")
+	parent.Info("Loading environment files passed as app arguments")
 
 	// First we load the environment variables
 	err := env.LoadAnyEnv()
@@ -47,7 +49,7 @@ func New(logger *log.Logger) (*Config, error) {
 		return nil, fmt.Errorf("loading environment variables: %w", err)
 	}
 
-	logger.Info("Starting Viper with environment variables")
+	parent.Info("Starting Viper with environment variables")
 
 	// replace the values with the ones we fetched from environment variables
 	conf.viper = viper.New()
@@ -63,9 +65,9 @@ func New(logger *log.Logger) (*Config, error) {
 	notFound := false
 	_, notFound = err.(viper.ConfigFileNotFoundError)
 	if err != nil && !notFound {
-		logger.Fatal("failed to read seascape.yml", "error", err)
+		parent.Fatal("failed to read seascape.yml", "error", err)
 	} else if notFound {
-		logger.Warn("the seascape.yml configuration wasn't found", "engine error", err)
+		parent.Warn("the seascape.yml configuration wasn't found", "engine error", err)
 		return &conf, nil
 	} else {
 		conf.unmarshalService()
