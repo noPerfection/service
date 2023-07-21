@@ -38,7 +38,7 @@ func extension() *configuration.Extension {
 func (service *Service) registerDestination() {
 	for _, c := range service.configuration.Service.Controllers {
 		if c.Name == DestinationName {
-			service.Controller.RegisterDestination(c)
+			service.Controller.RegisterDestination(&c)
 			break
 		}
 	}
@@ -48,7 +48,7 @@ func (service *Service) registerDestination() {
 func (service *Service) registerSource() {
 	for _, c := range service.configuration.Service.Controllers {
 		if c.Name == SourceName {
-			service.source.AddConfig(c)
+			service.source.AddConfig(&c)
 			break
 		}
 	}
@@ -74,8 +74,8 @@ func (service *Service) prepareConfiguration() error {
 	// validate the service itself
 	config := service.configuration
 	serviceConfig := service.configuration.Service
-	if serviceConfig == nil {
-		serviceConfig = &configuration.Service{
+	if len(serviceConfig.Type) == 0 {
+		serviceConfig = configuration.Service{
 			Type:     configuration.ProxyType,
 			Name:     config.Name + "proxy",
 			Instance: config.Name + " 1",
@@ -86,8 +86,8 @@ func (service *Service) prepareConfiguration() error {
 
 	// validate the controllers
 	// it means it should have two controllers: source and destination
-	var sourceConfig *configuration.Controller
-	var destinationConfig *configuration.Controller
+	var sourceConfig configuration.Controller
+	var destinationConfig configuration.Controller
 	for _, c := range serviceConfig.Controllers {
 		if c.Name == SourceName {
 			sourceConfig = c
@@ -96,8 +96,8 @@ func (service *Service) prepareConfiguration() error {
 		}
 	}
 
-	if sourceConfig == nil {
-		sourceConfig = &configuration.Controller{
+	if len(sourceConfig.Type) == 0 {
+		sourceConfig = configuration.Controller{
 			Type: service.source.ControllerType(),
 			Name: SourceName,
 		}
@@ -111,8 +111,8 @@ func (service *Service) prepareConfiguration() error {
 		}
 	}
 
-	if destinationConfig == nil {
-		destinationConfig = &configuration.Controller{
+	if len(destinationConfig.Type) == 0 {
+		destinationConfig = configuration.Controller{
 			Type: service.Controller.requiredDestination,
 			Name: DestinationName,
 		}
@@ -130,7 +130,7 @@ func (service *Service) prepareConfiguration() error {
 	if len(sourceConfig.Instances) == 0 {
 		port := service.configuration.GetFreePort()
 
-		sourceInstance := &configuration.ControllerInstance{
+		sourceInstance := configuration.ControllerInstance{
 			Name:     sourceConfig.Name,
 			Instance: sourceConfig.Name + "1",
 			Port:     uint64(port),
@@ -145,7 +145,7 @@ func (service *Service) prepareConfiguration() error {
 	if len(destinationConfig.Instances) == 0 {
 		port := service.configuration.GetFreePort()
 
-		sourceInstance := &configuration.ControllerInstance{
+		sourceInstance := configuration.ControllerInstance{
 			Name:     destinationConfig.Name,
 			Instance: destinationConfig.Name + "1",
 			Port:     uint64(port),

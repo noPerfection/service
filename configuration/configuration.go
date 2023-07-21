@@ -9,9 +9,11 @@ package configuration
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/phayes/freeport"
 	"gopkg.in/yaml.v3"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/ahmetson/service-lib/configuration/env"
@@ -26,7 +28,7 @@ type Config struct {
 
 	Secure  bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
 	logger  *log.Logger // debug purpose only
-	Service *Service
+	Service Service
 }
 
 // New creates a global configuration for the entire application.
@@ -39,7 +41,7 @@ func New(parent *log.Logger) (*Config, error) {
 	conf := Config{
 		Name:    parent.Prefix(),
 		logger:  parent.Child("configuration"),
-		Service: nil,
+		Service: Service{},
 	}
 	parent.Info("Loading environment files passed as app arguments")
 
@@ -55,12 +57,30 @@ func New(parent *log.Logger) (*Config, error) {
 	conf.viper = viper.New()
 	conf.viper.AutomaticEnv()
 
+	if argument.Exist(argument.Configuration) {
+		configurationPath, err := argument.Value(argument.Configuration)
+		if err != nil {
+			parent.Error("failed to get the configuration path", "error", err)
+		} else {
+			parent.Info("configuration flag is set", "path", configurationPath)
+			if err := validateServicePath(configurationPath); err != nil {
+				parent.Error("configuration path is invalid", "path", configurationPath, "error", err)
+			} else {
+				dir, fileName := splitServicePath(configurationPath)
+				parent.Info("file parameters are split. add it to engine", "directory", dir, "fileName", fileName)
+
+				conf.viper.Set("SERVICE_CONFIG_NAME", fileName)
+				conf.viper.Set("SERVICE_CONFIG_PATH", dir)
+			}
+		}
+	}
 	conf.viper.SetDefault("SERVICE_CONFIG_NAME", "service")
 	conf.viper.SetDefault("SERVICE_CONFIG_PATH", ".")
 
 	conf.viper.SetConfigName(conf.viper.GetString("SERVICE_CONFIG_NAME"))
 	conf.viper.SetConfigType("yaml")
 	conf.viper.AddConfigPath(conf.viper.GetString("SERVICE_CONFIG_PATH"))
+
 	err = conf.viper.ReadInConfig()
 	notFound := false
 	_, notFound = err.(viper.ConfigFileNotFoundError)
@@ -103,7 +123,7 @@ func (config *Config) unmarshalService() {
 	if err != nil {
 		config.logger.Fatal("failed to convert raw config service into map", "error", err)
 	}
-	err = kv.Interface(config.Service)
+	err = kv.Interface(&config.Service)
 	if err != nil {
 		config.logger.Fatal("failed to convert raw config service to configuration.Service", "error", err)
 	}
@@ -173,9 +193,8 @@ func (config *Config) GetBool(name string) bool {
 	return value
 }
 
-// WriteService writes the service as the yaml on the given path.
-// If the path doesn't contain the file extension it will through an error
-func (config *Config) WriteService(path string) error {
+// validateServicePath returns an error if the path is not a valid .yml link
+func validateServicePath(path string) error {
 	if len(path) < 5 {
 		return fmt.Errorf("path is too short")
 	}
@@ -184,7 +203,38 @@ func (config *Config) WriteService(path string) error {
 		return fmt.Errorf("the path should end with '.yml'")
 	}
 
-	serviceConfig, err := yaml.Marshal(config.Service)
+	return nil
+}
+
+// splitServicePath returns the directory, file name from the given path.
+// the extension is not returned since it's always a yaml file.
+//
+// The function doesn't validate the path.
+// Therefore, call this function after validateServicePath()
+func splitServicePath(servicePath string) (string, string) {
+	dir, fileName := path.Split(servicePath)
+
+	if len(dir) == 0 {
+		dir = "."
+	}
+
+	fileName = fileName[0 : len(fileName)-4]
+
+	return dir, fileName
+}
+
+// WriteService writes the service as the yaml on the given path.
+// If the path doesn't contain the file extension it will through an error
+func (config *Config) WriteService(path string) error {
+	if err := validateServicePath(path); err != nil {
+		return fmt.Errorf("validateServicePath: %w", err)
+	}
+
+	services := []Service{config.Service}
+	kv := key_value.Empty()
+	kv.Set("Services", services)
+
+	serviceConfig, err := yaml.Marshal(kv.Map())
 	if err != nil {
 		return fmt.Errorf("failed to marshall config.Service: %w", err)
 	}

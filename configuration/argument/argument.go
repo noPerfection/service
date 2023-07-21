@@ -10,7 +10,8 @@ import (
 const (
 	Secure                = "secure"                 // If passed, then TCP sockets will require authentication. Default is false
 	GenerateConfiguration = "generate-configuration" // returns the extensions, controllers that the service will need
-	Path                  = "path"                   // The file path to include
+	Path                  = "path"                   // The file path to include for generation it should end with .yml
+	Configuration         = "configuration"          // The path to the configuration. It should end with .yml
 )
 
 // GetEnvPaths any command line data that comes after the files are .env file paths
@@ -90,23 +91,23 @@ func ExtractValue(arguments []string, required string) (string, error) {
 		}
 	}
 
-	value, err := GetValue(found)
+	value, err := getValue(found)
 	if err != nil {
-		return "", fmt.Errorf("GetValue for %s argument: %w", required, err)
+		return "", fmt.Errorf("getValue for %s argument: %w", required, err)
 	}
 
 	return value, nil
 }
 
 // Value Extracts the value of the argument if it's exists.
-// Similar to GetValue() but doesn't accept the
+// Similar to getValue() but doesn't accept the
 func Value(name string) (string, error) {
 	return ExtractValue(GetArguments(), name)
 }
 
-// GetValue Extracts the value of the argument.
+// getValue Extracts the value of the argument.
 // Argument comes after '='
-func GetValue(argument string) (string, error) {
+func getValue(argument string) (string, error) {
 	parts := strings.Split(argument, "=")
 	if len(parts) != 2 {
 		return "", fmt.Errorf("strings.split(`%s`) should has two parts", argument)

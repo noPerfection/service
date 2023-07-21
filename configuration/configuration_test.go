@@ -53,7 +53,6 @@ func (suite *TestEnvSuite) SetupTest() {
 // suite.
 func (suite *TestEnvSuite) TestRun() {
 	suite.Require().False(suite.appConfig.Secure)
-	suite.Require().True(suite.appConfig.DebugSecurity)
 	suite.Require().NotNil(suite.appConfig.logger)
 
 	suite.Require().False(suite.appConfig.Exist("TURKISH_KEY"))

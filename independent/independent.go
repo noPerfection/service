@@ -34,7 +34,7 @@ func (service *Independent) AddController(name string, controller *controller.Co
 	if err != nil {
 		return fmt.Errorf("the '%s' controller configuration wasn't found: %v", name, err)
 	}
-	controller.AddConfig(controllerConf)
+	controller.AddConfig(&controllerConf)
 	service.controllers.Set(name, controller)
 
 	return nil
@@ -64,7 +64,7 @@ func (service *Independent) Run() {
 				log.Fatal("extension required by the controller doesn't exist in the configuration", "error", err)
 			}
 
-			c.AddExtensionConfig(extension)
+			c.AddExtensionConfig(&extension)
 		}
 
 		wg.Add(1)
