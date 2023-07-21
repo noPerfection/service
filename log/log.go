@@ -98,7 +98,7 @@ func (logger *Logger) Info(title string, kv ...interface{}) {
 }
 
 func (logger *Logger) Prefix() string {
-	return logger.Prefix()
+	return logger.logger.GetPrefix()
 }
 
 // Fatal prints the error message and then calls the os.Exit()
