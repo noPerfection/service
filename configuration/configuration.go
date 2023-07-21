@@ -10,6 +10,9 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/phayes/freeport"
+	"gopkg.in/yaml.v3"
+	"os"
+	"strings"
 
 	"github.com/ahmetson/service-lib/configuration/env"
 	"github.com/ahmetson/service-lib/log"
@@ -166,4 +169,32 @@ func (config *Config) GetUint64(name string) uint64 {
 func (config *Config) GetBool(name string) bool {
 	value := config.viper.GetBool(name)
 	return value
+}
+
+// WriteService writes the service as the yaml on the given path.
+// If the path doesn't contain the file extension it will through an error
+func (config *Config) WriteService(path string) error {
+	if len(path) < 5 {
+		return fmt.Errorf("path is too short")
+	}
+	_, found := strings.CutSuffix(path, ".yml")
+	if !found {
+		return fmt.Errorf("the path should end with '.yml'")
+	}
+
+	serviceConfig, err := yaml.Marshal(config.Service)
+	if err != nil {
+		return fmt.Errorf("failed to marshall config.Service: %w", err)
+	}
+
+	f, _ := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	_, err = f.Write(serviceConfig)
+	closeErr := f.Close()
+	if err != nil {
+		return fmt.Errorf("failed to write service into the given path: %w", err)
+	} else if closeErr != nil {
+		return fmt.Errorf("failed to close the file descriptor: %w", closeErr)
+	} else {
+		return nil
+	}
 }
