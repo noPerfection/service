@@ -86,8 +86,8 @@ func (service *Service) prepareConfiguration() error {
 
 	// validate the controllers
 	// it means it should have two controllers: source and destination
-	sourceConfig := &configuration.Controller{}
-	destinationConfig := &configuration.Controller{}
+	var sourceConfig *configuration.Controller
+	var destinationConfig *configuration.Controller
 	for _, c := range serviceConfig.Controllers {
 		if c.Name == SourceName {
 			sourceConfig = c
@@ -104,6 +104,7 @@ func (service *Service) prepareConfiguration() error {
 
 		serviceConfig.Controllers = append(serviceConfig.Controllers, sourceConfig)
 	} else {
+		service.logger.Info("the source config is", sourceConfig)
 		if sourceConfig.Type != service.source.ControllerType() {
 			return fmt.Errorf("source expected to be of %s type, but in the config it's %s of type",
 				service.source.ControllerType(), sourceConfig.Type)
@@ -155,6 +156,8 @@ func (service *Service) prepareConfiguration() error {
 			return fmt.Errorf("the port should not be 0 in the source")
 		}
 	}
+
+	service.configuration.Service = serviceConfig
 
 	// todo validate the extensions
 	// todo validate the proxies
@@ -238,9 +241,9 @@ func (service *Service) SetCustomSource(source controller.Interface) error {
 }
 
 func (service *Service) generateConfiguration() {
-	path, err := argument.GetValue(argument.Path)
+	path, err := argument.Value(argument.Path)
 	if err != nil {
-		service.logger.Fatal("generate configuration", "required a path flag", "error", err)
+		service.logger.Fatal("generate configuration requires a path flag", "error", err)
 	}
 
 	err = service.configuration.WriteService(path)
