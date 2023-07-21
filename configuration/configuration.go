@@ -21,11 +21,9 @@ type Config struct {
 	Name  string       // application name
 	viper *viper.Viper // used to keep default values
 
-	Secure        bool // Passed as --secure command line argument. If its passed then authentication is switched off.
-	DebugSecurity bool // Passed as --debug-security command line argument. If true then app prints the security logs.
-	Dependency    bool
-	logger        *log.Logger // debug purpose only
-	Service       *Service
+	Secure  bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
+	logger  *log.Logger // debug purpose only
+	Service *Service
 }
 
 // New creates a global configuration for the entire application.
