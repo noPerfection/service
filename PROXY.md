@@ -114,7 +114,7 @@ func main() {
 	// service.AddCustomSource(customController)
 
 	// destinations, handlers are part of the controller
-	service.Controller.AddDestination(configuration.ReplierType)
+	service.Controller.RequireDestination(configuration.ReplierType)
 	service.Controller.SetRequestHandler()
 	service.Controller.SetReplyHandler()
 	
