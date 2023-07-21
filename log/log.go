@@ -7,7 +7,6 @@ package log
 
 import (
 	"fmt"
-
 	"github.com/charmbracelet/log"
 
 	"github.com/charmbracelet/lipgloss"
@@ -68,10 +67,10 @@ func (style LoggerStyle) setPrimary() LoggerStyle {
 
 // New logger with the prefix and timestamp.
 // It generates the random color style.
-func New(prefix string, timestamp bool) (Logger, error) {
+func New(prefix string, timestamp bool) (*Logger, error) {
 	randomStyle, err := randomStyle()
 	if err != nil {
-		return Logger{}, fmt.Errorf("random_style: %w", err)
+		return nil, fmt.Errorf("random_style: %w", err)
 	}
 
 	logger := log.New()
@@ -84,7 +83,7 @@ func New(prefix string, timestamp bool) (Logger, error) {
 		style:  randomStyle,
 	}
 
-	return newLogger, nil
+	return &newLogger, nil
 }
 
 // Fatal calls the Error, then os.Exit()

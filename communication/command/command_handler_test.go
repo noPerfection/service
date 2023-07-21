@@ -38,12 +38,12 @@ func (suite *TestCommandHandler) SetupTest() {
 			Parameters: request.Parameters.Set("id", uint64(2)),
 		}
 	}
-	handlers.Add(command1, command1Handler)
+	_ = handlers.Add(command1, command1Handler)
 	suite.Equal(handlers.Len(), 1)
 	suite.True(handlers.Exist(command1))
 	suite.False(handlers.Exist(command2))
 
-	handlers.Add(command2, command2Handler)
+	_ = handlers.Add(command2, command2Handler)
 	suite.Equal(handlers.Len(), 2)
 	suite.True(handlers.Exist(command1))
 	suite.True(handlers.Exist(command2))

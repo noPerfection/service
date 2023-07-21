@@ -56,7 +56,7 @@ func (suite *TestSmRequestSuite) SetupTest() {
 func (suite *TestSmRequestSuite) TestParsing() {
 	// todo
 	// check that request's sm developer parameters
-	// deleted after its been converted into sm developer
+	// deleted after it's been converted into sm developer
 	// request.
 
 	// Missing _address parameter should fail

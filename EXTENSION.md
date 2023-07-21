@@ -23,7 +23,7 @@ go mod vendor
 
 Unlike proxy, the extensions are easy to understand.
 Therefore, we skip the internal process explanation and
-straightforward will work with the cofiguration.
+straightforward will work with the configuration.
 Create the `service.yml` configuration.
 
 ```yaml
@@ -182,7 +182,7 @@ service, _ := extension.New(appConfig.Services[0], logger)
 ```
 
 Once we have the service, we need to add register our
-commands in it's controller:
+commands in its controller:
 
 ```go
 controller := service.GetFirstController()

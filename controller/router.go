@@ -29,15 +29,12 @@ type Dealer struct {
 type Router struct {
 	service *identity.Service
 	dealers []*Dealer
-	logger  log.Logger
+	logger  *log.Logger
 }
 
 // NewRouter Returns the initiated Router with the service parameters
-func NewRouter(service *identity.Service, parent log.Logger) (Router, error) {
-	logger, err := parent.Child("controller", "type", "router", "service_name", service.Name, "inproc", service.IsInproc())
-	if err != nil {
-		return Router{}, fmt.Errorf("error creating child logger: %w", err)
-	}
+func NewRouter(service *identity.Service, parent *log.Logger) (Router, error) {
+	logger := parent.Child("controller", "type", "router", "service_name", service.Name, "inproc", service.IsInproc())
 
 	logger.Info("New router", "service_name", service.Name)
 

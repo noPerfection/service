@@ -57,7 +57,7 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	suite.inprocController = inprocController
 
 	// Socket to talk to clients
-	tcpClientSocket, err := remote.NewTcpSocket(clientService, &logger, appConfig)
+	tcpClientSocket, err := remote.NewTcpSocket(clientService, logger, appConfig)
 	suite.Require().NoError(err, "failed to create subscriber socket")
 	suite.tcpClient = tcpClientSocket
 
@@ -66,26 +66,26 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	suite.inprocClient = inprocClientSocket
 
 	command1 := command.Route{Command: "command_1"}
-	var command1Handler command.HandleFunc = func(request message.Request, _ log.Logger, _ ...*remote.ClientSocket) message.Reply {
+	var command1Handler = func(request message.Request, _ *log.Logger, _ ...*remote.ClientSocket) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",
 			Parameters: request.Parameters.Set("id", command1.Command),
 		}
 	}
-	command1.AddHandler(command1Handler)
+	_ = command1.AddHandler(command1Handler)
 
 	command2 := command.Route{Command: "command_2"}
-	command2Handler := func(request message.Request, _ log.Logger, _ ...*remote.ClientSocket) message.Reply {
+	command2Handler := func(request message.Request, _ *log.Logger, _ ...*remote.ClientSocket) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",
 			Parameters: request.Parameters.Set("id", command2.Command),
 		}
 	}
-	command2.AddHandler(command2Handler)
-	suite.inprocController.AddRoute(&command1)
-	suite.inprocController.AddRoute(&command2)
+	_ = command2.AddHandler(command2Handler)
+	_ = suite.inprocController.AddRoute(&command1)
+	_ = suite.inprocController.AddRoute(&command2)
 
 	suite.commands = append(suite.commands, command1)
 	suite.commands = append(suite.commands, command2)

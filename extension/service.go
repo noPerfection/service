@@ -17,7 +17,7 @@ type Service struct {
 }
 
 // New extension service based on the configurations
-func New(serviceConf configuration.Service, logger log.Logger) (*Service, error) {
+func New(serviceConf configuration.Service, logger *log.Logger) (*Service, error) {
 	if serviceConf.Type != configuration.ExtensionType {
 		return nil, fmt.Errorf("service type in the configuration is not Service. It's '%s'", serviceConf.Type)
 	}
@@ -34,7 +34,7 @@ func New(serviceConf configuration.Service, logger log.Logger) (*Service, error)
 }
 
 // initController takes the first controller from configuration and adds them into the Service.
-func (service *Service) initController(logger log.Logger) error {
+func (service *Service) initController(logger *log.Logger) error {
 	replier, err := controller.NewReplier(logger)
 	if err != nil {
 		return fmt.Errorf("controller.NewReplier: %w", err)
@@ -60,27 +60,27 @@ func (service *Service) GetFirstController() *controller.Controller {
 func (service *Service) Run() {
 	var wg sync.WaitGroup
 
-	for _, c := range service.controllers {
-		// add the extensions required by the controller
-		requiredExtensions := c.RequiredExtensions()
-		for _, name := range requiredExtensions {
-			extension, err := service.configuration.GetExtension(name)
-			if err != nil {
-				log.Fatal("extension required by the controller doesn't exist in the configuration", "error", err)
-			}
+	c := service.GetFirstController()
 
-			c.AddExtensionConfig(extension)
+	// add the extensions required by the controller
+	requiredExtensions := c.RequiredExtensions()
+	for _, name := range requiredExtensions {
+		extension, err := service.configuration.GetExtension(name)
+		if err != nil {
+			log.Fatal("extension required by the controller doesn't exist in the configuration", "error", err)
 		}
 
-		wg.Add(1)
-		go func() {
-			err := c.Run()
-			wg.Done()
-			if err != nil {
-				log.Fatal("failed to run the controller", "error", err)
-			}
-		}()
+		c.AddExtensionConfig(extension)
 	}
+
+	wg.Add(1)
+	go func() {
+		err := c.Run()
+		wg.Done()
+		if err != nil {
+			log.Fatal("failed to run the controller", "error", err)
+		}
+	}()
 
 	wg.Wait()
 }

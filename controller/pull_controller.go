@@ -21,7 +21,7 @@ import (
 )
 
 // NewPull creates a pull controller for the service.
-func NewPull(logger log.Logger) (*Controller, error) {
+func NewPull(logger *log.Logger) (*Controller, error) {
 	controllerLogger := logger.Child("controller", "type", configuration.PusherType)
 
 	// Socket to talk to clients

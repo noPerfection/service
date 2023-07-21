@@ -26,7 +26,7 @@ type TestRouterSuite struct {
 	tcpRouter     *Router
 	tcpRepliers   []*Controller
 	tcpClient     *remote.ClientSocket
-	logger        log.Logger
+	logger        *log.Logger
 
 	commands []*command.Route
 }
@@ -77,7 +77,7 @@ func (suite *TestRouterSuite) SetupTest() {
 	suite.tcpRouter = &tcpRouter
 
 	// Client
-	tcpClientSocket, err := remote.NewTcpSocket(clientService, &logger, appConfig)
+	tcpClientSocket, err := remote.NewTcpSocket(clientService, logger, appConfig)
 	suite.Require().NoError(err, "failed to create subscriber socket")
 	suite.tcpClient = tcpClientSocket
 
@@ -93,7 +93,7 @@ func (suite *TestRouterSuite) SetupTest() {
 	//
 	////////////////////////////////////////////////////
 	command1 := command.Route{Command: "command_1"}
-	command1Handler := func(request message.Request, _ log.Logger, _ ...*remote.ClientSocket) message.Reply {
+	command1Handler := func(request message.Request, _ *log.Logger, _ ...*remote.ClientSocket) message.Reply {
 		return message.Reply{
 			Status:  message.OK,
 			Message: "",
@@ -102,9 +102,9 @@ func (suite *TestRouterSuite) SetupTest() {
 				Set("dealer", "BLOCKCHAIN"),
 		}
 	}
-	command1.AddHandler(command1Handler)
+	_ = command1.AddHandler(command1Handler)
 	command2 := command.Route{Command: "command_2"}
-	command2Handler := func(request message.Request, _ log.Logger, _ ...*remote.ClientSocket) message.Reply {
+	command2Handler := func(request message.Request, _ *log.Logger, _ ...*remote.ClientSocket) message.Reply {
 		logger.Info("reply back command", "service", "INDEXER")
 		return message.Reply{
 			Status:  message.OK,
@@ -114,9 +114,9 @@ func (suite *TestRouterSuite) SetupTest() {
 				Set("dealer", "INDEXER"),
 		}
 	}
-	command2.AddHandler(command2Handler)
-	blockchainSocket.AddRoute(&command1)
-	indexerSocket.AddRoute(&command2)
+	_ = command2.AddHandler(command2Handler)
+	_ = blockchainSocket.AddRoute(&command1)
+	_ = indexerSocket.AddRoute(&command2)
 
 	suite.commands = append(suite.commands, &command1)
 	suite.commands = append(suite.commands, &command2)

@@ -26,7 +26,7 @@ type Controller struct {
 }
 
 // NewReplier creates a new synchronous Reply controller.
-func NewReplier(logger log.Logger) (*Controller, error) {
+func NewReplier(logger *log.Logger) (*Controller, error) {
 	controllerLogger := logger.Child("controller", "type", configuration.ReplierType)
 
 	// Socket to talk to clients

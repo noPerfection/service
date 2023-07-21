@@ -39,7 +39,7 @@ func (suite *TestSocketSuite) TestNewSockets() {
 
 	inprocIndexerService, err := parameter.Inprocess("indexer")
 	suite.Require().NoError(err)
-	_, err = NewTcpSocket(inprocIndexerService, &logger, appConfig)
+	_, err = NewTcpSocket(inprocIndexerService, logger, appConfig)
 	suite.Require().Error(err)
 
 	indexerService, err := parameter.NewExternal("indexer", parameter.THIS, appConfig)
@@ -50,15 +50,15 @@ func (suite *TestSocketSuite) TestNewSockets() {
 	suite.Require().NoError(err)
 
 	// We can't initiate the socket with THIS limit
-	_, err = NewTcpSocket(indexerService, &logger, appConfig)
+	_, err = NewTcpSocket(indexerService, logger, appConfig)
 	suite.Require().Error(err)
 	// We can't initiate with the empty service
-	_, err = NewTcpSocket(clientService, &logger, nil)
+	_, err = NewTcpSocket(clientService, logger, nil)
 	suite.Require().Error(err)
 	// We can't initiate with the empty service
-	_, err = NewTcpSocket(nil, &logger, appConfig)
+	_, err = NewTcpSocket(nil, logger, appConfig)
 	suite.Require().Error(err)
-	_, err = NewTcpSocket(clientService, &logger, appConfig)
+	_, err = NewTcpSocket(clientService, logger, appConfig)
 	suite.Require().NoError(err)
 
 	// We can't initiate the socket with THIS limit

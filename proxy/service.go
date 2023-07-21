@@ -6,6 +6,7 @@ import (
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
+	"os"
 	"sync"
 )
 
@@ -17,7 +18,7 @@ type Service struct {
 	source controller.Interface
 	// Controller that handles the requests and redirects to the destination.
 	Controller *Controller
-	logger     log.Logger
+	logger     *log.Logger
 }
 
 // SourceName of this type should be listed within the controllers in the configuration
@@ -44,13 +45,13 @@ func (service *Service) registerDestination() {
 }
 
 // New proxy service along with its controller.
-func New(config *configuration.Config, logger log.Logger) *Service {
-	controller := newController(logger.Child("controller"))
+func New(config *configuration.Config, parent *log.Logger) *Service {
+	logger := parent.Child("proxy")
 
 	service := Service{
 		configuration: config,
 		source:        nil,
-		Controller:    controller,
+		Controller:    newController(logger.Child("controller")),
 		logger:        logger,
 	}
 
@@ -221,7 +222,7 @@ func (service *Service) SetDefaultSource(controllerType configuration.Type) erro
 // SetCustomSource sets the source controller, and invokes the source controller's
 func (service *Service) SetCustomSource(source controller.Interface) error {
 	// todo move the below code to the two parts
-	// move it to the validate, and to the Run()
+	// move it to validate, and to the Run()
 	//controllerConf, err := service.configuration.Service[0].GetController(name)
 	//if err != nil {
 	//	return fmt.Errorf("the '%s' controller configuration wasn't found: %v", name, err)
@@ -234,6 +235,11 @@ func (service *Service) SetCustomSource(source controller.Interface) error {
 
 // Run the proxy service.
 func (service *Service) Run() {
+	if service.configuration.Dependency {
+		println()
+		os.Exit(0)
+	}
+
 	var wg sync.WaitGroup
 
 	wg.Add(1)

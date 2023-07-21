@@ -42,12 +42,12 @@ package auth
 //	case parameter.THIS:
 //		// key_name := vault_path(service_type)
 //
-//		// creds, err := vault.GetCredentials(BUCKET, key_name)
+//		// credentials, err := vault.GetCredentials(BUCKET, key_name)
 //		// if err != nil {
 //		return nil, fmt.Errorf("vault.GetString for %s service secret key: %w", name, err)
 //		// }
 //
-//		// return creds, nil
+//		// return credentials, nil
 //	case parameter.SUBSCRIBE:
 //		// if !app_config.Exist(broadcast_public_key) {
 //		return nil, fmt.Errorf("security enabled, but missing %s", name)
@@ -57,12 +57,12 @@ package auth
 //	case parameter.BROADCAST:
 //		// key_name := vault_broadcast_path(service_type)
 //
-//		// creds, err := vault.GetCredentials(BUCKET, key_name)
+//		// credentials, err := vault.GetCredentials(BUCKET, key_name)
 //		// if err != nil {
 //		return nil, fmt.Errorf("vault.GetString for %s service secret key: %w", name, err)
 //		// }
 //
-//		// return creds, nil
+//		// return credentials, nil
 //	}
 //
 //	return nil, fmt.Errorf("unsupported service limit: %v", limit)

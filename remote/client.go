@@ -28,7 +28,7 @@ type ClientSocket struct {
 	poller          *zmq.Poller
 	socket          *zmq.Socket
 	protocol        string
-	logger          log.Logger
+	logger          *log.Logger
 	appConfig       *configuration.Config
 	serviceName     string
 	servicePort     uint64
@@ -450,9 +450,9 @@ func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig 
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
-	var logger log.Logger
+	var logger *log.Logger
 	if parent != nil {
-		logger, err = parent.Child("client_socket",
+		logger = parent.Child("client_socket",
 			"remote_service", remoteService.Name,
 			"protocol", "tcp",
 			"socket_type", "REQ",
@@ -484,9 +484,9 @@ func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error)
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
-	var logger log.Logger
+	var logger *log.Logger
 	if parent != nil {
-		logger, err = parent.Child("client",
+		logger = parent.Child("client",
 			"service name", name,
 			"protocol", "tcp",
 			"socket_type", "REQ",
@@ -519,7 +519,7 @@ func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error)
 // The created client socket can connect to controller.Router or controller.Reply.
 //
 // The `url` parameter must start with `inproc://`
-func InprocRequestSocket(url string, parent log.Logger, appConfig *configuration.Config) (*ClientSocket, error) {
+func InprocRequestSocket(url string, parent *log.Logger, appConfig *configuration.Config) (*ClientSocket, error) {
 	if appConfig == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}
@@ -536,7 +536,7 @@ func InprocRequestSocket(url string, parent log.Logger, appConfig *configuration
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
-	logger, err := parent.Child("client_socket",
+	logger := parent.Child("client_socket",
 		"protocol", "inproc",
 		"socket_type", "REQ",
 		"remote_service_url", url)

@@ -11,7 +11,6 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/phayes/freeport"
 
-	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/env"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/spf13/viper"
@@ -22,8 +21,9 @@ type Config struct {
 	Name  string       // application name
 	viper *viper.Viper // used to keep default values
 
-	Secure        bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
-	DebugSecurity bool        // Passed as --debug-security command line argument. If true then app prints the security logs.
+	Secure        bool // Passed as --secure command line argument. If its passed then authentication is switched off.
+	DebugSecurity bool // Passed as --debug-security command line argument. If true then app prints the security logs.
+	Dependency    bool
 	logger        *log.Logger // debug purpose only
 	Service       *Service
 }
@@ -32,18 +32,11 @@ type Config struct {
 //
 // Automatically reads the command line arguments.
 // Loads the environment variables.
-func New(logger log.Logger) (*Config, error) {
-	logger.Info("Reading command line arguments for application parameters")
-
-	// First we check the parameters of the application arguments
-	arguments := argument.GetArguments(&logger)
-
+func New(logger *log.Logger) (*Config, error) {
 	conf := Config{
-		Name:          logger.Prefix(),
-		Secure:        argument.Has(arguments, argument.Secure),
-		DebugSecurity: argument.Has(arguments, argument.SecurityDebug),
-		logger:        logger.Child("configuration"),
-		Service:       nil,
+		Name:    logger.Prefix(),
+		logger:  logger.Child("configuration"),
+		Service: nil,
 	}
 	logger.Info("Loading environment files passed as app arguments")
 
@@ -88,10 +81,6 @@ func (config *Config) GetFreePort() int {
 	}
 
 	return port
-}
-
-func (config *Config) IsValidPort(port int) {
-
 }
 
 // unmarshalService decodes the yaml into the configuration.

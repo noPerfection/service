@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/controller"
@@ -8,7 +9,7 @@ import (
 	"github.com/ahmetson/service-lib/remote"
 )
 
-var anyHandler = func(request message.Request, _ log.Logger, extensions ...*remote.ClientSocket) message.Reply {
+var anyHandler = func(request message.Request, _ *log.Logger, extensions ...*remote.ClientSocket) message.Reply {
 	proxyClient := remote.FindClient(extensions, ControllerName)
 	replyParameters, err := proxyClient.RequestRemoteService(&request)
 	if err != nil {
@@ -25,8 +26,11 @@ var anyHandler = func(request message.Request, _ log.Logger, extensions ...*remo
 
 // SourceHandler makes the given controller as the source of the proxy.
 // It means, it will add command.Any to call the proxy.
-func SourceHandler(sourceController controller.Interface) {
+func SourceHandler(sourceController controller.Interface) error {
 	route := command.NewRoute(command.Any, anyHandler, ControllerName)
 
-	sourceController.AddRoute(route)
+	if err := sourceController.AddRoute(route); err != nil {
+		return fmt.Errorf("failed to add any route into the controller: %w", err)
+	}
+	return nil
 }

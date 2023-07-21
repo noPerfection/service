@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/ahmetson/service-lib/log"
 )
 
 const (
-	Secure        = "secure" // If passed, then TCP sockets will require authentication. Default is false
-	SecurityDebug = "security-debug"
+	Secure                = "secure"                 // If passed, then TCP sockets will require authentication. Default is false
+	GenerateConfiguration = "generate-configuration" // returns the extensions, controllers that the service will need
+	Path                  = "path"                   // The file path to include
 )
 
 // GetEnvPaths any command line data that comes after the files are .env file paths
@@ -46,29 +45,9 @@ func GetEnvPaths() []string {
 
 // GetArguments Load arguments, not the environment variable paths.
 // Arguments starts with '--'
-func GetArguments(parent *log.Logger) []string {
-	var logger *log.Logger
-	if parent != nil {
-		newLogger, err := parent.Child("argument")
-		if err != nil {
-			logger.Warn("parent.Child", "error", err)
-			return []string{}
-		}
-		logger = &newLogger
-
-		logger.Info("Supported app arguments",
-			"--"+Secure,
-			"Enables security service",
-			"--"+SecurityDebug,
-			"To print the authentication logs",
-		)
-	}
-
+func GetArguments() []string {
 	args := os.Args[1:]
 	if len(args) == 0 {
-		if logger != nil {
-			logger.Info("No arguments were given")
-		}
 		return []string{}
 	}
 
@@ -80,17 +59,13 @@ func GetArguments(parent *log.Logger) []string {
 		}
 	}
 
-	if logger != nil {
-		logger.Info("All arguments read", "amount", len(parameters), "app parameters", parameters)
-	}
-
 	return parameters
 }
 
 // Exist This function is same as `env.HasArgument`,
 // except `env.ArgumentExist()` loads arguments automatically.
 func Exist(argument string) bool {
-	return Has(GetArguments(nil), argument)
+	return Has(GetArguments(), argument)
 }
 
 // ExtractValue Extracts the value of the argument if it has.
@@ -126,7 +101,7 @@ func ExtractValue(arguments []string, required string) (string, error) {
 // Value Extracts the value of the argument if it's exists.
 // Similar to GetValue() but doesn't accept the
 func Value(name string) (string, error) {
-	return ExtractValue(GetArguments(nil), name)
+	return ExtractValue(GetArguments(), name)
 }
 
 // GetValue Extracts the value of the argument.

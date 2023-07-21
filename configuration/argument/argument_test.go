@@ -14,7 +14,7 @@ import (
 // returns the current testing context
 type TestArgumentSuite struct {
 	suite.Suite
-	logger    log.Logger
+	logger    *log.Logger
 	arguments []string
 }
 
@@ -41,7 +41,7 @@ func (suite *TestArgumentSuite) SetupTest() {
 // suite.
 func (suite *TestArgumentSuite) TestRun() {
 	fmt.Println(os.Args)
-	arguments := GetArguments(&suite.logger)
+	arguments := GetArguments()
 	suite.Require().EqualValues(suite.arguments, arguments)
 
 	pathArguments := GetEnvPaths()
