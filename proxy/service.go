@@ -4,9 +4,9 @@ package proxy
 import (
 	"fmt"
 	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
-	"os"
 	"sync"
 )
 
@@ -233,11 +233,25 @@ func (service *Service) SetCustomSource(source controller.Interface) error {
 	return nil
 }
 
+func (service *Service) generateConfiguration() {
+	path, err := argument.GetValue(argument.Path)
+	if err != nil {
+		service.logger.Fatal("generate configuration", "required a path flag", "error", err)
+	}
+
+	err = service.configuration.WriteService(path)
+	if err != nil {
+		service.logger.Fatal("failed to write the service into the file", "error", err)
+	}
+
+	service.logger.Info("the service was generated", "path", path)
+}
+
 // Run the proxy service.
 func (service *Service) Run() {
-	if service.configuration.Dependency {
-		println()
-		os.Exit(0)
+	if argument.Exist(argument.GenerateConfiguration) {
+		service.generateConfiguration()
+		return
 	}
 
 	var wg sync.WaitGroup
