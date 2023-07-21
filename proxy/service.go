@@ -44,6 +44,16 @@ func (service *Service) registerDestination() {
 	}
 }
 
+// registerSource adds the configuration to the source.
+func (service *Service) registerSource() {
+	for _, c := range service.configuration.Service.Controllers {
+		if c.Name == SourceName {
+			service.source.AddConfig(c)
+			break
+		}
+	}
+}
+
 // New proxy service along with its controller.
 func New(config *configuration.Config, parent *log.Logger) *Service {
 	logger := parent.Child("proxy")
@@ -166,6 +176,7 @@ func (service *Service) Prepare() error {
 	}
 
 	service.registerDestination()
+	service.registerSource()
 
 	proxyExtension := extension()
 
@@ -221,13 +232,6 @@ func (service *Service) SetDefaultSource(controllerType configuration.Type) erro
 
 // SetCustomSource sets the source controller, and invokes the source controller's
 func (service *Service) SetCustomSource(source controller.Interface) error {
-	// todo move the below code to the two parts
-	// move it to validate, and to the Run()
-	//controllerConf, err := service.configuration.Service[0].GetController(name)
-	//if err != nil {
-	//	return fmt.Errorf("the '%s' controller configuration wasn't found: %v", name, err)
-	//}
-	//source.AddConfig(controllerConf)
 	service.source = source
 
 	return nil
