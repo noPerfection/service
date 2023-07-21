@@ -112,6 +112,9 @@ func GetValue(argument string) (string, error) {
 		return "", fmt.Errorf("strings.split(`%s`) should has two parts", argument)
 	}
 
+	if len(parts[1]) == 0 {
+		return "", fmt.Errorf("value of --%s is empty", argument)
+	}
 	return parts[1], nil
 }
 
