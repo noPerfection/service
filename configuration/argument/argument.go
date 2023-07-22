@@ -12,6 +12,7 @@ const (
 	Secure             = "secure"              // If passed, then TCP sockets will require authentication. Default is false
 	BuildConfiguration = "build-configuration" // returns the extensions, controllers that the service will need
 	Path               = "path"                // The file path to include for generation it should end with .yml
+	Url                = "url"                 // The url of the service to set when building the configuration
 	Configuration      = "configuration"       // The path to the configuration. It should end with .yml
 )
 
