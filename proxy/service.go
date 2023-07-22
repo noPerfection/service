@@ -257,7 +257,7 @@ func (service *Service) generateConfiguration() {
 
 // Run the proxy service.
 func (service *Service) Run() {
-	if argument.Exist(argument.GenerateConfiguration) {
+	if argument.Exist(argument.BuildConfiguration) {
 		service.generateConfiguration()
 		return
 	}
