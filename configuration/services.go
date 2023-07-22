@@ -115,16 +115,27 @@ func (s *Service) GetFirstController() (Controller, error) {
 	return controller, nil
 }
 
-// GetExtension returns the extension configuration by the extension name.
-// If the extension doesn't exist, then it returns an error.
-func (s *Service) GetExtension(name string) (Extension, error) {
+// GetExtension returns the extension configuration by the url.
+// If the extension doesn't exist, then it returns nil
+func (s *Service) GetExtension(url string) *Extension {
 	for _, e := range s.Extensions {
-		if e.Url == name {
-			return e, nil
+		if e.Url == url {
+			return &e
 		}
 	}
 
-	return Extension{}, fmt.Errorf("'%s' extension was not found in '%s' service's configuration", name, s.Url)
+	return nil
+}
+
+// GetProxy returns the proxy by its url. If it doesn't exist, returns nil
+func (s *Service) GetProxy(url string) *Proxy {
+	for _, p := range s.Proxies {
+		if p.Url == url {
+			return &p
+		}
+	}
+
+	return nil
 }
 
 type Services []Service

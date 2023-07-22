@@ -153,13 +153,13 @@ func (service *Service) Prepare() error {
 
 	// add the extensions required by the controller
 	requiredExtensions := service.Controller.RequiredExtensions()
-	for _, name := range requiredExtensions {
-		extension, err := service.configuration.Service.GetExtension(name)
-		if err != nil {
-			log.Fatal("extension required by the controller doesn't exist in the configuration", "error", err)
+	for _, url := range requiredExtensions {
+		extension := service.configuration.Service.GetExtension(url)
+		if extension == nil {
+			log.Fatal("extension required by the controller doesn't exist in the configuration", "url", url)
 		}
 
-		service.Controller.AddExtensionConfig(&extension)
+		service.Controller.AddExtensionConfig(extension)
 	}
 
 	return nil
