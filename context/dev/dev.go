@@ -150,6 +150,21 @@ func SrcExist(context *configuration.Context, url string) (bool, error) {
 	return true, nil
 }
 
+func ReadProxyConfiguration(context *configuration.Context, url string) (configuration.Proxy, error) {
+	configUrl := ConfigurationPath(context, url)
+	service, err := configuration.ReadService(configUrl)
+	if err != nil {
+		return configuration.Proxy{}, fmt.Errorf("configuration.ReadService of %s: %w", configUrl, err)
+	}
+
+	converted, err := proxy.ServiceToProxy(&service)
+	if err != nil {
+		return configuration.Proxy{}, fmt.Errorf("proxy.ServiceToProxy: %w", err)
+	}
+
+	return converted, nil
+}
+
 // PrepareProxyConfiguration returns the proxy parameters and the configuration.Proxy
 func PrepareProxyConfiguration(context *configuration.Context, url string, logger *log.Logger) error {
 	exist, err := ConfigurationExist(context, url)
