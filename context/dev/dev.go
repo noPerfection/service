@@ -41,7 +41,11 @@ import (
 	"fmt"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/service-lib/proxy"
+	"github.com/go-git/go-git/v5" // with go modules disabled
+	"net/url"
 	"os"
+	"os/exec"
 	"path"
 )
 
@@ -154,14 +158,13 @@ func PrepareProxyConfiguration(context *configuration.Context, url string, logge
 	}
 
 	if exist {
-		logger.Info("required proxy exists return it by calling readProxy")
+		return nil
 	} else {
 		// first need to prepare the configuration
 		err := prepareConfigurationPath(context, url)
 		if err != nil {
 			return fmt.Errorf("prepareConfigurationPath: %w", err)
 		}
-		logger.Warn("required proxy doesn't exist continue")
 	}
 
 	// check is binary exist
@@ -171,14 +174,22 @@ func PrepareProxyConfiguration(context *configuration.Context, url string, logge
 	}
 
 	if binExist {
-		logger.Info("binary exists, we need to call it with --generate-config by calling generateConfig() and readProxy()")
+		logger.Warn("todo: for the file when it's running we need to set the current context as the same context by setting .env")
+		logger.Warn("todo: so that proxies or extensions will share the same context")
+
+		logger.Info("build configuration from the binary")
+		err := buildConfiguration(context, url, logger)
+		if err != nil {
+			return fmt.Errorf("buildConfiguration of %s: %w", url, err)
+		}
+		logger.Info("configuration was built, read it")
+		return PrepareProxyConfiguration(context, url, logger)
 	} else {
 		// first need to prepare the directory
 		err := prepareBinPath(context, url)
 		if err != nil {
 			return fmt.Errorf("prepareBinPath: %w", err)
 		}
-		logger.Warn("binary doesn't exist, continue")
 	}
 
 	// check for source exist
@@ -188,14 +199,114 @@ func PrepareProxyConfiguration(context *configuration.Context, url string, logge
 	}
 
 	if srcExist {
-		logger.Info("src exists, we need to build it, then we need to call build(), then generateConfig(), then readProxy()")
+		logger.Info("src exists, we need to build it")
+		err := build(context, url, logger)
+		if err != nil {
+			return fmt.Errorf("build: %w", err)
+		}
+		logger.Info("file was built. generate the configuration file")
+		return PrepareProxyConfiguration(context, url, logger)
 	} else {
 		// first prepare the src directory
 		err := prepareSrcPath(context, url)
 		if err != nil {
 			return fmt.Errorf("prepareSrcPath: %w", err)
 		}
-		logger.Warn("src doesn't exist, we need to download it using go-git then call build(), then generateConfig(), then readProxy()")
+
+		logger.Warn("src doesn't exist, try to clone the source code")
+		err = cloneSrc(context, url, logger)
+		if err != nil {
+			return fmt.Errorf("cloneSrc: %w", err)
+		} else {
+			logger.Info("prepare again to build the source")
+			return PrepareProxyConfiguration(context, url, logger)
+		}
+	}
+
+	return nil
+}
+
+// builds the application
+func build(context *configuration.Context, url string, logger *log.Logger) error {
+	srcUrl := SrcPath(context, url)
+	binUrl := BinPath(context, url)
+
+	logger.Info("building", "src", srcUrl, "bin", binUrl)
+
+	err := cleanBuild(srcUrl, logger)
+	if err != nil {
+		return fmt.Errorf("cleanBuild: %w", err)
+	} else {
+		logger.Info("go mod tidy was called in ", "source", srcUrl)
+	}
+
+	cmd := exec.Command("go", "build", "-o", binUrl)
+	cmd.Stdout = logger
+	cmd.Dir = srcUrl
+	cmd.Stderr = logger
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("cmd.Run: %w", err)
+	}
+	return nil
+}
+
+// calls `go mod tidy`
+func cleanBuild(srcUrl string, logger *log.Logger) error {
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Stdout = logger
+	cmd.Dir = srcUrl
+	cmd.Stderr = logger
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("cmd.Run: %w", err)
+	}
+
+	return nil
+}
+
+// calls `go mod tidy`
+func buildConfiguration(context *configuration.Context, url string, logger *log.Logger) error {
+	binUrl := BinPath(context, url)
+	pathFlag := fmt.Sprintf("--path=%s", ConfigurationPath(context, url))
+	urlFlag := fmt.Sprintf("--url=%s", url)
+
+	cmd := exec.Command(binUrl, "--build-configuration", pathFlag, urlFlag)
+	cmd.Stdout = logger
+	cmd.Stderr = logger
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("cmd.Run: %w", err)
+	}
+
+	return nil
+}
+
+func convertToGitUrl(rawUrl string) (string, error) {
+	URL, err := url.Parse(rawUrl)
+	if err != nil {
+		return "", fmt.Errorf("invalid url: %w", err)
+	}
+
+	URL.Scheme = "https"
+
+	println("url", URL, "protocol", URL.Scheme)
+	return URL.String() + ".git", nil
+}
+
+func cloneSrc(context *configuration.Context, url string, logger *log.Logger) error {
+	gitUrl, err := convertToGitUrl(url)
+	if err != nil {
+		return fmt.Errorf("convertToGitUrl of %s: %w", url, err)
+	}
+	srcUrl := SrcPath(context, url)
+	_, err = git.PlainClone(srcUrl, false, &git.CloneOptions{
+		URL:      gitUrl,
+		Progress: logger,
+	})
+
+	if err != nil {
+		return fmt.Errorf("git.PlainClone --url %s --o %s: %w", gitUrl, srcUrl, err)
 	}
 
 	return nil
