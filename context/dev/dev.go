@@ -99,6 +99,21 @@ func ConfigurationExist(context *configuration.Context, url string) (bool, error
 	return true, nil
 }
 
+func prepareConfigurationPath(context *configuration.Context, url string) error {
+	dir := path.Dir(ConfigurationPath(context, url))
+	return preparePath(dir)
+}
+
+func prepareBinPath(context *configuration.Context, url string) error {
+	dir := path.Dir(BinPath(context, url))
+	return preparePath(dir)
+}
+
+func prepareSrcPath(context *configuration.Context, url string) error {
+	dir := path.Dir(SrcPath(context, url))
+	return preparePath(dir)
+}
+
 func BinExist(context *configuration.Context, url string) (bool, error) {
 	dataPath := BinPath(context, url)
 	println("the bin path is", dataPath)
@@ -141,6 +156,11 @@ func PrepareProxyConfiguration(context *configuration.Context, url string, logge
 	if exist {
 		logger.Info("required proxy exists return it by calling readProxy")
 	} else {
+		// first need to prepare the configuration
+		err := prepareConfigurationPath(context, url)
+		if err != nil {
+			return fmt.Errorf("prepareConfigurationPath: %w", err)
+		}
 		logger.Warn("required proxy doesn't exist continue")
 	}
 
@@ -153,6 +173,11 @@ func PrepareProxyConfiguration(context *configuration.Context, url string, logge
 	if binExist {
 		logger.Info("binary exists, we need to call it with --generate-config by calling generateConfig() and readProxy()")
 	} else {
+		// first need to prepare the directory
+		err := prepareBinPath(context, url)
+		if err != nil {
+			return fmt.Errorf("prepareBinPath: %w", err)
+		}
 		logger.Warn("binary doesn't exist, continue")
 	}
 
@@ -165,6 +190,11 @@ func PrepareProxyConfiguration(context *configuration.Context, url string, logge
 	if srcExist {
 		logger.Info("src exists, we need to build it, then we need to call build(), then generateConfig(), then readProxy()")
 	} else {
+		// first prepare the src directory
+		err := prepareSrcPath(context, url)
+		if err != nil {
+			return fmt.Errorf("prepareSrcPath: %w", err)
+		}
 		logger.Warn("src doesn't exist, we need to download it using go-git then call build(), then generateConfig(), then readProxy()")
 	}
 
