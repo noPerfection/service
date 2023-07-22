@@ -303,11 +303,20 @@ func (service *Independent) Prepare() error {
 		service.logger.Info("no extensions needed")
 	}
 
-	controllers := service.controllers.Map()
-	for _, controllerConfig := range service.configuration.Service.Controllers {
-		controller := controllers[controllerConfig.Name].(*controller.Controller)
+	for name, controllerInterface := range service.controllers {
+		controller := controllerInterface.(*controller.Controller)
+
+		controllerConfig, err := service.configuration.Service.GetController(name)
+		if err != nil {
+			return fmt.Errorf("controller '%s' registered in the service, no configuration: %w", name, err)
+		}
 
 		controller.AddConfig(&controllerConfig)
+		requiredExtensions := controller.RequiredExtensions()
+		for _, extensionUrl := range requiredExtensions {
+			requiredExtension := service.configuration.Service.GetExtension(extensionUrl)
+			controller.AddExtensionConfig(requiredExtension)
+		}
 	}
 
 	return nil
