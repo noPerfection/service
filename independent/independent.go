@@ -13,7 +13,7 @@ import (
 	"sync"
 )
 
-// Service service is the collection of the various Controllers
+// Service is the collection of the various Controllers
 type Service struct {
 	Config          *configuration.Config
 	Controllers     key_value.KeyValue

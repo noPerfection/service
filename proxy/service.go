@@ -10,9 +10,8 @@ import (
 	"sync"
 )
 
-// Service defines the parameters of the proxy service
-type Service struct {
-	// configuration of the whole app with the configuration engine
+// Proxy defines the parameters of the proxy service
+type Proxy struct {
 	configuration *configuration.Config
 	// source controllers that gets the messages
 	source controller.Interface
@@ -36,7 +35,7 @@ func extension() *configuration.Extension {
 
 // registerDestination registers the controller instances as the destination.
 // It adds the controller configuration.
-func (service *Service) registerDestination() {
+func (service *Proxy) registerDestination() {
 	for _, c := range service.configuration.Service.Controllers {
 		if c.Name == DestinationName {
 			service.Controller.RegisterDestination(&c)
@@ -46,7 +45,7 @@ func (service *Service) registerDestination() {
 }
 
 // registerSource adds the configuration to the source.
-func (service *Service) registerSource() {
+func (service *Proxy) registerSource() {
 	for _, c := range service.configuration.Service.Controllers {
 		if c.Name == SourceName {
 			service.source.AddConfig(&c)
@@ -56,10 +55,10 @@ func (service *Service) registerSource() {
 }
 
 // New proxy service along with its controller.
-func New(config *configuration.Config, parent *log.Logger) *Service {
+func New(config *configuration.Config, parent *log.Logger) *Proxy {
 	logger := parent.Child("proxy")
 
-	service := Service{
+	service := Proxy{
 		configuration: config,
 		source:        nil,
 		Controller:    newController(logger.Child("controller")),
@@ -71,7 +70,7 @@ func New(config *configuration.Config, parent *log.Logger) *Service {
 
 // prepareConfiguration creates a configuration.
 // If the configuration was already given, then it validates it.
-func (service *Service) prepareConfiguration() error {
+func (service *Proxy) prepareConfiguration() error {
 	// validate the service itself
 	config := service.configuration
 	serviceConfig := service.configuration.Service
@@ -196,7 +195,7 @@ func ServiceToProxy(s *configuration.Service) (configuration.Proxy, error) {
 	return converted, nil
 }
 
-func (service *Service) Prepare() error {
+func (service *Proxy) Prepare() error {
 	if service.source == nil {
 		return fmt.Errorf("missing source. call service.SetDefaultSource")
 	}
@@ -219,7 +218,7 @@ func (service *Service) Prepare() error {
 	// add the extensions required by the source controller
 	//requiredExtensions := service.source.RequiredExtensions()
 	//for _, name := range requiredExtensions {
-	//	extension, err := service.configuration.Service.GetExtension(name)
+	//	extension, err := service.configuration.Proxy.GetExtension(name)
 	//	if err != nil {
 	//		log.Fatal("extension required by the controller doesn't exist in the configuration", "error", err)
 	//	}
@@ -238,7 +237,7 @@ func (service *Service) Prepare() error {
 // SetDefaultSource creates a source controller of the given type.
 //
 // It loads the source name automatically.
-func (service *Service) SetDefaultSource(controllerType configuration.Type) error {
+func (service *Proxy) SetDefaultSource(controllerType configuration.Type) error {
 	// todo move the validation to the service.ValidateTypes() function
 	var source controller.Interface
 	if controllerType == configuration.ReplierType {
@@ -266,13 +265,13 @@ func (service *Service) SetDefaultSource(controllerType configuration.Type) erro
 }
 
 // SetCustomSource sets the source controller, and invokes the source controller's
-func (service *Service) SetCustomSource(source controller.Interface) error {
+func (service *Proxy) SetCustomSource(source controller.Interface) error {
 	service.source = source
 
 	return nil
 }
 
-func (service *Service) generateConfiguration() {
+func (service *Proxy) generateConfiguration() {
 	path, err := argument.Value(argument.Path)
 	if err != nil {
 		service.logger.Fatal("requires 'path' flag", "error", err)
@@ -294,7 +293,7 @@ func (service *Service) generateConfiguration() {
 }
 
 // Run the proxy service.
-func (service *Service) Run() {
+func (service *Proxy) Run() {
 	if argument.Exist(argument.BuildConfiguration) {
 		service.generateConfiguration()
 		return
@@ -311,7 +310,7 @@ func (service *Service) Run() {
 		}
 	}()
 
-	// Run the proxy controller. Service controller itself on the other hand
+	// Run the proxy controller. Proxy controller itself on the other hand
 	// will run the destination clients
 	wg.Add(1)
 	go func() {
