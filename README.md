@@ -1,29 +1,37 @@
 # Service Lib
 
-Here is the reference to the SDS first.
+*Service Lib* is a library to create services on **SDS**. 
 
-After reading this README, read the specific
-references for each type of services
+**SDS** is the protocol, libraries, and an account system.
+The aim of it to create meaningful services and also useful for other developers.
 
-* [Proxy](./PROXY.md) to define proxy services.
-* [Extension](./EXTENSION.md) to define extension services.
-* [Independent](./INDEPENDENT.md) to define independent services.
+The *account system* consists of the API service authentication and payment system.
 
-## What is SDS?
-SDS connects all developers by making all APIs 
-in the world inter-changeable. 
+## Contents
 
-SDS itself gives a single account, 
-a payment solution for them. 
-
-With SDS, the developers can manage the invoices for APIs in a single place.
-
-Discover the services on SDS Hub. 
-If it doesn't exist, create it using **Service Lib** and publish for others.
+* [SDS](#service-lib)
+* [Contents](#contents)
+* [Components](#components)
+* * [Service](#service)
+* * * [Independent](#independent)
+* * * [Extension](#extension)
+* * * [Proxy](#proxy)
+* * [Controller](#controller)
+* * * [Replier](#replier)
+* * * [Publisher](#publisher)
+* * * [Puller](#puller)
+* * * [Router](#router)
+* * [Configuration](#configuration)
+* * * [Env](#environment-variables)
+* * * [Yaml](#yaml)
+* [Flags](#service-flags)
+* [Further Reading](#further-reading)
 
 ---
 
-### Service
+## Components
+
+## Service
 A **service** is a solution for a one problem as an independent
 software. An **app** is an interconnection of the services. 
 
@@ -43,7 +51,7 @@ standalone applications .
 To compose an app from the services in a structured way, the services are
 divided into three categories.
 
-#### Independent
+### Independent
 The first type of the services are **independent** services. Read it
 as an independent software. Your app should have one independent service
 that keeps the core logic of your application.
@@ -51,7 +59,7 @@ that keeps the core logic of your application.
 Independent services will rarely be shared. So the source
 code could be private.
 
-#### Extension
+### Extension
 The second type of the services are **extension** services. The extensions
 are the solutions that could be re-used by multiple projects.
 
@@ -60,12 +68,13 @@ This is the core part that all makes the services as re-usable.
 The extensions are allowed to be connected from the independent services.
 And doesn't work with the users directly.
 
-#### Proxy
+### Proxy
 The third and last type of the services are **proxy** services. The proxy
 acts as a switch between a user/service and a user/service. Depending on 
 the proxy result the request will be forwarded or returned back to the client.
 
-### Controller
+---
+## Controller
 Since the services are the units of distributed system, services
 has to talk to each other. And services has to talk with the external world.
 
@@ -84,7 +93,7 @@ include the commands.
 
 For optimization needs, there are different kinds of controllers.
 
-#### Replier
+### Replier
 A **replier** controller handles a one request at a time. All incoming
 requests are queued internally, until the current request is not executed.
 When the request is executed, the controller returns the status to the callee.
@@ -92,13 +101,13 @@ Then replier will execute the next request in the queue.
 
 > The requester will be waiting the response of the controller
 
-#### Router
+### Router
 A **router** controller handles many requests at a time. Upon the execution,
 the router will reply the status back to the callee.
 
 > The requester will be waiting the response of the controller
 
-#### Puller
+### Puller
 A **puller** controller handles a one request at a time. All requests will be
 queued internally. When the controller finishes the execution, it will
 execute the next request in the queue.
@@ -108,7 +117,7 @@ Puller will not respond back to the callee about the status.
 > The requester will not wait for the response of the controller.
 > So this one is faster.
 
-#### Publisher
+### Publisher
 A **publisher** controller sends messages to the subscribers. It doesn't
 receive the request from outside. But has internal **puller** controller
 that the **publisher** is connected too. Any message coming into the **puller**
@@ -116,24 +125,6 @@ invokes mass message broadcast by the **publisher**.
 
 > The subscriber waits for the controller, but doesn't request to the publisher.
 > The invoker of the puller doesn't wait for the response of the publisher.
-
-### Service building checklist
-* Define the type of the service
-* Define the controllers
-* Define commands
-* Define the handlers for each commands
-* Add the handlers to the controllers
-* Add the controllers to the service
-* If the command require another service, then define the extensions
-* Create a configuration with: service, controllers and extensions.
-* If the service should be behind the proxy, then add the proxy to configuration
-
-### App building checklist
-* Create a configuration
-* Define the independent service
-* Define the controllers of the independent service
-* Define the extensions
-* If the independent service needs, add the proxy
 
 ---
 
@@ -143,6 +134,8 @@ variables by default.
 
 As well as it requires the *configuration* in yaml format.
 
+### Env
+
 You can set the Yaml file name as well as it's path
 using the following environment variables:
 ```bash
@@ -151,6 +144,8 @@ SERVICE_CONFIG_PATH=.
 ```
 
 By default, the service will look for `service.yml` in the `.` directory.
+
+### Yaml
 
 The configuration format is this:
 ```yaml
@@ -205,3 +200,24 @@ Proxy has the following parameters:
 Extension has the following parameters:
 * Name of the extension
 * Port where the extension set too.
+
+---
+
+## Flags
+
+The built service will have several flags and arguments.
+
+* `--secure` enables authentication
+* `--generate-config` rather than starting, it will create a default yaml configuration
+* `--path=./a.yml` relative path of the generated configuration. The value should end with *.yml*.
+* `--configuration=./b.yml` relative path of the configuration to use.
+
+---
+
+## Further reading
+
+Once you understand the Services, go read further to create different kinds of services.
+
+* [Proxy](./PROXY.md) to define proxy services.
+* [Extension](./EXTENSION.md) to define extension services.
+* [Independent](./INDEPENDENT.md) to define independent services.

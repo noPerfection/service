@@ -10,21 +10,19 @@ cd my-extension
 go mod init github.com/account/my-extension
 ```
 
-Get the `service-lib` module and `common-lib` module:
+Get `service-lib`, `common-lib` modules:
 
 ```sh
 go get github.com/ahmetson/service-lib
 go get github.com/ahmetson/common-lib
-go mod tidy
 go mod vendor
 ```
 
 ## Configure
 
-Unlike proxy, the extensions are easy to understand.
-Therefore, we skip the internal process explanation and
-straightforward will work with the configuration.
-Create the `service.yml` configuration.
+> Creating a service.yml is optional.
+
+Create the `service.yml` configuration:
 
 ```yaml
 # Should have at least one service
@@ -64,7 +62,8 @@ Additionally, extension may require proxies or extensions.
 
 # Extension app
 
-To create an extension, let's create a `main.go` with the initial service data:
+Extensions are the simplest type of services in terms of bootstrapping.
+Let's create `main.go`:
 
 ```go
 package main
@@ -73,125 +72,99 @@ import (
 	"github.com/ahmetson/service-lib"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/extension"
+	"github.com/ahmetson/service-lib/configuration"
 	"github.com/account/my-extension/handler"
 )
 
 func main() {
-	logger, appConfig, err := service.New("my-extension")
-	if err != nil {
-		log.Fatal("failed to init service", "error", err)
-    }
-	
-	// setup requirements
+	logger, _ := log.New("my-extension", false)
+	appConfig, _ := configuration.New(logger)
+
 	// setup service
+	service, _ := extension.New(appConfig, logger)
+
+	service.AddController(configuration.ReplierType)
+	
+	// Add the commands and their handlers to the controller
+	service.Controller.RequireExtension("github.com/ahmetson/mysql-extension")
+	service.Controller.AddRoute(handler.SetCounter)
+	service.Controller.AddRoute(handler.GetCounter)
+	
+	service.Prepare()
+	
+	service.Run()
 }
 ```
 
-The `service.New("my-extension")` is the first thing to call
-when you create a service with **Service Lib**.
+Just like any service, the code starts with the initiation of configuration.
+The initialized configuration is assigned to `appConfig`.
 
-The function accepts only one argument which is the log prefix.
-The function returns the prefixed logger, loaded app configuration
-and an error.
+Then we do:
+* Initialize a new service
+* Define the type of the controller.
+* Set up the controller: required extensions, handler routes.
+* Prepare it by checking configurations.
+* Finally, we start the service: `service.Run()`
 
-Now we are ready to set the extension service starting with the setup.
+## Route
+We set the `Replier` type of the controller.
+Then on `main.go`, we added two routes: `SetCounter` and `GetCounter`.
+The routes are defined in the `handler` package.
 
-## Command Name
-The first thing to do is to set up a command names.
-
-The messages that extension accepts are routed to the different
-functions. To differentiate the functions, the controllers
-use the `command.Name`.
-
-Therefore, let's create a `handler` directory, and `command.go` 
-file in the directory.
+So let's create `handler.go` in `handler` directory:
 
 ```go
-// ./handler/command.go
-package handler
-
-import "github.com/ahmetson/service-lib/communication/command"
-
-const SetCounter command.Name = "set_counter"
-const GetCounter command.Name = "get_counter"
-```
-
-As you see, we have two commands in this extension.
-
-## Handler
-
-So, let's create a handler for each of them. 
-
-The handlers are the functions of the type:
-`github.com/ahmetson/service-lib/communication/command.HandleFunc`
-
-To do that, let's create
-`handler.go` file in `handler` directory.
-
-```go
-// ./handler/handler.go
+// /handler/handler.go
 package handler
 
 import (
+	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/remote"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 )
 
+// counter is set in the memory for development purpose.
 var counter uint64 = 0
 
-var OnSetCounter = func(request message.Request, _ log.Logger, _ remote.Clients) message.Reply {
-    newValue, err := request.Parameters.GetUint64("counter")
-	if err != nil {
-		return message.Fail("no counter in request")
-    }
-	
+var OnSetCounter = func(request message.Request, _ *log.Logger, _ ...*remote.Clients) message.Reply {
+	newValue, _ := request.Parameters.GetUint64("counter")
 	counter = newValue
-	
+
 	return message.Reply{
-		Status: message.OK, 
-		Message: "",
+		Status:     message.OK,
+		Message:    "",
 		Parameters: key_value.Empty(),
 	}
 }
 
-var OnGetCounter = func(_ message.Request, _ log.Logger, _ remote.Clients) message.Reply {
+var OnGetCounter = func(_ message.Request, _ *log.Logger, _ ...*remote.Clients) message.Reply {
 	parameters := key_value.Empty()
 	parameters.Set("counter", counter)
 
 	return message.Reply{
-		Status: message.OK,
-		Message: "",
+		Status:     message.OK,
+		Message:    "",
 		Parameters: key_value.Empty(),
 	}
 }
+
+func SetCounter() command.Route {
+	return command.NewRoute("set_counter", OnSetCounter)
+}
+func GetCounter() command.Route {
+	return command.NewRoute("get_counter", OnGetCounter)
+}
 ```
 
-Now we have the two handlers. In any case, the handler always returns `message.Reply`.
-If the handler had some error, then message.Reply.Status
-will be "FAIL".
+The handler type is defined here:
+`github.com/ahmetson/service-lib/communication/command.HandleFunc`
 
-## Extension Service
+Handlers are abstracted as much as possible.
+They are intended to focus on the business logic.
+Handlers are always returning `message.Reply`.
+If the handler fails, then `message.Reply.Status` will be *"OK"*.
 
-Finally, when our parameters are ready,
-we can initialize the extension service.
-
-```go
-service, _ := extension.New(appConfig.Services[0], logger)
-```
-
-Once we have the service, we need to add register our
-commands in its controller:
-
-```go
-controller := service.GetFirstController()
-controller.RegisterCommand(handler.GetCounter, handler.OnGetCounter)
-controller.RegisterCommand(handler.SetCounter, handler.OnSetCounter)
-```
-
-Finally, we can start the service:
-
-```go
-service.Run()
-```
+During the preparation, the service will fetch the extensions.
+Allocate to them random port if it wasn't set on configuration.

@@ -10,11 +10,10 @@ cd my-proxy
 go mod init github.com/account/my-proxy
 ```
 
-Get the `service-lib` module:
+Get `service-lib` module:
 
 ```sh
 go get github.com/ahmetson/service-lib
-go mod tidy
 go mod vendor
 ```
 
@@ -37,7 +36,7 @@ If handling passes the execution, then the message is sent to the *destination*.
 The *reply handler* is an optional function.
 When it's set, the replies from *destination* is executed with *reply handler*.
 The result of the execution is returned to the *source*.
-When the *reply handler* is not set, then *proxy controller* returns it to *source*.
+When the *reply handler* is not set, then *proxy controller* sends directly to *source*.
 ---
 
 ## Configure
@@ -49,7 +48,7 @@ start to write it. The first thing is the `service.yml` configuration.
 # Should have at least one service
 Services:
   - Type: Proxy           # We are defining the proxy service
-    Name: my-proxy        # Custom name of the service to classify it.
+    Url: url        # Custom name of the service to classify it.
     Instance: unique-id   # Unique id through this configuration
     Controllers:
       - Name: source      # Source controller
@@ -63,33 +62,29 @@ Services:
           - Instance: unique-destination
             Port: 8080
     Proxies:
-      - Name: "" # optional proxies that it depends on
+      - Url: "" # optional proxies that it depends on
     Pipeline:
       - "proxy->controller" # name of the proxy to bind to the controller name
     Extensions:
-      - Name: "" # optional extension that it depends on.
+      - Url: "" # optional extension that it depends on.
                  # the extensions are passed to source, request handler to reply handler.
 ```
 
 Few notes on the configuration.
-The `Services.Type` should be `Proxy`, otherwise it won't be valid
-to create a proxy. The `Services.Controllers` must have
-two elements. The first element's name should be *'source'*.
-The second element's name should be *'destination'*. These controller
-names are preserved by the *proxy controller*.
+The `Services.Type` should be `Proxy`. 
+The `Services.Controllers` must have two elements. 
+The first controller should be named *'source'*.
+The second controller should be named *'destination'*. 
+The names are preserved by the *proxy controller*.
 
-The controllers may be custom. The custom controllers are
-based on the base types that **Service lib** provides.
-In the controller is of the custom type, then use the base controller type.
-
-Before preparing the proxy service itself, let's go the over the setups.
-These setups should be passed to the proxy controller.
+The source controllers may be custom or built in ones. 
+The custom controllers are based on the builtin types.
 
 ---
 
 # Proxy app
 
-To create a proxy, let's create a `main.go` with the initial service data:
+Let's create `main.go` with the minimal *proxy*:
 
 ```go
 package main
@@ -102,16 +97,16 @@ import (
 )
 
 func main() {
-	logger, _ := log.New("my proxy")
+	logger, _ := log.New("my-proxy", false)
 	appConfig, _ := configuration.New(logger)
 
 	// setup service
 	service := proxy.New(appConfig, logger.Child("proxy"))
 	
 	// setup a default source
-	service.AddDefaultSource(configuration.ReplierType)
+	service.SetDefaultSource(configuration.ReplierType)
 	// or
-	// service.AddCustomSource(customController)
+	// service.SetCustomSource(customController)
 
 	// destinations, handlers are part of the controller
 	service.Controller.RequireDestination(configuration.ReplierType)
@@ -135,31 +130,26 @@ func main() {
 > //service.RequireExtension("")
 > ```
 
-The `appConfig` is always needed for any service created with **Service Lib**.
-AppConfig should get the logger at the root level. Because it
-will get the app name from the logger.
+All services start with the configuration setup.
+On `main.go` the configuration is set to `appConfig`.
 
-It loads the environment variables, and optionally `service.yml`.
-
-Now we are ready to set the proxy service starting with the setup.
+Then we do:
+* Initialize a new proxy
+* Set up: source, destination and handlers.
+* Prepare it by checking configurations.
+* Finally, we start the service: `service.Run()`
 
 ## Source
-The first thing to do is to set up a source controller.
-
-After the creation, the source controller should be added
-to the proxy service. When a proxy service runs,
-it will add the *proxy controller* as the extension to the
-*source controller*.
-
-If you are not creating the custom controller,
-then you can Source section.
+The *proxy controller* will add itself to *source* controller automatically.
+The handlers in the *proxy controller* should send the messages to *proxy controller*.
 
 ### Custom Source
 The custom source controllers should implement the interface:
 `github.com/ahmetson/service-lib/controller.Interface`.
 
+> Check the example on https://github.com/ahmetson/web-proxy
+
 ## Request Handler
-The next thing is to define the request handler.
 The request handler is the function of the type:
 
 `github.com/ahmetson/service-lib/proxy.RequestHandler`
@@ -168,11 +158,6 @@ The request handler is the function of the type:
 
 > This is optional
 
-If you want to do some operation or convert the data
-then you can optionally define the reply handler.
-
 The reply handler is the function of the type:
 
 `github.com/ahmetson/service-lib/proxy.ReplyHandler`
-
-
