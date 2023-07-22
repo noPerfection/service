@@ -23,12 +23,12 @@ type HandleFunc = func(message.Request, *log.Logger, ...*remote.ClientSocket) me
 type Routes = key_value.List
 
 // NewRoutes returns an empty routes
-func NewRoutes() Routes {
-	return Routes{}
+func NewRoutes() *Routes {
+	return key_value.NewList()
 }
 
 // Commands returns the commands from the routes
-func Commands(routes Routes) []string {
+func Commands(routes *Routes) []string {
 	commands := make([]string, routes.Len())
 
 	list := routes.List()

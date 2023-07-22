@@ -19,7 +19,7 @@ type Controller struct {
 	socket             *zmq.Socket
 	logger             *log.Logger
 	controllerType     configuration.Type
-	routes             command.Routes
+	routes             *command.Routes
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
 	extensions         remote.Clients
