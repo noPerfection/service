@@ -250,8 +250,15 @@ func (service *Service) SetCustomSource(source controller.Interface) error {
 func (service *Service) generateConfiguration() {
 	path, err := argument.Value(argument.Path)
 	if err != nil {
-		service.logger.Fatal("generate configuration requires a path flag", "error", err)
+		service.logger.Fatal("requires 'path' flag", "error", err)
 	}
+
+	url, err := argument.Value(argument.Url)
+	if err != nil {
+		service.logger.Fatal("requires 'url' flag", "error", err)
+	}
+
+	service.configuration.Service.Url = url
 
 	err = service.configuration.WriteService(path)
 	if err != nil {
