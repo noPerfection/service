@@ -2,7 +2,7 @@
 
 Services:
   - Type: Independent
-    Name: static
+    Url: github.com/ahmetson/item.git
     Instance: static01
     Controllers:
       - Type: Replier # Replier or Pusher or Publisher or Router
@@ -11,9 +11,11 @@ Services:
           - Port: 2302
             Instance: ""
     Proxies:
-      - Name: "auth"
+      - Url: "auth"
+        Instance: ""
         Port: 8000
-      - Name: "validator"
+      - Url: github.com/ahmetson/item.git
+        Instance: ""
         Port: 8001
     # Proxy pipelines. If it's not given then the proxies won't be used.
     # The last node in the path should be the ControllerName
@@ -21,5 +23,6 @@ Services:
       - "auth->validator->userApi"
 
     Extensions:
-      - Name: "database"
+      - Url: "database"
+        Instance: ""
         Port: 8002
