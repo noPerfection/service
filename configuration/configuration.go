@@ -14,6 +14,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/ahmetson/service-lib/configuration/env"
@@ -29,6 +30,17 @@ type Config struct {
 	Secure  bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
 	logger  *log.Logger // debug purpose only
 	Service Service
+	Context *Context
+}
+
+// GetCurrentPath returns the current path of the executable
+func GetCurrentPath() (string, error) {
+	ex, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	exPath := filepath.Dir(ex)
+	return exPath, nil
 }
 
 // New creates a global configuration for the entire application.
