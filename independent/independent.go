@@ -13,26 +13,26 @@ import (
 	"sync"
 )
 
-// Independent service is the collection of the various controllers
+// Independent service is the collection of the various Controllers
 type Independent struct {
-	configuration   *configuration.Config
-	controllers     key_value.KeyValue
-	pipelines       key_value.KeyValue
-	requiredProxies []string
-	logger          *log.Logger
+	Config          *configuration.Config
+	Controllers     key_value.KeyValue
+	Pipelines       key_value.KeyValue
+	RequiredProxies []string
+	Logger          *log.Logger
 }
 
 // New Independent service based on the configurations
 func New(config *configuration.Config, logger *log.Logger) (*Independent, error) {
-	//if serviceConf.Type != configuration.IndependentType {
-	//	return nil, fmt.Errorf("service type in the configuration is not Independent. It's '%s'", serviceConf.Type)
+	//if serviceConf.Type != Config.IndependentType {
+	//	return nil, fmt.Errorf("service type in the Config is not Independent. It's '%s'", serviceConf.Type)
 	//}
 	independent := Independent{
-		configuration:   config,
-		logger:          logger,
-		controllers:     key_value.Empty(),
-		requiredProxies: []string{},
-		pipelines:       key_value.Empty(),
+		Config:          config,
+		Logger:          logger,
+		Controllers:     key_value.Empty(),
+		RequiredProxies: []string{},
+		Pipelines:       key_value.Empty(),
 	}
 
 	return &independent, nil
@@ -40,17 +40,17 @@ func New(config *configuration.Config, logger *log.Logger) (*Independent, error)
 
 // AddController by their instance name
 func (independent *Independent) AddController(name string, controller *controller.Controller) {
-	independent.controllers.Set(name, controller)
+	independent.Controllers.Set(name, controller)
 }
 
 func (independent *Independent) RequireProxy(url string) {
-	independent.requiredProxies = append(independent.requiredProxies, url)
+	independent.RequiredProxies = append(independent.RequiredProxies, url)
 }
 
 // Pipe the controller to the proxy
 func (independent *Independent) Pipe(proxyUrl string, name string) error {
 	validProxy := false
-	for _, url := range independent.requiredProxies {
+	for _, url := range independent.RequiredProxies {
 		if strings.Compare(url, proxyUrl) == 0 {
 			validProxy = true
 			break
@@ -60,11 +60,11 @@ func (independent *Independent) Pipe(proxyUrl string, name string) error {
 		return fmt.Errorf("proxy '%s' url not required. call independent.RequireProxy", proxyUrl)
 	}
 
-	if err := independent.controllers.Exist(name); err != nil {
+	if err := independent.Controllers.Exist(name); err != nil {
 		return fmt.Errorf("controller instance '%s' not added. call independent.AddController: %w", name, err)
 	}
 
-	independent.pipelines.Set(proxyUrl, name)
+	independent.Pipelines.Set(proxyUrl, name)
 
 	return nil
 }
@@ -72,7 +72,7 @@ func (independent *Independent) Pipe(proxyUrl string, name string) error {
 // returns the extension urls
 func (independent *Independent) requiredControllerExtensions() []string {
 	var extensions []string
-	for _, controllerInterface := range independent.controllers {
+	for _, controllerInterface := range independent.Controllers {
 		c := controllerInterface.(*controller.Controller)
 		extensions = append(extensions, c.RequiredExtensions()...)
 	}
@@ -82,12 +82,12 @@ func (independent *Independent) requiredControllerExtensions() []string {
 
 func (independent *Independent) prepareConfiguration() error {
 	// validate the independent itself
-	config := independent.configuration
-	serviceConfig := independent.configuration.Service
+	config := independent.Config
+	serviceConfig := independent.Config.Service
 	if len(serviceConfig.Type) == 0 {
 		exePath, err := configuration.GetCurrentPath()
 		if err != nil {
-			independent.logger.Fatal("failed to get os context", "error", err)
+			independent.Logger.Fatal("failed to get os context", "error", err)
 		}
 
 		serviceConfig = configuration.Service{
@@ -99,8 +99,8 @@ func (independent *Independent) prepareConfiguration() error {
 		return fmt.Errorf("independent type is overwritten. It's not proxy its '%s'", serviceConfig.Type)
 	}
 
-	// validate the controllers
-	for name, controllerInterface := range independent.controllers {
+	// validate the Controllers
+	for name, controllerInterface := range independent.Controllers {
 		c := controllerInterface.(*controller.Controller)
 
 		found := false
@@ -128,7 +128,7 @@ func (independent *Independent) prepareConfiguration() error {
 		// validate the controller instances
 		// make sure that they are tpc type
 		if len(controllerConfig.Instances) == 0 {
-			port := independent.configuration.GetFreePort()
+			port := independent.Config.GetFreePort()
 
 			sourceInstance := configuration.ControllerInstance{
 				Name:     controllerConfig.Name,
@@ -146,18 +146,18 @@ func (independent *Independent) prepareConfiguration() error {
 
 	// todo validate the extensions
 
-	independent.configuration.Service = serviceConfig
+	independent.Config.Service = serviceConfig
 
 	return nil
 }
 
 // preparePipelineConfiguration checks that proxy url and controllerName are valid.
-// Then, in the configuration, it makes sure that dependency is linted.
+// Then, in the Config, it makes sure that dependency is linted.
 func (independent *Independent) preparePipelineConfiguration(proxyUrl string, controllerName string) error {
-	independent.logger.Info("prepare the pipeline")
+	independent.Logger.Info("prepare the pipeline")
 
 	found := false
-	for _, requiredProxy := range independent.requiredProxies {
+	for _, requiredProxy := range independent.RequiredProxies {
 		if strings.Compare(proxyUrl, requiredProxy) == 0 {
 			found = true
 			break
@@ -167,11 +167,11 @@ func (independent *Independent) preparePipelineConfiguration(proxyUrl string, co
 		return fmt.Errorf("proxy '%s' not found. add using independent.RequireProxy()", proxyUrl)
 	}
 
-	if err := independent.controllers.Exist(controllerName); err != nil {
-		return fmt.Errorf("independent.controllers.Exist of '%s': %w", controllerName, err)
+	if err := independent.Controllers.Exist(controllerName); err != nil {
+		return fmt.Errorf("independent.Controllers.Exist of '%s': %w", controllerName, err)
 	}
 
-	err := service.PreparePipelineConfiguration(independent.configuration, proxyUrl, controllerName, independent.logger)
+	err := service.PreparePipelineConfiguration(independent.Config, proxyUrl, controllerName, independent.Logger)
 
 	if err != nil {
 		return fmt.Errorf("service.PreparePipelineConfiguration: %w", err)
@@ -180,11 +180,11 @@ func (independent *Independent) preparePipelineConfiguration(proxyUrl string, co
 }
 
 func (independent *Independent) Prepare() error {
-	if len(independent.controllers) == 0 {
-		return fmt.Errorf("no controllers. call independent.AddController")
+	if len(independent.Controllers) == 0 {
+		return fmt.Errorf("no Controllers. call independent.AddController")
 	}
 
-	err := service.PrepareContext(independent.configuration.Context)
+	err := service.PrepareContext(independent.Config.Context)
 	if err != nil {
 		return fmt.Errorf("service.PrepareContext: %w", err)
 	}
@@ -194,20 +194,20 @@ func (independent *Independent) Prepare() error {
 		return fmt.Errorf("prepareConfiguration: %w", err)
 	}
 
-	// prepare the configuration and run it
-	if len(independent.requiredProxies) > 0 {
-		independent.logger.Info("there are some proxies to setup")
-		for _, requiredProxy := range independent.requiredProxies {
-			if err := service.PrepareProxyConfiguration(requiredProxy, independent.configuration, independent.logger); err != nil {
+	// prepare the Config and run it
+	if len(independent.RequiredProxies) > 0 {
+		independent.Logger.Info("there are some proxies to setup")
+		for _, requiredProxy := range independent.RequiredProxies {
+			if err := service.PrepareProxyConfiguration(requiredProxy, independent.Config, independent.Logger); err != nil {
 				return fmt.Errorf("service.PrepareProxyConfiguration of %s: %w", requiredProxy, err)
 			}
 		}
 
-		if len(independent.pipelines) == 0 {
+		if len(independent.Pipelines) == 0 {
 			return fmt.Errorf("no pipepline to lint the proxy to the controller")
 		}
 
-		for requiredProxy, controllerInterface := range independent.pipelines {
+		for requiredProxy, controllerInterface := range independent.Pipelines {
 			controllerName := controllerInterface.(string)
 			if err := independent.preparePipelineConfiguration(requiredProxy, controllerName); err != nil {
 				return fmt.Errorf("preparePipelineConfiguration '%s'=>'%s': %w", requiredProxy, controllerName, err)
@@ -217,23 +217,23 @@ func (independent *Independent) Prepare() error {
 
 	requiredExtensions := independent.requiredControllerExtensions()
 	if len(requiredExtensions) > 0 {
-		independent.logger.Warn("extensions needed to be prepared", "extensions", requiredExtensions)
+		independent.Logger.Warn("extensions needed to be prepared", "extensions", requiredExtensions)
 	} else {
-		independent.logger.Info("no extensions needed")
+		independent.Logger.Info("no extensions needed")
 	}
 
-	for name, controllerInterface := range independent.controllers {
+	for name, controllerInterface := range independent.Controllers {
 		controller := controllerInterface.(*controller.Controller)
 
-		controllerConfig, err := independent.configuration.Service.GetController(name)
+		controllerConfig, err := independent.Config.Service.GetController(name)
 		if err != nil {
-			return fmt.Errorf("controller '%s' registered in the independent, no configuration: %w", name, err)
+			return fmt.Errorf("controller '%s' registered in the independent, no Config: %w", name, err)
 		}
 
 		controller.AddConfig(&controllerConfig)
 		requiredExtensions := controller.RequiredExtensions()
 		for _, extensionUrl := range requiredExtensions {
-			requiredExtension := independent.configuration.Service.GetExtension(extensionUrl)
+			requiredExtension := independent.Config.Service.GetExtension(extensionUrl)
 			controller.AddExtensionConfig(requiredExtension)
 		}
 	}
@@ -245,24 +245,24 @@ func (independent *Independent) Prepare() error {
 func (independent *Independent) Run() {
 	var wg sync.WaitGroup
 
-	for _, controllerConfig := range independent.configuration.Service.Controllers {
-		if err := independent.controllers.Exist(controllerConfig.Name); err != nil {
+	for _, controllerConfig := range independent.Config.Service.Controllers {
+		if err := independent.Controllers.Exist(controllerConfig.Name); err != nil {
 			fmt.Println("the config doesn't exist", controllerConfig, "error", err)
 			continue
 		}
-		controllerList := independent.controllers.Map()
+		controllerList := independent.Controllers.Map()
 		var c, ok = controllerList[controllerConfig.Name].(*controller.Controller)
 		if !ok {
-			independent.logger.Fatal("interface -> key-value failed", "controller name")
+			independent.Logger.Fatal("interface -> key-value failed", "controller name")
 			continue
 		}
 
 		// add the extensions required by the controller
 		requiredExtensions := c.RequiredExtensions()
 		for _, url := range requiredExtensions {
-			extension := independent.configuration.Service.GetExtension(url)
+			extension := independent.Config.Service.GetExtension(url)
 			if extension == nil {
-				independent.logger.Fatal("extension required by the controller doesn't exist in the configuration", "url", url)
+				independent.Logger.Fatal("extension required by the controller doesn't exist in the Config", "url", url)
 			}
 
 			c.AddExtensionConfig(extension)
@@ -273,7 +273,7 @@ func (independent *Independent) Run() {
 			err := c.Run()
 			wg.Done()
 			if err != nil {
-				independent.logger.Fatal("failed to run the controller", "error", err)
+				independent.Logger.Fatal("failed to run the controller", "error", err)
 			}
 		}()
 	}
