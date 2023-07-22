@@ -162,6 +162,10 @@ func (c *Controller) Run() error {
 	if err := c.initExtensionClients(); err != nil {
 		return fmt.Errorf("initExtensionClients: %w", err)
 	}
+	if c.config == nil || len(c.config.Instances) == 0 {
+		return fmt.Errorf("controller doesn't have the configuration or instances are missing")
+	}
+
 	// if secure and not inproc
 	// then we add the domain name of controller to the security layer
 	//
