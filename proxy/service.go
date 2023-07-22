@@ -76,9 +76,14 @@ func (service *Service) prepareConfiguration() error {
 	config := service.configuration
 	serviceConfig := service.configuration.Service
 	if len(serviceConfig.Type) == 0 {
+		exePath, err := configuration.GetCurrentPath()
+		if err != nil {
+			service.logger.Fatal("failed to get os context", "error", err)
+		}
+
 		serviceConfig = configuration.Service{
 			Type:     configuration.ProxyType,
-			Url:      config.Name + "proxy",
+			Url:      exePath,
 			Instance: config.Name + " 1",
 		}
 	} else if serviceConfig.Type != configuration.ProxyType {

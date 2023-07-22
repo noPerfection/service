@@ -70,9 +70,14 @@ func (service *Service) prepareConfiguration() error {
 	config := service.configuration
 	serviceConfig := service.configuration.Service
 	if len(serviceConfig.Type) == 0 {
+		exePath, err := configuration.GetCurrentPath()
+		if err != nil {
+			service.logger.Fatal("failed to get os context", "error", err)
+		}
+
 		serviceConfig = configuration.Service{
 			Type:     configuration.ExtensionType,
-			Url:      config.Name + "extension",
+			Url:      exePath,
 			Instance: config.Name + " 1",
 		}
 	} else if serviceConfig.Type != configuration.ExtensionType {
@@ -116,7 +121,7 @@ func (service *Service) prepareConfiguration() error {
 	}
 
 	// let's validate the extensions
-	// it needs to find the extensions using hub.
+	// it needs to find the extensions using hub or by url
 	//
 	// then it needs to install the extensions under the ./bin/
 	// then it needs to generate the configurations
