@@ -9,5 +9,5 @@ import (
 )
 
 func BinPath(context *configuration.Context, url string) string {
-	return path.Join(context.Data, url+"/bin.exe")
+	return path.Join(context.Bin, url+"/bin.exe")
 }

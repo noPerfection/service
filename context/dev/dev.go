@@ -129,7 +129,7 @@ func BinExist(context *configuration.Context, url string) (bool, error) {
 }
 
 func SrcPath(context *configuration.Context, url string) string {
-	return path.Join(context.Data, url)
+	return path.Join(context.Src, url)
 }
 
 func SrcExist(context *configuration.Context, url string) (bool, error) {
