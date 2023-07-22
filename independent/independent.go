@@ -317,15 +317,15 @@ func (service *Independent) Prepare() error {
 func (service *Independent) Run() {
 	var wg sync.WaitGroup
 
-	for _, c := range service.configuration.Service.Controllers {
-		if err := service.controllers.Exist(c.Name); err != nil {
-			fmt.Println("the config doesn't exist", c, "error", err)
+	for _, controllerConfig := range service.configuration.Service.Controllers {
+		if err := service.controllers.Exist(controllerConfig.Name); err != nil {
+			fmt.Println("the config doesn't exist", controllerConfig, "error", err)
 			continue
 		}
 		controllerList := service.controllers.Map()
-		var c, ok = controllerList[c.Name].(*controller.Controller)
+		var c, ok = controllerList[controllerConfig.Name].(*controller.Controller)
 		if !ok {
-			fmt.Println("interface -> key-value", c)
+			service.logger.Fatal("interface -> key-value failed", "controller name")
 			continue
 		}
 
@@ -334,7 +334,7 @@ func (service *Independent) Run() {
 		for _, url := range requiredExtensions {
 			extension := service.configuration.Service.GetExtension(url)
 			if extension == nil {
-				log.Fatal("extension required by the controller doesn't exist in the configuration", "url", url)
+				service.logger.Fatal("extension required by the controller doesn't exist in the configuration", "url", url)
 			}
 
 			c.AddExtensionConfig(extension)
@@ -345,10 +345,9 @@ func (service *Independent) Run() {
 			err := c.Run()
 			wg.Done()
 			if err != nil {
-				log.Fatal("failed to run the controller", "error", err)
+				service.logger.Fatal("failed to run the controller", "error", err)
 			}
 		}()
 	}
-	println("waiting for the wait group")
 	wg.Wait()
 }
