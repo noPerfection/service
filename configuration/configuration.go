@@ -50,7 +50,7 @@ func GetCurrentPath() (string, error) {
 //
 // logger should be a parent
 func New(parent *log.Logger) (*Config, error) {
-	conf := Config{
+	config := Config{
 		Name:    parent.Prefix(),
 		logger:  parent.Child("configuration"),
 		Service: Service{},
@@ -66,46 +66,51 @@ func New(parent *log.Logger) (*Config, error) {
 	parent.Info("Starting Viper with environment variables")
 
 	// replace the values with the ones we fetched from environment variables
-	conf.viper = viper.New()
-	conf.viper.AutomaticEnv()
+	config.viper = viper.New()
+	config.viper.AutomaticEnv()
 
+	// Use the service configuration given from the path
 	if argument.Exist(argument.Configuration) {
 		configurationPath, err := argument.Value(argument.Configuration)
 		if err != nil {
-			parent.Error("failed to get the configuration path", "error", err)
-		} else {
-			parent.Info("configuration flag is set", "path", configurationPath)
-			if err := validateServicePath(configurationPath); err != nil {
-				parent.Error("configuration path is invalid", "path", configurationPath, "error", err)
-			} else {
-				dir, fileName := splitServicePath(configurationPath)
-				parent.Info("file parameters are split. add it to engine", "directory", dir, "fileName", fileName)
-
-				conf.viper.Set("SERVICE_CONFIG_NAME", fileName)
-				conf.viper.Set("SERVICE_CONFIG_PATH", dir)
-			}
+			return nil, fmt.Errorf("failed to get the configuration path: %w", err)
 		}
+
+		if err := validateServicePath(configurationPath); err != nil {
+			return nil, fmt.Errorf("configuration path '%s' validation: %w", configurationPath, err)
+		}
+		dir, fileName := splitServicePath(configurationPath)
+		config.viper.Set("SERVICE_CONFIG_NAME", fileName)
+		config.viper.Set("SERVICE_CONFIG_PATH", dir)
+	} else {
+		config.viper.SetDefault("SERVICE_CONFIG_NAME", "service")
+		config.viper.SetDefault("SERVICE_CONFIG_PATH", ".")
 	}
-	conf.viper.SetDefault("SERVICE_CONFIG_NAME", "service")
-	conf.viper.SetDefault("SERVICE_CONFIG_PATH", ".")
 
-	conf.viper.SetConfigName(conf.viper.GetString("SERVICE_CONFIG_NAME"))
-	conf.viper.SetConfigType("yaml")
-	conf.viper.AddConfigPath(conf.viper.GetString("SERVICE_CONFIG_PATH"))
+	// set up the context
+	parent.Info("the context before", config.Context)
+	initContext(&config)
+	setDevContext(&config)
+	parent.Info("the context after", config.Context)
 
-	err = conf.viper.ReadInConfig()
+	// load the service configuration
+	config.viper.SetConfigName(config.viper.GetString("SERVICE_CONFIG_NAME"))
+	config.viper.SetConfigType("yaml")
+	config.viper.AddConfigPath(config.viper.GetString("SERVICE_CONFIG_PATH"))
+
+	err = config.viper.ReadInConfig()
 	notFound := false
 	_, notFound = err.(viper.ConfigFileNotFoundError)
 	if err != nil && !notFound {
-		parent.Fatal("failed to read configuration.yml", "error", err)
+		return nil, fmt.Errorf("failed to read configuration %s: %w", config.viper.GetString("SERVICE_CONFIG_NAME"), err)
 	} else if notFound {
 		parent.Warn("the configuration.yml configuration wasn't found", "engine error", err)
-		return &conf, nil
+		return &config, nil
 	} else {
-		conf.unmarshalService()
+		config.unmarshalService()
 	}
 
-	return &conf, nil
+	return &config, nil
 }
 
 // GetFreePort returns a TCP port to use
