@@ -35,6 +35,7 @@ func extension() *configuration.Extension {
 }
 
 // registerDestination registers the controller instances as the destination.
+// It adds the controller configuration.
 func (service *Service) registerDestination() {
 	for _, c := range service.configuration.Service.Controllers {
 		if c.Name == DestinationName {
@@ -77,7 +78,7 @@ func (service *Service) prepareConfiguration() error {
 	if len(serviceConfig.Type) == 0 {
 		serviceConfig = configuration.Service{
 			Type:     configuration.ProxyType,
-			Name:     config.Name + "proxy",
+			Url:      config.Name + "proxy",
 			Instance: config.Name + " 1",
 		}
 	} else if serviceConfig.Type != configuration.ProxyType {
@@ -197,7 +198,7 @@ func (service *Service) Prepare() error {
 
 	// The proxy adds itself as the extension to the sources
 	// after validation of the previous extensions
-	service.source.RequireExtension(proxyExtension.Name)
+	service.source.RequireExtension(proxyExtension.Url)
 	service.source.AddExtensionConfig(proxyExtension)
 
 	return nil

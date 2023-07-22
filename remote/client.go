@@ -586,7 +586,7 @@ func InprocRequestSocket(url string, parent *log.Logger, appConfig *configuratio
 // 	}
 
 // 	logger, err := parent.Child("client_socket",
-// 		"remote_service", e.Name,
+// 		"remote_service", e.Url,
 // 		"protocol", "tcp",
 // 		"socket_type", "Subscriber",
 // 		"remote_service_url", e.Url(),

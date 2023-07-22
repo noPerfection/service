@@ -85,9 +85,9 @@ func New(parent *log.Logger) (*Config, error) {
 	notFound := false
 	_, notFound = err.(viper.ConfigFileNotFoundError)
 	if err != nil && !notFound {
-		parent.Fatal("failed to read seascape.yml", "error", err)
+		parent.Fatal("failed to read configuration.yml", "error", err)
 	} else if notFound {
-		parent.Warn("the seascape.yml configuration wasn't found", "engine error", err)
+		parent.Warn("the configuration.yml configuration wasn't found", "engine error", err)
 		return &conf, nil
 	} else {
 		conf.unmarshalService()
@@ -111,7 +111,7 @@ func (config *Config) unmarshalService() {
 	services, ok := config.viper.Get("services").([]interface{})
 	if !ok {
 		config.logger.Info("services", "Service", services, "raw", config.viper.Get("services"))
-		config.logger.Fatal("seascape.yml Service should be a list not a one object")
+		config.logger.Fatal("configuration.yml Service should be a list not a one object")
 	}
 
 	if len(services) == 0 {

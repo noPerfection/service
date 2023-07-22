@@ -17,19 +17,21 @@ type Controller struct {
 }
 
 type Proxy struct {
-	Name string
-	Port uint64
+	Url      string
+	Instance string
+	Port     uint64
 }
 
 type Extension struct {
-	Name string
-	Port uint64
+	Url      string
+	Instance string
+	Port     uint64
 }
 
 // Service type defined in the configuration
 type Service struct {
 	Type        ServiceType
-	Name        string
+	Url         string
 	Instance    string
 	Controllers []Controller
 	Proxies     []Proxy
@@ -55,7 +57,7 @@ func (s *Service) ValidateTypes() error {
 // NewInternalExtension returns the extension that is on another thread, but not on remote.
 // The extension will be connected using the inproc protocol, not over TCP.
 func NewInternalExtension(name string) *Extension {
-	return &Extension{Name: name, Port: 0}
+	return &Extension{Url: name, Port: 0}
 }
 
 // Lint sets the reference to the parent from the child.
@@ -99,14 +101,14 @@ func (s *Service) GetController(name string) (Controller, error) {
 		}
 	}
 
-	return Controller{}, fmt.Errorf("'%s' controller was not found in '%s' service's configuration", name, s.Name)
+	return Controller{}, fmt.Errorf("'%s' controller was not found in '%s' service's configuration", name, s.Url)
 }
 
 // GetFirstController returns the controller without requiring its name.
 // If the service doesn't have controllers, then it will return an error.
 func (s *Service) GetFirstController() (Controller, error) {
 	if len(s.Controllers) == 0 {
-		return Controller{}, fmt.Errorf("service '%s' doesn't have any controllers in yaml file", s.Name)
+		return Controller{}, fmt.Errorf("service '%s' doesn't have any controllers in yaml file", s.Url)
 	}
 
 	controller := s.Controllers[0]
@@ -117,12 +119,12 @@ func (s *Service) GetFirstController() (Controller, error) {
 // If the extension doesn't exist, then it returns an error.
 func (s *Service) GetExtension(name string) (Extension, error) {
 	for _, e := range s.Extensions {
-		if e.Name == name {
+		if e.Url == name {
 			return e, nil
 		}
 	}
 
-	return Extension{}, fmt.Errorf("'%s' extension was not found in '%s' service's configuration", name, s.Name)
+	return Extension{}, fmt.Errorf("'%s' extension was not found in '%s' service's configuration", name, s.Url)
 }
 
 type Services []Service

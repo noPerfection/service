@@ -24,9 +24,9 @@ func WhitelistAccess(logger log.Logger, blockchainEnv *identity.Service, publicK
 // // Set the private key, so connected clients can identify this controller
 // // You call it before running the controller
 // func (c *Controller) SetControllerPrivateKey(service_credentials *auth.Credentials) error {
-// 	err := service_credentials.SetSocketAuthCurve(c.socket, c.service.Name)
+// 	err := service_credentials.SetSocketAuthCurve(c.socket, c.service.Url)
 // 	if err == nil {
 // 		return nil
 // 	}
-// 	return fmt.Errorf("ServerAuthCurve for domain %s: %w", c.service.Name, err)
+// 	return fmt.Errorf("ServerAuthCurve for domain %s: %w", c.service.Url, err)
 // }

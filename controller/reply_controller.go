@@ -53,7 +53,7 @@ func (c *Controller) AddConfig(controller *configuration.Controller) {
 
 // AddExtensionConfig adds the configuration of the extension that the controller depends on
 func (c *Controller) AddExtensionConfig(extension *configuration.Extension) {
-	c.extensionConfigs.Set(extension.Name, extension)
+	c.extensionConfigs.Set(extension.Url, extension)
 }
 
 // RequireExtension marks the extensions that this controller depends on.
@@ -112,7 +112,7 @@ func (c *Controller) AddRoute(route *command.Route) error {
 func (c *Controller) extensionsAdded() error {
 	for _, name := range c.requiredExtensions {
 		if err := c.extensionConfigs.Exist(name); err != nil {
-			return fmt.Errorf("required '%s' extension. but it wasn't added to the controller (does it exist in seascape.yml?)", name)
+			return fmt.Errorf("required '%s' extension. but it wasn't added to the controller (does it exist in configuration.yml?)", name)
 		}
 	}
 
@@ -134,11 +134,11 @@ func (c *Controller) ControllerType() configuration.Type {
 func (c *Controller) initExtensionClients() error {
 	for _, extensionInterface := range c.extensionConfigs {
 		extensionConfig := extensionInterface.(*configuration.Extension)
-		extension, err := remote.NewReq(extensionConfig.Name, extensionConfig.Port, c.logger)
+		extension, err := remote.NewReq(extensionConfig.Url, extensionConfig.Port, c.logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a request client: %w", err)
 		}
-		c.extensions.Set(extensionConfig.Name, extension)
+		c.extensions.Set(extensionConfig.Url, extension)
 	}
 
 	return nil

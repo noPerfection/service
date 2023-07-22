@@ -12,70 +12,161 @@ import (
 
 // Service of the extension type
 type Service struct {
-	configuration configuration.Service
-	controllers   []*controller.Controller
+	configuration *configuration.Config
+	Controller    *controller.Controller
+	logger        *log.Logger
 }
 
 // New extension service based on the configurations
-func New(serviceConf configuration.Service, logger *log.Logger) (*Service, error) {
-	if serviceConf.Type != configuration.ExtensionType {
-		return nil, fmt.Errorf("service type in the configuration is not Service. It's '%s'", serviceConf.Type)
-	}
+func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
 	service := Service{
-		configuration: serviceConf,
-		controllers:   make([]*controller.Controller, 0),
-	}
-
-	if err := service.initController(logger); err != nil {
-		return nil, fmt.Errorf("initController: %w", err)
+		configuration: config,
+		Controller:    nil,
+		logger:        logger,
 	}
 
 	return &service, nil
 }
 
-// initController takes the first controller from configuration and adds them into the Service.
-func (service *Service) initController(logger *log.Logger) error {
-	replier, err := controller.NewReplier(logger)
-	if err != nil {
-		return fmt.Errorf("controller.NewReplier: %w", err)
+// AddController creates a controller of this extension
+func (service *Service) AddController(controllerType configuration.Type) error {
+	if controllerType == configuration.UnknownType {
+		return fmt.Errorf("unknown controller type can't be in the extension")
 	}
 
-	controllerConf, err := service.configuration.GetFirstController()
-	if err != nil {
-		return fmt.Errorf("controller configuration wasn't found: %v", err)
-	}
-	replier.AddConfig(&controllerConf)
+	controllerLogger := service.logger.Child("controller")
 
-	service.controllers = append(service.controllers, replier)
+	if controllerType == configuration.ReplierType {
+		replier, err := controller.NewReplier(controllerLogger)
+		if err != nil {
+			return fmt.Errorf("controller.NewReplier: %w", err)
+		}
+		service.Controller = replier
+	} else if controllerType == configuration.RouterType {
+		//router, err := controller.NewRouter(controllerLogger)
+		//if err != nil {
+		//	return fmt.Errorf("controller.NewRouter: %w", err)
+		//}
+		//service.Controller = router
+	} else if controllerType == configuration.PusherType {
+		puller, err := controller.NewPull(controllerLogger)
+		if err != nil {
+			return fmt.Errorf("controller.NewPuller: %w", err)
+		}
+		service.Controller = puller
+	}
+
+	return nil
+	// code snippet below should be added to the Prepare function
+	//controllerConf, err := service.configuration.GetFirstController()
+	//if err != nil {
+	//	return fmt.Errorf("controller configuration wasn't found: %v", err)
+	//}
+	//replier.AddConfig(&controllerConf)
+}
+
+func (service *Service) prepareConfiguration() error {
+	// validate the service itself
+	config := service.configuration
+	serviceConfig := service.configuration.Service
+	if len(serviceConfig.Type) == 0 {
+		serviceConfig = configuration.Service{
+			Type:     configuration.ExtensionType,
+			Url:      config.Name + "extension",
+			Instance: config.Name + " 1",
+		}
+	} else if serviceConfig.Type != configuration.ExtensionType {
+		return fmt.Errorf("service type is overwritten. It's not extension. It's '%s'", serviceConfig.Type)
+	}
+
+	// validate the controllers
+	// it means it should have two controllers: source and destination
+	var controllerConfig configuration.Controller
+	if len(serviceConfig.Controllers) > 1 {
+		return fmt.Errorf("supports one controller only")
+	} else if len(serviceConfig.Controllers) == 1 {
+		controllerConfig = configuration.Controller{
+			Type: service.Controller.ControllerType(),
+			Name: config.Name + "controller",
+		}
+
+		serviceConfig.Controllers = append(serviceConfig.Controllers, controllerConfig)
+	} else {
+		if controllerConfig.Type != service.Controller.ControllerType() {
+			return fmt.Errorf("controller is expected to be of %s type, but in the config it's %s of type",
+				service.Controller.ControllerType(), controllerConfig.Type)
+		}
+	}
+
+	// validate the controller instances
+	// make sure that they are tpc type
+	if len(controllerConfig.Instances) == 0 {
+		port := service.configuration.GetFreePort()
+
+		sourceInstance := configuration.ControllerInstance{
+			Name:     controllerConfig.Name,
+			Instance: controllerConfig.Name + "1",
+			Port:     uint64(port),
+		}
+		controllerConfig.Instances = append(controllerConfig.Instances, sourceInstance)
+	} else {
+		if controllerConfig.Instances[0].Port == 0 {
+			return fmt.Errorf("the port should not be 0 in the source")
+		}
+	}
+
+	// let's validate the extensions
+	// it needs to find the extensions using hub.
+	//
+	// then it needs to install the extensions under the ./bin/
+	// then it needs to generate the configurations
+	// then it needs to load up the generation.
+	// then it needs to get the loaded application.
+	//
+	// if extensions are not provide, then user can set a custom path to the extension
+	// using hub
+	// instead of the names, use the url
+
+	service.configuration.Service = serviceConfig
 
 	return nil
 }
 
-// GetFirstController returns the first controller of this extension
-func (service *Service) GetFirstController() *controller.Controller {
-	return service.controllers[0]
+// Prepare the service by validating the configuration.
+// if the configuration doesn't exist, it will be created.
+func (service *Service) Prepare() error {
+	if service.Controller == nil {
+		return fmt.Errorf("missing controller. call AddController")
+	}
+
+	if err := service.prepareConfiguration(); err != nil {
+		return fmt.Errorf("prepareConfiguration: %w", err)
+	}
+
+	// register configuration of the controller
+	service.Controller.AddConfig(&service.configuration.Service.Controllers[0])
+
+	// add the extensions required by the controller
+	requiredExtensions := service.Controller.RequiredExtensions()
+	for _, name := range requiredExtensions {
+		extension, err := service.configuration.Service.GetExtension(name)
+		if err != nil {
+			log.Fatal("extension required by the controller doesn't exist in the configuration", "error", err)
+		}
+
+		service.Controller.AddExtensionConfig(&extension)
+	}
+
+	return nil
 }
 
 // Run the independent service.
 func (service *Service) Run() {
 	var wg sync.WaitGroup
 
-	c := service.GetFirstController()
-
-	// add the extensions required by the controller
-	requiredExtensions := c.RequiredExtensions()
-	for _, name := range requiredExtensions {
-		extension, err := service.configuration.GetExtension(name)
-		if err != nil {
-			log.Fatal("extension required by the controller doesn't exist in the configuration", "error", err)
-		}
-
-		c.AddExtensionConfig(&extension)
-	}
-
 	wg.Add(1)
 	go func() {
-		err := c.Run()
+		err := service.Controller.Run()
 		wg.Done()
 		if err != nil {
 			log.Fatal("failed to run the controller", "error", err)
