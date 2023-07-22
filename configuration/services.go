@@ -2,6 +2,7 @@ package configuration
 
 import (
 	"fmt"
+	"strings"
 )
 
 type ControllerInstance struct {
@@ -136,6 +137,19 @@ func (s *Service) GetProxy(url string) *Proxy {
 	}
 
 	return nil
+}
+
+func (s *Service) SetProxy(proxy Proxy) {
+	s.Proxies = append(s.Proxies, proxy)
+}
+
+func (s *Service) SetController(controller Controller) {
+	for i, serviceController := range s.Controllers {
+
+		if strings.Compare(serviceController.Name, controller.Name) == 0 {
+			s.Controllers[i] = controller
+		}
+	}
 }
 
 type Services []Service

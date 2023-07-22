@@ -110,7 +110,6 @@ func (service *Service) prepareConfiguration() error {
 
 		serviceConfig.Controllers = append(serviceConfig.Controllers, sourceConfig)
 	} else {
-		service.logger.Info("the source config is", sourceConfig)
 		if sourceConfig.Type != service.source.ControllerType() {
 			return fmt.Errorf("source expected to be of %s type, but in the config it's %s of type",
 				service.source.ControllerType(), sourceConfig.Type)
@@ -163,6 +162,8 @@ func (service *Service) prepareConfiguration() error {
 		}
 	}
 
+	serviceConfig.SetController(sourceConfig)
+	serviceConfig.SetController(destinationConfig)
 	service.configuration.Service = serviceConfig
 
 	// todo validate the extensions
