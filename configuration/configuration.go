@@ -107,7 +107,23 @@ func New(parent *log.Logger) (*Config, error) {
 		parent.Warn("the configuration.yml configuration wasn't found", "engine error", err)
 		return &config, nil
 	} else {
-		config.unmarshalService()
+		services, ok := config.viper.Get("services").([]interface{})
+		if !ok {
+			config.logger.Info("services", "Service", services, "raw", config.viper.Get("services"))
+			config.logger.Fatal("configuration.yml Service should be a list not a one object")
+		}
+
+		config.logger.Info("todo", "todo 1", "make sure that proxy pipeline is correct",
+			"todo 2", "make sure that only one kind of proxies are given",
+			"todo 3", "make sure that only one kind of extensions are given",
+			"todo 4", "make sure that services are all of the same kind but of different instance",
+			"todo 5", "make sure that all controllers have the unique name in the config")
+
+		service, err := UnmarshalService(services)
+		if err != nil {
+			config.logger.Fatal("unmarshalling service configuration failed", "error", err)
+		}
+		config.Service = service
 	}
 
 	return &config, nil
@@ -123,40 +139,41 @@ func (config *Config) GetFreePort() int {
 	return port
 }
 
-// unmarshalService decodes the yaml into the configuration.
-func (config *Config) unmarshalService() {
-	services, ok := config.viper.Get("services").([]interface{})
-	if !ok {
-		config.logger.Info("services", "Service", services, "raw", config.viper.Get("services"))
-		config.logger.Fatal("configuration.yml Service should be a list not a one object")
-	}
-
+// UnmarshalService decodes the yaml into the configuration.
+func UnmarshalService(services []interface{}) (Service, error) {
 	if len(services) == 0 {
-		config.logger.Warn("missing services in the configuration")
-		return
+		return Service{}, nil
 	}
 
 	kv, err := key_value.NewFromInterface(services[0])
 	if err != nil {
-		config.logger.Fatal("failed to convert raw config service into map", "error", err)
+		return Service{}, fmt.Errorf("failed to convert raw config service into map: %w", err)
 	}
-	err = kv.Interface(&config.Service)
+
+	var service Service
+	err = kv.Interface(&service)
 	if err != nil {
-		config.logger.Fatal("failed to convert raw config service to configuration.Service", "error", err)
+		return Service{}, fmt.Errorf("failed to convert raw config service to configuration.Service: %w", err)
 	}
-	err = config.Service.ValidateTypes()
+	err = prepareService(&service)
 	if err != nil {
-		config.logger.Fatal("configuration.Service.ValidateTypes", "error", err)
+		return Service{}, fmt.Errorf("prepareService: %w", err)
 	}
-	err = config.Service.Lint()
+
+	return service, nil
+}
+
+func prepareService(service *Service) error {
+	err := service.ValidateTypes()
 	if err != nil {
-		config.logger.Fatal("configuration.Service.Lint", "error", err)
+		return fmt.Errorf("service.ValidateTypes: %w", err)
 	}
-	config.logger.Info("todo", "todo 1", "make sure that proxy pipeline is correct",
-		"todo 2", "make sure that only one kind of proxies are given",
-		"todo 3", "make sure that only one kind of extensions are given",
-		"todo 4", "make sure that services are all of the same kind but of different instance",
-		"todo 5", "make sure that all controllers have the unique name in the config")
+	err = service.Lint()
+	if err != nil {
+		return fmt.Errorf("service.Lint: %w", err)
+	}
+
+	return nil
 }
 
 // Engine returns the underlying configuration engine.
@@ -240,6 +257,62 @@ func splitServicePath(servicePath string) (string, string) {
 	return dir, fileName
 }
 
+func ReadService(path string) (Service, error) {
+	if err := validateServicePath(path); err != nil {
+		return Service{}, fmt.Errorf("validateServicePath: %w", err)
+	}
+
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		return Service{}, fmt.Errorf("os.ReadFile of %s: %w", path, err)
+	}
+
+	yamlConfig := createYaml()
+	kv := yamlConfig.Map()
+	err = yaml.Unmarshal(bytes, &kv)
+
+	if err != nil {
+		return Service{}, fmt.Errorf("yaml.Unmarshal of %s: %w", path, err)
+	}
+
+	fmt.Println("service", kv)
+
+	yamlConfig = key_value.New(kv)
+	if err := yamlConfig.Exist("Services"); err != nil {
+		return Service{}, fmt.Errorf("no services in yaml: %w", err)
+	}
+
+	services, err := yamlConfig.GetKeyValueList("Services")
+	if err != nil {
+		return Service{}, fmt.Errorf("failed to get services as key value list: %w", err)
+	}
+
+	if len(services) == 0 {
+		return Service{}, fmt.Errorf("no services in the configuration")
+	}
+
+	var service Service
+	err = services[0].Interface(&service)
+	if err != nil {
+		return Service{}, fmt.Errorf("convert key value to Service: %w", err)
+	}
+
+	err = prepareService(&service)
+	if err != nil {
+		return Service{}, fmt.Errorf("prepareService: %w", err)
+	}
+
+	return service, nil
+}
+
+func createYaml(configs ...Service) key_value.KeyValue {
+	var services = configs
+	kv := key_value.Empty()
+	kv.Set("Services", services)
+
+	return kv
+}
+
 // WriteService writes the service as the yaml on the given path.
 // If the path doesn't contain the file extension it will through an error
 func (config *Config) WriteService(path string) error {
@@ -247,9 +320,7 @@ func (config *Config) WriteService(path string) error {
 		return fmt.Errorf("validateServicePath: %w", err)
 	}
 
-	services := []Service{config.Service}
-	kv := key_value.Empty()
-	kv.Set("Services", services)
+	kv := createYaml(config.Service)
 
 	serviceConfig, err := yaml.Marshal(kv.Map())
 	if err != nil {
