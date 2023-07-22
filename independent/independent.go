@@ -162,13 +162,26 @@ func (service *Independent) prepareProxyConfiguration(requiredProxy string) erro
 	service.logger.Info("preparing the proxy", "url", requiredProxy)
 
 	context := service.configuration.Context
+
+	err := dev.PrepareProxyConfiguration(context, requiredProxy, service.logger)
+	if err != nil {
+		return fmt.Errorf("dev.PrepareProxyConfiguration on %s: %w", requiredProxy, err)
+	}
+
+	proxy, err := dev.ReadProxyConfiguration(context, requiredProxy)
+	if err != nil {
+		return fmt.Errorf("dev.ReadProxyConfiguration: %w", err)
+	}
+
 	proxyConfiguration := service.configuration.Service.GetProxy(requiredProxy)
 	if proxyConfiguration == nil {
-		err := dev.PrepareProxyConfiguration(context, requiredProxy, service.logger)
-		if err != nil {
-			return fmt.Errorf("dev.PrepareProxyConfiguration on %s: %w", requiredProxy, err)
-		} else {
-			service.logger.Warn("dev.PrepareProxyConfiguration should return the proxy to add it to the configuration")
+		service.configuration.Service.SetProxy(proxy)
+	} else {
+		if strings.Compare(proxyConfiguration.Url, proxy.Url) != 0 {
+			return fmt.Errorf("the proxy urls are not matching. in your configuration: %s, in the deps: %s", proxyConfiguration.Url, proxy.Url)
+		}
+		if proxyConfiguration.Port != proxy.Port {
+			return fmt.Errorf("the proxy ports are not matching. in your configuration: %d, in the deps: %d", proxyConfiguration.Port, proxy.Port)
 		}
 	}
 
