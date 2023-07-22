@@ -9,6 +9,7 @@ import (
 	"github.com/ahmetson/service-lib/context/dev"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/service-lib/proxy"
 	"strings"
 	"sync"
 )
@@ -187,6 +188,77 @@ func (service *Independent) prepareProxyConfiguration(requiredProxy string) erro
 	return nil
 }
 
+// preparePipeline checks that proxy url and controllerName are valid.
+// Then, in the configuration, it makes sure that dependency is linted.
+func (service *Independent) preparePipeline(proxyUrl string, controllerName string) error {
+	service.logger.Info("prepare the pipeline")
+
+	//
+	// make sure that proxy url is valid
+	//------------------------------------------------
+	found := false
+	for _, requiredProxy := range service.requiredProxies {
+		if strings.Compare(proxyUrl, requiredProxy) == 0 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("proxy '%s' not found. add using service.RequireProxy()", proxyUrl)
+	}
+
+	//
+	// make sure that controller name is valid
+	//---------------------------------------------------
+	if err := service.controllers.Exist(controllerName); err != nil {
+		return fmt.Errorf("service.controllers.Exist of '%s': %w", controllerName, err)
+	}
+
+	//
+	// lint the dependency proxy's destination to the independent service's controller
+	//--------------------------------------------------
+	context := service.configuration.Context
+
+	proxyConfig, err := dev.ReadServiceConfiguration(context, proxyUrl)
+	if err != nil {
+		return fmt.Errorf("dev.ReadServiceConfiguration of '%s': %w", proxyUrl, err)
+	}
+
+	destinationConfig, err := proxyConfig.GetController(proxy.DestinationName)
+	if err != nil {
+		return fmt.Errorf("getting dependency proxy's destination configuration failed: %w", err)
+	}
+
+	controllerConfig, err := service.configuration.Service.GetController(controllerName)
+	if err != nil {
+		return fmt.Errorf("getting '%s' controller from service configuration failed: %w", controllerName, err)
+	}
+
+	// somehow it will work with only one instance. but in the future maybe another instances as well.
+	destinationInstanceConfig := controllerConfig.Instances[0]
+	instanceConfig := destinationConfig.Instances[0]
+
+	if destinationInstanceConfig.Port != instanceConfig.Port {
+		service.logger.Info("the dependency proxy destination not match to the controller",
+			"proxy url", proxyUrl,
+			"destination port", destinationInstanceConfig.Port,
+			"independent controller port", instanceConfig.Port)
+
+		destinationInstanceConfig.Port = instanceConfig.Port
+		destinationConfig.Instances[0] = destinationInstanceConfig
+		proxyConfig.SetController(destinationConfig)
+
+		service.logger.Info("linting dependency proxy's destination port", "new port", instanceConfig.Port)
+		service.logger.Warn("todo", 1, "if dependency proxy is running, then it should be restarted")
+		err := dev.WriteServiceConfiguration(context, proxyUrl, proxyConfig)
+		if err != nil {
+			return fmt.Errorf("dev.WriteServiceConfiguration for '%s': %w", proxyUrl, err)
+		}
+	}
+
+	return nil
+}
+
 func (service *Independent) Prepare() error {
 	if len(service.controllers) == 0 {
 		return fmt.Errorf("no controllers. call service.AddController")
@@ -209,6 +281,17 @@ func (service *Independent) Prepare() error {
 		for _, requiredProxy := range service.requiredProxies {
 			if err := service.prepareProxyConfiguration(requiredProxy); err != nil {
 				return fmt.Errorf("prepareProxyConfiguration of %s: %w", requiredProxy, err)
+			}
+		}
+
+		if len(service.pipelines) == 0 {
+			return fmt.Errorf("no pipepline to lint the proxy to the controller")
+		}
+
+		for requiredProxy, controllerInterface := range service.pipelines {
+			controllerName := controllerInterface.(string)
+			if err := service.preparePipeline(requiredProxy, controllerName); err != nil {
+				return fmt.Errorf("preparePipeline '%s'=>'%s': %w", requiredProxy, controllerName, err)
 			}
 		}
 	}
