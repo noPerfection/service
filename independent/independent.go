@@ -75,7 +75,7 @@ func (service *Independent) Pipe(proxyUrl string, name string) error {
 }
 
 // returns the extension urls
-func (service *Independent) getExtensions() []string {
+func (service *Independent) requiredControllerExtensions() []string {
 	var extensions []string
 	for _, controllerInterface := range service.controllers {
 		c := controllerInterface.(*controller.Controller)
@@ -149,8 +149,7 @@ func (service *Independent) prepareConfiguration() error {
 		}
 	}
 
-	// validate the extensions
-	// validate the proxies
+	// todo validate the extensions
 
 	service.configuration.Service = serviceConfig
 
@@ -212,6 +211,13 @@ func (service *Independent) Prepare() error {
 				return fmt.Errorf("prepareProxyConfiguration of %s: %w", requiredProxy, err)
 			}
 		}
+	}
+
+	requiredExtensions := service.requiredControllerExtensions()
+	if len(requiredExtensions) > 0 {
+		service.logger.Warn("extensions needed to be prepared", "extensions", requiredExtensions)
+	} else {
+		service.logger.Info("no extensions needed")
 	}
 
 	controllers := service.controllers.Map()
