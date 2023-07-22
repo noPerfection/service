@@ -25,6 +25,6 @@ func ValidateServiceType(t ServiceType) error {
 	return fmt.Errorf("'%s' is not valid service type", t)
 }
 
-func (s *ServiceType) String() string {
-	return string(*s)
+func (s ServiceType) String() string {
+	return string(s)
 }
