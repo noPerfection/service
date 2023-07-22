@@ -15,7 +15,6 @@ Get the `service-lib` module and `common-lib` module:
 ```sh
 go get github.com/ahmetson/service-lib
 go get github.com/ahmetson/common-lib
-go mod vendor
 ```
 
 ## Internal process
@@ -87,8 +86,16 @@ func main() {
 
 	service, _ := independent.New(appConfig, logger.Child("controller"))
 	
+	// The extensions are defined in the controllers
 	replier := handler.NewReplier(logger)
-	service.AddController(replier)
+	service.AddController("replier", replier)
+
+	// Define the required proxies
+	proxyUrl := "github.com/ahmetson/web-proxy"
+	service.RequireProxy(proxyUrl)
+	
+	// Assign the controller to the proxy
+	service.Pipe(proxyUrl, "replierInstance")
 	
 	service.Prepare()
 	service.Run()
@@ -148,8 +155,11 @@ func onGetCounter(message.Request, _ * log.Logger, _ ...*remote.ClientSocket) me
     }
 }
 
-func NewReplier(logger*log.Logger) * controller.Controller{
-	replier, _ := controller.NewReplier(logger)
+func NewReplier(logger*log.Logger) (*controller.Controller, error){
+	replier, err := controller.NewReplier(logger)
+	if err != nil {
+		return nil, err
+    }
 
 	// extensions
 	db := "github.com/ahmetson/mysql-extension"
@@ -163,7 +173,7 @@ func NewReplier(logger*log.Logger) * controller.Controller{
 	replier.AddRoute(setCounter)
 	replier.AddRoute(getCounter)
 		
-	return replier
+	return replier, nil
 }
 ```
 
