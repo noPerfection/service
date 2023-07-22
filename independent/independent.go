@@ -166,7 +166,7 @@ func (service *Independent) prepareProxyConfiguration(requiredProxy string) erro
 	if proxyConfiguration == nil {
 		err := dev.PrepareProxyConfiguration(context, requiredProxy, service.logger)
 		if err != nil {
-			return fmt.Errorf("failed to check existence of %s: %w", requiredProxy, err)
+			return fmt.Errorf("dev.PrepareProxyConfiguration on %s: %w", requiredProxy, err)
 		} else {
 			service.logger.Warn("dev.PrepareProxyConfiguration should return the proxy to add it to the configuration")
 		}
