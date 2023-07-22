@@ -150,11 +150,11 @@ func SrcExist(context *configuration.Context, url string) (bool, error) {
 	return true, nil
 }
 
+// ReadProxyConfiguration returns the yaml configuration of the dependency as a proxy
 func ReadProxyConfiguration(context *configuration.Context, url string) (configuration.Proxy, error) {
-	configUrl := ConfigurationPath(context, url)
-	service, err := configuration.ReadService(configUrl)
+	service, err := ReadServiceConfiguration(context, url)
 	if err != nil {
-		return configuration.Proxy{}, fmt.Errorf("configuration.ReadService of %s: %w", configUrl, err)
+		return configuration.Proxy{}, fmt.Errorf("ReadServiceConfiguration of '%s': %w", url, err)
 	}
 
 	converted, err := proxy.ServiceToProxy(&service)
@@ -163,6 +163,25 @@ func ReadProxyConfiguration(context *configuration.Context, url string) (configu
 	}
 
 	return converted, nil
+}
+
+// ReadServiceConfiguration returns the yaml configuration of the dependency as is
+func ReadServiceConfiguration(context *configuration.Context, url string) (configuration.Service, error) {
+	configUrl := ConfigurationPath(context, url)
+	service, err := configuration.ReadService(configUrl)
+	if err != nil {
+		return configuration.Service{}, fmt.Errorf("configuration.ReadService of %s: %w", configUrl, err)
+	}
+
+	return service, nil
+}
+
+// WriteServiceConfiguration updates the yaml of the proxy.
+//
+// It's needed for linting the dependency's destination controller with the service that relies on it.
+func WriteServiceConfiguration(context *configuration.Context, url string, config configuration.Service) error {
+
+	return nil
 }
 
 // PrepareProxyConfiguration returns the proxy parameters and the configuration.Proxy

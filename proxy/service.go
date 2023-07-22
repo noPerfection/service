@@ -319,6 +319,5 @@ func (service *Service) Run() {
 		wg.Done()
 	}()
 
-	println("waiting for the wait group")
 	wg.Wait()
 }
