@@ -171,6 +171,31 @@ func (service *Service) prepareConfiguration() error {
 	return nil
 }
 
+// ServiceToProxy returns the service in the proxy format
+// so that it can be used as a proxy
+func ServiceToProxy(s *configuration.Service) (configuration.Proxy, error) {
+	if s.Type != configuration.ProxyType {
+		return configuration.Proxy{}, fmt.Errorf("only proxy type of service can be converted")
+	}
+
+	controller, err := s.GetController(SourceName)
+	if err != nil {
+		return configuration.Proxy{}, fmt.Errorf("no source controller: %w", err)
+	}
+
+	if len(controller.Instances) == 0 {
+		return configuration.Proxy{}, fmt.Errorf("no source instances")
+	}
+
+	converted := configuration.Proxy{
+		Url:      s.Url,
+		Instance: controller.Name + " instance 01",
+		Port:     controller.Instances[0].Port,
+	}
+
+	return converted, nil
+}
+
 func (service *Service) Prepare() error {
 	if service.source == nil {
 		return fmt.Errorf("missing source. call service.SetDefaultSource")
