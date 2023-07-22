@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
-	"github.com/ahmetson/service-lib/context/dev"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/proxy"
+	"github.com/ahmetson/service-lib/service"
 	"strings"
 	"sync"
 )
@@ -152,45 +151,11 @@ func (independent *Independent) prepareConfiguration() error {
 	return nil
 }
 
-// if the proxy was given in the configuration, make sure that the file exists there
-func (independent *Independent) prepareProxyConfiguration(requiredProxy string) error {
-	independent.logger.Info("preparing the proxy", "url", requiredProxy)
-
-	context := independent.configuration.Context
-
-	err := dev.PrepareProxyConfiguration(context, requiredProxy, independent.logger)
-	if err != nil {
-		return fmt.Errorf("dev.PrepareProxyConfiguration on %s: %w", requiredProxy, err)
-	}
-
-	proxy, err := dev.ReadProxyConfiguration(context, requiredProxy)
-	if err != nil {
-		return fmt.Errorf("dev.ReadProxyConfiguration: %w", err)
-	}
-
-	proxyConfiguration := independent.configuration.Service.GetProxy(requiredProxy)
-	if proxyConfiguration == nil {
-		independent.configuration.Service.SetProxy(proxy)
-	} else {
-		if strings.Compare(proxyConfiguration.Url, proxy.Url) != 0 {
-			return fmt.Errorf("the proxy urls are not matching. in your configuration: %s, in the deps: %s", proxyConfiguration.Url, proxy.Url)
-		}
-		if proxyConfiguration.Port != proxy.Port {
-			return fmt.Errorf("the proxy ports are not matching. in your configuration: %d, in the deps: %d", proxyConfiguration.Port, proxy.Port)
-		}
-	}
-
-	return nil
-}
-
-// preparePipeline checks that proxy url and controllerName are valid.
+// preparePipelineConfiguration checks that proxy url and controllerName are valid.
 // Then, in the configuration, it makes sure that dependency is linted.
-func (independent *Independent) preparePipeline(proxyUrl string, controllerName string) error {
+func (independent *Independent) preparePipelineConfiguration(proxyUrl string, controllerName string) error {
 	independent.logger.Info("prepare the pipeline")
 
-	//
-	// make sure that proxy url is valid
-	//------------------------------------------------
 	found := false
 	for _, requiredProxy := range independent.requiredProxies {
 		if strings.Compare(proxyUrl, requiredProxy) == 0 {
@@ -202,55 +167,15 @@ func (independent *Independent) preparePipeline(proxyUrl string, controllerName 
 		return fmt.Errorf("proxy '%s' not found. add using independent.RequireProxy()", proxyUrl)
 	}
 
-	//
-	// make sure that controller name is valid
-	//---------------------------------------------------
 	if err := independent.controllers.Exist(controllerName); err != nil {
 		return fmt.Errorf("independent.controllers.Exist of '%s': %w", controllerName, err)
 	}
 
-	//
-	// lint the dependency proxy's destination to the independent independent's controller
-	//--------------------------------------------------
-	context := independent.configuration.Context
+	err := service.PreparePipelineConfiguration(independent.configuration, proxyUrl, controllerName, independent.logger)
 
-	proxyConfig, err := dev.ReadServiceConfiguration(context, proxyUrl)
 	if err != nil {
-		return fmt.Errorf("dev.ReadServiceConfiguration of '%s': %w", proxyUrl, err)
+		return fmt.Errorf("service.PreparePipelineConfiguration: %w", err)
 	}
-
-	destinationConfig, err := proxyConfig.GetController(proxy.DestinationName)
-	if err != nil {
-		return fmt.Errorf("getting dependency proxy's destination configuration failed: %w", err)
-	}
-
-	controllerConfig, err := independent.configuration.Service.GetController(controllerName)
-	if err != nil {
-		return fmt.Errorf("getting '%s' controller from independent configuration failed: %w", controllerName, err)
-	}
-
-	// somehow it will work with only one instance. but in the future maybe another instances as well.
-	destinationInstanceConfig := controllerConfig.Instances[0]
-	instanceConfig := destinationConfig.Instances[0]
-
-	if destinationInstanceConfig.Port != instanceConfig.Port {
-		independent.logger.Info("the dependency proxy destination not match to the controller",
-			"proxy url", proxyUrl,
-			"destination port", destinationInstanceConfig.Port,
-			"independent controller port", instanceConfig.Port)
-
-		destinationInstanceConfig.Port = instanceConfig.Port
-		destinationConfig.Instances[0] = destinationInstanceConfig
-		proxyConfig.SetController(destinationConfig)
-
-		independent.logger.Info("linting dependency proxy's destination port", "new port", instanceConfig.Port)
-		independent.logger.Warn("todo", 1, "if dependency proxy is running, then it should be restarted")
-		err := dev.WriteServiceConfiguration(context, proxyUrl, proxyConfig)
-		if err != nil {
-			return fmt.Errorf("dev.WriteServiceConfiguration for '%s': %w", proxyUrl, err)
-		}
-	}
-
 	return nil
 }
 
@@ -259,10 +184,9 @@ func (independent *Independent) Prepare() error {
 		return fmt.Errorf("no controllers. call independent.AddController")
 	}
 
-	// get the extensions
-	err := dev.Prepare(independent.configuration.Context)
+	err := service.PrepareContext(independent.configuration.Context)
 	if err != nil {
-		return fmt.Errorf("failed to prepare the context: %w", err)
+		return fmt.Errorf("service.PrepareContext: %w", err)
 	}
 
 	err = independent.prepareConfiguration()
@@ -274,8 +198,8 @@ func (independent *Independent) Prepare() error {
 	if len(independent.requiredProxies) > 0 {
 		independent.logger.Info("there are some proxies to setup")
 		for _, requiredProxy := range independent.requiredProxies {
-			if err := independent.prepareProxyConfiguration(requiredProxy); err != nil {
-				return fmt.Errorf("prepareProxyConfiguration of %s: %w", requiredProxy, err)
+			if err := service.PrepareProxyConfiguration(requiredProxy, independent.configuration, independent.logger); err != nil {
+				return fmt.Errorf("service.PrepareProxyConfiguration of %s: %w", requiredProxy, err)
 			}
 		}
 
@@ -285,8 +209,8 @@ func (independent *Independent) Prepare() error {
 
 		for requiredProxy, controllerInterface := range independent.pipelines {
 			controllerName := controllerInterface.(string)
-			if err := independent.preparePipeline(requiredProxy, controllerName); err != nil {
-				return fmt.Errorf("preparePipeline '%s'=>'%s': %w", requiredProxy, controllerName, err)
+			if err := independent.preparePipelineConfiguration(requiredProxy, controllerName); err != nil {
+				return fmt.Errorf("preparePipelineConfiguration '%s'=>'%s': %w", requiredProxy, controllerName, err)
 			}
 		}
 	}
