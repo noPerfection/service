@@ -101,6 +101,12 @@ func (logger *Logger) Prefix() string {
 	return logger.logger.GetPrefix()
 }
 
+func (logger *Logger) Write(data []byte) (int, error) {
+	logger.logger.Info(string(data))
+
+	return len(data), nil
+}
+
 // Fatal prints the error message and then calls the os.Exit()
 func (logger *Logger) Fatal(title string, kv ...interface{}) {
 	logger.style.setPrimary()
