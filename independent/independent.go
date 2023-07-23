@@ -238,10 +238,9 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	}
 
 	//
-	// prepare proxies
+	// prepare proxies configurations
 	//--------------------------------------------------
 	if len(independent.RequiredProxies) > 0 {
-		independent.Logger.Info("there are some proxies to setup")
 		for _, requiredProxy := range independent.RequiredProxies {
 			if err := prepareProxyConfiguration(requiredProxy, independent.Config, independent.Logger); err != nil {
 				return fmt.Errorf("service.prepareProxyConfiguration of %s: %w", requiredProxy, err)
@@ -261,7 +260,7 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	}
 
 	//
-	// prepare extensions
+	// prepare extensions configurations
 	//------------------------------------------------------
 	requiredExtensions := independent.requiredControllerExtensions()
 	if len(requiredExtensions) > 0 {
@@ -289,6 +288,15 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 		for _, extensionUrl := range requiredExtensions {
 			requiredExtension := independent.Config.Service.GetExtension(extensionUrl)
 			c.AddExtensionConfig(requiredExtension)
+		}
+	}
+
+	// add proxies if they are needed.
+	if len(independent.RequiredProxies) > 0 {
+		for _, requiredProxy := range independent.RequiredProxies {
+			if err := prepareProxy(requiredProxy, independent.Config, independent.Logger); err != nil {
+				return fmt.Errorf("service.prepareProxy of %s: %w", requiredProxy, err)
+			}
 		}
 	}
 
@@ -352,6 +360,20 @@ func prepareContext(context *configuration.Context) error {
 	err := dev.Prepare(context)
 	if err != nil {
 		return fmt.Errorf("failed to prepare the context: %w", err)
+	}
+
+	return nil
+}
+
+// prepareProxy links the proxy with the dependency.
+//
+// if dependency doesn't exist, it will be downloaded
+func prepareProxy(requiredProxy string, config *configuration.Config, logger *log.Logger) error {
+	proxyConfiguration := config.Service.GetProxy(requiredProxy)
+
+	err := dev.PrepareService(config.Context, proxyConfiguration.Url, proxyConfiguration.Port, logger)
+	if err != nil {
+		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", requiredProxy, err)
 	}
 
 	return nil
