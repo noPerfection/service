@@ -12,10 +12,12 @@ import (
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/phayes/freeport"
 	"gopkg.in/yaml.v3"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ahmetson/service-lib/configuration/env"
 	"github.com/ahmetson/service-lib/log"
@@ -137,6 +139,19 @@ func (config *Config) GetFreePort() int {
 	}
 
 	return port
+}
+
+func IsPortUsed[V int | uint64](host string, port V) bool {
+	portString := fmt.Sprintf("%d", port)
+	timeout := time.Second
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, portString), timeout)
+	if err != nil {
+		return false
+	}
+	if conn != nil {
+		conn.Close()
+	}
+	return true
 }
 
 // UnmarshalService decodes the yaml into the configuration.
