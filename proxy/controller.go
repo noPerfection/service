@@ -176,21 +176,8 @@ func (controller *Controller) Run() {
 					continue
 				}
 
-				// send the id
-				_, err = client.socket.Send(messages[0], zmq.SNDMORE)
-				if err != nil {
-					controller.logger.Fatal("send to dealer", "error", err)
-				}
-				// send the delimiter
-				_, err = client.socket.Send(messages[1], zmq.SNDMORE)
-				if err != nil {
-					controller.logger.Fatal("send to dealer", "error", err)
-				}
-				// skip the command name
-				// we skip the router name,
-				// sending the message.Request part
 				lastIndex := len(messages) - 1
-				for i := 2; i <= lastIndex; i++ {
+				for i := 0; i <= lastIndex; i++ {
 					if i == lastIndex {
 						_, err := client.socket.Send(messages[i], 0)
 						if err != nil {
@@ -208,14 +195,24 @@ func (controller *Controller) Run() {
 				///////////////////////////////////////
 			} else {
 				for {
-					messages, err := zmqSocket.RecvMessage(0)
+					msg, err := zmqSocket.Recv(0)
 					if err != nil {
 						controller.logger.Fatal("receive from dealer", "error", err)
 					}
-
-					_, err = frontend.SendMessage(messages, 0)
-					if err != nil {
-						controller.logger.Fatal("send from dealer to frontend", "error", err)
+					if more, err := zmqSocket.GetRcvmore(); more {
+						if err != nil {
+							controller.logger.Fatal("receive more messages from dealer", "error", err)
+						}
+						_, err := frontend.Send(msg, zmq.SNDMORE)
+						if err != nil {
+							controller.logger.Fatal("send from dealer to frontend", "error", err)
+						}
+					} else {
+						_, err := frontend.Send(msg, 0)
+						if err != nil {
+							controller.logger.Fatal("send from dealer to frontend", "error", err)
+						}
+						break
 					}
 				}
 			}
