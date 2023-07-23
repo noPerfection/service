@@ -240,8 +240,66 @@ func PrepareConfiguration(context *configuration.Context, url string, logger *lo
 			return PrepareConfiguration(context, url, logger)
 		}
 	}
+}
 
-	return nil
+// PrepareService runs the service if it wasn't running
+func PrepareService(context *configuration.Context, url string, port uint64, logger *log.Logger) error {
+	// check is binary exist
+	binExist, err := BinExist(context, url)
+	if err != nil {
+		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", url, context.Type, err)
+	}
+
+	if binExist {
+		used := configuration.IsPortUsed(context.Host(), port)
+		if used {
+			logger.Info("service is launched already", "url", url, "port", port)
+			return nil
+		} else {
+			err := start(context, url, logger)
+			if err != nil {
+				return fmt.Errorf("failed to start proxy: %w", err)
+			}
+			return nil
+		}
+	} else {
+		// first need to prepare the directory
+		err := prepareBinPath(context, url)
+		if err != nil {
+			return fmt.Errorf("prepareBinPath: %w", err)
+		}
+	}
+
+	// check for source exist
+	srcExist, err := SrcExist(context, url)
+	if err != nil {
+		return fmt.Errorf("failed to check src existence of %s in %s context: %w", url, context.Type, err)
+	}
+
+	if srcExist {
+		logger.Info("src exists, we need to build it")
+		err := build(context, url, logger)
+		if err != nil {
+			return fmt.Errorf("build: %w", err)
+		}
+		logger.Info("file was built.")
+		return PrepareService(context, url, port, logger)
+	} else {
+		// first prepare the src directory
+		err := prepareSrcPath(context, url)
+		if err != nil {
+			return fmt.Errorf("prepareSrcPath: %w", err)
+		}
+
+		logger.Warn("src doesn't exist, try to clone the source code")
+		err = cloneSrc(context, url, logger)
+		if err != nil {
+			return fmt.Errorf("cloneSrc: %w", err)
+		} else {
+			logger.Info("prepare again to build the source")
+			return PrepareService(context, url, port, logger)
+		}
+	}
 }
 
 // builds the application
@@ -266,6 +324,22 @@ func build(context *configuration.Context, url string, logger *log.Logger) error
 	if err != nil {
 		return fmt.Errorf("cmd.Run: %w", err)
 	}
+	return nil
+}
+
+// start is run without attachment
+func start(context *configuration.Context, url string, logger *log.Logger) error {
+	binUrl := BinPath(context, url)
+	configFlag := fmt.Sprintf("--configuration=%s", ConfigurationPath(context, url))
+
+	cmd := exec.Command(binUrl, configFlag)
+	cmd.Stdout = logger
+	cmd.Stderr = logger
+	err := cmd.Start()
+	if err != nil {
+		return fmt.Errorf("cmd.Start: %w", err)
+	}
+
 	return nil
 }
 
