@@ -303,6 +303,10 @@ func (independent *Service) BuildConfiguration() {
 
 // Run the independent service.
 func (independent *Service) Run() {
+	if argument.Exist(argument.BuildConfiguration) {
+		independent.BuildConfiguration()
+	}
+
 	var wg sync.WaitGroup
 
 	for name, controllerInterface := range independent.Controllers {
