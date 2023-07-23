@@ -187,8 +187,6 @@ func (independent *Service) prepareConfiguration(expectedType configuration.Serv
 // preparePipelineConfiguration checks that proxy url and controllerName are valid.
 // Then, in the Config, it makes sure that dependency is linted.
 func (independent *Service) preparePipelineConfiguration(proxyUrl string, controllerName string) error {
-	independent.Logger.Info("prepare the pipeline")
-
 	found := false
 	for _, requiredProxy := range independent.RequiredProxies {
 		if strings.Compare(proxyUrl, requiredProxy) == 0 {
@@ -209,6 +207,11 @@ func (independent *Service) preparePipelineConfiguration(proxyUrl string, contro
 	if err != nil {
 		return fmt.Errorf("service.preparePipelineConfiguration: %w", err)
 	}
+
+	// pipelines from the configurations are not used.
+	// are they necessary?
+	independent.Config.Service.Pipelines = append(independent.Config.Service.Pipelines, fmt.Sprintf("%s->%s", proxyUrl, controllerName))
+
 	return nil
 }
 
