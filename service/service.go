@@ -47,6 +47,28 @@ func PrepareProxyConfiguration(requiredProxy string, config *configuration.Confi
 
 	return nil
 }
+
+func PrepareExtensionConfiguration(requiredExtension string, config *configuration.Config, logger *log.Logger) error {
+	err := dev.PrepareConfiguration(config.Context, requiredExtension, logger)
+	if err != nil {
+		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", requiredExtension, err)
+	}
+
+	service, err := dev.ReadServiceConfiguration(config.Context, requiredExtension)
+	converted, err := configuration.ServiceToExtension(&service)
+	if err != nil {
+		return fmt.Errorf("proxy.ServiceToProxy: %w", err)
+	}
+
+	extensionConfiguration := config.Service.GetExtension(requiredExtension)
+	if extensionConfiguration == nil {
+		config.Service.SetExtension(converted)
+	} else {
+		if strings.Compare(extensionConfiguration.Url, converted.Url) != 0 {
+			return fmt.Errorf("the extension url in your '%s' configuration not matches to '%s' in the dependency", extensionConfiguration.Url, converted.Url)
+		}
+		if extensionConfiguration.Port != extensionConfiguration.Port {
+			return fmt.Errorf("your extension port '%d' not matches to '%d' port in the dependency", extensionConfiguration.Port, converted.Port)
 		}
 	}
 

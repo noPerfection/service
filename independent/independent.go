@@ -268,8 +268,11 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	requiredExtensions := independent.requiredControllerExtensions()
 	if len(requiredExtensions) > 0 {
 		independent.Logger.Warn("extensions needed to be prepared", "extensions", requiredExtensions)
-	} else {
-		independent.Logger.Info("no extensions needed")
+		for _, requiredExtension := range requiredExtensions {
+			if err := service.PrepareExtensionConfiguration(requiredExtension, independent.Config, independent.Logger); err != nil {
+				return fmt.Errorf("service.PrepareExtensionConfiguration of %s: %w", requiredExtension, err)
+			}
+		}
 	}
 
 	//
