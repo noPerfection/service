@@ -143,6 +143,10 @@ func (s *Service) SetProxy(proxy Proxy) {
 	s.Proxies = append(s.Proxies, proxy)
 }
 
+func (s *Service) SetExtension(extension Extension) {
+	s.Extensions = append(s.Extensions, extension)
+}
+
 // SetController Updates the controller if its already exist.
 // If not exists, adds a new controller
 func (s *Service) SetController(controller Controller) {
