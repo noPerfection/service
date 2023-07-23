@@ -111,7 +111,7 @@ func (independent *Service) prepareControllerConfigurations() error {
 		c := controllerInterface.(controller.Interface)
 
 		err := independent.PrepareControllerConfiguration(name, c.ControllerType())
-		if err == nil {
+		if err != nil {
 			return fmt.Errorf("prepare '%s' controller configuration as '%s' type: %w", name, c.ControllerType(), err)
 		}
 	}
