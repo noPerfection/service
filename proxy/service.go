@@ -3,6 +3,7 @@ package proxy
 
 import (
 	"fmt"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/controller"
@@ -16,8 +17,6 @@ type service = independent.Service
 // Proxy defines the parameters of the proxy service
 type Proxy struct {
 	*service
-	// source controllers that gets the messages
-	source controller.Interface
 	// Controller that handles the requests and redirects to the destination.
 	Controller *Controller
 }
@@ -48,12 +47,13 @@ func (proxy *Proxy) registerDestination() {
 
 // registerSource adds the configuration to the source.
 func (proxy *Proxy) registerSource() {
-	for _, c := range proxy.service.Config.Service.Controllers {
-		if c.Name == SourceName {
-			proxy.source.AddConfig(&c)
-			break
-		}
-	}
+	config, _ := proxy.service.Config.Service.GetController(SourceName)
+	sourceInterface, _ := proxy.service.Controllers.GetKeyValue(SourceName)
+
+	var source controller.Controller
+
+	_ = sourceInterface.Interface(&source)
+	source.AddConfig(&config)
 }
 
 // New proxy service along with its controller.
@@ -62,14 +62,20 @@ func New(config *configuration.Config, parent *log.Logger) *Proxy {
 
 	service := Proxy{
 		service: &independent.Service{
-			Config: config,
-			Logger: logger,
+			Config:      config,
+			Logger:      logger,
+			Controllers: key_value.Empty(),
 		},
-		source:     nil,
 		Controller: newController(logger.Child("controller")),
 	}
 
 	return &service
+}
+
+func (proxy *Proxy) getSource() controller.Interface {
+	controllers := proxy.service.Controllers.Map()
+	source := controllers[SourceName].(controller.Interface)
+	return source
 }
 
 // prepareConfiguration creates a configuration.
@@ -107,15 +113,15 @@ func (proxy *Proxy) prepareConfiguration() error {
 
 	if len(sourceConfig.Type) == 0 {
 		sourceConfig = configuration.Controller{
-			Type: proxy.source.ControllerType(),
+			Type: proxy.getSource().ControllerType(),
 			Name: SourceName,
 		}
 
 		serviceConfig.Controllers = append(serviceConfig.Controllers, sourceConfig)
 	} else {
-		if sourceConfig.Type != proxy.source.ControllerType() {
+		if sourceConfig.Type != proxy.getSource().ControllerType() {
 			return fmt.Errorf("source expected to be of %s type, but in the config it's %s of type",
-				proxy.source.ControllerType(), sourceConfig.Type)
+				proxy.getSource().ControllerType(), sourceConfig.Type)
 		}
 	}
 
@@ -200,7 +206,7 @@ func ServiceToProxy(s *configuration.Service) (configuration.Proxy, error) {
 }
 
 func (proxy *Proxy) Prepare() error {
-	if proxy.source == nil {
+	if proxy.getSource() == nil {
 		return fmt.Errorf("missing source. call proxy.SetDefaultSource")
 	}
 
@@ -232,8 +238,8 @@ func (proxy *Proxy) Prepare() error {
 
 	// The proxy adds itself as the extension to the sources
 	// after validation of the previous extensions
-	proxy.source.RequireExtension(proxyExtension.Url)
-	proxy.source.AddExtensionConfig(proxyExtension)
+	proxy.getSource().RequireExtension(proxyExtension.Url)
+	proxy.getSource().AddExtensionConfig(proxyExtension)
 
 	return nil
 }
@@ -260,19 +266,14 @@ func (proxy *Proxy) SetDefaultSource(controllerType configuration.Type) error {
 		return fmt.Errorf("the '%s' controller type not supported", controllerType)
 	}
 
-	err := proxy.SetCustomSource(source)
-	if err != nil {
-		return fmt.Errorf("failed to add source controller: %w", err)
-	}
+	proxy.SetCustomSource(source)
 
 	return nil
 }
 
 // SetCustomSource sets the source controller, and invokes the source controller's
-func (proxy *Proxy) SetCustomSource(source controller.Interface) error {
-	proxy.source = source
-
-	return nil
+func (proxy *Proxy) SetCustomSource(source controller.Interface) {
+	proxy.service.AddController(SourceName, source)
 }
 
 func (proxy *Proxy) generateConfiguration() {
@@ -307,7 +308,7 @@ func (proxy *Proxy) Run() {
 
 	wg.Add(1)
 	go func() {
-		err := proxy.source.Run()
+		err := proxy.getSource().Run()
 		wg.Done()
 		if err != nil {
 			log.Fatal("failed to run the controller", "error", err)
