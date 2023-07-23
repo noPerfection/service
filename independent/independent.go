@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/service"
+	"os"
 	"strings"
 	"sync"
 )
@@ -24,9 +26,6 @@ type Service struct {
 
 // New service based on the configurations
 func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
-	//if serviceConf.Type != Config.IndependentType {
-	//	return nil, fmt.Errorf("service type in the Config is not Service. It's '%s'", serviceConf.Type)
-	//}
 	independent := Service{
 		Config:          config,
 		Logger:          logger,
@@ -80,68 +79,106 @@ func (independent *Service) requiredControllerExtensions() []string {
 	return extensions
 }
 
-func (independent *Service) prepareConfiguration() error {
+func (independent *Service) prepareServiceConfiguration(expectedType configuration.ServiceType) error {
 	// validate the independent itself
 	config := independent.Config
 	serviceConfig := independent.Config.Service
 	if len(serviceConfig.Type) == 0 {
 		exePath, err := configuration.GetCurrentPath()
 		if err != nil {
-			independent.Logger.Fatal("failed to get os context", "error", err)
+			return fmt.Errorf("failed to get current executable path: %w", err)
 		}
 
 		serviceConfig = configuration.Service{
-			Type:     configuration.IndependentType,
+			Type:     expectedType,
 			Url:      exePath,
 			Instance: config.Name + " 1",
 		}
-	} else if serviceConfig.Type != configuration.IndependentType {
-		return fmt.Errorf("independent type is overwritten. It's not proxy its '%s'", serviceConfig.Type)
+	} else if serviceConfig.Type != expectedType {
+		return fmt.Errorf("service type is overwritten. expected '%s', not '%s'", expectedType, serviceConfig.Type)
 	}
+
+	independent.Config.Service = serviceConfig
+
+	return nil
+}
+
+func (independent *Service) prepareControllerConfigurations() error {
+	serviceConfig := independent.Config.Service
 
 	// validate the Controllers
 	for name, controllerInterface := range independent.Controllers {
 		c := controllerInterface.(controller.Interface)
 
-		found := false
-		for _, controllerConfig := range serviceConfig.Controllers {
-			if controllerConfig.Name == name {
-				found = true
-				if controllerConfig.Type != c.ControllerType() {
-					return fmt.Errorf("controller is expected to be of %s type, but in the config it's %s of type",
-						c.ControllerType(), controllerConfig.Type)
-				}
-			}
-		}
-		if !found {
-			controllerConfig := configuration.Controller{
-				Type: c.ControllerType(),
-				Name: name,
-			}
-
-			serviceConfig.Controllers = append(serviceConfig.Controllers, controllerConfig)
+		err := independent.PrepareControllerConfiguration(name, c.ControllerType())
+		if err == nil {
+			return fmt.Errorf("prepare '%s' controller configuration as '%s' type: %w", name, c.ControllerType(), err)
 		}
 	}
 
-	// validate the controller instances
-	for i, controllerConfig := range serviceConfig.Controllers {
-		// validate the controller instances
-		// make sure that they are tpc type
-		if len(controllerConfig.Instances) == 0 {
-			port := independent.Config.GetFreePort()
+	independent.Config.Service = serviceConfig
+	return nil
+}
 
-			sourceInstance := configuration.ControllerInstance{
-				Name:     controllerConfig.Name,
-				Instance: controllerConfig.Name + "1",
-				Port:     uint64(port),
-			}
-			controllerConfig.Instances = append(controllerConfig.Instances, sourceInstance)
-			serviceConfig.Controllers[i] = controllerConfig
-		} else {
-			if controllerConfig.Instances[0].Port == 0 {
-				return fmt.Errorf("the port should not be 0 in the source")
-			}
+func (independent *Service) PrepareControllerConfiguration(name string, as configuration.Type) error {
+	serviceConfig := independent.Config.Service
+
+	// validate the Controllers
+	controllerConfig, err := serviceConfig.GetController(name)
+	if err == nil {
+		if controllerConfig.Type != as {
+			return fmt.Errorf("controller expected to be of '%s' type, not '%s'", as, controllerConfig.Type)
 		}
+	} else {
+		controllerConfig := configuration.Controller{
+			Type: as,
+			Name: name,
+		}
+
+		serviceConfig.Controllers = append(serviceConfig.Controllers, controllerConfig)
+	}
+
+	err = independent.prepareInstanceConfiguration(controllerConfig)
+	if err != nil {
+		return fmt.Errorf("failed preparing '%s' controller instance configuration: %w", controllerConfig.Name, err)
+	}
+
+	independent.Config.Service = serviceConfig
+	return nil
+}
+
+func (independent *Service) prepareInstanceConfiguration(controllerConfig configuration.Controller) error {
+	serviceConfig := independent.Config.Service
+
+	if len(controllerConfig.Instances) == 0 {
+		port := independent.Config.GetFreePort()
+
+		sourceInstance := configuration.ControllerInstance{
+			Name:     controllerConfig.Name,
+			Instance: controllerConfig.Name + "1",
+			Port:     uint64(port),
+		}
+		controllerConfig.Instances = append(controllerConfig.Instances, sourceInstance)
+		serviceConfig.SetController(controllerConfig)
+	} else {
+		if controllerConfig.Instances[0].Port == 0 {
+			return fmt.Errorf("the port should not be 0 in the source")
+		}
+	}
+
+	independent.Config.Service = serviceConfig
+	return nil
+}
+
+func (independent *Service) prepareConfiguration(expectedType configuration.ServiceType) error {
+	if err := independent.prepareServiceConfiguration(expectedType); err != nil {
+		return fmt.Errorf("prepareServiceConfiguration as %s: %w", expectedType, err)
+	}
+	serviceConfig := independent.Config.Service
+
+	// validate the Controllers
+	if err := independent.prepareControllerConfigurations(); err != nil {
+		return fmt.Errorf("prepareControllerConfigurations: %w", err)
 	}
 
 	// todo validate the extensions
@@ -179,7 +216,7 @@ func (independent *Service) preparePipelineConfiguration(proxyUrl string, contro
 	return nil
 }
 
-func (independent *Service) Prepare() error {
+func (independent *Service) Prepare(as configuration.ServiceType) error {
 	if len(independent.Controllers) == 0 {
 		return fmt.Errorf("no Controllers. call independent.AddController")
 	}
@@ -189,7 +226,7 @@ func (independent *Service) Prepare() error {
 		return fmt.Errorf("service.PrepareContext: %w", err)
 	}
 
-	err = independent.prepareConfiguration()
+	err = independent.prepareConfiguration(as)
 	if err != nil {
 		return fmt.Errorf("prepareConfiguration: %w", err)
 	}
@@ -227,7 +264,7 @@ func (independent *Service) Prepare() error {
 
 		controllerConfig, err := independent.Config.Service.GetController(name)
 		if err != nil {
-			return fmt.Errorf("controller '%s' registered in the independent, no Config: %w", name, err)
+			return fmt.Errorf("controller '%s' registered in the service, no config found: %w", name, err)
 		}
 
 		controller.AddConfig(&controllerConfig)
@@ -241,31 +278,38 @@ func (independent *Service) Prepare() error {
 	return nil
 }
 
+func (independent *Service) BuildConfiguration() {
+	path, err := argument.Value(argument.Path)
+	if err != nil {
+		independent.Logger.Fatal("requires 'path' flag", "error", err)
+	}
+
+	url, err := argument.Value(argument.Url)
+	if err != nil {
+		independent.Logger.Fatal("requires 'url' flag", "error", err)
+	}
+
+	independent.Config.Service.Url = url
+
+	err = independent.Config.WriteService(path)
+	if err != nil {
+		independent.Logger.Fatal("failed to write the proxy into the file", "error", err)
+	}
+
+	independent.Logger.Info("the proxy was generated", "path", path)
+
+	os.Exit(0)
+}
+
 // Run the independent service.
 func (independent *Service) Run() {
 	var wg sync.WaitGroup
 
-	for _, controllerConfig := range independent.Config.Service.Controllers {
-		if err := independent.Controllers.Exist(controllerConfig.Name); err != nil {
-			fmt.Println("the config doesn't exist", controllerConfig, "error", err)
+	for name, controllerInterface := range independent.Controllers {
+		c := controllerInterface.(controller.Interface)
+		if err := independent.Controllers.Exist(name); err != nil {
+			independent.Logger.Fatal("controller configuration not found", "configuration", name, "error", err)
 			continue
-		}
-		controllerList := independent.Controllers.Map()
-		var c, ok = controllerList[controllerConfig.Name].(controller.Interface)
-		if !ok {
-			independent.Logger.Fatal("interface -> key-value failed", "controller name")
-			continue
-		}
-
-		// add the extensions required by the controller
-		requiredExtensions := c.RequiredExtensions()
-		for _, url := range requiredExtensions {
-			extension := independent.Config.Service.GetExtension(url)
-			if extension == nil {
-				independent.Logger.Fatal("extension required by the controller doesn't exist in the Config", "url", url)
-			}
-
-			c.AddExtensionConfig(extension)
 		}
 
 		wg.Add(1)
