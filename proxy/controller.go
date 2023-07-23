@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/remote"
@@ -10,18 +9,6 @@ import (
 
 	"github.com/ahmetson/service-lib/log"
 )
-
-// RequestHandler handles all raw requests from source.
-//
-// Returns the raw message to send to the destination
-type RequestHandler = func([]string, *log.Logger) ([]string, error)
-
-// ReplyHandler handles all raw requests from destination.
-// The first argument is the raw message.Reply received from the destination.
-// The second argument is the request messages received from the client (without delimiter and id)
-//
-// Returns the raw message to send to the source.
-type ReplyHandler = func([]string, []string, *log.Logger) []string
 
 // ControllerName is the name of the proxy router that connects source and destination
 const ControllerName = "proxy_controller"
@@ -47,9 +34,6 @@ type Controller struct {
 	// type of the required destination
 	requiredDestination configuration.Type
 	logger              *log.Logger
-	requestHandler      RequestHandler
-	replyHandler        ReplyHandler
-	requestMessages     *key_value.List
 }
 
 // newController Returns the initiated Router with the service parameters that connects source and destination.
@@ -59,23 +43,7 @@ func newController(logger *log.Logger) *Controller {
 		logger:              logger,
 		destination:         nil,
 		requiredDestination: configuration.UnknownType,
-		requestHandler:      nil,
-		replyHandler:        nil,
-		requestMessages:     key_value.NewList(),
 	}
-}
-
-// SetRequestHandler sets the request handler.
-// If the request handler succeeds then the request handler will have the final message
-// in the "destination"
-func (controller *Controller) SetRequestHandler(handler RequestHandler) {
-	controller.requestHandler = handler
-}
-
-// SetReplyHandler sets the reply handler.
-// The reply handler's error will be printed, but it doesn't mean that client will receive it.
-func (controller *Controller) SetReplyHandler(handler ReplyHandler) {
-	controller.replyHandler = handler
 }
 
 func (controller *Controller) RequireDestination(controllerType configuration.Type) {
@@ -147,10 +115,6 @@ func (controller *Controller) Run() {
 		controller.logger.Fatal("no destinations registered in the proxy", "hint", "call router.RegisterDestination()")
 	}
 
-	if controller.requestHandler == nil {
-		controller.logger.Fatal("request handler wasn't set")
-	}
-
 	controller.logger.Info("setup the dealer sockets")
 	//  Initialize poll set
 	poller := zmq.NewPoller()
@@ -182,11 +146,6 @@ func (controller *Controller) Run() {
 
 	controller.logger.Info("The proxy controller waits for client requestMessages")
 
-	if controller.replyHandler != nil {
-		controller.logger.Warn("the reply handler was given, we will track all messages",
-			"todo 1", "clean the messages after timeout")
-	}
-
 	//  Switch messages between sockets
 	for {
 		// The '-1' argument indicates waiting for the
@@ -207,24 +166,6 @@ func (controller *Controller) Run() {
 					continue
 				}
 
-				// Let's bypass the string
-				destinationMessages, err := controller.requestHandler(messages[2:], controller.logger)
-				if err != nil {
-					if err := replyErrorMessage(frontend, err, messages); err != nil {
-						controller.logger.Fatal("replyErrorMessage", "error", err)
-					}
-					continue
-				}
-				if len(destinationMessages) > 2 &&
-					destinationMessages[0] == messages[0] &&
-					destinationMessages[1] == messages[1] {
-					err := fmt.Errorf("don't return the identity and delimeter, they are added by proxy controller")
-					if err := replyErrorMessage(frontend, err, messages); err != nil {
-						controller.logger.Fatal("reply_error_message", "error", err)
-					}
-					continue
-				}
-
 				controller.logger.Info("todo", "currently", "proxy redirects to the first destination", "todo", "need to direct through pipeline")
 				client := controller.destination
 				if client == nil {
@@ -233,16 +174,6 @@ func (controller *Controller) Run() {
 						controller.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
-				}
-
-				if controller.replyHandler != nil {
-					err = controller.requestMessages.Add(messages[0], messages[2:])
-					if err != nil {
-						if replyErr := replyErrorMessage(frontend, err, messages); replyErr != nil {
-							controller.logger.Fatal("reply_error_message", "error", replyErr)
-						}
-						continue
-					}
 				}
 
 				// send the id
@@ -258,15 +189,15 @@ func (controller *Controller) Run() {
 				// skip the command name
 				// we skip the router name,
 				// sending the message.Request part
-				lastIndex := len(destinationMessages) - 1
-				for i := 0; i <= lastIndex; i++ {
+				lastIndex := len(messages) - 1
+				for i := 2; i <= lastIndex; i++ {
 					if i == lastIndex {
-						_, err := client.socket.Send(destinationMessages[i], 0)
+						_, err := client.socket.Send(messages[i], 0)
 						if err != nil {
 							controller.logger.Fatal("send to dealer", "error", err)
 						}
 					} else {
-						_, err := client.socket.Send(destinationMessages[i], zmq.SNDMORE)
+						_, err := client.socket.Send(messages[i], zmq.SNDMORE)
 						if err != nil {
 							controller.logger.Fatal("send to dealer", "error", err)
 						}
@@ -280,22 +211,6 @@ func (controller *Controller) Run() {
 					messages, err := zmqSocket.RecvMessage(0)
 					if err != nil {
 						controller.logger.Fatal("receive from dealer", "error", err)
-					}
-
-					if controller.replyHandler != nil {
-						if !controller.requestMessages.Exist(messages[0]) {
-							controller.logger.Fatal("reply handler needs request messages but not found", "id", messages[0])
-						}
-
-						rawRequestMessages, err := controller.requestMessages.Take(messages[0])
-						if err != nil {
-							controller.logger.Fatal("failed to take the request messages", "error", err)
-						}
-						requestMessages, ok := rawRequestMessages.([]string)
-						if !ok {
-							controller.logger.Fatal("failed to decompose interfaces into the request message", "raw messages", requestMessages)
-						}
-						messages = controller.replyHandler(messages, requestMessages, controller.logger)
 					}
 
 					_, err = frontend.SendMessage(messages, 0)
