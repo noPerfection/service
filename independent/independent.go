@@ -39,7 +39,7 @@ func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
 }
 
 // AddController by their instance name
-func (independent *Service) AddController(name string, controller *controller.Controller) {
+func (independent *Service) AddController(name string, controller controller.Interface) {
 	independent.Controllers.Set(name, controller)
 }
 
@@ -73,7 +73,7 @@ func (independent *Service) Pipe(proxyUrl string, name string) error {
 func (independent *Service) requiredControllerExtensions() []string {
 	var extensions []string
 	for _, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(*controller.Controller)
+		c := controllerInterface.(controller.Interface)
 		extensions = append(extensions, c.RequiredExtensions()...)
 	}
 
@@ -101,7 +101,7 @@ func (independent *Service) prepareConfiguration() error {
 
 	// validate the Controllers
 	for name, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(*controller.Controller)
+		c := controllerInterface.(controller.Interface)
 
 		found := false
 		for _, controllerConfig := range serviceConfig.Controllers {
@@ -223,7 +223,7 @@ func (independent *Service) Prepare() error {
 	}
 
 	for name, controllerInterface := range independent.Controllers {
-		controller := controllerInterface.(*controller.Controller)
+		controller := controllerInterface.(controller.Interface)
 
 		controllerConfig, err := independent.Config.Service.GetController(name)
 		if err != nil {
@@ -251,7 +251,7 @@ func (independent *Service) Run() {
 			continue
 		}
 		controllerList := independent.Controllers.Map()
-		var c, ok = controllerList[controllerConfig.Name].(*controller.Controller)
+		var c, ok = controllerList[controllerConfig.Name].(controller.Interface)
 		if !ok {
 			independent.Logger.Fatal("interface -> key-value failed", "controller name")
 			continue
