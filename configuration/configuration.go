@@ -315,12 +315,12 @@ func createYaml(configs ...Service) key_value.KeyValue {
 
 // WriteService writes the service as the yaml on the given path.
 // If the path doesn't contain the file extension it will through an error
-func (config *Config) WriteService(path string) error {
+func WriteService(path string, service Service) error {
 	if err := validateServicePath(path); err != nil {
 		return fmt.Errorf("validateServicePath: %w", err)
 	}
 
-	kv := createYaml(config.Service)
+	kv := createYaml(service)
 
 	serviceConfig, err := yaml.Marshal(kv.Map())
 	if err != nil {

@@ -164,8 +164,8 @@ func ReadServiceConfiguration(context *configuration.Context, url string) (confi
 //
 // It's needed for linting the dependency's destination controller with the service that relies on it.
 func WriteServiceConfiguration(context *configuration.Context, url string, config configuration.Service) error {
-
-	return nil
+	configUrl := ConfigurationPath(context, url)
+	return configuration.WriteService(configUrl, config)
 }
 
 // PrepareConfiguration returns the proxy parameters and the configuration.Proxy
