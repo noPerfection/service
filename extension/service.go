@@ -10,16 +10,16 @@ import (
 	"sync"
 )
 
-// Service of the extension type
-type Service struct {
+// Extension of the extension type
+type Extension struct {
 	configuration *configuration.Config
 	Controller    *controller.Controller
 	logger        *log.Logger
 }
 
 // New extension service based on the configurations
-func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
-	service := Service{
+func New(config *configuration.Config, logger *log.Logger) (*Extension, error) {
+	service := Extension{
 		configuration: config,
 		Controller:    nil,
 		logger:        logger,
@@ -29,7 +29,7 @@ func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
 }
 
 // AddController creates a controller of this extension
-func (service *Service) AddController(controllerType configuration.Type) error {
+func (service *Extension) AddController(controllerType configuration.Type) error {
 	if controllerType == configuration.UnknownType {
 		return fmt.Errorf("unknown controller type can't be in the extension")
 	}
@@ -65,7 +65,7 @@ func (service *Service) AddController(controllerType configuration.Type) error {
 	//replier.AddConfig(&controllerConf)
 }
 
-func (service *Service) prepareConfiguration() error {
+func (service *Extension) prepareConfiguration() error {
 	// validate the service itself
 	config := service.configuration
 	serviceConfig := service.configuration.Service
@@ -139,7 +139,7 @@ func (service *Service) prepareConfiguration() error {
 
 // Prepare the service by validating the configuration.
 // if the configuration doesn't exist, it will be created.
-func (service *Service) Prepare() error {
+func (service *Extension) Prepare() error {
 	if service.Controller == nil {
 		return fmt.Errorf("missing controller. call AddController")
 	}
@@ -166,7 +166,7 @@ func (service *Service) Prepare() error {
 }
 
 // Run the independent service.
-func (service *Service) Run() {
+func (service *Extension) Run() {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
