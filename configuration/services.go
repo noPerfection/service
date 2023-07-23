@@ -143,12 +143,18 @@ func (s *Service) SetProxy(proxy Proxy) {
 	s.Proxies = append(s.Proxies, proxy)
 }
 
+// SetController Updates the controller if its already exist.
+// If not exists, adds a new controller
 func (s *Service) SetController(controller Controller) {
-	for i, serviceController := range s.Controllers {
-
-		if strings.Compare(serviceController.Name, controller.Name) == 0 {
-			s.Controllers[i] = controller
+	_, err := s.GetController(controller.Name)
+	if err == nil {
+		for i, serviceController := range s.Controllers {
+			if strings.Compare(serviceController.Name, controller.Name) == 0 {
+				s.Controllers[i] = controller
+			}
 		}
+	} else {
+		s.Controllers = append(s.Controllers, controller)
 	}
 }
 
