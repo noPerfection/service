@@ -158,4 +158,9 @@ func (s *Service) SetController(controller Controller) {
 	}
 }
 
+// SourceName of this type should be listed within the controllers in the configuration
+const SourceName = "source"
+
+// DestinationName of this type should be listed within the controllers in the configuration
+const DestinationName = "destination"
 type Services []Service

@@ -59,7 +59,7 @@ func PreparePipelineConfiguration(config *configuration.Config, proxyUrl string,
 		return fmt.Errorf("dev.ReadServiceConfiguration of '%s': %w", proxyUrl, err)
 	}
 
-	destinationConfig, err := proxyConfig.GetController(proxy.DestinationName)
+	destinationConfig, err := proxyConfig.GetController(configuration.DestinationName)
 	if err != nil {
 		return fmt.Errorf("getting dependency proxy's destination configuration failed: %w", err)
 	}

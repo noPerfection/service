@@ -21,12 +21,6 @@ type Proxy struct {
 	Controller *Controller
 }
 
-// SourceName of this type should be listed within the controllers in the configuration
-const SourceName = "source"
-
-// DestinationName of this type should be listed within the controllers in the configuration
-const DestinationName = "destination"
-
 // extension creates the configuration of the proxy controller.
 // The proxy controller itself is added as the extension to the source controllers,
 // to the request handlers and to the reply handlers.
@@ -38,7 +32,7 @@ func extension() *configuration.Extension {
 // It adds the controller configuration.
 func (proxy *Proxy) registerDestination() {
 	for _, c := range proxy.service.Config.Service.Controllers {
-		if c.Name == DestinationName {
+		if c.Name == configuration.DestinationName {
 			proxy.Controller.RegisterDestination(&c)
 			break
 		}
@@ -63,7 +57,7 @@ func New(config *configuration.Config, parent *log.Logger) *Proxy {
 
 func (proxy *Proxy) getSource() controller.Interface {
 	controllers := proxy.service.Controllers.Map()
-	source := controllers[SourceName].(controller.Interface)
+	source := controllers[configuration.SourceName].(controller.Interface)
 	return source
 }
 
@@ -101,7 +95,7 @@ func (proxy *Proxy) Prepare() error {
 		return fmt.Errorf("service.Prepare as '%s' failed: %w", configuration.ProxyType, err)
 	}
 
-	if err := proxy.service.PrepareControllerConfiguration(DestinationName, proxy.Controller.requiredDestination); err != nil {
+	if err := proxy.service.PrepareControllerConfiguration(configuration.DestinationName, proxy.Controller.requiredDestination); err != nil {
 		return fmt.Errorf("prepare destination as '%s' failed: %w", proxy.Controller.requiredDestination, err)
 	}
 
@@ -139,7 +133,7 @@ func (proxy *Proxy) SetDefaultSource(controllerType configuration.Type) error {
 
 // SetCustomSource sets the source controller, and invokes the source controller's
 func (proxy *Proxy) SetCustomSource(source controller.Interface) {
-	proxy.service.AddController(SourceName, source)
+	proxy.service.AddController(configuration.SourceName, source)
 }
 
 // Run the proxy service.
