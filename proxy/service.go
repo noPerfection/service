@@ -6,18 +6,20 @@ import (
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/controller"
+	"github.com/ahmetson/service-lib/independent"
 	"github.com/ahmetson/service-lib/log"
 	"sync"
 )
 
+type service = independent.Service
+
 // Proxy defines the parameters of the proxy service
 type Proxy struct {
-	configuration *configuration.Config
+	*service
 	// source controllers that gets the messages
 	source controller.Interface
 	// Controller that handles the requests and redirects to the destination.
 	Controller *Controller
-	logger     *log.Logger
 }
 
 // SourceName of this type should be listed within the controllers in the configuration
@@ -36,7 +38,7 @@ func extension() *configuration.Extension {
 // registerDestination registers the controller instances as the destination.
 // It adds the controller configuration.
 func (proxy *Proxy) registerDestination() {
-	for _, c := range proxy.configuration.Service.Controllers {
+	for _, c := range proxy.service.Config.Service.Controllers {
 		if c.Name == DestinationName {
 			proxy.Controller.RegisterDestination(&c)
 			break
@@ -46,7 +48,7 @@ func (proxy *Proxy) registerDestination() {
 
 // registerSource adds the configuration to the source.
 func (proxy *Proxy) registerSource() {
-	for _, c := range proxy.configuration.Service.Controllers {
+	for _, c := range proxy.service.Config.Service.Controllers {
 		if c.Name == SourceName {
 			proxy.source.AddConfig(&c)
 			break
@@ -59,10 +61,12 @@ func New(config *configuration.Config, parent *log.Logger) *Proxy {
 	logger := parent.Child("proxy")
 
 	service := Proxy{
-		configuration: config,
-		source:        nil,
-		Controller:    newController(logger.Child("controller")),
-		logger:        logger,
+		service: &independent.Service{
+			Config: config,
+			Logger: logger,
+		},
+		source:     nil,
+		Controller: newController(logger.Child("controller")),
 	}
 
 	return &service
@@ -72,12 +76,12 @@ func New(config *configuration.Config, parent *log.Logger) *Proxy {
 // If the configuration was already given, then it validates it.
 func (proxy *Proxy) prepareConfiguration() error {
 	// validate the proxy itself
-	config := proxy.configuration
-	serviceConfig := proxy.configuration.Service
+	config := proxy.service.Config
+	serviceConfig := proxy.service.Config.Service
 	if len(serviceConfig.Type) == 0 {
 		exePath, err := configuration.GetCurrentPath()
 		if err != nil {
-			proxy.logger.Fatal("failed to get os context", "error", err)
+			proxy.service.Logger.Fatal("failed to get os context", "error", err)
 		}
 
 		serviceConfig = configuration.Service{
@@ -132,7 +136,7 @@ func (proxy *Proxy) prepareConfiguration() error {
 	// validate the controller instances
 	// make sure that they are tpc type
 	if len(sourceConfig.Instances) == 0 {
-		port := proxy.configuration.GetFreePort()
+		port := proxy.service.Config.GetFreePort()
 
 		sourceInstance := configuration.ControllerInstance{
 			Name:     sourceConfig.Name,
@@ -147,7 +151,7 @@ func (proxy *Proxy) prepareConfiguration() error {
 	}
 
 	if len(destinationConfig.Instances) == 0 {
-		port := proxy.configuration.GetFreePort()
+		port := proxy.service.Config.GetFreePort()
 
 		sourceInstance := configuration.ControllerInstance{
 			Name:     destinationConfig.Name,
@@ -163,7 +167,7 @@ func (proxy *Proxy) prepareConfiguration() error {
 
 	serviceConfig.SetController(sourceConfig)
 	serviceConfig.SetController(destinationConfig)
-	proxy.configuration.Service = serviceConfig
+	proxy.service.Config.Service = serviceConfig
 
 	// todo validate the extensions
 	// todo validate the proxies
@@ -177,19 +181,19 @@ func ServiceToProxy(s *configuration.Service) (configuration.Proxy, error) {
 		return configuration.Proxy{}, fmt.Errorf("only proxy type of service can be converted")
 	}
 
-	controller, err := s.GetController(SourceName)
+	controllerConfig, err := s.GetController(SourceName)
 	if err != nil {
-		return configuration.Proxy{}, fmt.Errorf("no source controller: %w", err)
+		return configuration.Proxy{}, fmt.Errorf("no source controllerConfig: %w", err)
 	}
 
-	if len(controller.Instances) == 0 {
+	if len(controllerConfig.Instances) == 0 {
 		return configuration.Proxy{}, fmt.Errorf("no source instances")
 	}
 
 	converted := configuration.Proxy{
 		Url:      s.Url,
-		Instance: controller.Name + " instance 01",
-		Port:     controller.Instances[0].Port,
+		Instance: controllerConfig.Name + " instance 01",
+		Port:     controllerConfig.Instances[0].Port,
 	}
 
 	return converted, nil
@@ -241,13 +245,13 @@ func (proxy *Proxy) SetDefaultSource(controllerType configuration.Type) error {
 	// todo move the validation to the proxy.ValidateTypes() function
 	var source controller.Interface
 	if controllerType == configuration.ReplierType {
-		sourceController, err := controller.NewReplier(proxy.logger)
+		sourceController, err := controller.NewReplier(proxy.service.Logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a source as controller.NewReplier: %w", err)
 		}
 		source = sourceController
 	} else if controllerType == configuration.PusherType {
-		sourceController, err := controller.NewPull(proxy.logger)
+		sourceController, err := controller.NewPull(proxy.service.Logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a source as controller.NewPull: %w", err)
 		}
@@ -274,22 +278,22 @@ func (proxy *Proxy) SetCustomSource(source controller.Interface) error {
 func (proxy *Proxy) generateConfiguration() {
 	path, err := argument.Value(argument.Path)
 	if err != nil {
-		proxy.logger.Fatal("requires 'path' flag", "error", err)
+		proxy.service.Logger.Fatal("requires 'path' flag", "error", err)
 	}
 
 	url, err := argument.Value(argument.Url)
 	if err != nil {
-		proxy.logger.Fatal("requires 'url' flag", "error", err)
+		proxy.service.Logger.Fatal("requires 'url' flag", "error", err)
 	}
 
-	proxy.configuration.Service.Url = url
+	proxy.service.Config.Service.Url = url
 
-	err = proxy.configuration.WriteService(path)
+	err = proxy.service.Config.WriteService(path)
 	if err != nil {
-		proxy.logger.Fatal("failed to write the proxy into the file", "error", err)
+		proxy.service.Logger.Fatal("failed to write the proxy into the file", "error", err)
 	}
 
-	proxy.logger.Info("the proxy was generated", "path", path)
+	proxy.service.Logger.Info("the proxy was generated", "path", path)
 }
 
 // Run the proxy service.
