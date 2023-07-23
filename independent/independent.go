@@ -170,6 +170,7 @@ func (independent *Service) prepareInstanceConfiguration(controllerConfig config
 	return nil
 }
 
+// prepareConfiguration prepares yaml in service, controller, and controller instances
 func (independent *Service) prepareConfiguration(expectedType configuration.ServiceType) error {
 	if err := independent.prepareServiceConfiguration(expectedType); err != nil {
 		return fmt.Errorf("prepareServiceConfiguration as %s: %w", expectedType, err)
@@ -216,22 +217,31 @@ func (independent *Service) preparePipelineConfiguration(proxyUrl string, contro
 	return nil
 }
 
+// Prepare the services by validating, linting the configurations, as well as setting up the dependencies
 func (independent *Service) Prepare(as configuration.ServiceType) error {
 	if len(independent.Controllers) == 0 {
 		return fmt.Errorf("no Controllers. call independent.AddController")
 	}
 
+	//
+	// prepare the context for dependencies
+	//---------------------------------------------------
 	err := service.PrepareContext(independent.Config.Context)
 	if err != nil {
 		return fmt.Errorf("service.PrepareContext: %w", err)
 	}
 
+	//
+	// prepare the configuration
+	//----------------------------------------------------
 	err = independent.prepareConfiguration(as)
 	if err != nil {
 		return fmt.Errorf("prepareConfiguration: %w", err)
 	}
 
-	// prepare the Config and run it
+	//
+	// prepare proxies
+	//--------------------------------------------------
 	if len(independent.RequiredProxies) > 0 {
 		independent.Logger.Info("there are some proxies to setup")
 		for _, requiredProxy := range independent.RequiredProxies {
@@ -252,6 +262,9 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 		}
 	}
 
+	//
+	// prepare extensions
+	//------------------------------------------------------
 	requiredExtensions := independent.requiredControllerExtensions()
 	if len(requiredExtensions) > 0 {
 		independent.Logger.Warn("extensions needed to be prepared", "extensions", requiredExtensions)
@@ -259,6 +272,9 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 		independent.Logger.Info("no extensions needed")
 	}
 
+	//
+	// lint extensions, configurations to the controllers
+	//---------------------------------------------------------
 	for name, controllerInterface := range independent.Controllers {
 		controller := controllerInterface.(controller.Interface)
 
@@ -278,6 +294,7 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	return nil
 }
 
+// BuildConfiguration creates a yaml configuration with the service parameters
 func (independent *Service) BuildConfiguration() {
 	path, err := argument.Value(argument.Path)
 	if err != nil {
