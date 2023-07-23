@@ -41,7 +41,6 @@ import (
 	"fmt"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/proxy"
 	"github.com/go-git/go-git/v5" // with go modules disabled
 	"net/url"
 	"os"
@@ -148,21 +147,6 @@ func SrcExist(context *configuration.Context, url string) (bool, error) {
 		}
 	}
 	return true, nil
-}
-
-// ReadProxyConfiguration returns the yaml configuration of the dependency as a proxy
-func ReadProxyConfiguration(context *configuration.Context, url string) (configuration.Proxy, error) {
-	service, err := ReadServiceConfiguration(context, url)
-	if err != nil {
-		return configuration.Proxy{}, fmt.Errorf("ReadServiceConfiguration of '%s': %w", url, err)
-	}
-
-	converted, err := proxy.ServiceToProxy(&service)
-	if err != nil {
-		return configuration.Proxy{}, fmt.Errorf("proxy.ServiceToProxy: %w", err)
-	}
-
-	return converted, nil
 }
 
 // ReadServiceConfiguration returns the yaml configuration of the dependency as is
