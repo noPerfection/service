@@ -42,3 +42,10 @@ func setDevContext(config *Config) {
 
 	config.Context = context
 }
+
+func (context *Context) Host() string {
+	if context.Type == DevContext {
+		return "localhost"
+	}
+	return "0.0.0.0"
+}
