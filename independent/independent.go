@@ -296,6 +296,9 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 
 // BuildConfiguration creates a yaml configuration with the service parameters
 func (independent *Service) BuildConfiguration() {
+	if !argument.Exist(argument.BuildConfiguration) {
+		return
+	}
 	path, err := argument.Value(argument.Path)
 	if err != nil {
 		independent.Logger.Fatal("requires 'path' flag", "error", err)
@@ -320,9 +323,7 @@ func (independent *Service) BuildConfiguration() {
 
 // Run the independent service.
 func (independent *Service) Run() {
-	if argument.Exist(argument.BuildConfiguration) {
-		independent.BuildConfiguration()
-	}
+	independent.BuildConfiguration()
 
 	var wg sync.WaitGroup
 

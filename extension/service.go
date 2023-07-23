@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
-	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/independent"
 	"github.com/ahmetson/service-lib/log"
@@ -81,9 +80,5 @@ func (extension *Extension) Prepare() error {
 
 // Run the independent service.
 func (extension *Extension) Run() {
-	if argument.Exist(argument.BuildConfiguration) {
-		extension.service.BuildConfiguration()
-	}
-
 	extension.service.Run()
 }

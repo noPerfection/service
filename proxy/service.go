@@ -138,9 +138,8 @@ func (proxy *Proxy) SetCustomSource(source controller.Interface) {
 
 // Run the proxy service.
 func (proxy *Proxy) Run() {
-	if argument.Exist(argument.BuildConfiguration) {
-		proxy.service.BuildConfiguration()
-	}
+	// call BuildConfiguration explicitly to generate the yaml without proxy controller's extension.
+	proxy.service.BuildConfiguration()
 
 	// we add the proxy extension to the source.
 	// source can forward messages along with a route.
