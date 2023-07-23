@@ -104,7 +104,6 @@ func (independent *Service) prepareServiceConfiguration(expectedType configurati
 }
 
 func (independent *Service) prepareControllerConfigurations() error {
-	serviceConfig := independent.Config.Service
 
 	// validate the Controllers
 	for name, controllerInterface := range independent.Controllers {
@@ -116,7 +115,6 @@ func (independent *Service) prepareControllerConfigurations() error {
 		}
 	}
 
-	independent.Config.Service = serviceConfig
 	return nil
 }
 
@@ -130,12 +128,13 @@ func (independent *Service) PrepareControllerConfiguration(name string, as confi
 			return fmt.Errorf("controller expected to be of '%s' type, not '%s'", as, controllerConfig.Type)
 		}
 	} else {
-		controllerConfig := configuration.Controller{
+		controllerConfig = configuration.Controller{
 			Type: as,
 			Name: name,
 		}
 
 		serviceConfig.Controllers = append(serviceConfig.Controllers, controllerConfig)
+		independent.Config.Service = serviceConfig
 	}
 
 	err = independent.prepareInstanceConfiguration(controllerConfig)
@@ -143,7 +142,6 @@ func (independent *Service) PrepareControllerConfiguration(name string, as confi
 		return fmt.Errorf("failed preparing '%s' controller instance configuration: %w", controllerConfig.Name, err)
 	}
 
-	independent.Config.Service = serviceConfig
 	return nil
 }
 
@@ -160,13 +158,13 @@ func (independent *Service) prepareInstanceConfiguration(controllerConfig config
 		}
 		controllerConfig.Instances = append(controllerConfig.Instances, sourceInstance)
 		serviceConfig.SetController(controllerConfig)
+		independent.Config.Service = serviceConfig
 	} else {
 		if controllerConfig.Instances[0].Port == 0 {
 			return fmt.Errorf("the port should not be 0 in the source")
 		}
 	}
 
-	independent.Config.Service = serviceConfig
 	return nil
 }
 
@@ -175,7 +173,6 @@ func (independent *Service) prepareConfiguration(expectedType configuration.Serv
 	if err := independent.prepareServiceConfiguration(expectedType); err != nil {
 		return fmt.Errorf("prepareServiceConfiguration as %s: %w", expectedType, err)
 	}
-	serviceConfig := independent.Config.Service
 
 	// validate the Controllers
 	if err := independent.prepareControllerConfigurations(); err != nil {
@@ -183,8 +180,6 @@ func (independent *Service) prepareConfiguration(expectedType configuration.Serv
 	}
 
 	// todo validate the extensions
-
-	independent.Config.Service = serviceConfig
 
 	return nil
 }
