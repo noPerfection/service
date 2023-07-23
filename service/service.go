@@ -5,7 +5,6 @@ import (
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/context/dev"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/proxy"
 	"strings"
 )
 
@@ -23,25 +22,31 @@ func PrepareContext(context *configuration.Context) error {
 //
 // if dependency doesn't exist, it will be downloaded
 func PrepareProxyConfiguration(requiredProxy string, config *configuration.Config, logger *log.Logger) error {
-	err := dev.PrepareProxyConfiguration(config.Context, requiredProxy, logger)
+	err := dev.PrepareConfiguration(config.Context, requiredProxy, logger)
 	if err != nil {
-		return fmt.Errorf("dev.PrepareProxyConfiguration on %s: %w", requiredProxy, err)
+		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", requiredProxy, err)
 	}
 
-	proxy, err := dev.ReadProxyConfiguration(config.Context, requiredProxy)
+	service, err := dev.ReadServiceConfiguration(config.Context, requiredProxy)
+	converted, err := configuration.ServiceToProxy(&service)
 	if err != nil {
-		return fmt.Errorf("dev.ReadProxyConfiguration: %w", err)
+		return fmt.Errorf("proxy.ServiceToProxy: %w", err)
 	}
 
 	proxyConfiguration := config.Service.GetProxy(requiredProxy)
 	if proxyConfiguration == nil {
-		config.Service.SetProxy(proxy)
+		config.Service.SetProxy(converted)
 	} else {
-		if strings.Compare(proxyConfiguration.Url, proxy.Url) != 0 {
-			return fmt.Errorf("the proxy urls are not matching. in your configuration: %s, in the deps: %s", proxyConfiguration.Url, proxy.Url)
+		if strings.Compare(proxyConfiguration.Url, converted.Url) != 0 {
+			return fmt.Errorf("the proxy urls are not matching. in your configuration: %s, in the deps: %s", proxyConfiguration.Url, converted.Url)
 		}
-		if proxyConfiguration.Port != proxy.Port {
-			return fmt.Errorf("the proxy ports are not matching. in your configuration: %d, in the deps: %d", proxyConfiguration.Port, proxy.Port)
+		if proxyConfiguration.Port != converted.Port {
+			return fmt.Errorf("the proxy ports are not matching. in your configuration: %d, in the deps: %d", proxyConfiguration.Port, converted.Port)
+		}
+	}
+
+	return nil
+}
 		}
 	}
 

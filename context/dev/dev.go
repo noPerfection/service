@@ -168,8 +168,8 @@ func WriteServiceConfiguration(context *configuration.Context, url string, confi
 	return nil
 }
 
-// PrepareProxyConfiguration returns the proxy parameters and the configuration.Proxy
-func PrepareProxyConfiguration(context *configuration.Context, url string, logger *log.Logger) error {
+// PrepareConfiguration returns the proxy parameters and the configuration.Proxy
+func PrepareConfiguration(context *configuration.Context, url string, logger *log.Logger) error {
 	exist, err := ConfigurationExist(context, url)
 	if err != nil {
 		return fmt.Errorf("failed to check existence of %s in %s context: %w", url, context.Type, err)
@@ -201,7 +201,7 @@ func PrepareProxyConfiguration(context *configuration.Context, url string, logge
 			return fmt.Errorf("buildConfiguration of %s: %w", url, err)
 		}
 		logger.Info("configuration was built, read it")
-		return PrepareProxyConfiguration(context, url, logger)
+		return PrepareConfiguration(context, url, logger)
 	} else {
 		// first need to prepare the directory
 		err := prepareBinPath(context, url)
@@ -223,7 +223,7 @@ func PrepareProxyConfiguration(context *configuration.Context, url string, logge
 			return fmt.Errorf("build: %w", err)
 		}
 		logger.Info("file was built. generate the configuration file")
-		return PrepareProxyConfiguration(context, url, logger)
+		return PrepareConfiguration(context, url, logger)
 	} else {
 		// first prepare the src directory
 		err := prepareSrcPath(context, url)
@@ -237,7 +237,7 @@ func PrepareProxyConfiguration(context *configuration.Context, url string, logge
 			return fmt.Errorf("cloneSrc: %w", err)
 		} else {
 			logger.Info("prepare again to build the source")
-			return PrepareProxyConfiguration(context, url, logger)
+			return PrepareConfiguration(context, url, logger)
 		}
 	}
 
