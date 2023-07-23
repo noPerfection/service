@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
-	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/independent"
 	"github.com/ahmetson/service-lib/log"
@@ -59,31 +58,6 @@ func (proxy *Proxy) getSource() controller.Interface {
 	controllers := proxy.service.Controllers.Map()
 	source := controllers[configuration.SourceName].(controller.Interface)
 	return source
-}
-
-// ServiceToProxy returns the service in the proxy format
-// so that it can be used as a proxy
-func ServiceToProxy(s *configuration.Service) (configuration.Proxy, error) {
-	if s.Type != configuration.ProxyType {
-		return configuration.Proxy{}, fmt.Errorf("only proxy type of service can be converted")
-	}
-
-	controllerConfig, err := s.GetController(SourceName)
-	if err != nil {
-		return configuration.Proxy{}, fmt.Errorf("no source controllerConfig: %w", err)
-	}
-
-	if len(controllerConfig.Instances) == 0 {
-		return configuration.Proxy{}, fmt.Errorf("no source instances")
-	}
-
-	converted := configuration.Proxy{
-		Url:      s.Url,
-		Instance: controllerConfig.Name + " instance 01",
-		Port:     controllerConfig.Instances[0].Port,
-	}
-
-	return converted, nil
 }
 
 func (proxy *Proxy) Prepare() error {

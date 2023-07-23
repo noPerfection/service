@@ -167,4 +167,55 @@ const SourceName = "source"
 
 // DestinationName of this type should be listed within the controllers in the configuration
 const DestinationName = "destination"
+
+// ServiceToProxy returns the service in the proxy format
+// so that it can be used as a proxy
+func ServiceToProxy(s *Service) (Proxy, error) {
+	if s.Type != ProxyType {
+		return Proxy{}, fmt.Errorf("only proxy type of service can be converted")
+	}
+
+	controllerConfig, err := s.GetController(SourceName)
+	if err != nil {
+		return Proxy{}, fmt.Errorf("no source controllerConfig: %w", err)
+	}
+
+	if len(controllerConfig.Instances) == 0 {
+		return Proxy{}, fmt.Errorf("no source instances")
+	}
+
+	converted := Proxy{
+		Url:      s.Url,
+		Instance: controllerConfig.Name + " instance 01",
+		Port:     controllerConfig.Instances[0].Port,
+	}
+
+	return converted, nil
+}
+
+// ServiceToExtension returns the service in the proxy format
+// so that it can be used as a proxy
+func ServiceToExtension(s *Service) (Extension, error) {
+	if s.Type != ExtensionType {
+		return Extension{}, fmt.Errorf("only proxy type of service can be converted")
+	}
+
+	controllerConfig, err := s.GetFirstController()
+	if err != nil {
+		return Extension{}, fmt.Errorf("no controllerConfig: %w", err)
+	}
+
+	if len(controllerConfig.Instances) == 0 {
+		return Extension{}, fmt.Errorf("no controller instances")
+	}
+
+	converted := Extension{
+		Url:      s.Url,
+		Instance: controllerConfig.Name + " instance 01",
+		Port:     controllerConfig.Instances[0].Port,
+	}
+
+	return converted, nil
+}
+
 type Services []Service
