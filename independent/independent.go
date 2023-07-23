@@ -209,10 +209,10 @@ func (independent *Service) preparePipelineConfiguration(proxyUrl string, contro
 		return fmt.Errorf("independent.Controllers.Exist of '%s': %w", controllerName, err)
 	}
 
-	err := PreparePipelineConfiguration(independent.Config, proxyUrl, controllerName, independent.Logger)
+	err := preparePipelineConfiguration(independent.Config, proxyUrl, controllerName, independent.Logger)
 
 	if err != nil {
-		return fmt.Errorf("service.PreparePipelineConfiguration: %w", err)
+		return fmt.Errorf("service.preparePipelineConfiguration: %w", err)
 	}
 	return nil
 }
@@ -226,9 +226,9 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	//
 	// prepare the context for dependencies
 	//---------------------------------------------------
-	err := PrepareContext(independent.Config.Context)
+	err := prepareContext(independent.Config.Context)
 	if err != nil {
-		return fmt.Errorf("service.PrepareContext: %w", err)
+		return fmt.Errorf("service.prepareContext: %w", err)
 	}
 
 	//
@@ -245,8 +245,8 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	if len(independent.RequiredProxies) > 0 {
 		independent.Logger.Info("there are some proxies to setup")
 		for _, requiredProxy := range independent.RequiredProxies {
-			if err := PrepareProxyConfiguration(requiredProxy, independent.Config, independent.Logger); err != nil {
-				return fmt.Errorf("service.PrepareProxyConfiguration of %s: %w", requiredProxy, err)
+			if err := prepareProxyConfiguration(requiredProxy, independent.Config, independent.Logger); err != nil {
+				return fmt.Errorf("service.prepareProxyConfiguration of %s: %w", requiredProxy, err)
 			}
 		}
 
@@ -269,8 +269,8 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	if len(requiredExtensions) > 0 {
 		independent.Logger.Warn("extensions needed to be prepared", "extensions", requiredExtensions)
 		for _, requiredExtension := range requiredExtensions {
-			if err := PrepareExtensionConfiguration(requiredExtension, independent.Config, independent.Logger); err != nil {
-				return fmt.Errorf("service.PrepareExtensionConfiguration of %s: %w", requiredExtension, err)
+			if err := prepareExtensionConfiguration(requiredExtension, independent.Config, independent.Logger); err != nil {
+				return fmt.Errorf("service.prepareExtensionConfiguration of %s: %w", requiredExtension, err)
 			}
 		}
 	}
@@ -349,7 +349,7 @@ func (independent *Service) Run() {
 	wg.Wait()
 }
 
-func PrepareContext(context *configuration.Context) error {
+func prepareContext(context *configuration.Context) error {
 	// get the extensions
 	err := dev.Prepare(context)
 	if err != nil {
@@ -359,10 +359,10 @@ func PrepareContext(context *configuration.Context) error {
 	return nil
 }
 
-// PrepareProxyConfiguration links the proxy with the dependency.
+// prepareProxyConfiguration links the proxy with the dependency.
 //
 // if dependency doesn't exist, it will be downloaded
-func PrepareProxyConfiguration(requiredProxy string, config *configuration.Config, logger *log.Logger) error {
+func prepareProxyConfiguration(requiredProxy string, config *configuration.Config, logger *log.Logger) error {
 	err := dev.PrepareConfiguration(config.Context, requiredProxy, logger)
 	if err != nil {
 		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", requiredProxy, err)
@@ -389,7 +389,7 @@ func PrepareProxyConfiguration(requiredProxy string, config *configuration.Confi
 	return nil
 }
 
-func PrepareExtensionConfiguration(requiredExtension string, config *configuration.Config, logger *log.Logger) error {
+func prepareExtensionConfiguration(requiredExtension string, config *configuration.Config, logger *log.Logger) error {
 	err := dev.PrepareConfiguration(config.Context, requiredExtension, logger)
 	if err != nil {
 		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", requiredExtension, err)
@@ -416,9 +416,9 @@ func PrepareExtensionConfiguration(requiredExtension string, config *configurati
 	return nil
 }
 
-// PreparePipelineConfiguration checks that proxy url and controllerName are valid.
+// preparePipelineConfiguration checks that proxy url and controllerName are valid.
 // Then, in the configuration, it makes sure that dependency is linted.
-func PreparePipelineConfiguration(config *configuration.Config, proxyUrl string, controllerName string, logger *log.Logger) error {
+func preparePipelineConfiguration(config *configuration.Config, proxyUrl string, controllerName string, logger *log.Logger) error {
 	//
 	// lint the dependency proxy's destination to the independent independent's controller
 	//--------------------------------------------------
