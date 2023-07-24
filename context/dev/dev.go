@@ -41,6 +41,7 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/env"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/go-git/go-git/v5" // with go modules disabled
@@ -332,12 +333,24 @@ func PrepareService(context *configuration.Context, url string, port uint64, log
 	}
 }
 
+func bindEnvs(context *configuration.Context, args []string) ([]string, error) {
+	envs := []string{EnvPath(context)}
+	loadedEnvs, err := argument.GetEnvPaths()
+	if err != nil {
+		return []string{}, fmt.Errorf("failed to get env paths: %w", err)
+	} else {
+		envs = append(envs, loadedEnvs...)
+	}
+
+	return append(args, envs...), nil
+}
+
 // builds the application
 func build(context *configuration.Context, url string, logger *log.Logger) error {
 	srcUrl := SrcPath(context, url)
 	binUrl := BinPath(context, url)
 
-	logger.Info("building", "src", srcUrl, "bin", binUrl)
+	logger.Info("building", "src", srcUrl, "bin", binUrl, "environment files")
 
 	err := cleanBuild(srcUrl, logger)
 	if err != nil {
@@ -346,7 +359,12 @@ func build(context *configuration.Context, url string, logger *log.Logger) error
 		logger.Info("go mod tidy was called in ", "source", srcUrl)
 	}
 
-	cmd := exec.Command("go", "build", "-o", binUrl)
+	args, err := bindEnvs(context, []string{"build", "-o", binUrl})
+	if err != nil {
+		return fmt.Errorf("bindEnvs to args: %w", err)
+	}
+	logger.Info("running 'go' bin", "arguments", args)
+	cmd := exec.Command("go", args...)
 	cmd.Stdout = logger
 	cmd.Dir = srcUrl
 	cmd.Stderr = logger
@@ -362,10 +380,17 @@ func start(context *configuration.Context, url string, logger *log.Logger) error
 	binUrl := BinPath(context, url)
 	configFlag := fmt.Sprintf("--configuration=%s", ConfigurationPath(context, url))
 
-	cmd := exec.Command(binUrl, configFlag)
+	args, err := bindEnvs(context, []string{configFlag})
+	if err != nil {
+		return fmt.Errorf("bindEnvs to args: %w", err)
+	}
+
+	logger.Info("running", "command", binUrl, "arguments", args)
+
+	cmd := exec.Command(binUrl, args...)
 	cmd.Stdout = logger
 	cmd.Stderr = logger
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		return fmt.Errorf("cmd.Start: %w", err)
 	}
