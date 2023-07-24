@@ -1,6 +1,8 @@
 package configuration
 
-import "path"
+import (
+	"path"
+)
 
 type ContextType = string
 
@@ -17,10 +19,10 @@ const DefaultContext ContextType = "default"
 
 // A Context handles the configuration of the contexts
 type Context struct {
-	Type ContextType
-	Src  string
-	Bin  string
-	Data string
+	Type ContextType `json:"CONTEXT_TYPE"`
+	Src  string      `json:"SERVICE_DEPS_SRC"`
+	Bin  string      `json:"SERVICE_DEPS_BIN"`
+	Data string      `json:"SERVICE_DEPS_DATA"`
 }
 
 func initContext(config *Config) {

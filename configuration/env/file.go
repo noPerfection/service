@@ -3,6 +3,7 @@ package env
 
 import (
 	"fmt"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/joho/godotenv"
@@ -23,5 +24,16 @@ func LoadAnyEnv() error {
 	if err != nil {
 		return fmt.Errorf("godotenv.Load for paths %v: %w", opts, err)
 	}
+	return nil
+}
+
+// WriteEnv writes the given key value to the file.
+// If the file exists, then it will be truncated.
+func WriteEnv(data key_value.KeyValue, path string) error {
+	err := godotenv.Write(data.MapString(), path)
+	if err != nil {
+		return fmt.Errorf("godotenv.Write: %w", err)
+	}
+
 	return nil
 }

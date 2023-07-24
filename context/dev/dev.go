@@ -39,7 +39,9 @@ package dev
 import (
 	"errors"
 	"fmt"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/env"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/go-git/go-git/v5" // with go modules disabled
 	"net/url"
@@ -80,7 +82,33 @@ func Prepare(context *configuration.Context) error {
 		return fmt.Errorf("invalid data path: %w", err)
 	}
 
+	if err := prepareEnv(context); err != nil {
+		return fmt.Errorf("prepareEnv: %w", err)
+	}
+
 	return nil
+}
+
+// prepareEnv writes the .env of the context to share between dependencies
+func prepareEnv(context *configuration.Context) error {
+	kv, err := key_value.NewFromInterface(context)
+	if err != nil {
+		return fmt.Errorf("prepareEnv: %w", err)
+	}
+
+	envPath := EnvPath(context)
+
+	err = env.WriteEnv(kv, envPath)
+	if err != nil {
+		return fmt.Errorf("env.WriteEnv: %w", err)
+	}
+
+	return nil
+}
+
+// EnvPath is the shared configurations between dependencies
+func EnvPath(context *configuration.Context) string {
+	return path.Join(context.Data, ".env")
 }
 
 // ConfigurationPath returns configuration url in the context's data
