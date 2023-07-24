@@ -228,7 +228,8 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	}
 
 	//
-	// prepare the configuration
+	// prepare the configuration with the service, it's controllers and instances.
+	// it doesn't prepare the proxies, pipelines and extensions
 	//----------------------------------------------------
 	err = independent.prepareConfiguration(as)
 	if err != nil {
@@ -289,7 +290,7 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 		}
 	}
 
-	// add proxies if they are needed.
+	// run proxies if they are needed.
 	if len(independent.RequiredProxies) > 0 {
 		for _, requiredProxy := range independent.RequiredProxies {
 			if err := prepareProxy(requiredProxy, independent.Config, independent.Logger); err != nil {
@@ -438,7 +439,17 @@ func prepareExtensionConfiguration(requiredExtension string, config *configurati
 			return fmt.Errorf("the extension url in your '%s' configuration not matches to '%s' in the dependency", extensionConfiguration.Url, converted.Url)
 		}
 		if extensionConfiguration.Port != extensionConfiguration.Port {
-			return fmt.Errorf("your extension port '%d' not matches to '%d' port in the dependency", extensionConfiguration.Port, converted.Port)
+			logger.Warn("dependency port not matches to the extension port. Overwriting the source", "port", extensionConfiguration.Port, "dependency port", converted.Port)
+
+			main, _ := service.GetFirstController()
+			main.Instances[0].Port = extensionConfiguration.Port
+
+			service.SetController(main)
+
+			err = dev.WriteServiceConfiguration(config.Context, requiredExtension, service)
+			if err != nil {
+				return fmt.Errorf("failed to update port in dependency extension: '%s': %w", requiredExtension, err)
+			}
 		}
 	}
 
