@@ -10,11 +10,11 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration/argument"
+	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/phayes/freeport"
 	"gopkg.in/yaml.v3"
 	"net"
 	"os"
-	"path"
 	"strings"
 	"time"
 
@@ -60,6 +60,11 @@ func New(parent *log.Logger) (*Config, error) {
 	config.viper = viper.New()
 	config.viper.AutomaticEnv()
 
+	execPath, err := path.GetExecPath()
+	if err != nil {
+		return nil, fmt.Errorf("path.GetExecPath: %w", err)
+	}
+
 	// Use the service configuration given from the path
 	if argument.Exist(argument.Configuration) {
 		configurationPath, err := argument.Value(argument.Configuration)
@@ -67,22 +72,23 @@ func New(parent *log.Logger) (*Config, error) {
 			return nil, fmt.Errorf("failed to get the configuration path: %w", err)
 		}
 
-		if err := validateServicePath(configurationPath); err != nil {
-			return nil, fmt.Errorf("configuration path '%s' validation: %w", configurationPath, err)
+		absPath := path.GetPath(execPath, configurationPath)
+
+		if err := validateServicePath(absPath); err != nil {
+			return nil, fmt.Errorf("configuration path '%s' validation: %w", absPath, err)
 		}
-		dir, fileName := splitServicePath(configurationPath)
+
+		dir, fileName := path.SplitServicePath(absPath)
 		config.viper.Set("SERVICE_CONFIG_NAME", fileName)
 		config.viper.Set("SERVICE_CONFIG_PATH", dir)
 	} else {
 		config.viper.SetDefault("SERVICE_CONFIG_NAME", "service")
-		config.viper.SetDefault("SERVICE_CONFIG_PATH", ".")
+		config.viper.SetDefault("SERVICE_CONFIG_PATH", execPath)
 	}
 
 	// set up the context
-	parent.Info("the context before", config.Context)
 	initContext(&config)
 	setDevContext(&config)
-	parent.Info("the context after", config.Context)
 
 	// load the service configuration
 	config.viper.SetConfigName(config.viper.GetString("SERVICE_CONFIG_NAME"))
@@ -93,7 +99,7 @@ func New(parent *log.Logger) (*Config, error) {
 	notFound := false
 	_, notFound = err.(viper.ConfigFileNotFoundError)
 	if err != nil && !notFound {
-		return nil, fmt.Errorf("failed to read configuration %s: %w", config.viper.GetString("SERVICE_CONFIG_NAME"), err)
+		return nil, fmt.Errorf("read '%s' failed: %w", config.viper.GetString("SERVICE_CONFIG_NAME"), err)
 	} else if notFound {
 		parent.Warn("the configuration.yml configuration wasn't found", "engine error", err)
 		return &config, nil
@@ -242,23 +248,6 @@ func validateServicePath(path string) error {
 	}
 
 	return nil
-}
-
-// splitServicePath returns the directory, file name from the given path.
-// the extension is not returned since it's always a yaml file.
-//
-// The function doesn't validate the path.
-// Therefore, call this function after validateServicePath()
-func splitServicePath(servicePath string) (string, string) {
-	dir, fileName := path.Split(servicePath)
-
-	if len(dir) == 0 {
-		dir = "."
-	}
-
-	fileName = fileName[0 : len(fileName)-4]
-
-	return dir, fileName
 }
 
 func ReadService(path string) (Service, error) {

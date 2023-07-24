@@ -2,7 +2,6 @@ package path
 
 import (
 	"os"
-	"path"
 	"path/filepath"
 )
 
@@ -19,9 +18,25 @@ func GetExecPath() (string, error) {
 // GetPath returns the path related to the execPath.
 // If the path itself is absolute, then it's returned directly
 func GetPath(execPath string, mainPath string) string {
-	if path.IsAbs(mainPath) {
+	if filepath.IsAbs(mainPath) {
 		return mainPath
 	}
 
-	return path.Join(execPath, mainPath)
+	return filepath.Join(execPath, mainPath)
+}
+
+// SplitServicePath returns the directory, file name without extension part.
+//
+// The function doesn't validate the path.
+// Therefore, call this function after validateServicePath()
+func SplitServicePath(servicePath string) (string, string) {
+	dir, fileName := filepath.Split(servicePath)
+
+	if len(dir) == 0 {
+		dir = "."
+	}
+
+	fileName = fileName[0 : len(fileName)-4]
+
+	return dir, fileName
 }

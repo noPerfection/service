@@ -318,7 +318,7 @@ func (independent *Service) BuildConfiguration() {
 	if !argument.Exist(argument.BuildConfiguration) {
 		return
 	}
-	path, err := argument.Value(argument.Path)
+	relativePath, err := argument.Value(argument.Path)
 	if err != nil {
 		independent.Logger.Fatal("requires 'path' flag", "error", err)
 	}
@@ -328,14 +328,21 @@ func (independent *Service) BuildConfiguration() {
 		independent.Logger.Fatal("requires 'url' flag", "error", err)
 	}
 
+	execPath, err := path.GetExecPath()
+	if err != nil {
+		independent.Logger.Fatal("path.GetExecPath", "error", err)
+	}
+
+	outputPath := path.GetPath(execPath, relativePath)
+
 	independent.Config.Service.Url = url
 
-	err = configuration.WriteService(path, independent.Config.Service)
+	err = configuration.WriteService(outputPath, independent.Config.Service)
 	if err != nil {
 		independent.Logger.Fatal("failed to write the proxy into the file", "error", err)
 	}
 
-	independent.Logger.Info("the proxy was generated", "path", path)
+	independent.Logger.Info("the proxy was generated", "output path", outputPath)
 
 	os.Exit(0)
 }
