@@ -48,7 +48,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 )
 
 func preparePath(path string) error {
@@ -109,12 +109,12 @@ func prepareEnv(context *configuration.Context) error {
 
 // EnvPath is the shared configurations between dependencies
 func EnvPath(context *configuration.Context) string {
-	return path.Join(context.Data, ".env")
+	return filepath.Join(context.Data, ".env")
 }
 
 // ConfigurationPath returns configuration url in the context's data
 func ConfigurationPath(context *configuration.Context, url string) string {
-	return path.Join(context.Data, url+"/service.yml")
+	return filepath.Join(context.Data, url+"/service.yml")
 }
 
 func ConfigurationExist(context *configuration.Context, url string) (bool, error) {
@@ -132,17 +132,17 @@ func ConfigurationExist(context *configuration.Context, url string) (bool, error
 }
 
 func prepareConfigurationPath(context *configuration.Context, url string) error {
-	dir := path.Dir(ConfigurationPath(context, url))
+	dir := filepath.Dir(ConfigurationPath(context, url))
 	return preparePath(dir)
 }
 
 func prepareBinPath(context *configuration.Context, url string) error {
-	dir := path.Dir(BinPath(context, url))
+	dir := filepath.Dir(BinPath(context, url))
 	return preparePath(dir)
 }
 
 func prepareSrcPath(context *configuration.Context, url string) error {
-	dir := path.Dir(SrcPath(context, url))
+	dir := filepath.Dir(SrcPath(context, url))
 	return preparePath(dir)
 }
 
@@ -161,7 +161,7 @@ func BinExist(context *configuration.Context, url string) (bool, error) {
 }
 
 func SrcPath(context *configuration.Context, url string) string {
-	return path.Join(context.Src, url)
+	return filepath.Join(context.Src, url)
 }
 
 func SrcExist(context *configuration.Context, url string) (bool, error) {

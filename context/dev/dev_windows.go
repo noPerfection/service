@@ -5,9 +5,9 @@ package dev
 
 import (
 	"github.com/ahmetson/service-lib/configuration"
-	"path"
+	"path/filepath"
 )
 
 func BinPath(context *configuration.Context, url string) string {
-	return path.Join(context.Bin, url+"/bin.exe")
+	return filepath.Join(context.Bin, url+"/bin.exe")
 }
