@@ -44,7 +44,7 @@ func (suite *TestArgumentSuite) TestRun() {
 	arguments := GetArguments()
 	suite.Require().EqualValues(suite.arguments, arguments)
 
-	pathArguments := GetEnvPaths()
+	pathArguments, _ := GetEnvPaths()
 	suite.Require().Len(pathArguments, 1)
 	pathArguments[0] = "./.test.env"
 

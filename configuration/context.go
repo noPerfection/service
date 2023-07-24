@@ -1,7 +1,7 @@
 package configuration
 
 import (
-	"path"
+	"github.com/ahmetson/service-lib/configuration/path"
 )
 
 type ContextType = string
@@ -26,20 +26,24 @@ type Context struct {
 }
 
 func initContext(config *Config) {
-	exePath, err := GetCurrentPath()
+	exePath, err := path.GetExecPath()
 	if err != nil {
 		config.logger.Fatal("failed to get the executable path", "error", err)
 	}
 
-	config.viper.SetDefault(SrcKey, path.Join(exePath, "deps", ".src"))
-	config.viper.SetDefault(BinKey, path.Join(exePath, "deps", ".bin"))
-	config.viper.SetDefault(DataKey, path.Join(exePath, "deps", ".data"))
+	config.viper.SetDefault(SrcKey, path.GetPath(exePath, "./deps/.src"))
+	config.viper.SetDefault(BinKey, path.GetPath(exePath, "./deps/.bin"))
+	config.viper.SetDefault(DataKey, path.GetPath(exePath, "./deps/.data"))
 }
 
 func newContext(config *Config) *Context {
-	srcPath := config.viper.GetString(SrcKey)
-	dataPath := config.viper.GetString(DataKey)
-	binPath := config.viper.GetString(BinKey)
+	execPath, err := path.GetExecPath()
+	if err != nil {
+		config.logger.Fatal("path.GetExecPath: %w", err)
+	}
+	srcPath := path.GetPath(execPath, config.viper.GetString(SrcKey))
+	dataPath := path.GetPath(execPath, config.viper.GetString(DataKey))
+	binPath := path.GetPath(execPath, config.viper.GetString(BinKey))
 
 	config.logger.Info("context paths", "source", srcPath, "data", dataPath, "bin", binPath)
 

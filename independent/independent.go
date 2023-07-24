@@ -7,6 +7,7 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/argument"
+	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/ahmetson/service-lib/context/dev"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
@@ -84,7 +85,7 @@ func (independent *Service) prepareServiceConfiguration(expectedType configurati
 	config := independent.Config
 	serviceConfig := independent.Config.Service
 	if len(serviceConfig.Type) == 0 {
-		exePath, err := configuration.GetCurrentPath()
+		exePath, err := path.GetExecPath()
 		if err != nil {
 			return fmt.Errorf("failed to get current executable path: %w", err)
 		}
