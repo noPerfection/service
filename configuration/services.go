@@ -193,14 +193,13 @@ func ServiceToProxy(s *Service, contextType ContextType) (Proxy, error) {
 	}
 
 	converted := Proxy{
-		Url:      s.Url,
-		Instance: controllerConfig.Name + " instance 01",
+		Url:         s.Url,
+		Instance:    controllerConfig.Name + " instance 01",
+		ContextType: contextType,
 	}
 
 	if len(s.Proxies) == 0 {
-		converted = Proxy{
-			Port: controllerConfig.Instances[0].Port,
-		}
+		converted.Port = controllerConfig.Instances[0].Port
 	} else {
 		beginning, err := findPipelineBeginning(s, SourceName, contextType)
 		if err != nil {
