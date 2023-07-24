@@ -2,6 +2,7 @@ package configuration
 
 import (
 	"fmt"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"strings"
 )
 
@@ -18,9 +19,10 @@ type Controller struct {
 }
 
 type Proxy struct {
-	Url      string
-	Instance string
-	Port     uint64
+	Url         string
+	Instance    string
+	Port        uint64
+	ContextType ContextType
 }
 
 type Extension struct {
@@ -37,7 +39,7 @@ type Service struct {
 	Controllers []Controller
 	Proxies     []Proxy
 	Extensions  []Extension
-	Pipelines   []string
+	Pipelines   key_value.KeyValue
 }
 
 // ValidateTypes the parameters of the service
@@ -162,6 +164,10 @@ func (s *Service) SetController(controller Controller) {
 	}
 }
 
+func (s *Service) SetPipeline(beginning string, end string) {
+	s.Pipelines.Set(beginning, end)
+}
+
 // SourceName of this type should be listed within the controllers in the configuration
 const SourceName = "source"
 
@@ -169,8 +175,10 @@ const SourceName = "source"
 const DestinationName = "destination"
 
 // ServiceToProxy returns the service in the proxy format
-// so that it can be used as a proxy
-func ServiceToProxy(s *Service) (Proxy, error) {
+// so that it can be used as a proxy by other services.
+//
+// If the service has another proxy, then it will find it.
+func ServiceToProxy(s *Service, contextType ContextType) (Proxy, error) {
 	if s.Type != ProxyType {
 		return Proxy{}, fmt.Errorf("only proxy type of service can be converted")
 	}
@@ -187,15 +195,62 @@ func ServiceToProxy(s *Service) (Proxy, error) {
 	converted := Proxy{
 		Url:      s.Url,
 		Instance: controllerConfig.Name + " instance 01",
-		Port:     controllerConfig.Instances[0].Port,
+	}
+
+	if len(s.Proxies) == 0 {
+		converted = Proxy{
+			Port: controllerConfig.Instances[0].Port,
+		}
+	} else {
+		beginning, err := findPipelineBeginning(s, SourceName, contextType)
+		if err != nil {
+			return Proxy{}, fmt.Errorf("findPipelineBeginning: %w", err)
+		}
+		converted.Port = beginning.Port
 	}
 
 	return converted, nil
 }
 
+// findPipelineBeginning returns the beginning of the pipeline.
+// If the contextType is not a default one, then it will search for the specific context type.
+func findPipelineBeginning(s *Service, requiredEnd string, contextType ContextType) (*Proxy, error) {
+	for beginning := range s.Pipelines {
+		end, err := s.Pipelines.GetString(beginning)
+		if err != nil {
+			return nil, fmt.Errorf("pipeline '%s' get the end: %w", beginning, err)
+		}
+
+		if strings.Compare(end, requiredEnd) != 0 {
+			continue
+		}
+
+		proxy := s.GetProxy(beginning)
+		if proxy == nil {
+			return nil, fmt.Errorf("invalid configuration. pipeline '%s' beginning not found in proxy list", beginning)
+		}
+
+		if contextType != DefaultContext {
+			if proxy.ContextType != contextType {
+				continue
+			} else {
+				return proxy, nil
+			}
+		} else {
+			if proxy.ContextType == DefaultContext {
+				return proxy, nil
+			} else {
+				continue
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no pipeline beginning in the context '%s' by '%s' end", contextType, requiredEnd)
+}
+
 // ServiceToExtension returns the service in the proxy format
 // so that it can be used as a proxy
-func ServiceToExtension(s *Service) (Extension, error) {
+func ServiceToExtension(s *Service, contextType ContextType) (Extension, error) {
 	if s.Type != ExtensionType {
 		return Extension{}, fmt.Errorf("only proxy type of service can be converted")
 	}
@@ -212,7 +267,16 @@ func ServiceToExtension(s *Service) (Extension, error) {
 	converted := Extension{
 		Url:      s.Url,
 		Instance: controllerConfig.Name + " instance 01",
-		Port:     controllerConfig.Instances[0].Port,
+	}
+
+	if len(s.Proxies) == 0 {
+		converted.Port = controllerConfig.Instances[0].Port
+	} else {
+		beginning, err := findPipelineBeginning(s, SourceName, contextType)
+		if err != nil {
+			return Extension{}, fmt.Errorf("findPipelineBeginning: %w", err)
+		}
+		converted.Port = beginning.Port
 	}
 
 	return converted, nil

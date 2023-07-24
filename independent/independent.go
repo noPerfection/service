@@ -20,7 +20,7 @@ type Service struct {
 	Config          *configuration.Config
 	Controllers     key_value.KeyValue
 	Pipelines       key_value.KeyValue
-	RequiredProxies []string
+	RequiredProxies key_value.KeyValue // url => context type
 	Logger          *log.Logger
 }
 
@@ -30,7 +30,7 @@ func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
 		Config:          config,
 		Logger:          logger,
 		Controllers:     key_value.Empty(),
-		RequiredProxies: []string{},
+		RequiredProxies: key_value.Empty(),
 		Pipelines:       key_value.Empty(),
 	}
 
@@ -42,14 +42,14 @@ func (independent *Service) AddController(name string, controller controller.Int
 	independent.Controllers.Set(name, controller)
 }
 
-func (independent *Service) RequireProxy(url string) {
-	independent.RequiredProxies = append(independent.RequiredProxies, url)
+func (independent *Service) RequireProxy(url string, contextType configuration.ContextType) {
+	independent.RequiredProxies.Set(url, contextType)
 }
 
 // Pipe the controller to the proxy
 func (independent *Service) Pipe(proxyUrl string, name string) error {
 	validProxy := false
-	for _, url := range independent.RequiredProxies {
+	for url := range independent.RequiredProxies {
 		if strings.Compare(url, proxyUrl) == 0 {
 			validProxy = true
 			break
@@ -104,7 +104,6 @@ func (independent *Service) prepareServiceConfiguration(expectedType configurati
 }
 
 func (independent *Service) prepareControllerConfigurations() error {
-
 	// validate the Controllers
 	for name, controllerInterface := range independent.Controllers {
 		c := controllerInterface.(controller.Interface)
@@ -186,7 +185,7 @@ func (independent *Service) prepareConfiguration(expectedType configuration.Serv
 // Then, in the Config, it makes sure that dependency is linted.
 func (independent *Service) preparePipelineConfiguration(proxyUrl string, controllerName string) error {
 	found := false
-	for _, requiredProxy := range independent.RequiredProxies {
+	for requiredProxy := range independent.RequiredProxies {
 		if strings.Compare(proxyUrl, requiredProxy) == 0 {
 			found = true
 			break
@@ -208,7 +207,7 @@ func (independent *Service) preparePipelineConfiguration(proxyUrl string, contro
 
 	// pipelines from the configurations are not used.
 	// are they necessary?
-	independent.Config.Service.Pipelines = append(independent.Config.Service.Pipelines, fmt.Sprintf("%s->%s", proxyUrl, controllerName))
+	independent.Config.Service.SetPipeline(proxyUrl, controllerName)
 
 	return nil
 }
@@ -240,7 +239,7 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	// prepare proxies configurations
 	//--------------------------------------------------
 	if len(independent.RequiredProxies) > 0 {
-		for _, requiredProxy := range independent.RequiredProxies {
+		for requiredProxy := range independent.RequiredProxies {
 			if err := prepareProxyConfiguration(requiredProxy, independent.Config, independent.Logger); err != nil {
 				return fmt.Errorf("service.prepareProxyConfiguration of %s: %w", requiredProxy, err)
 			}
@@ -292,7 +291,7 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 
 	// run proxies if they are needed.
 	if len(independent.RequiredProxies) > 0 {
-		for _, requiredProxy := range independent.RequiredProxies {
+		for requiredProxy := range independent.RequiredProxies {
 			if err := prepareProxy(requiredProxy, independent.Config, independent.Logger); err != nil {
 				return fmt.Errorf("service.prepareProxy of %s: %w", requiredProxy, err)
 			}
@@ -413,7 +412,7 @@ func prepareProxyConfiguration(requiredProxy string, config *configuration.Confi
 	}
 
 	service, err := dev.ReadServiceConfiguration(config.Context, requiredProxy)
-	converted, err := configuration.ServiceToProxy(&service)
+	converted, err := configuration.ServiceToProxy(&service, config.Context.Type)
 	if err != nil {
 		return fmt.Errorf("proxy.ServiceToProxy: %w", err)
 	}
@@ -450,7 +449,7 @@ func prepareExtensionConfiguration(requiredExtension string, config *configurati
 	}
 
 	service, err := dev.ReadServiceConfiguration(config.Context, requiredExtension)
-	converted, err := configuration.ServiceToExtension(&service)
+	converted, err := configuration.ServiceToExtension(&service, config.Context.Type)
 	if err != nil {
 		return fmt.Errorf("proxy.ServiceToProxy: %w", err)
 	}

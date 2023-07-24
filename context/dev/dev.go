@@ -168,7 +168,9 @@ func WriteServiceConfiguration(context *configuration.Context, url string, confi
 	return configuration.WriteService(configUrl, config)
 }
 
-// PrepareConfiguration returns the proxy parameters and the configuration.Proxy
+// PrepareConfiguration creates the service.yml of the dependency.
+// If it already exists, it skips.
+// The prepared service.yml would be used for linting
 func PrepareConfiguration(context *configuration.Context, url string, logger *log.Logger) error {
 	exist, err := ConfigurationExist(context, url)
 	if err != nil {
