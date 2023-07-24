@@ -371,6 +371,7 @@ func prepareContext(context *configuration.Context) error {
 func prepareProxy(requiredProxy string, config *configuration.Config, logger *log.Logger) error {
 	proxyConfiguration := config.Service.GetProxy(requiredProxy)
 
+	logger.Info("prepare proxy", "url", proxyConfiguration.Url, "port", proxyConfiguration.Port)
 	err := dev.PrepareService(config.Context, proxyConfiguration.Url, proxyConfiguration.Port, logger)
 	if err != nil {
 		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", requiredProxy, err)
@@ -402,7 +403,17 @@ func prepareProxyConfiguration(requiredProxy string, config *configuration.Confi
 			return fmt.Errorf("the proxy urls are not matching. in your configuration: %s, in the deps: %s", proxyConfiguration.Url, converted.Url)
 		}
 		if proxyConfiguration.Port != converted.Port {
-			return fmt.Errorf("the proxy ports are not matching. in your configuration: %d, in the deps: %d", proxyConfiguration.Port, converted.Port)
+			logger.Warn("dependency port not matches to the proxy port. Overwriting the source", "port", proxyConfiguration.Port, "dependency port", converted.Port)
+
+			source, _ := service.GetController(configuration.SourceName)
+			source.Instances[0].Port = proxyConfiguration.Port
+
+			service.SetController(source)
+
+			err = dev.WriteServiceConfiguration(config.Context, requiredProxy, service)
+			if err != nil {
+				return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", requiredProxy, err)
+			}
 		}
 	}
 
