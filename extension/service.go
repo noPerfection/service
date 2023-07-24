@@ -11,6 +11,8 @@ import (
 	"github.com/ahmetson/service-lib/log"
 )
 
+const defaultControllerName = "main"
+
 type service = independent.Service
 
 // Extension of the extension type
@@ -46,7 +48,7 @@ func (extension *Extension) AddController(controllerType configuration.Type) err
 		if err != nil {
 			return fmt.Errorf("controller.NewReplier: %w", err)
 		}
-		extension.service.AddController("main", replier)
+		extension.service.AddController(defaultControllerName, replier)
 	} else if controllerType == configuration.RouterType {
 		//router, err := controller.NewRouter(controllerLogger)
 		//if err != nil {
@@ -58,10 +60,15 @@ func (extension *Extension) AddController(controllerType configuration.Type) err
 		if err != nil {
 			return fmt.Errorf("controller.NewPuller: %w", err)
 		}
-		extension.service.AddController("main", puller)
+		extension.service.AddController(defaultControllerName, puller)
 	}
 
 	return nil
+}
+
+
+func (extension *Extension) GetControllerName() string {
+	return defaultControllerName
 }
 
 // Prepare the service by validating the configuration.
