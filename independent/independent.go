@@ -299,6 +299,15 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 		}
 	}
 
+	// run extensions if they are needed.
+	if len(requiredExtensions) > 0 {
+		for _, requiredExtension := range requiredExtensions {
+			if err := prepareExtension(requiredExtension, independent.Config, independent.Logger); err != nil {
+				return fmt.Errorf("service.prepareExtension of %s: %w", requiredExtension, err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -373,7 +382,22 @@ func prepareProxy(requiredProxy string, config *configuration.Config, logger *lo
 	logger.Info("prepare proxy", "url", proxyConfiguration.Url, "port", proxyConfiguration.Port)
 	err := dev.PrepareService(config.Context, proxyConfiguration.Url, proxyConfiguration.Port, logger)
 	if err != nil {
-		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", requiredProxy, err)
+		return fmt.Errorf("dev.PrepareService on %s: %w", requiredProxy, err)
+	}
+
+	return nil
+}
+
+// prepareExtension links the extension with the dependency.
+//
+// if dependency doesn't exist, it will be downloaded
+func prepareExtension(requiredExtension string, config *configuration.Config, logger *log.Logger) error {
+	extensionConfiguration := config.Service.GetExtension(requiredExtension)
+
+	logger.Info("prepare extension", "url", extensionConfiguration.Url, "port", extensionConfiguration.Port)
+	err := dev.PrepareService(config.Context, extensionConfiguration.Url, extensionConfiguration.Port, logger)
+	if err != nil {
+		return fmt.Errorf("dev.PrepareService on %s: %w", requiredExtension, err)
 	}
 
 	return nil
