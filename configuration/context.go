@@ -7,7 +7,13 @@ type ContextType = string
 const SrcKey = "SERVICE_DEPS_SRC"
 const BinKey = "SERVICE_DEPS_BIN"
 const DataKey = "SERVICE_DEPS_DATA"
+
+// DevContext indicates that all dependency proxies are in the local machine
 const DevContext ContextType = "development"
+
+// DefaultContext indicates that all dependencies are in any machine.
+// It's unspecified.
+const DefaultContext ContextType = "default"
 
 // A Context handles the configuration of the contexts
 type Context struct {
