@@ -179,8 +179,6 @@ func (independent *Service) prepareConfiguration(expectedType configuration.Serv
 		return fmt.Errorf("prepareControllerConfigurations: %w", err)
 	}
 
-	// todo validate the extensions
-
 	return nil
 }
 
