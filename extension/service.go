@@ -66,6 +66,10 @@ func (extension *Extension) AddController(controllerType configuration.Type) err
 	return nil
 }
 
+func (extension *Extension) GetController() controller.Interface {
+	controllerInterface, _ := extension.service.Controllers[defaultControllerName]
+	return controllerInterface.(controller.Interface)
+}
 
 func (extension *Extension) GetControllerName() string {
 	return defaultControllerName
