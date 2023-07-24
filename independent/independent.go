@@ -240,9 +240,10 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	// prepare proxies configurations
 	//--------------------------------------------------
 	if len(independent.RequiredProxies) > 0 {
-		for requiredProxy := range independent.RequiredProxies {
-			if err := prepareProxyConfiguration(requiredProxy, independent.Config, independent.Logger); err != nil {
-				return fmt.Errorf("service.prepareProxyConfiguration of %s: %w", requiredProxy, err)
+		for requiredProxy, contextInterface := range independent.RequiredProxies {
+			proxyContext := contextInterface.(configuration.ContextType)
+			if err := prepareProxyConfiguration(requiredProxy, proxyContext, independent.Config, independent.Logger); err != nil {
+				return fmt.Errorf("service.prepareProxyConfiguration of %s in context %s: %w", requiredProxy, proxyContext, err)
 			}
 		}
 
@@ -406,14 +407,14 @@ func prepareExtension(requiredExtension string, config *configuration.Config, lo
 // prepareProxyConfiguration links the proxy with the dependency.
 //
 // if dependency doesn't exist, it will be downloaded
-func prepareProxyConfiguration(requiredProxy string, config *configuration.Config, logger *log.Logger) error {
+func prepareProxyConfiguration(requiredProxy string, proxyContext configuration.ContextType, config *configuration.Config, logger *log.Logger) error {
 	err := dev.PrepareConfiguration(config.Context, requiredProxy, logger)
 	if err != nil {
 		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", requiredProxy, err)
 	}
 
 	service, err := dev.ReadServiceConfiguration(config.Context, requiredProxy)
-	converted, err := configuration.ServiceToProxy(&service, config.Context.Type)
+	converted, err := configuration.ServiceToProxy(&service, proxyContext)
 	if err != nil {
 		return fmt.Errorf("proxy.ServiceToProxy: %w", err)
 	}
@@ -424,6 +425,9 @@ func prepareProxyConfiguration(requiredProxy string, config *configuration.Confi
 	} else {
 		if strings.Compare(proxyConfiguration.Url, converted.Url) != 0 {
 			return fmt.Errorf("the proxy urls are not matching. in your configuration: %s, in the deps: %s", proxyConfiguration.Url, converted.Url)
+		}
+		if proxyConfiguration.Context != converted.Context {
+			return fmt.Errorf("the proxy contexts are not matching. in your configuration: %s, in the deps: %s", proxyConfiguration.Context, converted.Context)
 		}
 		if proxyConfiguration.Port != converted.Port {
 			logger.Warn("dependency port not matches to the proxy port. Overwriting the source", "port", proxyConfiguration.Port, "dependency port", converted.Port)
