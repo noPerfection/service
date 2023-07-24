@@ -37,10 +37,16 @@ func initContext(config *Config) {
 }
 
 func newContext(config *Config) *Context {
+	srcPath := config.viper.GetString(SrcKey)
+	dataPath := config.viper.GetString(DataKey)
+	binPath := config.viper.GetString(BinKey)
+
+	config.logger.Info("context paths", "source", srcPath, "data", dataPath, "bin", binPath)
+
 	return &Context{
-		Src:  config.viper.GetString(SrcKey),
-		Bin:  config.viper.GetString(BinKey),
-		Data: config.viper.GetString(DataKey),
+		Src:  srcPath,
+		Bin:  binPath,
+		Data: dataPath,
 	}
 }
 
