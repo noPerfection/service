@@ -3,7 +3,6 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/independent"
@@ -42,12 +41,10 @@ func (proxy *Proxy) registerDestination() {
 func New(config *configuration.Config, parent *log.Logger) *Proxy {
 	logger := parent.Child("proxy")
 
+	base, _ := independent.New(config, logger)
+
 	service := Proxy{
-		service: &independent.Service{
-			Config:      config,
-			Logger:      logger,
-			Controllers: key_value.Empty(),
-		},
+		service:    base,
 		Controller: newController(logger.Child("controller")),
 	}
 
