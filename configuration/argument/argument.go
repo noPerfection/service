@@ -4,6 +4,7 @@ package argument
 import (
 	"fmt"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -19,7 +20,7 @@ const (
 // GetEnvPaths any command line data that comes after the files are .env file paths
 // Any argument for application without '--' prefix is considered to be path to the
 // environment file.
-func GetEnvPaths() []string {
+func GetEnvPaths(execPath string) []string {
 	args := os.Args[1:]
 	if len(args) == 0 {
 		return []string{}
@@ -40,7 +41,12 @@ func GetEnvPaths() []string {
 		if arg[:2] == "--" {
 			continue
 		}
-		paths = append(paths, arg)
+
+		if path.IsAbs(arg) {
+			paths = append(paths, path.Join(execPath, arg))
+		} else {
+			paths = append(paths, path.Join(execPath, arg))
+		}
 	}
 
 	return paths

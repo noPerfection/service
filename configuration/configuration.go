@@ -59,8 +59,13 @@ func New(parent *log.Logger) (*Config, error) {
 	}
 	parent.Info("Loading environment files passed as app arguments")
 
+	execPath, err := GetCurrentPath()
+	if err != nil {
+		return nil, fmt.Errorf("returning executable's path failed: %w", err)
+	}
+
 	// First we load the environment variables
-	err := env.LoadAnyEnv()
+	err = env.LoadAnyEnv(execPath)
 	if err != nil {
 		return nil, fmt.Errorf("loading environment variables: %w", err)
 	}
