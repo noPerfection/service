@@ -19,10 +19,10 @@ type Controller struct {
 }
 
 type Proxy struct {
-	Url         string
-	Instance    string
-	Port        uint64
-	ContextType ContextType
+	Url      string
+	Instance string
+	Port     uint64
+	Context  ContextType
 }
 
 type Extension struct {
@@ -193,9 +193,9 @@ func ServiceToProxy(s *Service, contextType ContextType) (Proxy, error) {
 	}
 
 	converted := Proxy{
-		Url:         s.Url,
-		Instance:    controllerConfig.Name + " instance 01",
-		ContextType: contextType,
+		Url:      s.Url,
+		Instance: controllerConfig.Name + " instance 01",
+		Context:  contextType,
 	}
 
 	if len(s.Proxies) == 0 {
@@ -230,13 +230,13 @@ func findPipelineBeginning(s *Service, requiredEnd string, contextType ContextTy
 		}
 
 		if contextType != DefaultContext {
-			if proxy.ContextType != contextType {
+			if proxy.Context != contextType {
 				continue
 			} else {
 				return proxy, nil
 			}
 		} else {
-			if proxy.ContextType == DefaultContext {
+			if proxy.Context == DefaultContext {
 				return proxy, nil
 			} else {
 				continue
