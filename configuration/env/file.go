@@ -15,14 +15,17 @@ import (
 // The values later will be available via app/configuration.Config.
 //
 // The .env files are locations are related to the exec path
-func LoadAnyEnv(execPath string) error {
-	opts := argument.GetEnvPaths(execPath)
+func LoadAnyEnv() error {
+	opts, err := argument.GetEnvPaths()
+	if err != nil {
+		return fmt.Errorf("argument.GetEnvPaths: %w", err)
+	}
 
 	if len(opts) == 0 {
 		return nil
 	}
 
-	err := godotenv.Load(opts...)
+	err = godotenv.Load(opts...)
 	if err != nil {
 		return fmt.Errorf("godotenv.Load for paths %v: %w", opts, err)
 	}

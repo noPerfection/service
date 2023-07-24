@@ -15,7 +15,6 @@ import (
 	"net"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -35,16 +34,6 @@ type Config struct {
 	Context *Context
 }
 
-// GetCurrentPath returns the current path of the executable
-func GetCurrentPath() (string, error) {
-	ex, err := os.Executable()
-	if err != nil {
-		return "", err
-	}
-	exPath := filepath.Dir(ex)
-	return exPath, nil
-}
-
 // New creates a global configuration for the entire application.
 //
 // Automatically reads the command line arguments.
@@ -59,13 +48,8 @@ func New(parent *log.Logger) (*Config, error) {
 	}
 	parent.Info("Loading environment files passed as app arguments")
 
-	execPath, err := GetCurrentPath()
-	if err != nil {
-		return nil, fmt.Errorf("returning executable's path failed: %w", err)
-	}
-
 	// First we load the environment variables
-	err = env.LoadAnyEnv(execPath)
+	err := env.LoadAnyEnv()
 	if err != nil {
 		return nil, fmt.Errorf("loading environment variables: %w", err)
 	}

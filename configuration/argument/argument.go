@@ -3,8 +3,8 @@ package argument
 
 import (
 	"fmt"
+	"github.com/ahmetson/service-lib/configuration/path"
 	"os"
-	"path"
 	"strings"
 )
 
@@ -20,12 +20,16 @@ const (
 // GetEnvPaths any command line data that comes after the files are .env file paths
 // Any argument for application without '--' prefix is considered to be path to the
 // environment file.
-func GetEnvPaths(execPath string) []string {
+func GetEnvPaths() ([]string, error) {
 	args := os.Args[1:]
 	if len(args) == 0 {
-		return []string{}
+		return []string{}, nil
 	}
 
+	execPath, err := path.GetExecPath()
+	if err != nil {
+		return []string{}, fmt.Errorf("path.GetExecPath: %w", err)
+	}
 	paths := make([]string, 0)
 
 	for _, arg := range args {
@@ -42,14 +46,10 @@ func GetEnvPaths(execPath string) []string {
 			continue
 		}
 
-		if path.IsAbs(arg) {
-			paths = append(paths, path.Join(execPath, arg))
-		} else {
-			paths = append(paths, path.Join(execPath, arg))
-		}
+		paths = append(paths, path.GetPath(execPath, arg))
 	}
 
-	return paths
+	return paths, nil
 }
 
 // GetArguments Load arguments, not the environment variable paths.
