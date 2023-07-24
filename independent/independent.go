@@ -90,9 +90,10 @@ func (independent *Service) prepareServiceConfiguration(expectedType configurati
 		}
 
 		serviceConfig = configuration.Service{
-			Type:     expectedType,
-			Url:      exePath,
-			Instance: config.Name + " 1",
+			Type:      expectedType,
+			Url:       exePath,
+			Instance:  config.Name + " 1",
+			Pipelines: key_value.Empty(),
 		}
 	} else if serviceConfig.Type != expectedType {
 		return fmt.Errorf("service type is overwritten. expected '%s', not '%s'", expectedType, serviceConfig.Type)
