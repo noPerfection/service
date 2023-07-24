@@ -4,7 +4,6 @@ package extension
 
 import (
 	"fmt"
-	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/independent"
@@ -24,12 +23,13 @@ type Extension struct {
 func New(config *configuration.Config, parent *log.Logger) (*Extension, error) {
 	logger := parent.Child("extension")
 
+	base, err := independent.New(config, logger)
+	if err != nil {
+		return nil, fmt.Errorf("independent.New: %w", err)
+	}
+
 	service := Extension{
-		service: &independent.Service{
-			Config:      config,
-			Logger:      logger,
-			Controllers: key_value.Empty(),
-		},
+		service: base,
 	}
 
 	return &service, nil
