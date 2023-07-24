@@ -350,7 +350,7 @@ func build(context *configuration.Context, url string, logger *log.Logger) error
 	srcUrl := SrcPath(context, url)
 	binUrl := BinPath(context, url)
 
-	logger.Info("building", "src", srcUrl, "bin", binUrl, "environment files")
+	logger.Info("building", "src", srcUrl, "bin", binUrl)
 
 	err := cleanBuild(srcUrl, logger)
 	if err != nil {
@@ -359,12 +359,7 @@ func build(context *configuration.Context, url string, logger *log.Logger) error
 		logger.Info("go mod tidy was called in ", "source", srcUrl)
 	}
 
-	args, err := bindEnvs(context, []string{"build", "-o", binUrl})
-	if err != nil {
-		return fmt.Errorf("bindEnvs to args: %w", err)
-	}
-	logger.Info("running 'go' bin", "arguments", args)
-	cmd := exec.Command("go", args...)
+	cmd := exec.Command("go", "build", "-o", binUrl)
 	cmd.Stdout = logger
 	cmd.Dir = srcUrl
 	cmd.Stderr = logger
@@ -418,10 +413,17 @@ func buildConfiguration(context *configuration.Context, url string, logger *log.
 	pathFlag := fmt.Sprintf("--path=%s", ConfigurationPath(context, url))
 	urlFlag := fmt.Sprintf("--url=%s", url)
 
-	cmd := exec.Command(binUrl, "--build-configuration", pathFlag, urlFlag)
+	args, err := bindEnvs(context, []string{"--build-configuration", pathFlag, urlFlag})
+	if err != nil {
+		return fmt.Errorf("bindEnvs to args: %w", err)
+	}
+	logger.Info("executing", "bin", binUrl, "arguments", args)
+
+	cmd := exec.Command(binUrl, args...)
+
 	cmd.Stdout = logger
 	cmd.Stderr = logger
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("cmd.Run: %w", err)
 	}
