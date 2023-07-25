@@ -23,6 +23,7 @@ type Context struct {
 	Src  string      `json:"SERVICE_DEPS_SRC"`
 	Bin  string      `json:"SERVICE_DEPS_BIN"`
 	Data string      `json:"SERVICE_DEPS_DATA"`
+	url  string
 }
 
 func initContext(config *Config) {
@@ -59,6 +60,14 @@ func setDevContext(config *Config) {
 	context.Type = DevContext
 
 	config.Context = context
+}
+
+func (context *Context) SetUrl(url string) {
+	context.url = url
+}
+
+func (context *Context) GetUrl() string {
+	return context.url
 }
 
 func (context *Context) Host() string {

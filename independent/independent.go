@@ -100,6 +100,8 @@ func (independent *Service) prepareServiceConfiguration(expectedType configurati
 		return fmt.Errorf("service type is overwritten. expected '%s', not '%s'", expectedType, serviceConfig.Type)
 	}
 
+	independent.Config.Context.SetUrl(independent.Config.Service.Url)
+
 	independent.Config.Service = serviceConfig
 
 	return nil
