@@ -85,14 +85,18 @@ func (independent *Service) prepareServiceConfiguration(expectedType configurati
 	config := independent.Config
 	serviceConfig := independent.Config.Service
 	if len(serviceConfig.Type) == 0 {
-		exePath, err := path.GetExecPath()
+		if !argument.Exist(argument.Url) {
+			return fmt.Errorf("missing --url")
+		}
+
+		url, err := argument.Value(argument.Url)
 		if err != nil {
-			return fmt.Errorf("failed to get current executable path: %w", err)
+			return fmt.Errorf("argument.Value: %w", err)
 		}
 
 		serviceConfig = configuration.Service{
 			Type:      expectedType,
-			Url:       exePath,
+			Url:       url,
 			Instance:  config.Name + " 1",
 			Pipelines: key_value.Empty(),
 		}
