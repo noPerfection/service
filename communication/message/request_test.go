@@ -1,6 +1,8 @@
 package message
 
 import (
+	"fmt"
+	"github.com/ahmetson/service-lib/log"
 	"testing"
 
 	"github.com/ahmetson/common-lib/data_type/key_value"
@@ -12,17 +14,26 @@ import (
 // returns the current testing context
 type TestRequestSuite struct {
 	suite.Suite
-	ok Request
+	ok     Request
+	logger *log.Logger
 }
 
 // Make sure that Account is set to five
 // before each test
 func (suite *TestRequestSuite) SetupTest() {
+	logger, _ := log.New("test request", false)
 	request := Request{
 		Command:    "some_command",
 		Parameters: key_value.Empty(),
 	}
+	request.SetUuid()
+	request.AddRequestStack("service_1", "name_1", "instance_1")
+	request.AddRequestStack("service_2", "name_2", "instance_2")
+
+	suite.logger = logger
 	suite.ok = request
+
+	suite.logger.Info("request stack", request)
 }
 
 // All methods that begin with "Test" are run as tests within a
@@ -32,7 +43,9 @@ func (suite *TestRequestSuite) TestIsOk() {
 }
 
 func (suite *TestRequestSuite) TestToBytes() {
-	okString := `{"command":"some_command","parameters":{}}`
+	trace := fmt.Sprintf(`[{"command":"some_command","request_time":%d,"server_instance":"instance_1","server_name":"name_1","service_url":"service_1"},{"command":"some_command","request_time":%d,"server_instance":"instance_2","server_name":"name_2","service_url":"service_2"}],"uuid":"%s"`,
+		suite.ok.Trace[0].RequestTime, suite.ok.Trace[1].RequestTime, suite.ok.Uuid)
+	okString := fmt.Sprintf(`{"command":"some_command","parameters":{},"trace":%s}`, trace)
 
 	okBytes, err := suite.ok.Bytes()
 	suite.NoError(err)
