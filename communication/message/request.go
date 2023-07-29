@@ -65,7 +65,7 @@ func (request *Request) GetPublicKey() string {
 	return request.publicKey
 }
 
-// ToString the message
+// JoinMessages the message
 func (request *Request) String() (string, error) {
 	bytes, err := request.Bytes()
 	if err != nil {
@@ -75,8 +75,9 @@ func (request *Request) String() (string, error) {
 	return string(bytes), nil
 }
 
-// ToString into the single string the array of zeromq messages
-func ToString(messages []string) string {
+
+// JoinMessages into the single string the array of zeromq messages
+func JoinMessages(messages []string) string {
 	msg := ""
 	for _, v := range messages {
 		msg += v
@@ -86,7 +87,7 @@ func ToString(messages []string) string {
 
 // ParseRequest from the zeromq messages
 func ParseRequest(messages []string) (Request, error) {
-	msg := ToString(messages)
+	msg := JoinMessages(messages)
 
 	data, err := key_value.NewFromString(msg)
 	if err != nil {

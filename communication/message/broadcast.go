@@ -60,7 +60,7 @@ func (b *Broadcast) ToBytes() []byte {
 
 // ParseBroadcast creates the Broadcast from the zeromq messages.
 func ParseBroadcast(messages []string) (Broadcast, error) {
-	msg := ToString(messages)
+	msg := JoinMessages(messages)
 	i := strings.Index(msg, "{")
 
 	if i == -1 {

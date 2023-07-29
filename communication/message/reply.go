@@ -89,7 +89,7 @@ func (reply *Reply) Bytes() ([]byte, error) {
 
 // ParseReply decodes the Zeromq messages into the Reply.
 func ParseReply(messages []string) (Reply, error) {
-	msg := ToString(messages)
+	msg := JoinMessages(messages)
 	data, err := key_value.NewFromString(msg)
 	if err != nil {
 		return Reply{}, fmt.Errorf("key_value.NewFromString: %w", err)
