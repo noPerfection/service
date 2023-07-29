@@ -57,7 +57,7 @@ func (reply *Reply) IsOK() bool { return reply.Status == OK }
 func (reply *Reply) String() (string, error) {
 	bytes, err := reply.Bytes()
 	if err != nil {
-		return "", fmt.Errorf("reply.ToBytes: %w", err)
+		return "", fmt.Errorf("reply.Bytes: %w", err)
 	}
 
 	return string(bytes), nil
@@ -81,7 +81,7 @@ func (reply *Reply) Bytes() ([]byte, error) {
 
 	bytes, err := kv.Bytes()
 	if err != nil {
-		return nil, fmt.Errorf("serialized key-value.ToBytes: %w", err)
+		return nil, fmt.Errorf("serialized key-value.Bytes: %w", err)
 	}
 
 	return bytes, nil

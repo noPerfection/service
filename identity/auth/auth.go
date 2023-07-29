@@ -19,12 +19,12 @@ package auth
 //
 //// Returns the Vault secret path for the service private key.
 //func vaultPath(name parameter.ServiceType) string {
-//	return name.ToString() + "_SECRET_KEY"
+//	return name.String() + "_SECRET_KEY"
 //}
 //
 //// Returns the Vault secret path for the broadcast service private key.
 //func vaultBroadcastPath(name parameter.ServiceType) string {
-//	return name.ToString() + "_BROADCAST_SECRET_KEY"
+//	return name.String() + "_BROADCAST_SECRET_KEY"
 //}
 //
 //// ServiceCredentials Gets the credentials for the service type

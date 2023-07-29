@@ -45,7 +45,7 @@ func DefaultConfiguration(_ configuration.ServiceType) configuration.DefaultConf
 		}
 
 		defaultConfig := configuration.DefaultConfig{
-			Title:      "SERVICE " + serviceType.ToString(),
+			Title:      "SERVICE " + serviceType.String(),
 			Parameters: key_value.New(parameters),
 		}
 

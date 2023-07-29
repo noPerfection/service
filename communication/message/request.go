@@ -35,8 +35,8 @@ func (request *Request) validCommand() error {
 	return nil
 }
 
-// ToBytes converts the message to the sequence of bytes
-func (request *Request) ToBytes() ([]byte, error) {
+// Bytes converts the message to the sequence of bytes
+func (request *Request) Bytes() ([]byte, error) {
 	err := request.validCommand()
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate command: %w", err)
@@ -49,7 +49,7 @@ func (request *Request) ToBytes() ([]byte, error) {
 
 	bytes, err := kv.Bytes()
 	if err != nil {
-		return nil, fmt.Errorf("kv.ToBytes: %w", err)
+		return nil, fmt.Errorf("kv.Bytes: %w", err)
 	}
 
 	return bytes, nil
@@ -66,10 +66,10 @@ func (request *Request) GetPublicKey() string {
 }
 
 // ToString the message
-func (request *Request) ToString() (string, error) {
-	bytes, err := request.ToBytes()
+func (request *Request) String() (string, error) {
+	bytes, err := request.Bytes()
 	if err != nil {
-		return "", fmt.Errorf("request.ToBytes: %w", err)
+		return "", fmt.Errorf("request.Bytes: %w", err)
 	}
 
 	return string(bytes), nil
@@ -100,7 +100,7 @@ func ParseRequest(messages []string) (Request, error) {
 	}
 
 	// verify that data is not nil
-	_, err = request.ToBytes()
+	_, err = request.Bytes()
 	if err != nil {
 		return Request{}, fmt.Errorf("failed to validate: %w", err)
 	}

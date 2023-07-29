@@ -34,33 +34,33 @@ func (suite *TestRequestSuite) TestIsOk() {
 func (suite *TestRequestSuite) TestToBytes() {
 	okString := `{"command":"some_command","parameters":{}}`
 
-	okBytes, err := suite.ok.ToBytes()
+	okBytes, err := suite.ok.Bytes()
 	suite.NoError(err)
 
 	suite.EqualValues(okString, string(okBytes))
 
 	// The Parameters as a nil should fail
 	request := Request{}
-	_, err = request.ToBytes()
+	_, err = request.Bytes()
 	suite.Error(err)
 
 	// The Failure request can not have an empty message
 	request = Request{
 		Command: "command",
 	}
-	_, err = request.ToBytes()
+	_, err = request.Bytes()
 	suite.Error(err)
 
 	// The Failure request can not have an empty message
 	request = Request{
 		Parameters: key_value.Empty(),
 	}
-	_, err = request.ToBytes()
+	_, err = request.Bytes()
 	suite.Error(err)
 }
 
 func (suite *TestRequestSuite) TestParsing() {
-	okString, _ := suite.ok.ToBytes()
+	okString, _ := suite.ok.Bytes()
 
 	ok, err := ParseRequest([]string{string(okString)})
 	suite.Require().NoError(err)

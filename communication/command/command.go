@@ -168,7 +168,7 @@ func (route *Route) Push(socket *zmq.Socket, request interface{}) error {
 		Parameters: requestParameters,
 	}
 
-	requestString, err := requestMessage.ToString()
+	requestString, err := requestMessage.String()
 	if err != nil {
 		return fmt.Errorf("failed to stringify message: %w", err)
 	}

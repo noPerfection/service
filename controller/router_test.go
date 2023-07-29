@@ -251,7 +251,7 @@ func (suite *TestRouterSuite) TestRun() {
 			request := message.Request{
 				Command: "no_existing",
 			}
-			requestString, _ := request.ToString()
+			requestString, _ := request.String()
 			_, err = socket.SendMessage("STORAGE", requestString)
 			suite.Require().NoError(err)
 		}

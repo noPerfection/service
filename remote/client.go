@@ -205,9 +205,9 @@ func (socket *ClientSocket) RequestRouter(service *service.Service, request *mes
 		}
 	}
 
-	requestString, err := request.ToString()
+	requestString, err := request.String()
 	if err != nil {
-		return nil, fmt.Errorf("request.ToString: %w", err)
+		return nil, fmt.Errorf("request.String: %w", err)
 	}
 
 	attempt := parameter.Attempt(socket.appConfig)
@@ -293,9 +293,9 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 
 	requestTimeout := parameter.RequestTimeout(socket.appConfig)
 
-	requestString, err := request.ToString()
+	requestString, err := request.String()
 	if err != nil {
-		return nil, fmt.Errorf("request.ToString: %w", err)
+		return nil, fmt.Errorf("request.String: %w", err)
 	}
 
 	attempt := parameter.Attempt(socket.appConfig)

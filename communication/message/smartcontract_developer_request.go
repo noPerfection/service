@@ -52,7 +52,7 @@ type SmartcontractDeveloperRequest struct {
 
 // Bytes message as a sequence of bytes
 //
-// For now .ToBytes() is not used by the service.
+// For now .Bytes() is not used by the service.
 func (smReq *SmartcontractDeveloperRequest) Bytes() ([]byte, error) {
 	kv, err := key_value.NewFromInterface(smReq)
 	if err != nil {
@@ -61,7 +61,7 @@ func (smReq *SmartcontractDeveloperRequest) Bytes() ([]byte, error) {
 
 	bytes, err := kv.Bytes()
 	if err != nil {
-		return nil, fmt.Errorf("kv.ToBytes: %w", err)
+		return nil, fmt.Errorf("kv.Bytes: %w", err)
 	}
 
 	return bytes, nil
@@ -69,11 +69,11 @@ func (smReq *SmartcontractDeveloperRequest) Bytes() ([]byte, error) {
 
 // String Converts SmartcontractDeveloperRequest message to the string
 //
-// For now .ToString() is not used by the service.
+// For now .String() is not used by the service.
 func (smReq *SmartcontractDeveloperRequest) String() (string, error) {
 	bytes, err := smReq.Bytes()
 	if err != nil {
-		return "", fmt.Errorf("request.ToBytes: %w", err)
+		return "", fmt.Errorf("request.Bytes: %w", err)
 	}
 
 	return string(bytes), nil
@@ -100,7 +100,7 @@ func (smReq *SmartcontractDeveloperRequest) messageHash() ([]byte, error) {
 
 	bytes, err := key_value.New(jsonObject).Bytes()
 	if err != nil {
-		return []byte{}, fmt.Errorf("key_value.ToBytes: %w", err)
+		return []byte{}, fmt.Errorf("key_value.Bytes: %w", err)
 	}
 
 	hash := crypto.Keccak256Hash(bytes)
@@ -142,7 +142,7 @@ func (smReq *SmartcontractDeveloperRequest) validateParameters() error {
 //
 //	then cleaned up from the smartcontract request parameters
 func ToSmartcontractDeveloperRequest(request Request) (SmartcontractDeveloperRequest, error) {
-	_, err := request.ToBytes()
+	_, err := request.Bytes()
 	if err != nil {
 		return SmartcontractDeveloperRequest{}, fmt.Errorf("request is invalid: %w", err)
 	}
