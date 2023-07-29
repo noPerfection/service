@@ -31,7 +31,7 @@ func extension() *configuration.Extension {
 func (proxy *Proxy) registerDestination() {
 	for _, c := range proxy.service.Config.Service.Controllers {
 		if c.Name == configuration.DestinationName {
-			proxy.Controller.RegisterDestination(&c)
+			proxy.Controller.RegisterDestination(&c, proxy.service.Config.Service.Url)
 			break
 		}
 	}
@@ -82,7 +82,7 @@ func (proxy *Proxy) SetDefaultSource(controllerType configuration.Type) error {
 	// todo move the validation to the proxy.ValidateTypes() function
 	var source controller.Interface
 	if controllerType == configuration.ReplierType {
-		sourceController, err := controller.NewReplier(proxy.service.Logger)
+		sourceController, err := controller.SyncReplier(proxy.service.Logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a source as controller.NewReplier: %w", err)
 		}

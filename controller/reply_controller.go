@@ -111,6 +111,7 @@ func (c *Controller) AddRoute(route *command.Route) error {
 }
 
 // extensionsAdded checks that the required extensions are added into the controller.
+// If no extensions are added by calling controller.RequireExtension(), then it will return nil.
 func (c *Controller) extensionsAdded() error {
 	for _, name := range c.requiredExtensions {
 		if err := c.extensionConfigs.Exist(name); err != nil {

@@ -34,6 +34,7 @@ type Controller struct {
 	// type of the required destination
 	requiredDestination configuration.Type
 	logger              *log.Logger
+	serviceUrl          string
 }
 
 // newController Returns the initiated Router with the service parameters that connects source and destination.
@@ -57,9 +58,10 @@ func (controller *Controller) RequireDestination(controllerType configuration.Ty
 // is handled on outside. As a result, it doesn't return
 // any error.
 // SDS Core can have unique command handlers.
-func (controller *Controller) RegisterDestination(destinationConfig *configuration.Controller) {
+func (controller *Controller) RegisterDestination(destinationConfig *configuration.Controller, serviceUrl string) {
 	controller.logger.Info("Adding client sockets that router will redirect", "destinationConfig", *destinationConfig)
 
+	controller.serviceUrl = serviceUrl
 	controller.destination = &Destination{Configuration: destinationConfig, socket: nil}
 }
 
@@ -165,6 +167,18 @@ func (controller *Controller) Run() {
 					}
 					continue
 				}
+				request, err := message.ParseRequest(messages[2:])
+				if err != nil {
+					if err := replyErrorMessage(frontend, err, messages); err != nil {
+						controller.logger.Fatal("reply_error_message", "error", err)
+					}
+					continue
+				}
+
+				if request.IsFirst() {
+					request.SetUuid()
+				}
+				request.AddRequestStack(controller.serviceUrl, ControllerName, "instance01")
 
 				controller.logger.Info("todo", "currently", "proxy redirects to the first destination", "todo", "need to direct through pipeline")
 				client := controller.destination
@@ -176,45 +190,28 @@ func (controller *Controller) Run() {
 					continue
 				}
 
-				lastIndex := len(messages) - 1
-				for i := 0; i <= lastIndex; i++ {
-					if i == lastIndex {
-						_, err := client.socket.Send(messages[i], 0)
-						if err != nil {
-							controller.logger.Fatal("send to dealer", "error", err)
-						}
-					} else {
-						_, err := client.socket.Send(messages[i], zmq.SNDMORE)
-						if err != nil {
-							controller.logger.Fatal("send to dealer", "error", err)
-						}
-					}
+				requestString, _ := request.String()
+				_, err = client.socket.SendMessage(messages[0], messages[1], requestString)
+				if err != nil {
+					controller.logger.Fatal("sendMessage failed", "message", requestString)
 				}
 
 				// end of handling requestMessages from source
 				///////////////////////////////////////
 			} else {
-				for {
-					msg, err := zmqSocket.Recv(0)
-					if err != nil {
-						controller.logger.Fatal("receive from dealer", "error", err)
-					}
-					if more, err := zmqSocket.GetRcvmore(); more {
-						if err != nil {
-							controller.logger.Fatal("receive more messages from dealer", "error", err)
-						}
-						_, err := frontend.Send(msg, zmq.SNDMORE)
-						if err != nil {
-							controller.logger.Fatal("send from dealer to frontend", "error", err)
-						}
-					} else {
-						_, err := frontend.Send(msg, 0)
-						if err != nil {
-							controller.logger.Fatal("send from dealer to frontend", "error", err)
-						}
-						break
-					}
+				messages, err := zmqSocket.RecvMessage(0)
+				if err != nil {
+					controller.logger.Fatal("failed to read message", "error", err)
 				}
+				reply, err := message.ParseReply(messages[2:])
+				if err != nil {
+					controller.logger.Fatal("ParseReply", "error", err)
+				}
+				if err := reply.SetStack(controller.serviceUrl, ControllerName, "instance01"); err != nil {
+					controller.logger.Fatal("reply.SetStack", "error", err)
+				}
+				replyStr, _ := reply.String()
+				frontend.SendMessage(messages[0], messages[1], replyStr)
 			}
 		}
 	}

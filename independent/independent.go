@@ -290,7 +290,7 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 			return fmt.Errorf("c '%s' registered in the service, no config found: %w", name, err)
 		}
 
-		c.AddConfig(&controllerConfig)
+		c.AddConfig(&controllerConfig, independent.Config.Service.Url)
 		requiredExtensions := c.RequiredExtensions()
 		for _, extensionUrl := range requiredExtensions {
 			requiredExtension := independent.Config.Service.GetExtension(extensionUrl)

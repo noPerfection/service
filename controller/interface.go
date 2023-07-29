@@ -43,11 +43,7 @@ var anyHandler = func(request message.Request, _ *log.Logger, _ ...*remote.Clien
 	replyParameters := key_value.Empty()
 	replyParameters.Set("command", request.Command)
 
-	reply := message.Reply{
-		Status:     message.OK,
-		Message:    "",
-		Parameters: replyParameters,
-	}
+	reply := request.Ok(replyParameters)
 	return reply
 }
 
