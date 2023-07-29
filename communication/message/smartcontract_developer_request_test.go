@@ -190,7 +190,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 	request = Request{
 		Command: "get_data",
 		Parameters: key_value.Empty().
-			Set("_address", "0Dead").
+			Set("_address", "0xDead").
 			Set("_nonce_timestamp", suite.sampleNonce).
 			Set("_signature", "0xdead").
 			// the "get_data" command parameters
