@@ -200,7 +200,7 @@ func (r *Router) Run() {
 			if zmqSocket == frontend {
 				messages, err := zmqSocket.RecvMessage(0)
 				if err != nil {
-					if err := replyErrorMessage(frontend, err, messages); err != nil {
+					if err := replyErrorMessage(frontend, err, messages, message.Request{}); err != nil {
 						r.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
@@ -208,7 +208,7 @@ func (r *Router) Run() {
 
 				if len(messages) < 4 {
 					err := fmt.Errorf("message is too short. It should have atleast 4 parts")
-					if err := replyErrorMessage(frontend, err, messages); err != nil {
+					if err := replyErrorMessage(frontend, err, messages, message.Request{}); err != nil {
 						r.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
@@ -216,7 +216,7 @@ func (r *Router) Run() {
 				dealer := r.getDealer(messages[2])
 				if dealer == nil {
 					err := fmt.Errorf("'%s' dealer wasn't registered", messages[2])
-					if err := replyErrorMessage(frontend, err, messages); err != nil {
+					if err := replyErrorMessage(frontend, err, messages, message.Request{}); err != nil {
 						r.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
@@ -277,8 +277,8 @@ func (r *Router) Run() {
 }
 
 // The router's error replier
-func replyErrorMessage(socket *zmq.Socket, newErr error, messages []string) error {
-	fail := message.Fail("frontend receive message error " + newErr.Error())
+func replyErrorMessage(socket *zmq.Socket, newErr error, messages []string, request message.Request) error {
+	fail := request.Fail("frontend receive message error " + newErr.Error())
 	failString, _ := fail.String()
 
 	_, err := socket.Send(messages[0], zmq.SNDMORE)

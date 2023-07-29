@@ -13,7 +13,7 @@ var anyHandler = func(request message.Request, _ *log.Logger, extensions ...*rem
 	proxyClient := remote.FindClient(extensions, ControllerName)
 	replyParameters, err := proxyClient.RequestRemoteService(&request)
 	if err != nil {
-		return message.Fail(err.Error())
+		return request.Fail(err.Error())
 	}
 
 	reply := message.Reply{

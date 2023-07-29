@@ -93,7 +93,8 @@ func (c *Controller) reply(message message.Reply) error {
 
 // Calls controller.reply() with the error message.
 func (c *Controller) replyError(err error) error {
-	return c.reply(message.Fail(err.Error()))
+	request := message.Request{}
+	return c.reply(request.Fail(err.Error()))
 }
 
 // AddRoute adds a command along with its handler to this controller
@@ -216,7 +217,7 @@ func (c *Controller) Run() error {
 		}
 
 		if err != nil {
-			reply = message.Fail("route get " + request.Command + " failed: " + err.Error())
+			reply = request.Fail("route get " + request.Command + " failed: " + err.Error())
 		} else {
 			route := routeInterface.(*command.Route)
 			// for puller's it returns an error that occurred on the blockchain.

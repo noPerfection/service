@@ -161,15 +161,15 @@ func (controller *Controller) Run() {
 			// redirect to the dealer
 			if zmqSocket == frontend {
 				messages, err := zmqSocket.RecvMessage(0)
-				if err != nil {
-					if err := replyErrorMessage(frontend, err, messages); err != nil {
+				request, parseErr := message.ParseRequest(messages[2:])
+				if parseErr != nil {
+					if err := replyErrorMessage(frontend, err, messages, message.Request{}); err != nil {
 						controller.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
 				}
-				request, err := message.ParseRequest(messages[2:])
 				if err != nil {
-					if err := replyErrorMessage(frontend, err, messages); err != nil {
+					if err := replyErrorMessage(frontend, err, messages, request); err != nil {
 						controller.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
@@ -184,7 +184,7 @@ func (controller *Controller) Run() {
 				client := controller.destination
 				if client == nil {
 					err := fmt.Errorf("'%s' dealer wasn't registered", messages[2])
-					if err := replyErrorMessage(frontend, err, messages); err != nil {
+					if err := replyErrorMessage(frontend, err, messages, request); err != nil {
 						controller.logger.Fatal("reply_error_message", "error", err)
 					}
 					continue
@@ -211,28 +211,22 @@ func (controller *Controller) Run() {
 					controller.logger.Fatal("reply.SetStack", "error", err)
 				}
 				replyStr, _ := reply.String()
-				frontend.SendMessage(messages[0], messages[1], replyStr)
+				if _, err := frontend.SendMessage(messages[0], messages[1], replyStr); err != nil {
+					controller.logger.Fatal("frontend.SendMessage", "error", err)
+				}
 			}
 		}
 	}
 }
 
 // The router's error replier
-func replyErrorMessage(socket *zmq.Socket, newErr error, messages []string) error {
-	fail := message.Fail("frontend receive message error " + newErr.Error())
+func replyErrorMessage(socket *zmq.Socket, newErr error, messages []string, request message.Request) error {
+	fail := request.Fail(newErr.Error())
 	failString, _ := fail.String()
 
-	_, err := socket.Send(messages[0], zmq.SNDMORE)
+	_, err := socket.SendMessage(messages[0], messages[1], failString)
 	if err != nil {
-		return fmt.Errorf("failed to send back id to frontend '%s': %w", failString, err)
-	}
-	_, err = socket.Send(messages[1], zmq.SNDMORE)
-	if err != nil {
-		return fmt.Errorf("failed to send back delimiter to frontend '%s': %w", failString, err)
-	}
-	_, err = socket.Send(failString, 0)
-	if err != nil {
-		return fmt.Errorf("failed to send back fail message to frontend '%s': %w", failString, err)
+		return fmt.Errorf("failed to send back '%s': %w", failString, err)
 	}
 
 	return nil

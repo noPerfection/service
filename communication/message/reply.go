@@ -26,6 +26,7 @@ type Reply struct {
 	Parameters key_value.KeyValue `json:"parameters"` // If Status is OK, then field will contain the parameters.
 }
 
+// SetStack adds the current service's server into the reply
 func (reply *Reply) SetStack(serviceUrl string, serverName string, serverInstance string) error {
 	for i, stack := range reply.Trace {
 		if strings.Compare(stack.ServiceUrl, serviceUrl) == 0 &&
@@ -37,12 +38,6 @@ func (reply *Reply) SetStack(serviceUrl string, serverName string, serverInstanc
 	}
 
 	return fmt.Errorf("no trace stack for service %s server %s:%s", serviceUrl, serverName, serverInstance)
-}
-
-// Fail creates a new Reply as a failure
-// It accepts the error message that explains the reason of the failure.
-func Fail(message string) Reply {
-	return Reply{Status: FAIL, Message: message, Parameters: key_value.Empty()}
 }
 
 // Validates the status of the reply.
@@ -126,9 +121,7 @@ func ParseJsonReply(dat key_value.KeyValue) (Reply, error) {
 		return Reply{}, fmt.Errorf("failed to serialize key-value to msg.Reply: %v", err)
 	}
 
-	// It will call
-	// valid_fail(), valid_status() and
-	// check for missing values
+	// It will call valid_fail(), valid_status()
 	_, err = reply.Bytes()
 	if err != nil {
 		return Reply{}, fmt.Errorf("validation: %w", err)

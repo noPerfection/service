@@ -96,7 +96,7 @@ func Run(c *Controller) error {
 		}
 
 		if err != nil {
-			reply = message.Fail("route get " + request.Command + " failed: " + err.Error())
+			reply = request.Fail("route get " + request.Command + " failed: " + err.Error())
 		} else {
 			route := routeInterface.(*command.Route)
 			// for puller's it returns an error that occurred on the blockchain.
