@@ -19,8 +19,8 @@ const (
 
 // Reply SDS Service returns the reply. Anyone who sends a request to the SDS Service gets this message.
 type Reply struct {
-	Uuid       string             `json:"status"`
-	Trace      []Stack            `json:"trace"`
+	Uuid       string             `json:"uuid,omitempty"`
+	Trace      []Stack            `json:"trace,omitempty"`
 	Status     ReplyStatus        `json:"status"`     // message.OK or message.FAIL
 	Message    string             `json:"message"`    // If Status is fail, then field will contain error message.
 	Parameters key_value.KeyValue `json:"parameters"` // If Status is OK, then field will contain the parameters.

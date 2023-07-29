@@ -10,18 +10,18 @@ import (
 
 // Stack keeps the parameters of the message in the service.
 type Stack struct {
-	RequestTime    uint64
-	ReplyTime      uint64
-	Command        string
-	ServiceUrl     string
-	ServerName     string
-	ServerInstance string
+	RequestTime    uint64 `json:"request_time"`
+	ReplyTime      uint64 `json:"reply_time,omitempty"`
+	Command        string `json:"command"`
+	ServiceUrl     string `json:"service_url"`
+	ServerName     string `json:"server_name"`
+	ServerInstance string `json:"server_instance"`
 }
 
 // Request message sent by Client socket and accepted by Controller socket.
 type Request struct {
-	Uuid       string             `json:"uuid"`
-	Trace      []Stack            `json:"trace"`
+	Uuid       string             `json:"uuid,omitempty"`
+	Trace      []Stack            `json:"trace,omitempty"`
 	Command    string             `json:"command"`
 	Parameters key_value.KeyValue `json:"parameters"`
 	publicKey  string
