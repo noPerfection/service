@@ -16,7 +16,7 @@ import (
 // "github.com/ahmetson/service-lib/remote" package.
 type Interface interface {
 	// AddConfig adds the parameters of the controller from the configuration
-	AddConfig(controller *configuration.Controller)
+	AddConfig(controller *configuration.Controller, serviceUrl string)
 
 	// AddExtensionConfig adds the configuration of the extension that the controller depends on
 	AddExtensionConfig(extension *configuration.Extension)
