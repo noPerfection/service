@@ -6,8 +6,20 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 )
 
+// Stack keeps the parameters of the message in the service.
+type Stack struct {
+	Source      string
+	RequestTime uint64
+	ReplyTime   uint64
+	Command     string
+	ServiceId   string
+	ServerId    string
+}
+
 // Request message sent by Client socket and accepted by Controller socket.
 type Request struct {
+	Uuid       string             `json:"uuid"`
+	Trace      []Stack            `json:"trace"`
 	Command    string             `json:"command"`
 	Parameters key_value.KeyValue `json:"parameters"`
 	publicKey  string
