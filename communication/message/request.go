@@ -2,18 +2,20 @@ package message
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/google/uuid"
 )
 
 // Stack keeps the parameters of the message in the service.
 type Stack struct {
-	Source      string
-	RequestTime uint64
-	ReplyTime   uint64
-	Command     string
-	ServiceId   string
-	ServerId    string
+	RequestTime    uint64
+	ReplyTime      uint64
+	Command        string
+	ServiceUrl     string
+	ServerName     string
+	ServerInstance string
 }
 
 // Request message sent by Client socket and accepted by Controller socket.
@@ -33,6 +35,26 @@ func (request *Request) validCommand() error {
 	}
 
 	return nil
+}
+
+// IsFirst returns true if the request has no trace
+//
+// For example, if the proxy will insert it.
+func (request *Request) IsFirst() bool {
+	return len(request.Trace) == 0
+}
+
+func (request *Request) AddRequestStack(serviceUrl string, serverName string, serverInstance string) {
+	stack := Stack{
+		RequestTime:    uint64(time.Now().UnixMicro()),
+		ReplyTime:      0,
+		Command:        request.Command,
+		ServiceUrl:     serviceUrl,
+		ServerName:     serverName,
+		ServerInstance: serverInstance,
+	}
+
+	request.Trace = append(request.Trace, stack)
 }
 
 // Bytes converts the message to the sequence of bytes
@@ -75,6 +97,36 @@ func (request *Request) String() (string, error) {
 	return string(bytes), nil
 }
 
+func (request *Request) SetUuid() {
+	id := uuid.New()
+	request.Uuid = id.String()
+}
+
+// Fail creates a new Reply as a failure
+// It accepts the error message that explains the reason of the failure.
+func (request *Request) Fail(message string) Reply {
+	reply := Reply{
+		Status:     FAIL,
+		Message:    message,
+		Parameters: key_value.Empty(),
+		Uuid:       request.Uuid,
+	}
+	copy(reply.Trace, request.Trace)
+
+	return reply
+}
+
+func (request *Request) Ok(parameters key_value.KeyValue) Reply {
+	reply := Reply{
+		Status:     FAIL,
+		Message:    "",
+		Parameters: parameters,
+		Uuid:       request.Uuid,
+	}
+	copy(reply.Trace, request.Trace)
+
+	return reply
+}
 
 // JoinMessages into the single string the array of zeromq messages
 func JoinMessages(messages []string) string {

@@ -79,6 +79,10 @@ func Run(c *Controller) error {
 		}
 
 		// Add the trace
+		if request.IsFirst() {
+			request.SetUuid()
+		}
+		request.AddRequestStack(c.serviceUrl, c.config.Name, c.config.Instances[0].Instance)
 
 		var reply message.Reply
 		var routeInterface interface{}
@@ -97,6 +101,11 @@ func Run(c *Controller) error {
 			route := routeInterface.(*command.Route)
 			// for puller's it returns an error that occurred on the blockchain.
 			reply = route.Handle(request, c.logger, c.extensions)
+		}
+
+		// update the stack
+		if err = reply.SetStack(c.serviceUrl, c.config.Name, c.config.Instances[0].Instance); err != nil {
+			c.logger.Warn("failed to update the reply stack", "error", err)
 		}
 
 		if err := c.reply(reply); err != nil {

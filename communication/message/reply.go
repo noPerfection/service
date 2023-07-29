@@ -2,6 +2,8 @@ package message
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/ahmetson/common-lib/data_type/key_value"
 )
@@ -22,6 +24,19 @@ type Reply struct {
 	Status     ReplyStatus        `json:"status"`     // message.OK or message.FAIL
 	Message    string             `json:"message"`    // If Status is fail, then field will contain error message.
 	Parameters key_value.KeyValue `json:"parameters"` // If Status is OK, then field will contain the parameters.
+}
+
+func (reply *Reply) SetStack(serviceUrl string, serverName string, serverInstance string) error {
+	for i, stack := range reply.Trace {
+		if strings.Compare(stack.ServiceUrl, serviceUrl) == 0 &&
+			strings.Compare(stack.ServerName, serverName) == 0 &&
+			strings.Compare(stack.ServerInstance, serverInstance) == 0 {
+			reply.Trace[i].ReplyTime = uint64(time.Now().UnixMicro())
+			return nil
+		}
+	}
+
+	return fmt.Errorf("no trace stack for service %s server %s:%s", serviceUrl, serverName, serverInstance)
 }
 
 // Fail creates a new Reply as a failure

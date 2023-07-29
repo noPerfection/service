@@ -16,6 +16,7 @@ import (
 // Controller is the socket wrapper for the service.
 type Controller struct {
 	config             *configuration.Controller
+	serviceUrl         string
 	socket             *zmq.Socket
 	logger             *log.Logger
 	controllerType     configuration.Type
@@ -47,8 +48,9 @@ func NewReplier(logger *log.Logger) (*Controller, error) {
 }
 
 // AddConfig adds the parameters of the controller from the configuration
-func (c *Controller) AddConfig(controller *configuration.Controller) {
+func (c *Controller) AddConfig(controller *configuration.Controller, serviceUrl string) {
 	c.config = controller
+	c.serviceUrl = serviceUrl
 }
 
 // AddExtensionConfig adds the configuration of the extension that the controller depends on
