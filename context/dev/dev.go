@@ -49,6 +49,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 func preparePath(path string) error {
@@ -114,7 +115,8 @@ func EnvPath(context *configuration.Context) string {
 
 // ConfigurationPath returns configuration url in the context's data
 func ConfigurationPath(context *configuration.Context, url string) string {
-	return filepath.Join(context.Data, url+"/service.yml")
+	yamlName := strings.ReplaceAll(strings.ReplaceAll(context.GetUrl(), "/", "."), "\\", ".")
+	return filepath.Join(context.Data, url, yamlName)
 }
 
 func ConfigurationExist(context *configuration.Context, url string) (bool, error) {
