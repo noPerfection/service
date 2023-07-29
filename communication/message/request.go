@@ -110,20 +110,20 @@ func (request *Request) Fail(message string) Reply {
 		Message:    message,
 		Parameters: key_value.Empty(),
 		Uuid:       request.Uuid,
+		Trace:      request.Trace,
 	}
-	copy(reply.Trace, request.Trace)
 
 	return reply
 }
 
 func (request *Request) Ok(parameters key_value.KeyValue) Reply {
 	reply := Reply{
-		Status:     FAIL,
+		Status:     OK,
 		Message:    "",
 		Parameters: parameters,
+		Trace:      request.Trace,
 		Uuid:       request.Uuid,
 	}
-	copy(reply.Trace, request.Trace)
 
 	return reply
 }
