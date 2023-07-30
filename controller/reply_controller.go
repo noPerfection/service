@@ -30,14 +30,8 @@ type Controller struct {
 func NewReplier(logger *log.Logger) (*Controller, error) {
 	controllerLogger := logger.Child("controller", "type", configuration.ReplierType)
 
-	// Socket to talk to clients
-	socket, err := zmq.NewSocket(zmq.REP)
-	if err != nil {
-		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
-	}
-
 	return &Controller{
-		socket:             socket,
+		socket:             nil,
 		logger:             controllerLogger,
 		controllerType:     configuration.ReplierType,
 		routes:             command.NewRoutes(),
@@ -168,6 +162,12 @@ func (c *Controller) Run() error {
 	}
 	if c.config == nil || len(c.config.Instances) == 0 {
 		return fmt.Errorf("controller doesn't have the configuration or instances are missing")
+	}
+
+	// Socket to talk to clients
+	c.socket, err = zmq.NewSocket(zmq.REP)
+	if err != nil {
+		return fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
 	// if secure and not inproc

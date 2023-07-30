@@ -15,14 +15,7 @@ import (
 func SyncReplier(logger *log.Logger) (*Controller, error) {
 	controllerLogger := logger.Child("controller", "type", configuration.ReplierType)
 
-	// Socket to talk to clients
-	socket, err := zmq.NewSocket(zmq.REP)
-	if err != nil {
-		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
-	}
-
 	return &Controller{
-		socket:             socket,
 		logger:             controllerLogger,
 		controllerType:     configuration.ReplierType,
 		routes:             command.NewRoutes(),
