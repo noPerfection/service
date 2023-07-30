@@ -41,10 +41,8 @@ func (extension *Extension) AddController(controllerType configuration.Type) err
 		return fmt.Errorf("unknown controller type can't be in the extension")
 	}
 
-	controllerLogger := extension.service.Logger.Child("controller")
-
 	if controllerType == configuration.ReplierType {
-		replier, err := controller.NewReplier(controllerLogger)
+		replier, err := controller.SyncReplier(extension.service.Logger)
 		if err != nil {
 			return fmt.Errorf("controller.NewReplier: %w", err)
 		}
@@ -56,7 +54,7 @@ func (extension *Extension) AddController(controllerType configuration.Type) err
 		//}
 		//extension.Controller = router
 	} else if controllerType == configuration.PusherType {
-		puller, err := controller.NewPull(controllerLogger)
+		puller, err := controller.NewPull(extension.service.Logger)
 		if err != nil {
 			return fmt.Errorf("controller.NewPuller: %w", err)
 		}
