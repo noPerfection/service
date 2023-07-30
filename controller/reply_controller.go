@@ -153,85 +153,87 @@ func (c *Controller) initExtensionClients() error {
 //	 	go reply.Run(handlers, database) // or reply.Run(handlers)
 //
 // The parameters are the list of parameters that are passed to the command handlers
-func (c *Controller) Run() error {
-	if err := c.extensionsAdded(); err != nil {
-		return fmt.Errorf("extensionsAdded: %w", err)
-	}
-	if err := c.initExtensionClients(); err != nil {
-		return fmt.Errorf("initExtensionClients: %w", err)
-	}
-	if c.config == nil || len(c.config.Instances) == 0 {
-		return fmt.Errorf("controller doesn't have the configuration or instances are missing")
-	}
-
-	// Socket to talk to clients
-	c.socket, err = zmq.NewSocket(zmq.REP)
-	if err != nil {
-		return fmt.Errorf("zmq.NewSocket: %w", err)
-	}
-
-	// if secure and not inproc
-	// then we add the domain name of controller to the security layer
-	//
-	// then any whitelisting users will be sent there.
-	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances")
-	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
-	if err := c.socket.Bind(controllerUrl(c.config.Instances[0].Port)); err != nil {
-		return fmt.Errorf("socket.bind on tcp protocol for %s at url %d: %w", c.config.Name, c.config.Instances[0].Port, err)
-	}
-
-	for {
-		msgRaw, metadata, err := c.socket.RecvMessageWithMetadata(0, "pub_key")
-		if err != nil {
-			newErr := fmt.Errorf("socket.recvMessageWithMetadata: %w", err)
-			if err := c.replyError(newErr); err != nil {
-				return err
-			}
-			return newErr
-		}
-
-		// All request types derive from the basic request.
-		// We first attempt to parse basic request from the raw message
-		request, err := message.ParseRequest(msgRaw)
-		if err != nil {
-			newErr := fmt.Errorf("message.ParseRequest: %w", err)
-			if err := c.replyError(newErr); err != nil {
-				return err
-			}
-			continue
-		}
-		pubKey, ok := metadata["pub_key"]
-		if ok {
-			request.SetPublicKey(pubKey)
-		}
-
-		var reply message.Reply
-		var routeInterface interface{}
-
-		if c.routes.Exist(request.Command) {
-			routeInterface, err = c.routes.Get(request.Command)
-		} else if c.routes.Exist(command.Any) {
-			routeInterface, err = c.routes.Get(command.Any)
-		} else {
-			err = fmt.Errorf("handler not found for command: %s", request.Command)
-		}
-
-		if err != nil {
-			reply = request.Fail("route get " + request.Command + " failed: " + err.Error())
-		} else {
-			route := routeInterface.(*command.Route)
-			// for puller's it returns an error that occurred on the blockchain.
-			reply = route.Handle(request, c.logger, c.extensions)
-		}
-
-		if err := c.reply(reply); err != nil {
-			return err
-		}
-		if !reply.IsOK() && !c.isReply() {
-			c.logger.Warn("handler replied an error", "command", request.Command, "request parameters", request.Parameters, "error message", reply.Message)
-		}
-	}
-}
+//
+//func (c *Controller) Run() error {
+//	var err error
+//	if err := c.extensionsAdded(); err != nil {
+//		return fmt.Errorf("extensionsAdded: %w", err)
+//	}
+//	if err := c.initExtensionClients(); err != nil {
+//		return fmt.Errorf("initExtensionClients: %w", err)
+//	}
+//	if c.config == nil || len(c.config.Instances) == 0 {
+//		return fmt.Errorf("controller doesn't have the configuration or instances are missing")
+//	}
+//
+//	// Socket to talk to clients
+//	c.socket, err = zmq.NewSocket(zmq.REP)
+//	if err != nil {
+//		return fmt.Errorf("zmq.NewSocket: %w", err)
+//	}
+//
+//	// if secure and not inproc
+//	// then we add the domain name of controller to the security layer
+//	//
+//	// then any whitelisting users will be sent there.
+//	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances")
+//	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
+//	if err := c.socket.Bind(controllerUrl(c.config.Instances[0].Port)); err != nil {
+//		return fmt.Errorf("socket.bind on tcp protocol for %s at url %d: %w", c.config.Name, c.config.Instances[0].Port, err)
+//	}
+//
+//	for {
+//		msgRaw, metadata, err := c.socket.RecvMessageWithMetadata(0, "pub_key")
+//		if err != nil {
+//			newErr := fmt.Errorf("socket.recvMessageWithMetadata: %w", err)
+//			if err := c.replyError(newErr); err != nil {
+//				return err
+//			}
+//			return newErr
+//		}
+//
+//		// All request types derive from the basic request.
+//		// We first attempt to parse basic request from the raw message
+//		request, err := message.ParseRequest(msgRaw)
+//		if err != nil {
+//			newErr := fmt.Errorf("message.ParseRequest: %w", err)
+//			if err := c.replyError(newErr); err != nil {
+//				return err
+//			}
+//			continue
+//		}
+//		pubKey, ok := metadata["pub_key"]
+//		if ok {
+//			request.SetPublicKey(pubKey)
+//		}
+//
+//		var reply message.Reply
+//		var routeInterface interface{}
+//
+//		if c.routes.Exist(request.Command) {
+//			routeInterface, err = c.routes.Get(request.Command)
+//		} else if c.routes.Exist(command.Any) {
+//			routeInterface, err = c.routes.Get(command.Any)
+//		} else {
+//			err = fmt.Errorf("handler not found for command: %s", request.Command)
+//		}
+//
+//		if err != nil {
+//			reply = request.Fail("route get " + request.Command + " failed: " + err.Error())
+//		} else {
+//			route := routeInterface.(*command.Route)
+//			// for puller's it returns an error that occurred on the blockchain.
+//			reply = route.Handle(request, c.logger, c.extensions)
+//		}
+//
+//		if err := c.reply(reply); err != nil {
+//			return err
+//		}
+//		if !reply.IsOK() && !c.isReply() {
+//			c.logger.Warn("handler replied an error", "command", request.Command, "request parameters", request.Parameters, "error message", reply.Message)
+//		}
+//	}
+//}
 
 // controllerUrl creates url of the controller on tcp protocol
 func controllerUrl(port uint64) string {

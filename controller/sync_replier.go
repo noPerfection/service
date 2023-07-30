@@ -7,7 +7,6 @@ import (
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/log"
-
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -25,7 +24,8 @@ func SyncReplier(logger *log.Logger) (*Controller, error) {
 	}, nil
 }
 
-func Run(c *Controller) error {
+func (c *Controller) Run() error {
+	var err error
 	if err := c.extensionsAdded(); err != nil {
 		return fmt.Errorf("extensionsAdded: %w", err)
 	}
@@ -34,6 +34,12 @@ func Run(c *Controller) error {
 	}
 	if c.config == nil || len(c.config.Instances) == 0 {
 		return fmt.Errorf("controller doesn't have the configuration or instances are missing")
+	}
+
+	// Socket to talk to clients
+	c.socket, err = zmq.NewSocket(zmq.REP)
+	if err != nil {
+		return fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
 	// if secure and not inproc
