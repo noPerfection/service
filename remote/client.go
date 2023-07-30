@@ -330,6 +330,9 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 				return nil, fmt.Errorf("failed to parse the command '%s': %w", request.Command, err)
 			}
 
+			// remote service will add its own stack.
+			request.SyncTrace(&reply)
+
 			if !reply.IsOK() {
 				return nil, fmt.Errorf("the command '%s' replied with a failure: %s", request.Command, reply.Message)
 			}

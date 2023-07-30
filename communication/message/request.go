@@ -44,6 +44,16 @@ func (request *Request) IsFirst() bool {
 	return len(request.Trace) == 0
 }
 
+// SyncTrace is if the reply has more stacks, the request is updated with it.
+func (request *Request) SyncTrace(reply *Reply) {
+	repTraceLen := len(reply.Trace)
+	reqTraceLen := len(request.Trace)
+
+	if repTraceLen > reqTraceLen {
+		request.Trace = append(request.Trace, reply.Trace[reqTraceLen:]...)
+	}
+}
+
 func (request *Request) AddRequestStack(serviceUrl string, serverName string, serverInstance string) {
 	stack := Stack{
 		RequestTime:    uint64(time.Now().UnixMicro()),
@@ -100,6 +110,12 @@ func (request *Request) String() (string, error) {
 func (request *Request) SetUuid() {
 	id := uuid.New()
 	request.Uuid = id.String()
+}
+
+// Next creates a new request based on the previous one.
+func (request *Request) Next(command string, parameters key_value.KeyValue) {
+	request.Command = command
+	request.Parameters = parameters
 }
 
 // Fail creates a new Reply as a failure
