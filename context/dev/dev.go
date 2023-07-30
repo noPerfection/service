@@ -116,7 +116,7 @@ func EnvPath(context *configuration.Context) string {
 // ConfigurationPath returns configuration url in the context's data
 func ConfigurationPath(context *configuration.Context, url string) string {
 	yamlName := strings.ReplaceAll(strings.ReplaceAll(context.GetUrl(), "/", "."), "\\", ".")
-	return filepath.Join(context.Data, url, yamlName)
+	return filepath.Join(context.Data, url, yamlName+".yml")
 }
 
 func ConfigurationExist(context *configuration.Context, url string) (bool, error) {
