@@ -317,13 +317,15 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	if len(independent.RequiredProxies) > 0 {
 		for requiredProxy, contextInterface := range independent.RequiredProxies {
 			contextType := contextInterface.(configuration.ContextType)
-			dep, err := independent.Context.New(requiredProxy)
+			var dep *dev.Dep
+
+			dep, err = independent.Context.New(requiredProxy)
 			if err != nil {
 				err = fmt.Errorf(`independent.Context.New("%s"): %w`, requiredProxy, err)
 				goto closeContext
 			}
 
-			if err := independent.prepareProxyConfiguration(dep, contextType); err != nil {
+			if err = independent.prepareProxyConfiguration(dep, contextType); err != nil {
 				err = fmt.Errorf("service.prepareProxyConfiguration of %s in context %s: %w", requiredProxy, contextType, err)
 				goto closeContext
 			}
@@ -336,13 +338,15 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 
 		for requiredProxy, controllerInterface := range independent.Pipelines {
 			controllerName := controllerInterface.(string)
-			dep, err := independent.Context.Dep(requiredProxy)
+			var dep *dev.Dep
+
+			dep, err = independent.Context.Dep(requiredProxy)
 			if err != nil {
 				err = fmt.Errorf(`independent.Context.Dep("%s"): %w`, requiredProxy, err)
 				goto closeContext
 			}
 
-			if err := independent.preparePipelineConfiguration(dep, controllerName); err != nil {
+			if err = independent.preparePipelineConfiguration(dep, controllerName); err != nil {
 				err = fmt.Errorf("preparePipelineConfiguration '%s'=>'%s': %w", requiredProxy, controllerName, err)
 				goto closeContext
 			}
@@ -355,13 +359,15 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	if len(requiredExtensions) > 0 {
 		independent.Logger.Warn("extensions needed to be prepared", "extensions", requiredExtensions)
 		for _, requiredExtension := range requiredExtensions {
-			dep, err := independent.Context.New(requiredExtension)
+			var dep *dev.Dep
+
+			dep, err = independent.Context.New(requiredExtension)
 			if err != nil {
 				err = fmt.Errorf(`independent.Context.New("%s"): %w`, requiredExtension, err)
 				goto closeContext
 			}
 
-			if err := independent.prepareExtensionConfiguration(dep); err != nil {
+			if err = independent.prepareExtensionConfiguration(dep); err != nil {
 				err = fmt.Errorf(`service.prepareExtensionConfiguration("%s"): %w`, requiredExtension, err)
 				goto closeContext
 			}
@@ -373,16 +379,18 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	//---------------------------------------------------------
 	for name, controllerInterface := range independent.Controllers {
 		c := controllerInterface.(controller.Interface)
+		var controllerConfig configuration.Controller
+		var controllerExtensions []string
 
-		controllerConfig, err := independent.Config.Service.GetController(name)
+		controllerConfig, err = independent.Config.Service.GetController(name)
 		if err != nil {
 			err = fmt.Errorf("c '%s' registered in the service, no config found: %w", name, err)
 			goto closeContext
 		}
 
 		c.AddConfig(&controllerConfig, independent.Config.Service.Url)
-		requiredExtensions := c.RequiredExtensions()
-		for _, extensionUrl := range requiredExtensions {
+		controllerExtensions = c.RequiredExtensions()
+		for _, extensionUrl := range controllerExtensions {
 			requiredExtension := independent.Config.Service.GetExtension(extensionUrl)
 			c.AddExtensionConfig(requiredExtension)
 		}
@@ -394,7 +402,7 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 			// We don't check for the error, since preparing the configuration should do that already.
 			dep, _ := independent.Context.Dep(requiredProxy)
 
-			if err := independent.prepareProxy(dep); err != nil {
+			if err = independent.prepareProxy(dep); err != nil {
 				err = fmt.Errorf(`service.prepareProxy("%s"): %w`, requiredProxy, err)
 				goto closeContext
 			}
@@ -407,7 +415,7 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 			// We don't check for the error, since preparing the configuration should do that already.
 			dep, _ := independent.Context.Dep(requiredExtension)
 
-			if err := independent.prepareExtension(dep); err != nil {
+			if err = independent.prepareExtension(dep); err != nil {
 				err = fmt.Errorf(`service.prepareExtension("%s"): %w`, requiredExtension, err)
 				goto closeContext
 			}
@@ -418,6 +426,9 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 
 	// error happened, close the context
 closeContext:
+	if err == nil {
+		return fmt.Errorf("error is expected, it doesn't exist though")
+	}
 	return err
 }
 
