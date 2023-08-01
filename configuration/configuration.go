@@ -16,6 +16,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -259,7 +260,7 @@ func (config *Config) GetBool(name string) bool {
 
 // validateServicePath returns an error if the path is not a valid .yml link
 func validateServicePath(path string) error {
-	if len(path) < 5 {
+	if len(path) < 5 || len(filepath.Base(path)) < 5 {
 		return fmt.Errorf("path is too short")
 	}
 	_, found := strings.CutSuffix(path, ".yml")
