@@ -290,7 +290,7 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	// prepare the configuration with the service, it's controllers and instances.
 	// it doesn't prepare the proxies, pipelines and extensions
 	//----------------------------------------------------
-	err = independent.prepareConfiguration(as)
+	err := independent.prepareConfiguration(as)
 	if err != nil {
 		return fmt.Errorf("prepareConfiguration: %w", err)
 	}
@@ -305,7 +305,7 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 
 	requiredExtensions := independent.requiredControllerExtensions()
 
-	err = context.Run(independent.Config.Service.Url, independent.Logger)
+	err = independent.Context.Run(independent.Logger)
 	if err != nil {
 		return fmt.Errorf("context.Run: %w", err)
 	}
