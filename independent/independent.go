@@ -621,7 +621,7 @@ func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
 		if strings.Compare(extensionConfiguration.Url, converted.Url) != 0 {
 			return fmt.Errorf("the extension url in your '%s' configuration not matches to '%s' in the dependency", extensionConfiguration.Url, converted.Url)
 		}
-		if extensionConfiguration.Port != extensionConfiguration.Port {
+		if extensionConfiguration.Port != converted.Port {
 			independent.Logger.Warn("dependency port not matches to the extension port. Overwriting the source", "port", extensionConfiguration.Port, "dependency port", converted.Port)
 
 			main, _ := service.GetFirstController()
