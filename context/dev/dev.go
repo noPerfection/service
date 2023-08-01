@@ -55,7 +55,6 @@ import (
 type Context struct {
 	config       *configuration.Context
 	controller   controller.Interface
-	serviceUrl   string
 	serviceReady bool
 	deps         map[string]*Dep
 }
@@ -269,8 +268,8 @@ func (dep *Dep) PrepareConfiguration(logger *log.Logger) error {
 	if binExist {
 		logger.Warn("todo: for the file when it's running we need to set the current context as the same context by setting .env")
 		logger.Warn("todo: so that proxies or extensions will share the same context")
-
 		logger.Info("build configuration from the binary")
+
 		err := dep.buildConfiguration(logger)
 		if err != nil {
 			return fmt.Errorf("buildConfiguration of %s: %w", dep.url, err)

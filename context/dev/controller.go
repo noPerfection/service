@@ -22,7 +22,7 @@ import (
 func (context *Context) onClose(request message.Request, logger *log.Logger, _ ...*remote.ClientSocket) message.Reply {
 	logger.Info("closing the context",
 		"context type", context.config.Type,
-		"service", context.serviceUrl,
+		"service", context.config.GetUrl(),
 		"todo", "close all dependencies if any",
 		"todo", "close the main service",
 		"goal", "exit the application")
@@ -69,16 +69,14 @@ func (context *Context) onServiceReady(request message.Request, logger *log.Logg
 // The url parameter is the main service to which this context belongs too.
 //
 // The logger is the server logger as is. The context will create its own logger from it.
-func (context *Context) Run(url string, logger *log.Logger) error {
-	context.serviceUrl = url
-
+func (context *Context) Run(logger *log.Logger) error {
 	replier, err := controller.SyncReplier(logger.Child("context"))
 	if err != nil {
 		return fmt.Errorf("controller.SyncReplier: %w", err)
 	}
 
-	config := configuration.InternalConfiguration(configuration.ContextName(context.serviceUrl))
-	replier.AddConfig(config, context.serviceUrl)
+	config := configuration.InternalConfiguration(configuration.ContextName(context.config.GetUrl()))
+	replier.AddConfig(config, context.config.GetUrl())
 
 	closeRoute := command.NewRoute("close", context.onClose)
 	serviceReadyRoute := command.NewRoute("service-ready", context.onServiceReady)
@@ -103,7 +101,7 @@ func (context *Context) Close(logger *log.Logger) error {
 		logger.Warn("skipping, since context.Controller is not initialised", "todo", "call context.Run()")
 		return nil
 	}
-	contextName, contextPort := configuration.ClientUrlParameters(configuration.ContextName(context.serviceUrl))
+	contextName, contextPort := configuration.ClientUrlParameters(configuration.ContextName(context.config.GetUrl()))
 	contextClient, err := remote.NewReq(contextName, contextPort, logger)
 	if err != nil {
 		logger.Error("remote.NewReq", "error", err)
@@ -137,7 +135,7 @@ func (context *Context) ServiceReady(logger *log.Logger) error {
 		logger.Warn("context.Controller is not initialised", "todo", "call context.Run()")
 		return nil
 	}
-	contextName, contextPort := configuration.ClientUrlParameters(configuration.ContextName(context.serviceUrl))
+	contextName, contextPort := configuration.ClientUrlParameters(configuration.ContextName(context.config.GetUrl()))
 	contextClient, err := remote.NewReq(contextName, contextPort, logger)
 	if err != nil {
 		return fmt.Errorf("close the service by hand. remote.NewReq: %w", err)
@@ -170,7 +168,7 @@ func (context *Context) closeService(logger *log.Logger) error {
 	}
 	logger.Info("main service is linted to the context. send a signal to main service to be closed")
 
-	contextName, contextPort := configuration.ClientUrlParameters(configuration.ManagerName(context.serviceUrl))
+	contextName, contextPort := configuration.ClientUrlParameters(configuration.ManagerName(context.config.GetUrl()))
 	contextClient, err := remote.NewReq(contextName, contextPort, logger)
 	if err != nil {
 		return fmt.Errorf("close the service by hand. remote.NewReq: %w", err)
