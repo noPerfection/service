@@ -247,6 +247,25 @@ func findPipelineBeginning(s *Service, requiredEnd string, contextType ContextTy
 	return nil, fmt.Errorf("no pipeline beginning in the context '%s' by '%s' end", contextType, requiredEnd)
 }
 
+// HasProxy checks is there any proxy within the context.
+// If the context is default, then it will return true for any context
+func (s *Service) HasProxy(contextType ContextType) bool {
+	if len(s.Proxies) == 0 {
+		return false
+	}
+	if contextType == DefaultContext {
+		return true
+	}
+
+	for _, proxy := range s.Proxies {
+		if proxy.Context == contextType {
+			return true
+		}
+	}
+
+	return false
+}
+
 // ServiceToExtension returns the service in the proxy format
 // so that it can be used as a proxy
 func ServiceToExtension(s *Service, contextType ContextType) (Extension, error) {
@@ -268,7 +287,7 @@ func ServiceToExtension(s *Service, contextType ContextType) (Extension, error) 
 		Instance: controllerConfig.Name + " instance 01",
 	}
 
-	if len(s.Proxies) == 0 {
+	if !s.HasProxy(contextType) {
 		converted.Port = controllerConfig.Instances[0].Port
 	} else {
 		beginning, err := findPipelineBeginning(s, SourceName, contextType)
