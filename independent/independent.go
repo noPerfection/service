@@ -285,14 +285,6 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 		return fmt.Errorf("no Controllers. call independent.AddController")
 	}
 
-	//
-	// prepare the context for dependencies
-	//---------------------------------------------------
-	context, err := prepareContext(independent.Config.Context)
-	if err != nil {
-		return fmt.Errorf("service.prepareContext: %w", err)
-	}
-	independent.Context = context
 
 	//
 	// prepare the configuration with the service, it's controllers and instances.
@@ -301,6 +293,14 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	err = independent.prepareConfiguration(as)
 	if err != nil {
 		return fmt.Errorf("prepareConfiguration: %w", err)
+	}
+
+	//
+	// prepare the context for dependencies
+	//---------------------------------------------------
+	independent.Context, err = prepareContext(independent.Config.Context)
+	if err != nil {
+		return fmt.Errorf("service.prepareContext: %w", err)
 	}
 
 	requiredExtensions := independent.requiredControllerExtensions()
