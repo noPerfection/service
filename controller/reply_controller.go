@@ -41,7 +41,8 @@ func NewReplier(logger *log.Logger) (*Controller, error) {
 	}, nil
 }
 
-// AddConfig adds the parameters of the controller from the configuration
+// AddConfig adds the parameters of the controller from the configuration.
+// The serviceUrl is the service to which this controller belongs too.
 func (c *Controller) AddConfig(controller *configuration.Controller, serviceUrl string) {
 	c.config = controller
 	c.serviceUrl = serviceUrl
@@ -142,6 +143,19 @@ func (c *Controller) initExtensionClients() error {
 	return nil
 }
 
+func (c *Controller) Close() error {
+	if c.socket == nil {
+		return nil
+	}
+
+	err := c.socket.Close()
+	if err != nil {
+		return fmt.Errorf("controller.socket.Close: %w", err)
+	}
+
+	return nil
+}
+
 // Run the controller.
 //
 // It will bind itself to the socket endpoint and waits for the message.Request.
@@ -178,7 +192,7 @@ func (c *Controller) initExtensionClients() error {
 //	// then any whitelisting users will be sent there.
 //	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances")
 //	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
-//	if err := c.socket.Bind(controllerUrl(c.config.Instances[0].Port)); err != nil {
+//	if err := c.socket.Bind(Url(c.config.Instances[0].Port)); err != nil {
 //		return fmt.Errorf("socket.bind on tcp protocol for %s at url %d: %w", c.config.Name, c.config.Instances[0].Port, err)
 //	}
 //
@@ -235,8 +249,12 @@ func (c *Controller) initExtensionClients() error {
 //	}
 //}
 
-// controllerUrl creates url of the controller on tcp protocol
-func controllerUrl(port uint64) string {
+// Url creates url of the controller url for binding.
+// For clients to connect to this url, call remote.ClientUrl()
+func Url(name string, port uint64) string {
+	if port == 0 {
+		return fmt.Sprintf("inproc://%s", name)
+	}
 	url := fmt.Sprintf("tcp://*:%d", port)
 	return url
 }

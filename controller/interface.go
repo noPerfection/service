@@ -35,6 +35,9 @@ type Interface interface {
 	// ControllerType returns the type of the controller
 	ControllerType() configuration.Type
 
+	// Close the controller if it's running. If it's not running, then do nothing
+	Close() error
+
 	Run() error
 }
 

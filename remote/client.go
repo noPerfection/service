@@ -478,7 +478,7 @@ func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig 
 	return &newSocket, nil
 }
 
-// NewReq creates a new client to connect to the service labelled as name.
+// NewReq creates a new client to connect to the service labelled as name (usually it's url)
 //
 // The returned socket client then can send message to the controller.Replier
 func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error) {
@@ -487,22 +487,22 @@ func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error)
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
+	protocol := "tcp"
+	if port == 0 {
+		protocol = "inproc"
+	}
+
 	var logger *log.Logger
 	if parent != nil {
 		logger = parent.Child("client",
 			"service name", name,
-			"protocol", "tcp",
+			"protocol", protocol,
 			"socket_type", "REQ",
 			"remote_service_url", ClientUrl(name, port),
 		)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("logger: %w", err)
-	}
-
-	protocol := "tcp"
-	if port == 0 {
-		protocol = "inproc"
 	}
 
 	newSocket := ClientSocket{

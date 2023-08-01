@@ -39,7 +39,7 @@ func (proxy *Proxy) registerDestination() {
 
 // New proxy service along with its controller.
 func New(config *configuration.Config, parent *log.Logger) *Proxy {
-	logger := parent.Child("proxy")
+	logger := parent.Child("service", "service_type", configuration.ProxyType)
 
 	base, _ := independent.New(config, logger)
 

@@ -43,15 +43,32 @@ import (
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/env"
+	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/go-git/go-git/v5" // with go modules disabled
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
+type Context struct {
+	config       *configuration.Context
+	controller   controller.Interface
+	serviceUrl   string
+	serviceReady bool
+	deps         map[string]*Dep
+}
+
+// The Dep is the dependency relied on by the service
+type Dep struct {
+	url     string
+	context *Context // link back the Context where it's living
+	cmd     *exec.Cmd
+	done    chan error
+}
+
+// Creates the directory for the data at the given path.
 func preparePath(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -72,35 +89,35 @@ func preparePath(path string) error {
 	return nil
 }
 
-// Prepare the context by validating the paths. If they don't exist, then it will be created.
-func Prepare(context *configuration.Context) error {
-	if err := preparePath(context.Src); err != nil {
-		return fmt.Errorf("invalid source path: %w", err)
+// New creates a context including its directories.
+func New(config *configuration.Context) (*Context, error) {
+	context := &Context{
+		config:     config,
+		deps:       make(map[string]*Dep),
+		controller: nil,
 	}
-	if err := preparePath(context.Bin); err != nil {
-		return fmt.Errorf("invalid bin path: %w", err)
-	}
-	if err := preparePath(context.Data); err != nil {
-		return fmt.Errorf("invalid data path: %w", err)
-	}
-
-	if err := prepareEnv(context); err != nil {
-		return fmt.Errorf("prepareEnv: %w", err)
+	for _, path := range config.Paths() {
+		if err := preparePath(path); err != nil {
+			return context, fmt.Errorf("preparePath(%s): %w", path, err)
+		}
 	}
 
-	return nil
+	if err := context.prepareEnv(); err != nil {
+		return context, fmt.Errorf("prepareEnv: %w", err)
+	}
+
+	return context, nil
 }
 
-// prepareEnv writes the .env of the context to share between dependencies
-func prepareEnv(context *configuration.Context) error {
-	kv, err := key_value.NewFromInterface(context)
+// prepareEnv writes the .env of the context to share between dependencies.
+// Call it after creating a path.
+func (context *Context) prepareEnv() error {
+	kv, err := key_value.NewFromInterface(context.config)
 	if err != nil {
 		return fmt.Errorf("prepareEnv: %w", err)
 	}
 
-	envPath := EnvPath(context)
-
-	err = env.WriteEnv(kv, envPath)
+	err = env.WriteEnv(kv, context.EnvPath())
 	if err != nil {
 		return fmt.Errorf("env.WriteEnv: %w", err)
 	}
@@ -108,20 +125,45 @@ func prepareEnv(context *configuration.Context) error {
 	return nil
 }
 
+// Dep returns the dependency from the context by its url.
+// Returns null, if the dependency wasn't found
+func (context *Context) Dep(url string) (*Dep, error) {
+	dep, ok := context.deps[url]
+	if !ok {
+		return nil, fmt.Errorf("the '%s' dependency not exists", url)
+	}
+	return dep, nil
+}
+
+// New dependency in the context. If the dependency already exists, it will return an error.
+// The created dependency will be added to the context.
+func (context *Context) New(url string) (*Dep, error) {
+	_, ok := context.deps[url]
+	if ok {
+		return nil, fmt.Errorf("the '%s' dependency exists", url)
+	}
+	dep := &Dep{url: url, context: context, cmd: nil}
+	context.deps[url] = dep
+	return dep, nil
+}
+
 // EnvPath is the shared configurations between dependencies
-func EnvPath(context *configuration.Context) string {
-	return filepath.Join(context.Data, ".env")
+func (context *Context) EnvPath() string {
+	return filepath.Join(context.config.Data, ".env")
+}
+
+func (dep *Dep) Url() string {
+	return dep.url
 }
 
 // ConfigurationPath returns configuration url in the context's data
-func ConfigurationPath(context *configuration.Context, url string) string {
-	yamlName := strings.ReplaceAll(strings.ReplaceAll(context.GetUrl(), "/", "."), "\\", ".")
-	return filepath.Join(context.Data, url, yamlName+".yml")
+func (dep *Dep) ConfigurationPath() string {
+	fileName := configuration.UrlToFileName(dep.context.config.GetUrl())
+	return filepath.Join(dep.context.config.Data, dep.url, fileName+".yml")
 }
 
-func ConfigurationExist(context *configuration.Context, url string) (bool, error) {
-	dataPath := ConfigurationPath(context, url)
-	println("the data path is", dataPath)
+func (dep *Dep) ConfigurationExist() (bool, error) {
+	dataPath := dep.ConfigurationPath()
 	_, err := os.Stat(dataPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -133,23 +175,23 @@ func ConfigurationExist(context *configuration.Context, url string) (bool, error
 	return true, nil
 }
 
-func prepareConfigurationPath(context *configuration.Context, url string) error {
-	dir := filepath.Dir(ConfigurationPath(context, url))
+func (dep *Dep) prepareConfigurationPath() error {
+	dir := filepath.Dir(dep.ConfigurationPath())
 	return preparePath(dir)
 }
 
-func prepareBinPath(context *configuration.Context, url string) error {
-	dir := filepath.Dir(BinPath(context, url))
+func (dep *Dep) prepareBinPath() error {
+	dir := filepath.Dir(dep.BinPath())
 	return preparePath(dir)
 }
 
-func prepareSrcPath(context *configuration.Context, url string) error {
-	dir := filepath.Dir(SrcPath(context, url))
+func (dep *Dep) prepareSrcPath() error {
+	dir := filepath.Dir(dep.SrcPath())
 	return preparePath(dir)
 }
 
-func BinExist(context *configuration.Context, url string) (bool, error) {
-	dataPath := BinPath(context, url)
+func (dep *Dep) BinExist() (bool, error) {
+	dataPath := dep.BinPath()
 	println("the bin path is", dataPath)
 	_, err := os.Stat(dataPath)
 	if err != nil {
@@ -162,12 +204,12 @@ func BinExist(context *configuration.Context, url string) (bool, error) {
 	return true, nil
 }
 
-func SrcPath(context *configuration.Context, url string) string {
-	return filepath.Join(context.Src, url)
+func (dep *Dep) SrcPath() string {
+	return filepath.Join(dep.context.config.Src, dep.url)
 }
 
-func SrcExist(context *configuration.Context, url string) (bool, error) {
-	dataPath := SrcPath(context, url)
+func (dep *Dep) SrcExist() (bool, error) {
+	dataPath := dep.SrcPath()
 	println("the source path is", dataPath)
 	_, err := os.Stat(dataPath)
 	if err != nil {
@@ -180,9 +222,9 @@ func SrcExist(context *configuration.Context, url string) (bool, error) {
 	return true, nil
 }
 
-// ReadServiceConfiguration returns the yaml configuration of the dependency as is
-func ReadServiceConfiguration(context *configuration.Context, url string) (configuration.Service, error) {
-	configUrl := ConfigurationPath(context, url)
+// Configuration returns the yaml configuration of the dependency as is
+func (dep *Dep) Configuration() (configuration.Service, error) {
+	configUrl := dep.ConfigurationPath()
 	service, err := configuration.ReadService(configUrl)
 	if err != nil {
 		return configuration.Service{}, fmt.Errorf("configuration.ReadService of %s: %w", configUrl, err)
@@ -191,37 +233,37 @@ func ReadServiceConfiguration(context *configuration.Context, url string) (confi
 	return service, nil
 }
 
-// WriteServiceConfiguration updates the yaml of the proxy.
+// SetConfiguration updates the yaml of the proxy.
 //
 // It's needed for linting the dependency's destination controller with the service that relies on it.
-func WriteServiceConfiguration(context *configuration.Context, url string, config configuration.Service) error {
-	configUrl := ConfigurationPath(context, url)
+func (dep *Dep) SetConfiguration(config configuration.Service) error {
+	configUrl := dep.ConfigurationPath()
 	return configuration.WriteService(configUrl, config)
 }
 
 // PrepareConfiguration creates the service.yml of the dependency.
 // If it already exists, it skips.
 // The prepared service.yml would be used for linting
-func PrepareConfiguration(context *configuration.Context, url string, logger *log.Logger) error {
-	exist, err := ConfigurationExist(context, url)
+func (dep *Dep) PrepareConfiguration(logger *log.Logger) error {
+	exist, err := dep.ConfigurationExist()
 	if err != nil {
-		return fmt.Errorf("failed to check existence of %s in %s context: %w", url, context.Type, err)
+		return fmt.Errorf("failed to check existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
 	}
 
 	if exist {
 		return nil
 	} else {
 		// first need to prepare the configuration
-		err := prepareConfigurationPath(context, url)
+		err := dep.prepareConfigurationPath()
 		if err != nil {
 			return fmt.Errorf("prepareConfigurationPath: %w", err)
 		}
 	}
 
 	// check is binary exist
-	binExist, err := BinExist(context, url)
+	binExist, err := dep.BinExist()
 	if err != nil {
-		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", url, context.Type, err)
+		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
 	}
 
 	if binExist {
@@ -229,67 +271,67 @@ func PrepareConfiguration(context *configuration.Context, url string, logger *lo
 		logger.Warn("todo: so that proxies or extensions will share the same context")
 
 		logger.Info("build configuration from the binary")
-		err := buildConfiguration(context, url, logger)
+		err := dep.buildConfiguration(logger)
 		if err != nil {
-			return fmt.Errorf("buildConfiguration of %s: %w", url, err)
+			return fmt.Errorf("buildConfiguration of %s: %w", dep.url, err)
 		}
 		logger.Info("configuration was built, read it")
-		return PrepareConfiguration(context, url, logger)
+		return dep.PrepareConfiguration(logger)
 	} else {
 		// first need to prepare the directory
-		err := prepareBinPath(context, url)
+		err := dep.prepareBinPath()
 		if err != nil {
 			return fmt.Errorf("prepareBinPath: %w", err)
 		}
 	}
 
 	// check for source exist
-	srcExist, err := SrcExist(context, url)
+	srcExist, err := dep.SrcExist()
 	if err != nil {
-		return fmt.Errorf("failed to check src existence of %s in %s context: %w", url, context.Type, err)
+		return fmt.Errorf("failed to check src existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
 	}
 
 	if srcExist {
 		logger.Info("src exists, we need to build it")
-		err := build(context, url, logger)
+		err := dep.build(logger)
 		if err != nil {
 			return fmt.Errorf("build: %w", err)
 		}
 		logger.Info("file was built. generate the configuration file")
-		return PrepareConfiguration(context, url, logger)
+		return dep.PrepareConfiguration(logger)
 	} else {
 		// first prepare the src directory
-		err := prepareSrcPath(context, url)
+		err := dep.prepareSrcPath()
 		if err != nil {
 			return fmt.Errorf("prepareSrcPath: %w", err)
 		}
 
 		logger.Warn("src doesn't exist, try to clone the source code")
-		err = cloneSrc(context, url, logger)
+		err = dep.cloneSrc(logger)
 		if err != nil {
 			return fmt.Errorf("cloneSrc: %w", err)
 		} else {
 			logger.Info("prepare again to build the source")
-			return PrepareConfiguration(context, url, logger)
+			return dep.PrepareConfiguration(logger)
 		}
 	}
 }
 
-// PrepareService runs the service if it wasn't running
-func PrepareService(context *configuration.Context, url string, port uint64, logger *log.Logger) error {
+// Prepare downloads the binary if it wasn't.
+func (dep *Dep) Prepare(port uint64, logger *log.Logger) error {
 	// check is binary exist
-	binExist, err := BinExist(context, url)
+	binExist, err := dep.BinExist()
 	if err != nil {
-		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", url, context.Type, err)
+		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
 	}
 
 	if binExist {
-		used := configuration.IsPortUsed(context.Host(), port)
+		used := configuration.IsPortUsed(dep.context.config.Host(), port)
 		if used {
-			logger.Info("service is launched already", "url", url, "port", port)
+			logger.Info("service is launched already", "url", dep.url, "port", port)
 			return nil
 		} else {
-			err := start(context, url, logger)
+			err := dep.start(logger)
 			if err != nil {
 				return fmt.Errorf("failed to start proxy: %w", err)
 			}
@@ -297,46 +339,46 @@ func PrepareService(context *configuration.Context, url string, port uint64, log
 		}
 	} else {
 		// first need to prepare the directory
-		err := prepareBinPath(context, url)
+		err := dep.prepareBinPath()
 		if err != nil {
 			return fmt.Errorf("prepareBinPath: %w", err)
 		}
 	}
 
 	// check for source exist
-	srcExist, err := SrcExist(context, url)
+	srcExist, err := dep.SrcExist()
 	if err != nil {
-		return fmt.Errorf("failed to check src existence of %s in %s context: %w", url, context.Type, err)
+		return fmt.Errorf("failed to check src existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
 	}
 
 	if srcExist {
 		logger.Info("src exists, we need to build it")
-		err := build(context, url, logger)
+		err := dep.build(logger)
 		if err != nil {
 			return fmt.Errorf("build: %w", err)
 		}
 		logger.Info("file was built.")
-		return PrepareService(context, url, port, logger)
+		return dep.Prepare(port, logger)
 	} else {
 		// first prepare the src directory
-		err := prepareSrcPath(context, url)
+		err := dep.prepareSrcPath()
 		if err != nil {
 			return fmt.Errorf("prepareSrcPath: %w", err)
 		}
 
 		logger.Warn("src doesn't exist, try to clone the source code")
-		err = cloneSrc(context, url, logger)
+		err = dep.cloneSrc(logger)
 		if err != nil {
 			return fmt.Errorf("cloneSrc: %w", err)
 		} else {
 			logger.Info("prepare again to build the source")
-			return PrepareService(context, url, port, logger)
+			return dep.Prepare(port, logger)
 		}
 	}
 }
 
-func bindEnvs(context *configuration.Context, args []string) ([]string, error) {
-	envs := []string{EnvPath(context)}
+func bindEnvs(context *Context, args []string) ([]string, error) {
+	envs := []string{context.EnvPath()}
 	loadedEnvs, err := argument.GetEnvPaths()
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to get env paths: %w", err)
@@ -348,9 +390,9 @@ func bindEnvs(context *configuration.Context, args []string) ([]string, error) {
 }
 
 // builds the application
-func build(context *configuration.Context, url string, logger *log.Logger) error {
-	srcUrl := SrcPath(context, url)
-	binUrl := BinPath(context, url)
+func (dep *Dep) build(logger *log.Logger) error {
+	srcUrl := dep.SrcPath()
+	binUrl := dep.BinPath()
 
 	logger.Info("building", "src", srcUrl, "bin", binUrl)
 
@@ -373,16 +415,19 @@ func build(context *configuration.Context, url string, logger *log.Logger) error
 }
 
 // start is run without attachment
-func start(context *configuration.Context, url string, logger *log.Logger) error {
-	binUrl := BinPath(context, url)
-	configFlag := fmt.Sprintf("--configuration=%s", ConfigurationPath(context, url))
+func (dep *Dep) start(logger *log.Logger) error {
+	binUrl := dep.BinPath()
+	configFlag := fmt.Sprintf("--configuration=%s", dep.ConfigurationPath())
 
-	args, err := bindEnvs(context, []string{configFlag})
+	args, err := bindEnvs(dep.context, []string{configFlag})
 	if err != nil {
 		return fmt.Errorf("bindEnvs to args: %w", err)
 	}
 
 	logger.Info("running", "command", binUrl, "arguments", args)
+
+	dep.done = make(chan error, 1)
+	dep.onEnd(logger)
 
 	cmd := exec.Command(binUrl, args...)
 	cmd.Stdout = logger
@@ -391,8 +436,37 @@ func start(context *configuration.Context, url string, logger *log.Logger) error
 	if err != nil {
 		return fmt.Errorf("cmd.Start: %w", err)
 	}
+	dep.cmd = cmd
+	dep.wait(logger)
 
 	return nil
+}
+
+// Call it before starting the dependency with os/exec.Start
+func (dep *Dep) onEnd(logger *log.Logger) {
+	go func() {
+		err := <-dep.done
+		if err != nil {
+			logger.Error("dependency ended with error", "error", err, "dep", dep.Url())
+		} else {
+			logger.Info("dependency ended successfully", "dep", dep.Url())
+		}
+		dep.cmd = nil
+		err = dep.context.Close(logger)
+		if err != nil {
+			logger.Error("dep.context.Close", "error", err)
+		}
+	}()
+}
+
+// wait until the dependency is not exiting
+func (dep *Dep) wait(logger *log.Logger) {
+	go func() {
+		logger.Info("waiting for dep to end", "dep", dep.Url())
+		err := dep.cmd.Wait()
+		logger.Error("dependency closed itself", "dep", dep.Url(), "error", err)
+		dep.done <- err
+	}()
 }
 
 // calls `go mod tidy`
@@ -410,12 +484,12 @@ func cleanBuild(srcUrl string, logger *log.Logger) error {
 }
 
 // calls `go mod tidy`
-func buildConfiguration(context *configuration.Context, url string, logger *log.Logger) error {
-	binUrl := BinPath(context, url)
-	pathFlag := fmt.Sprintf("--path=%s", ConfigurationPath(context, url))
-	urlFlag := fmt.Sprintf("--url=%s", url)
+func (dep *Dep) buildConfiguration(logger *log.Logger) error {
+	binUrl := dep.BinPath()
+	pathFlag := fmt.Sprintf("--path=%s", dep.ConfigurationPath())
+	urlFlag := fmt.Sprintf("--url=%s", dep.url)
 
-	args, err := bindEnvs(context, []string{"--build-configuration", pathFlag, urlFlag})
+	args, err := bindEnvs(dep.context, []string{"--build-configuration", pathFlag, urlFlag})
 	if err != nil {
 		return fmt.Errorf("bindEnvs to args: %w", err)
 	}
@@ -445,12 +519,12 @@ func convertToGitUrl(rawUrl string) (string, error) {
 	return URL.String() + ".git", nil
 }
 
-func cloneSrc(context *configuration.Context, url string, logger *log.Logger) error {
-	gitUrl, err := convertToGitUrl(url)
+func (dep *Dep) cloneSrc(logger *log.Logger) error {
+	gitUrl, err := convertToGitUrl(dep.url)
 	if err != nil {
-		return fmt.Errorf("convertToGitUrl of %s: %w", url, err)
+		return fmt.Errorf("convertToGitUrl of %s: %w", dep.url, err)
 	}
-	srcUrl := SrcPath(context, url)
+	srcUrl := dep.SrcPath()
 	_, err = git.PlainClone(srcUrl, false, &git.CloneOptions{
 		URL:      gitUrl,
 		Progress: logger,

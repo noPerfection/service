@@ -62,6 +62,10 @@ func setDevContext(config *Config) {
 	config.Context = context
 }
 
+func (context *Context) Paths() []string {
+	return []string{context.Data, context.Bin, context.Src}
+}
+
 func (context *Context) SetUrl(url string) {
 	context.url = url
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/path"
+	"github.com/cakturk/go-netstat/netstat"
 	"github.com/phayes/freeport"
 	"gopkg.in/yaml.v3"
 	"net"
@@ -136,6 +137,25 @@ func (config *Config) GetFreePort() int {
 	return port
 }
 
+func CurrentPid() uint64 {
+	return uint64(os.Getpid())
+}
+
+func PortToPid[V int | uint64](port V) (uint64, error) {
+	socks, err := netstat.TCPSocks(func(s *netstat.SockTabEntry) bool {
+		return s.LocalAddr.Port == uint16(port)
+	})
+	if err != nil {
+		return 0, fmt.Errorf("netstart.TCPSocks: %w", err)
+	}
+	if len(socks) == 0 {
+		return 0, fmt.Errorf("no process on port %d: %w", port, err)
+	}
+	sock := socks[0]
+
+	return uint64(sock.Process.Pid), nil
+}
+
 func IsPortUsed[V int | uint64](host string, port V) bool {
 	portString := fmt.Sprintf("%d", port)
 	timeout := time.Second
@@ -250,6 +270,9 @@ func validateServicePath(path string) error {
 	return nil
 }
 
+// ReadService on the given path.
+// If path is not obsolete, then it should be relative to the executable.
+// The path should have the .yml extension
 func ReadService(path string) (Service, error) {
 	if err := validateServicePath(path); err != nil {
 		return Service{}, fmt.Errorf("validateServicePath: %w", err)
