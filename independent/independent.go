@@ -462,7 +462,7 @@ func (independent *Service) BuildConfiguration() {
 		independent.Logger.Fatal("failed to write the proxy into the file", "error", err)
 	}
 
-	independent.Logger.Info("the proxy was generated", "output path", outputPath)
+	independent.Logger.Info("yaml configuration was generated", "output path", outputPath)
 
 	os.Exit(0)
 }
@@ -572,7 +572,7 @@ func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext
 	service, err := dep.Configuration()
 	converted, err := configuration.ServiceToProxy(&service, proxyContext)
 	if err != nil {
-		return fmt.Errorf("proxy.ServiceToProxy: %w", err)
+		return fmt.Errorf("configuration.ServiceToProxy: %w", err)
 	}
 
 	proxyConfiguration := independent.Config.Service.GetProxy(dep.Url())
@@ -612,7 +612,7 @@ func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
 	service, err := dep.Configuration()
 	converted, err := configuration.ServiceToExtension(&service, independent.Config.Context.Type)
 	if err != nil {
-		return fmt.Errorf("proxy.ServiceToProxy: %w", err)
+		return fmt.Errorf("configuration.ServiceToExtension: %w", err)
 	}
 
 	extensionConfiguration := independent.Config.Service.GetExtension(dep.Url())
