@@ -10,22 +10,28 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// SyncReplier creates a new synchronous Reply controller.
-func SyncReplier(parent *log.Logger) (*Controller, error) {
-	logger := parent.Child("controller", "type", configuration.ReplierType)
-
+func newController(logger *log.Logger) *Controller {
 	return &Controller{
 		logger:             logger,
-		controllerType:     configuration.ReplierType,
+		controllerType:     configuration.UnknownType,
 		routes:             command.NewRoutes(),
 		requiredExtensions: make([]string, 0),
 		extensionConfigs:   key_value.Empty(),
 		extensions:         key_value.Empty(),
-	}, nil
+	}
 }
 
-func (c *Controller) Run() error {
-	var err error
+// SyncReplier creates a new synchronous Reply controller.
+func SyncReplier(parent *log.Logger) (*Controller, error) {
+	logger := parent.Child("controller", "type", configuration.ReplierType)
+
+	instance := newController(logger)
+	instance.controllerType = configuration.ReplierType
+
+	return instance, nil
+}
+
+func (c *Controller) prepare() error {
 	if err := c.extensionsAdded(); err != nil {
 		return fmt.Errorf("extensionsAdded: %w", err)
 	}
