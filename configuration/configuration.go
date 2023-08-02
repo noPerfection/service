@@ -31,11 +31,11 @@ type Config struct {
 	Name  string       // application name
 	viper *viper.Viper // used to keep default values
 
-	Secure   bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
-	logger   *log.Logger // debug purpose only
-	Service  Service
-	Context  *Context
-	watching bool
+	Secure       bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
+	logger       *log.Logger // debug purpose only
+	Service      Service
+	Context      *Context
+	handleChange func(Service, error)
 }
 
 // New creates a global configuration for the entire application.
@@ -46,9 +46,10 @@ type Config struct {
 // logger should be a parent
 func New(parent *log.Logger) (*Config, error) {
 	config := Config{
-		Name:    parent.Prefix(),
-		logger:  parent.Child("configuration"),
-		Service: Service{},
+		Name:         parent.Prefix(),
+		logger:       parent.Child("configuration"),
+		Service:      Service{},
+		handleChange: nil,
 	}
 	config.logger.Info("Loading environment files passed as app arguments")
 
@@ -262,8 +263,8 @@ func FileExists(path string) (bool, error) {
 // Watch could be called only once. If it's already called, then it will skip it without an error.
 //
 // For production, we could call config.viper.WatchRemoteConfig() for example in etcd.
-func (config *Config) Watch() error {
-	if config.watching {
+func (config *Config) Watch(watchHandle func(Service, error)) error {
+	if config.handleChange != nil {
 		return nil
 	}
 
@@ -275,13 +276,12 @@ func (config *Config) Watch() error {
 	}
 
 	// set it after checking for errors
-	config.watching = true
+	config.handleChange = watchHandle
 
 	if !exists {
 		// wait file appearance, then call the watchChange
 		go config.watchFileCreation()
 	} else {
-		config.logger.Info("file exists, start engine watch")
 		config.watchChange()
 	}
 
@@ -294,17 +294,17 @@ func (config *Config) watchFileCreation() {
 	for {
 		exists, err := FileExists(servicePath)
 		if err != nil {
-			config.logger.Error("FileExists", "service path", servicePath, "error", err)
+			config.handleChange(Service{}, fmt.Errorf("watchFileCreation: FileExists: %w", err))
+			break
 		}
 		if exists {
-			config.logger.Info("file created, stop checking for updates and start engine watch. let's see what is in the file")
 			service, err := config.readFile()
 			if err != nil {
-				config.logger.Fatal("reading file failed", "error", err)
+				config.handleChange(Service{}, fmt.Errorf("watchFileCreation: config.readFile: %w", err))
+				break
 			}
 
-			config.logger.Info("comparing internal and changed configs", "changed", service, "internal", config.Service, "error to load changed", err)
-			config.logger.Info("start tracking file changes call the callback for file change")
+			config.handleChange(service, nil)
 
 			config.watchChange()
 			break
@@ -319,14 +319,12 @@ func (config *Config) watchFileDeletion() {
 	for {
 		exists, err := FileExists(servicePath)
 		if err != nil {
-			config.logger.Error("FileExists", "service path", servicePath, "error", err)
+			config.handleChange(Service{}, fmt.Errorf("watchFileDeletion: FileExists: %w", err))
+			break
 		}
 		if !exists {
-			config.logger.Info("file deleted, stop checking for updates and start engine watch. let's see what is in the file")
-			service := Service{}
-			config.logger.Info("comparing internal and changed configs", "changed", service, "internal", config.Service, "error to load changed", err)
+			config.handleChange(Service{}, nil)
 
-			config.logger.Warn("file was moved, wait for it's creation")
 			go config.watchFileCreation()
 			break
 		}
@@ -343,11 +341,10 @@ func (config *Config) watchChange() {
 	config.viper.OnConfigChange(func(e fsnotify.Event) {
 		service, err := config.readFile()
 		if err != nil {
-			config.logger.Fatal("unmarshalling service configuration failed", "error", err)
+			config.handleChange(Service{}, fmt.Errorf("watchChange: config.readFile: %w", err))
+		} else {
+			config.handleChange(service, nil)
 		}
-
-		config.logger.Info("comparing internal and changed configs", "changed", service, "internal", config.Service, "error to load changed", err)
-		config.logger.Info("Config file changed", "name", e.Name, "op", e.Op.String(), "serialized", e.String())
 	})
 }
 
