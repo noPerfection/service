@@ -72,7 +72,7 @@ func (context *Context) onServiceReady(request message.Request, logger *log.Logg
 func (context *Context) Run(logger *log.Logger) error {
 	replier, err := controller.SyncReplier(logger.Child("context"))
 	if err != nil {
-		return fmt.Errorf("controller.SyncReplier: %w", err)
+		return fmt.Errorf("controller.SyncReplierType: %w", err)
 	}
 
 	config := configuration.InternalConfiguration(configuration.ContextName(context.config.GetUrl()))

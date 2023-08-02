@@ -261,7 +261,7 @@ func (independent *Service) onClose(request message.Request, logger *log.Logger,
 func (independent *Service) runManager() error {
 	replier, err := controller.SyncReplier(independent.Logger.Child("manager"))
 	if err != nil {
-		return fmt.Errorf("controller.SyncReplier: %w", err)
+		return fmt.Errorf("controller.SyncReplierType: %w", err)
 	}
 
 	config := configuration.InternalConfiguration(configuration.ManagerName(independent.Config.Service.Url))
@@ -284,7 +284,6 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 	if len(independent.Controllers) == 0 {
 		return fmt.Errorf("no Controllers. call independent.AddController")
 	}
-
 
 	//
 	// prepare the configuration with the service, it's controllers and instances.

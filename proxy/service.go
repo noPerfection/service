@@ -81,7 +81,7 @@ func (proxy *Proxy) Prepare() error {
 func (proxy *Proxy) SetDefaultSource(controllerType configuration.Type) error {
 	// todo move the validation to the proxy.ValidateTypes() function
 	var source controller.Interface
-	if controllerType == configuration.ReplierType {
+	if controllerType == configuration.SyncReplierType {
 		sourceController, err := controller.SyncReplier(proxy.service.Logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a source as controller.NewReplier: %w", err)

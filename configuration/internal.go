@@ -39,7 +39,7 @@ func InternalConfiguration(name string) *Controller {
 	}
 
 	return &Controller{
-		Type:      ReplierType,
+		Type:      SyncReplierType,
 		Name:      name,
 		Instances: []ControllerInstance{instance},
 	}

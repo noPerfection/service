@@ -128,9 +128,6 @@ func (c *AsyncController) handleBackend() error {
 }
 
 // Replier creates an asynchronous replying server.
-//
-// todo make sure that configuration.ReplierType is renamed to configuration.SyncReplier.
-// and here in the replier we use configuration.ReplierType
 func Replier(parent *log.Logger) (*AsyncController, error) {
 	logger := parent.Child("async-controller", "type", configuration.ReplierType)
 

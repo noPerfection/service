@@ -28,12 +28,12 @@ type Controller struct {
 
 // NewReplier creates a new synchronous Reply controller.
 func NewReplier(logger *log.Logger) (*Controller, error) {
-	controllerLogger := logger.Child("controller", "type", configuration.ReplierType)
+	controllerLogger := logger.Child("controller", "type", configuration.SyncReplierType)
 
 	return &Controller{
 		socket:             nil,
 		logger:             controllerLogger,
-		controllerType:     configuration.ReplierType,
+		controllerType:     configuration.SyncReplierType,
 		routes:             command.NewRoutes(),
 		requiredExtensions: make([]string, 0),
 		extensionConfigs:   key_value.Empty(),
@@ -66,7 +66,7 @@ func (c *Controller) RequiredExtensions() []string {
 }
 
 func (c *Controller) isReply() bool {
-	return c.controllerType == configuration.ReplierType
+	return c.controllerType == configuration.SyncReplierType
 }
 
 // reply sends to the caller the message.

@@ -41,13 +41,13 @@ func (extension *Extension) AddController(controllerType configuration.Type) err
 		return fmt.Errorf("unknown controller type can't be in the extension")
 	}
 
-	if controllerType == configuration.ReplierType {
+	if controllerType == configuration.SyncReplierType {
 		replier, err := controller.SyncReplier(extension.service.Logger)
 		if err != nil {
 			return fmt.Errorf("controller.NewReplier: %w", err)
 		}
 		extension.service.AddController(defaultControllerName, replier)
-	} else if controllerType == configuration.RouterType {
+	} else if controllerType == configuration.ReplierType {
 		//router, err := controller.NewRouter(controllerLogger)
 		//if err != nil {
 		//	return fmt.Errorf("controller.NewRouter: %w", err)

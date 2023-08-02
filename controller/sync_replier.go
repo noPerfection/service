@@ -23,10 +23,10 @@ func newController(logger *log.Logger) *Controller {
 
 // SyncReplier creates a new synchronous Reply controller.
 func SyncReplier(parent *log.Logger) (*Controller, error) {
-	logger := parent.Child("controller", "type", configuration.ReplierType)
+	logger := parent.Child("controller", "type", configuration.SyncReplierType)
 
 	instance := newController(logger)
-	instance.controllerType = configuration.ReplierType
+	instance.controllerType = configuration.SyncReplierType
 
 	return instance, nil
 }
