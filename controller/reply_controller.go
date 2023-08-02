@@ -73,13 +73,13 @@ func (c *Controller) isReply() bool {
 //
 // If controller doesn't support replying (for example PULL controller)
 // then it returns success.
-func (c *Controller) reply(message message.Reply) error {
+func (c *Controller) reply(socket *zmq.Socket, message message.Reply) error {
 	if !c.isReply() {
 		return nil
 	}
 
 	reply, _ := message.String()
-	if _, err := c.socket.SendMessage(reply); err != nil {
+	if _, err := socket.SendMessage(reply); err != nil {
 		return fmt.Errorf("recv error replying error %w" + err.Error())
 	}
 
@@ -87,9 +87,9 @@ func (c *Controller) reply(message message.Reply) error {
 }
 
 // Calls controller.reply() with the error message.
-func (c *Controller) replyError(err error) error {
+func (c *Controller) replyError(socket *zmq.Socket, err error) error {
 	request := message.Request{}
-	return c.reply(request.Fail(err.Error()))
+	return c.reply(socket, request.Fail(err.Error()))
 }
 
 // AddRoute adds a command along with its handler to this controller
