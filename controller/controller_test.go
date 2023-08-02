@@ -42,9 +42,9 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 
 	// todo test the inproc broadcasting
 	// todo add the exit
-	_, err = NewReplier(logger)
+	_, err = SyncReplier(logger)
 	suite.Require().Error(err, "remote limited service should be failed as the parameter.Url() will not return wildcard host")
-	tcpController, err := NewReplier(logger)
+	tcpController, err := SyncReplier(logger)
 	suite.NoError(err)
 	suite.tcpController = tcpController
 
@@ -52,7 +52,7 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	suite.NoError(err)
 	suite.NotEmpty(inprocService)
 
-	inprocController, err := NewReplier(logger)
+	inprocController, err := SyncReplier(logger)
 	suite.NoError(err)
 	suite.inprocController = inprocController
 
