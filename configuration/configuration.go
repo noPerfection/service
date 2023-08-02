@@ -12,6 +12,7 @@ import (
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/cakturk/go-netstat/netstat"
+	"github.com/fsnotify/fsnotify"
 	"github.com/phayes/freeport"
 	"gopkg.in/yaml.v3"
 	"net"
@@ -30,10 +31,11 @@ type Config struct {
 	Name  string       // application name
 	viper *viper.Viper // used to keep default values
 
-	Secure  bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
-	logger  *log.Logger // debug purpose only
-	Service Service
-	Context *Context
+	Secure   bool        // Passed as --secure command line argument. If its passed then authentication is switched off.
+	logger   *log.Logger // debug purpose only
+	Service  Service
+	Context  *Context
+	watching bool
 }
 
 // New creates a global configuration for the entire application.
@@ -48,7 +50,7 @@ func New(parent *log.Logger) (*Config, error) {
 		logger:  parent.Child("configuration"),
 		Service: Service{},
 	}
-	parent.Info("Loading environment files passed as app arguments")
+	config.logger.Info("Loading environment files passed as app arguments")
 
 	// First we load the environment variables
 	err := env.LoadAnyEnv()
@@ -56,7 +58,8 @@ func New(parent *log.Logger) (*Config, error) {
 		return nil, fmt.Errorf("loading environment variables: %w", err)
 	}
 
-	parent.Info("Starting Viper with environment variables")
+	paths, _ := argument.GetEnvPaths()
+	config.logger.Info("Starting Viper with environment variables", "loaded files", paths)
 
 	// replace the values with the ones we fetched from environment variables
 	config.viper = viper.New()
@@ -92,40 +95,63 @@ func New(parent *log.Logger) (*Config, error) {
 	initContext(&config)
 	setDevContext(&config)
 
+	configName := config.viper.GetString("SERVICE_CONFIG_NAME")
+	configPath := config.viper.GetString("SERVICE_CONFIG_PATH")
 	// load the service configuration
-	config.viper.SetConfigName(config.viper.GetString("SERVICE_CONFIG_NAME"))
+	config.viper.SetConfigName(configName)
 	config.viper.SetConfigType("yaml")
-	config.viper.AddConfigPath(config.viper.GetString("SERVICE_CONFIG_PATH"))
+	config.viper.AddConfigPath(configPath)
 
-	err = config.viper.ReadInConfig()
-	notFound := false
-	_, notFound = err.(viper.ConfigFileNotFoundError)
-	if err != nil && !notFound {
-		return nil, fmt.Errorf("read '%s' failed: %w", config.viper.GetString("SERVICE_CONFIG_NAME"), err)
-	} else if notFound {
-		parent.Warn("the configuration.yml configuration wasn't found", "engine error", err)
-		return &config, nil
+	service, err := config.readFile()
+	if err != nil {
+		config.logger.Fatal("config.readFile", "error", err)
 	} else {
-		services, ok := config.viper.Get("services").([]interface{})
-		if !ok {
-			config.logger.Info("services", "Service", services, "raw", config.viper.Get("services"))
-			config.logger.Fatal("configuration.yml Service should be a list not a one object")
-		}
-
-		config.logger.Info("todo", "todo 1", "make sure that proxy pipeline is correct",
-			"todo 2", "make sure that only one kind of proxies are given",
-			"todo 3", "make sure that only one kind of extensions are given",
-			"todo 4", "make sure that services are all of the same kind but of different instance",
-			"todo 5", "make sure that all controllers have the unique name in the config")
-
-		service, err := UnmarshalService(services)
-		if err != nil {
-			config.logger.Fatal("unmarshalling service configuration failed", "error", err)
-		}
 		config.Service = service
 	}
 
 	return &config, nil
+}
+
+// readFile reads the yaml into the interface{} in the engine, then
+// it will unmarshall it into the config.Service.
+//
+// If the file doesn't exist, it will skip it without changing the old service
+func (config *Config) readFile() (Service, error) {
+	err := config.viper.ReadInConfig()
+	notFound := false
+	_, notFound = err.(viper.ConfigFileNotFoundError)
+	if err != nil && !notFound {
+		return Service{}, fmt.Errorf("read '%s' failed: %w", config.viper.GetString("SERVICE_CONFIG_NAME"), err)
+	} else if notFound {
+		config.logger.Warn("yaml in path not found", "config", config.GetServicePath(), "engine error", err)
+		return Service{}, nil
+	}
+	config.logger.Info("yaml was loaded, let's parse it")
+	services, ok := config.viper.Get("services").([]interface{})
+	if !ok {
+		config.logger.Info("services", "Service", services, "raw", config.viper.Get("services"))
+		return Service{}, fmt.Errorf("configuration.yml Service should be a list not a one object")
+	}
+
+	config.logger.Info("todo", "todo 1", "make sure that proxy pipeline is correct",
+		"todo 2", "make sure that only one kind of proxies are given",
+		"todo 3", "make sure that only one kind of extensions are given",
+		"todo 4", "make sure that services are all of the same kind but of different instance",
+		"todo 5", "make sure that all controllers have the unique name in the config")
+
+	service, err := UnmarshalService(services)
+	if err != nil {
+		return Service{}, fmt.Errorf("unmarshalling service configuration failed: %w", err)
+	}
+
+	return service, nil
+}
+
+func (config *Config) GetServicePath() string {
+	configName := config.viper.GetString("SERVICE_CONFIG_NAME")
+	configPath := config.viper.GetString("SERVICE_CONFIG_PATH")
+
+	return filepath.Join(configPath, configName+".yml")
 }
 
 // GetFreePort returns a TCP port to use
@@ -211,6 +237,118 @@ func prepareService(service *Service) error {
 // In our case it will be Viper.
 func (config *Config) Engine() *viper.Viper {
 	return config.viper
+}
+
+// FileExists returns true if the file exists. if the path is a directory it will return false.
+func FileExists(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		} else {
+			return false, fmt.Errorf("os.Stat('%s'): %w", path, err)
+		}
+	}
+
+	if info.IsDir() {
+		return false, fmt.Errorf("path('%s') is directory", path)
+	}
+
+	return true, nil
+}
+
+// Watch tracks the configuration change in the file.
+//
+// Watch could be called only once. If it's already called, then it will skip it without an error.
+//
+// For production, we could call config.viper.WatchRemoteConfig() for example in etcd.
+func (config *Config) Watch() error {
+	if config.watching {
+		return nil
+	}
+
+	servicePath := config.GetServicePath()
+
+	exists, err := FileExists(servicePath)
+	if err != nil {
+		return fmt.Errorf("FileExists('%s'): %w", servicePath, err)
+	}
+
+	// set it after checking for errors
+	config.watching = true
+
+	if !exists {
+		// wait file appearance, then call the watchChange
+		go config.watchFileCreation()
+	} else {
+		config.logger.Info("file exists, start engine watch")
+		config.watchChange()
+	}
+
+	return nil
+}
+
+// If the file not exists, then watch for its appearance.
+func (config *Config) watchFileCreation() {
+	servicePath := config.GetServicePath()
+	for {
+		exists, err := FileExists(servicePath)
+		if err != nil {
+			config.logger.Error("FileExists", "service path", servicePath, "error", err)
+		}
+		if exists {
+			config.logger.Info("file created, stop checking for updates and start engine watch. let's see what is in the file")
+			service, err := config.readFile()
+			if err != nil {
+				config.logger.Fatal("reading file failed", "error", err)
+			}
+
+			config.logger.Info("comparing internal and changed configs", "changed", service, "internal", config.Service, "error to load changed", err)
+			config.logger.Info("start tracking file changes call the callback for file change")
+
+			config.watchChange()
+			break
+		}
+		time.Sleep(time.Millisecond * 200)
+	}
+}
+
+// If file exists, then watch file deletion.
+func (config *Config) watchFileDeletion() {
+	servicePath := config.GetServicePath()
+	for {
+		exists, err := FileExists(servicePath)
+		if err != nil {
+			config.logger.Error("FileExists", "service path", servicePath, "error", err)
+		}
+		if !exists {
+			config.logger.Info("file deleted, stop checking for updates and start engine watch. let's see what is in the file")
+			service := Service{}
+			config.logger.Info("comparing internal and changed configs", "changed", service, "internal", config.Service, "error to load changed", err)
+
+			config.logger.Warn("file was moved, wait for it's creation")
+			go config.watchFileCreation()
+			break
+		}
+		time.Sleep(time.Millisecond * 200)
+	}
+}
+
+func (config *Config) watchChange() {
+	go config.watchFileDeletion()
+	// if file not exists, call the file appearance
+
+	config.logger.Warn("calling watch config")
+	config.viper.WatchConfig()
+	config.viper.OnConfigChange(func(e fsnotify.Event) {
+		service, err := config.readFile()
+		if err != nil {
+			config.logger.Fatal("unmarshalling service configuration failed", "error", err)
+		}
+
+		config.logger.Info("comparing internal and changed configs", "changed", service, "internal", config.Service, "error to load changed", err)
+		config.logger.Info("Config file changed", "name", e.Name, "op", e.Op.String(), "serialized", e.String())
+	})
 }
 
 // SetDefaults sets the default configuration parameters.
