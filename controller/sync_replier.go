@@ -92,7 +92,7 @@ func (c *Controller) Run() error {
 		}
 
 		if len(sockets) > 0 {
-			msgRaw, metadata, err := c.socket.RecvMessageWithMetadata(0, "pub_key", "Identity")
+			msgRaw, metadata, err := c.socket.RecvMessageWithMetadata(0, requiredMetadata()...)
 			if err != nil {
 				newErr := fmt.Errorf("socket.recvMessageWithMetadata: %w", err)
 				if err := c.replyError(newErr); err != nil {
