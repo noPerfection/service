@@ -1,5 +1,8 @@
-/*Package independent is used to scaffold the independent service
- */
+// Package independent is the primary service.
+// This package is calling out the context. Then within that context sets up
+// - controller
+// - proxies
+// - extensions
 package independent
 
 import (
@@ -19,57 +22,84 @@ import (
 	"sync"
 )
 
-// Service is the collection of the various Controllers
+// Service keeps all necessary parameters of the service.
 type Service struct {
 	Config          *configuration.Config
 	Controllers     key_value.KeyValue
-	Pipelines       key_value.KeyValue
-	RequiredProxies key_value.KeyValue // url => context type
+	pipelines       []configuration.Pipeline // Pipeline beginning: url => [Pipes]
+	RequiredProxies key_value.KeyValue       // url => context type
 	Logger          *log.Logger
 	Context         *dev.Context
 	manager         controller.Interface // manage this service from other parts. it should be called before context run
 }
 
-// New service based on the configurations
+// New service with the configuration engine and logger. Logger is used as is.
 func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
 	independent := Service{
 		Config:          config,
 		Logger:          logger,
 		Controllers:     key_value.Empty(),
 		RequiredProxies: key_value.Empty(),
-		Pipelines:       key_value.Empty(),
+		pipelines:       make([]configuration.Pipeline, 0),
 	}
 
 	return &independent, nil
 }
 
-// AddController by their instance name
+// AddController by their name
 func (independent *Service) AddController(name string, controller controller.Interface) {
 	independent.Controllers.Set(name, controller)
 }
 
+// RequireProxy adds a proxy that's needed for this service to run
 func (independent *Service) RequireProxy(url string, contextType configuration.ContextType) {
 	independent.RequiredProxies.Set(url, contextType)
 }
 
-// Pipe the controller to the proxy
-func (independent *Service) Pipe(proxyUrl string, name string) error {
-	validProxy := false
+func (independent *Service) IsProxyRequired(proxyUrl string) bool {
 	for url := range independent.RequiredProxies {
 		if strings.Compare(url, proxyUrl) == 0 {
-			validProxy = true
-			break
+			return true
 		}
 	}
-	if !validProxy {
-		return fmt.Errorf("proxy '%s' url not required. call independent.RequireProxy", proxyUrl)
+
+	return false
+}
+
+func (independent *Service) GetProxyContext(proxyUrl string) configuration.ContextType {
+	contextType, ok := independent.RequiredProxies[proxyUrl].(configuration.ContextType)
+	if !ok {
+		return configuration.DefaultContext
+	}
+	return contextType
+}
+
+// Pipeline creates a chain of the proxies.
+func (independent *Service) Pipeline(pipeEnd *configuration.PipeEnd, proxyUrls ...string) error {
+	if len(proxyUrls) == 0 {
+		return fmt.Errorf("no proxy")
+	}
+	for _, proxyUrl := range proxyUrls {
+		if !independent.IsProxyRequired(proxyUrl) {
+			return fmt.Errorf("proxy '%s' url not required. call independent.RequireProxy", proxyUrl)
+		}
 	}
 
-	if err := independent.Controllers.Exist(name); err != nil {
-		return fmt.Errorf("controller instance '%s' not added. call independent.AddController: %w", name, err)
+	if pipeEnd.IsController() {
+		if err := independent.Controllers.Exist(pipeEnd.Name); err != nil {
+			return fmt.Errorf("independent.Controllers.Exist('%s') [call independent.AddController()]: %w", pipeEnd.Name, err)
+		}
+	} else {
+		if configuration.HasServicePipeline(independent.pipelines) {
+			return fmt.Errorf("configuration.HasServicePipeline: service pipeline exists")
+		}
 	}
 
-	independent.Pipelines.Set(proxyUrl, name)
+	pipeline := pipeEnd.Pipeline(proxyUrls)
+	if err := pipeline.ValidateHead(); err != nil {
+		return fmt.Errorf("pipeline.ValidateHead: %w", err)
+	}
+	independent.pipelines = append(independent.pipelines, *pipeline)
 
 	return nil
 }
@@ -103,7 +133,7 @@ func (independent *Service) prepareServiceConfiguration(expectedType configurati
 			Type:      expectedType,
 			Url:       url,
 			Instance:  config.Name + " 1",
-			Pipelines: key_value.Empty(),
+			Pipelines: make([]configuration.Pipeline, 0),
 		}
 	} else if serviceConfig.Type != expectedType {
 		return fmt.Errorf("service type is overwritten. expected '%s', not '%s'", expectedType, serviceConfig.Type)
@@ -193,34 +223,464 @@ func (independent *Service) prepareConfiguration(expectedType configuration.Serv
 	return nil
 }
 
-// preparePipelineConfiguration checks that proxy url and controllerName are valid.
+// lintPipelineConfiguration checks that proxy url and controllerName are valid.
 // Then, in the Config, it makes sure that dependency is linted.
-func (independent *Service) preparePipelineConfiguration(dep *dev.Dep, controllerName string) error {
-	proxyUrl := dep.Url()
-	found := false
-	for requiredProxy := range independent.RequiredProxies {
-		if strings.Compare(proxyUrl, requiredProxy) == 0 {
-			found = true
-			break
+func (independent *Service) preparePipelineConfigurations() error {
+	hasService := configuration.HasServicePipeline(independent.pipelines)
+	servicePipeline := configuration.ServicePipeline(independent.pipelines)
+	controllerPipelines := configuration.ControllerPipelines(independent.pipelines)
+
+	if hasService {
+		servicePipeline.End.Url = independent.Config.Service.Url
+		independent.Logger.Info("dont forget to update the yaml with the pipeline service end url")
+	}
+
+	// lets lint the service's last head's destination to this service
+	if hasService {
+		proxyUrl := servicePipeline.HeadLast()
+
+		dep, err := independent.Context.Dep(proxyUrl)
+		if err != nil {
+			return fmt.Errorf(`independent.Context.Dep("%s"): %w`, proxyUrl, err)
+		}
+
+		proxyConfig, err := dep.Configuration()
+		if err != nil {
+			return fmt.Errorf("dep.Configuration: %w", err)
+		}
+
+		destinationConfigs, err := proxyConfig.GetControllers(configuration.DestinationName)
+		if err != nil {
+			return fmt.Errorf("proxyConfig.GetControllers('%s'): %w", configuration.DestinationName, err)
+		}
+
+		controllerAmount := len(independent.Controllers)
+		if len(independent.Config.Service.Controllers) != controllerAmount {
+			return fmt.Errorf("configuration has not enough controllers")
+		}
+		// The service has more controllers or less than in the configuration.
+		// Let's rewrite them
+		if len(destinationConfigs) != controllerAmount {
+			// two times more, source and destination for each controller
+			proxyConfig.Controllers = make([]configuration.Controller, controllerAmount*2)
+			set := 0
+
+			// rewrite the destinations in the dependency
+			for name, raw := range independent.Controllers {
+				c := raw.(controller.Interface)
+
+				// set the source
+				instance := configuration.ControllerInstance{
+					Name:     configuration.SourceName,
+					Instance: fmt.Sprintf("%s 01", name),
+					Port:     uint64(independent.Config.GetFreePort()),
+				}
+
+				controllerConfig := configuration.Controller{
+					Type:      c.ControllerType(),
+					Name:      configuration.SourceName,
+					Instances: []configuration.ControllerInstance{instance},
+				}
+				proxyConfig.Controllers[set] = controllerConfig
+				set++
+
+				origControllerConfig, _ := independent.Config.Service.GetController(name)
+				desInstance := configuration.ControllerInstance{
+					Name:     configuration.DestinationName,
+					Instance: fmt.Sprintf("%s 01", name),
+					Port:     origControllerConfig.Instances[0].Port,
+				}
+
+				desControllerConfig := configuration.Controller{
+					Type:      c.ControllerType(),
+					Name:      configuration.DestinationName,
+					Instances: []configuration.ControllerInstance{desInstance},
+				}
+				proxyConfig.Controllers[set] = desControllerConfig
+				set++
+			}
+
+			independent.Logger.Info("make sure that converting service to proxy will convert all destinations to the proxy instances")
+			converted, err := configuration.ServiceToProxy(&proxyConfig, independent.GetProxyContext(proxyUrl))
+			if err != nil {
+				return fmt.Errorf("failed to convert the proxy")
+			}
+
+			independent.Config.Service.SetProxy(converted)
+		} else {
+			// The order of the destination should match.
+			// Check that ports match, if not then update the ports.
+			for i, controllerConfig := range independent.Config.Service.Controllers {
+				if destinationConfigs[i].Instances[0].Port != controllerConfig.Instances[0].Port {
+					independent.Logger.Warn("dependency port not matches to the proxy port. Overwriting the source", "port", controllerConfig.Instances[0].Port, "dependency port", destinationConfigs[i].Instances[0].Port)
+
+					destinationConfigs[i].Instances[0].Port = controllerConfig.Instances[0].Port
+				}
+			}
+
+			// save the configuration
+			for i, controllerConfig := range destinationConfigs {
+				proxyConfig.Controllers[i] = *controllerConfig
+			}
+
+			err = dep.SetConfiguration(proxyConfig)
+			if err != nil {
+				return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", dep.Url(), err)
+			}
 		}
 	}
-	if !found {
-		return fmt.Errorf("proxy '%s' not found. add using independent.RequireProxy()", proxyUrl)
+
+	var serviceSources []*configuration.Controller
+	if hasService {
+		serviceProxyUrl := servicePipeline.Beginning()
+		serviceDep, err := independent.Context.Dep(serviceProxyUrl)
+		if err != nil {
+			return fmt.Errorf(`independent.Context.Dep("%s"): %w`, serviceProxyUrl, err)
+		}
+
+		serviceProxyConfig, err := serviceDep.Configuration()
+		if err != nil {
+			return fmt.Errorf("controllerDep.Configuration: %w", err)
+		}
+
+		serviceSources, err = serviceProxyConfig.GetControllers(configuration.SourceName)
+		if err != nil {
+			return fmt.Errorf("proxyConfig.GetControllers('%s'): %w", configuration.SourceName, err)
+		}
 	}
 
-	if err := independent.Controllers.Exist(controllerName); err != nil {
-		return fmt.Errorf("independent.Controllers.Exist of '%s': %w", controllerName, err)
+	// lets lint the controller's last head destination to the service controller's source or
+	// to the controller itself.
+	for _, pipeline := range controllerPipelines {
+		proxyUrl := pipeline.HeadLast()
+
+		if hasService {
+			controllerDep, err := independent.Context.Dep(proxyUrl)
+			if err != nil {
+				return fmt.Errorf(`independent.Context.Dep("%s"): %w`, proxyUrl, err)
+			}
+
+			proxyConfig, err := controllerDep.Configuration()
+			if err != nil {
+				return fmt.Errorf("controllerDep.Configuration: %w", err)
+			}
+
+			destinationConfigs, err := proxyConfig.GetControllers(configuration.DestinationName)
+			if err != nil {
+				return fmt.Errorf("proxyConfig.GetControllers('%s'): %w", configuration.DestinationName, err)
+			}
+
+			if len(serviceSources) != len(destinationConfigs) {
+				proxyConfig.Controllers = make([]configuration.Controller, len(serviceSources)*2)
+				set := 0
+
+				// rewrite the destinations in the dependency
+				for _, sourceConfig := range serviceSources {
+					// set the source
+					instance := configuration.ControllerInstance{
+						Name:     configuration.SourceName,
+						Instance: fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Instance),
+						Port:     uint64(independent.Config.GetFreePort()),
+					}
+
+					controllerConfig := configuration.Controller{
+						Type:      sourceConfig.Type,
+						Name:      configuration.SourceName,
+						Instances: []configuration.ControllerInstance{instance},
+					}
+					proxyConfig.Controllers[set] = controllerConfig
+					set++
+
+					desInstance := configuration.ControllerInstance{
+						Name:     configuration.DestinationName,
+						Instance: fmt.Sprintf("%s 01", sourceConfig.Instances[0].Instance),
+						Port:     sourceConfig.Instances[0].Port,
+					}
+
+					desControllerConfig := configuration.Controller{
+						Type:      sourceConfig.Type,
+						Name:      configuration.DestinationName,
+						Instances: []configuration.ControllerInstance{desInstance},
+					}
+					proxyConfig.Controllers[set] = desControllerConfig
+					set++
+				}
+
+				err = controllerDep.SetConfiguration(proxyConfig)
+				if err != nil {
+					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
+				}
+			} else {
+				// make sure that destination ports are matching to the sources
+				// rewrite the destinations in the dependency
+				for i, sourceConfig := range serviceSources {
+					if sourceConfig.Instances[0].Port != destinationConfigs[i].Instances[0].Port {
+						destinationConfigs[i].Instances[0].Port = sourceConfig.Instances[0].Port
+					}
+				}
+
+				// save the configuration
+				for i, controllerConfig := range destinationConfigs {
+					proxyConfig.Controllers[i] = *controllerConfig
+				}
+
+				err = controllerDep.SetConfiguration(proxyConfig)
+				if err != nil {
+					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
+				}
+			}
+		} else {
+			controllerName := pipeline.End.Name
+
+			proxyConfiguration, _ := independent.Config.Service.GetController(controllerName)
+
+			controllerDep, err := independent.Context.Dep(proxyUrl)
+			if err != nil {
+				return fmt.Errorf(`independent.Context.Dep("%s"): %w`, proxyUrl, err)
+			}
+
+			proxyConfig, err := controllerDep.Configuration()
+			if err != nil {
+				return fmt.Errorf("controllerDep.Configuration: %w", err)
+			}
+
+			sourceConfigs, err := proxyConfig.GetControllers(configuration.SourceName)
+			if err != nil {
+				return fmt.Errorf("proxyConfig.GetControllers('%s'): %w", configuration.DestinationName, err)
+			}
+
+			if len(sourceConfigs) > 0 {
+				return fmt.Errorf("too many sources, expected only one")
+			}
+
+			if proxyConfiguration.Instances[0].Port != sourceConfigs[0].Instances[0].Port {
+				independent.Logger.Warn("dependency port not matches to the proxy port. Overwriting the source", "port", proxyConfiguration.Instances[0].Port, "dependency port", proxyConfiguration.Instances[0].Port)
+
+				(*sourceConfigs[0]).Instances[0].Port = proxyConfiguration.Instances[0].Port
+
+				err = controllerDep.SetConfiguration(proxyConfig)
+				if err != nil {
+					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", proxyUrl, err)
+				}
+			}
+		}
 	}
 
-	err := preparePipelineConfiguration(independent.Config, dep, controllerName, independent.Logger)
+	if hasService && servicePipeline.IsMultiHead() {
+		// make sure that they link to each other after linting the last head
+		proxyUrls := servicePipeline.HeadFront()
+		independent.Logger.Info("Make sure that service proxy urls lint to each other", "urls", proxyUrls)
 
-	if err != nil {
-		return fmt.Errorf("service.preparePipelineConfiguration: %w", err)
+		lastProxyUrl := servicePipeline.HeadLast()
+
+		lastDep, err := independent.Context.Dep(lastProxyUrl)
+		if err != nil {
+			return fmt.Errorf(`independent.Context.Dep("%s"): %w`, lastProxyUrl, err)
+		}
+
+		lastProxyConfig, err := lastDep.Configuration()
+		if err != nil {
+			return fmt.Errorf("controllerDep.Configuration: %w", err)
+		}
+
+		sourceConfigs, err := lastProxyConfig.GetControllers(configuration.SourceName)
+		if err != nil {
+			return fmt.Errorf("proxyConfig.GetControllers('%s'): %w", configuration.DestinationName, err)
+		}
+
+		for i := len(proxyUrls) - 1; i >= 0; i-- {
+			proxyUrl := proxyUrls[i]
+			// if the destinations don't match with the last one, then make sure to rewrite it.
+			// otherwise make sure that proxyUrl destination matches with the lastProxyUrl source.
+			controllerDep, err := independent.Context.Dep(proxyUrl)
+			if err != nil {
+				return fmt.Errorf(`independent.Context.Dep("%s"): %w`, proxyUrl, err)
+			}
+
+			proxyConfig, err := controllerDep.Configuration()
+			if err != nil {
+				return fmt.Errorf("controllerDep.Configuration: %w", err)
+			}
+
+			destinationConfigs, err := proxyConfig.GetControllers(configuration.DestinationName)
+			if err != nil {
+				return fmt.Errorf("proxyConfig.GetControllers('%s'): %w", configuration.DestinationName, err)
+			}
+
+			if len(sourceConfigs) != len(destinationConfigs) {
+				proxyConfig.Controllers = make([]configuration.Controller, len(sourceConfigs)*2)
+				set := 0
+
+				// rewrite the destinations in the dependency
+				for _, sourceConfig := range sourceConfigs {
+					// set the source
+					instance := configuration.ControllerInstance{
+						Name:     configuration.SourceName,
+						Instance: fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Instance),
+						Port:     uint64(independent.Config.GetFreePort()),
+					}
+
+					controllerConfig := configuration.Controller{
+						Type:      sourceConfig.Type,
+						Name:      configuration.SourceName,
+						Instances: []configuration.ControllerInstance{instance},
+					}
+					proxyConfig.Controllers[set] = controllerConfig
+					set++
+
+					desInstance := configuration.ControllerInstance{
+						Name:     configuration.DestinationName,
+						Instance: fmt.Sprintf("%s 01", sourceConfig.Instances[0].Instance),
+						Port:     sourceConfig.Instances[0].Port,
+					}
+
+					desControllerConfig := configuration.Controller{
+						Type:      sourceConfig.Type,
+						Name:      configuration.DestinationName,
+						Instances: []configuration.ControllerInstance{desInstance},
+					}
+					proxyConfig.Controllers[set] = desControllerConfig
+					set++
+				}
+
+				err = controllerDep.SetConfiguration(proxyConfig)
+				if err != nil {
+					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
+				}
+			} else {
+				for i, sourceConfig := range sourceConfigs {
+					if sourceConfig.Instances[0].Port != destinationConfigs[i].Instances[0].Port {
+						destinationConfigs[i].Instances[0].Port = sourceConfig.Instances[0].Port
+					}
+				}
+
+				// save the configuration
+				for i, controllerConfig := range destinationConfigs {
+					proxyConfig.Controllers[i] = *controllerConfig
+				}
+
+				err := controllerDep.SetConfiguration(proxyConfig)
+				if err != nil {
+					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
+				}
+			}
+
+			lastProxyUrl = proxyUrl
+			lastDep = controllerDep
+			lastProxyConfig = proxyConfig
+			sourceConfigs, _ = lastProxyConfig.GetControllers(configuration.SourceName)
+		}
 	}
 
-	// pipelines from the configurations are not used.
-	// are they necessary?
-	independent.Config.Service.SetPipeline(proxyUrl, controllerName)
+	for _, pipeline := range controllerPipelines {
+		if !pipeline.IsMultiHead() {
+			continue
+		}
+
+		// make sure that they link to each other after linting the last head
+		proxyUrls := pipeline.HeadFront()
+		independent.Logger.Info("Make sure that controller proxy urls lint to each other", "urls", proxyUrls)
+
+		lastProxyUrl := pipeline.HeadLast()
+
+		lastDep, err := independent.Context.Dep(lastProxyUrl)
+		if err != nil {
+			return fmt.Errorf(`independent.Context.Dep("%s"): %w`, lastProxyUrl, err)
+		}
+
+		lastProxyConfig, err := lastDep.Configuration()
+		if err != nil {
+			return fmt.Errorf("controllerDep.Configuration: %w", err)
+		}
+
+		sourceConfigs, err := lastProxyConfig.GetControllers(configuration.SourceName)
+		if err != nil {
+			return fmt.Errorf("proxyConfig.GetControllers('%s'): %w", configuration.DestinationName, err)
+		}
+
+		for i := len(proxyUrls) - 1; i >= 0; i-- {
+			proxyUrl := proxyUrls[i]
+			// if the destinations don't match with the last one, then make sure to rewrite it.
+			// otherwise make sure that proxyUrl destination matches with the lastProxyUrl source.
+			controllerDep, err := independent.Context.Dep(proxyUrl)
+			if err != nil {
+				return fmt.Errorf(`independent.Context.Dep("%s"): %w`, proxyUrl, err)
+			}
+
+			proxyConfig, err := controllerDep.Configuration()
+			if err != nil {
+				return fmt.Errorf("controllerDep.Configuration: %w", err)
+			}
+
+			destinationConfigs, err := proxyConfig.GetControllers(configuration.DestinationName)
+			if err != nil {
+				return fmt.Errorf("proxyConfig.GetControllers('%s'): %w", configuration.DestinationName, err)
+			}
+
+			if len(sourceConfigs) != len(destinationConfigs) {
+				proxyConfig.Controllers = make([]configuration.Controller, len(sourceConfigs)*2)
+				set := 0
+
+				// rewrite the destinations in the dependency
+				for _, sourceConfig := range sourceConfigs {
+					// set the source
+					instance := configuration.ControllerInstance{
+						Name:     configuration.SourceName,
+						Instance: fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Instance),
+						Port:     uint64(independent.Config.GetFreePort()),
+					}
+
+					controllerConfig := configuration.Controller{
+						Type:      sourceConfig.Type,
+						Name:      configuration.SourceName,
+						Instances: []configuration.ControllerInstance{instance},
+					}
+					proxyConfig.Controllers[set] = controllerConfig
+					set++
+
+					desInstance := configuration.ControllerInstance{
+						Name:     configuration.DestinationName,
+						Instance: fmt.Sprintf("%s 01", sourceConfig.Instances[0].Instance),
+						Port:     sourceConfig.Instances[0].Port,
+					}
+
+					desControllerConfig := configuration.Controller{
+						Type:      sourceConfig.Type,
+						Name:      configuration.DestinationName,
+						Instances: []configuration.ControllerInstance{desInstance},
+					}
+					proxyConfig.Controllers[set] = desControllerConfig
+					set++
+				}
+
+				err = controllerDep.SetConfiguration(proxyConfig)
+				if err != nil {
+					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
+				}
+			} else {
+				for i, sourceConfig := range sourceConfigs {
+					if sourceConfig.Instances[0].Port != destinationConfigs[i].Instances[0].Port {
+						destinationConfigs[i].Instances[0].Port = sourceConfig.Instances[0].Port
+					}
+				}
+
+				// save the configuration
+				for i, controllerConfig := range destinationConfigs {
+					proxyConfig.Controllers[i] = *controllerConfig
+				}
+
+				err := controllerDep.SetConfiguration(proxyConfig)
+				if err != nil {
+					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
+				}
+			}
+
+			lastProxyUrl = proxyUrl
+			lastDep = controllerDep
+			lastProxyConfig = proxyConfig
+			sourceConfigs, _ = lastProxyConfig.GetControllers(configuration.SourceName)
+		}
+	}
 
 	return nil
 }
@@ -323,31 +783,21 @@ func (independent *Service) Prepare(as configuration.ServiceType) error {
 				goto closeContext
 			}
 
+			// Sets the default values.
 			if err = independent.prepareProxyConfiguration(dep, contextType); err != nil {
 				err = fmt.Errorf("service.prepareProxyConfiguration of %s in context %s: %w", requiredProxy, contextType, err)
 				goto closeContext
 			}
 		}
 
-		if len(independent.Pipelines) == 0 {
+		if len(independent.pipelines) == 0 {
 			err = fmt.Errorf("no pipepline to lint the proxy to the controller")
 			goto closeContext
 		}
 
-		for requiredProxy, controllerInterface := range independent.Pipelines {
-			controllerName := controllerInterface.(string)
-			var dep *dev.Dep
-
-			dep, err = independent.Context.Dep(requiredProxy)
-			if err != nil {
-				err = fmt.Errorf(`independent.Context.Dep("%s"): %w`, requiredProxy, err)
-				goto closeContext
-			}
-
-			if err = independent.preparePipelineConfiguration(dep, controllerName); err != nil {
-				err = fmt.Errorf("preparePipelineConfiguration '%s'=>'%s': %w", requiredProxy, controllerName, err)
-				goto closeContext
-			}
+		if err = independent.preparePipelineConfigurations(); err != nil {
+			err = fmt.Errorf("preparePipelineConfigurations: %w", err)
+			goto closeContext
 		}
 	}
 
@@ -535,8 +985,8 @@ func prepareContext(config *configuration.Context) (*dev.Context, error) {
 func (independent *Service) prepareProxy(dep *dev.Dep) error {
 	proxyConfiguration := independent.Config.Service.GetProxy(dep.Url())
 
-	independent.Logger.Info("prepare proxy", "url", proxyConfiguration.Url, "port", proxyConfiguration.Port)
-	err := dep.Prepare(proxyConfiguration.Port, independent.Logger)
+	independent.Logger.Info("prepare proxy", "url", proxyConfiguration.Url, "port", proxyConfiguration.Instances[0].Port)
+	err := dep.Prepare(proxyConfiguration.Instances[0].Port, independent.Logger)
 	if err != nil {
 		return fmt.Errorf(`dep.Prepare("%s"): %w`, dep.Url(), err)
 	}
@@ -583,11 +1033,11 @@ func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext
 		if proxyConfiguration.Context != converted.Context {
 			return fmt.Errorf("the proxy contexts are not matching. in your configuration: %s, in the deps: %s", proxyConfiguration.Context, converted.Context)
 		}
-		if proxyConfiguration.Port != converted.Port {
-			independent.Logger.Warn("dependency port not matches to the proxy port. Overwriting the source", "port", proxyConfiguration.Port, "dependency port", converted.Port)
+		if proxyConfiguration.Instances[0].Port != converted.Instances[0].Port {
+			independent.Logger.Warn("dependency port not matches to the proxy port. Overwriting the source", "port", proxyConfiguration.Instances[0].Port, "dependency port", converted.Instances[0].Port)
 
 			source, _ := service.GetController(configuration.SourceName)
-			source.Instances[0].Port = proxyConfiguration.Port
+			source.Instances[0].Port = proxyConfiguration.Instances[0].Port
 
 			service.SetController(source)
 
@@ -632,52 +1082,6 @@ func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
 			if err != nil {
 				return fmt.Errorf("failed to update port in dependency extension: '%s': %w", dep.Url(), err)
 			}
-		}
-	}
-
-	return nil
-}
-
-// preparePipelineConfiguration checks that proxy url and controllerName are valid.
-// Then, in the configuration, it makes sure that dependency is linted.
-func preparePipelineConfiguration(config *configuration.Config, dep *dev.Dep, controllerName string, logger *log.Logger) error {
-	//
-	// lint the dependency proxy's destination to the independent independent's controller
-	//--------------------------------------------------
-	proxyConfig, err := dep.Configuration()
-	if err != nil {
-		return fmt.Errorf("dep.Configuration: %w", err)
-	}
-
-	destinationConfig, err := proxyConfig.GetController(configuration.DestinationName)
-	if err != nil {
-		return fmt.Errorf("getting dependency proxy's destination configuration failed: %w", err)
-	}
-
-	controllerConfig, err := config.Service.GetController(controllerName)
-	if err != nil {
-		return fmt.Errorf("getting '%s' controller from independent configuration failed: %w", controllerName, err)
-	}
-
-	// somehow it will work with only one instance. but in the future maybe another instances as well.
-	destinationInstanceConfig := destinationConfig.Instances[0]
-	instanceConfig := controllerConfig.Instances[0]
-
-	if destinationInstanceConfig.Port != instanceConfig.Port {
-		logger.Info("the dependency proxy destination not match to the controller",
-			"proxy url", dep.Url(),
-			"destination port", destinationInstanceConfig.Port,
-			"independent controller port", instanceConfig.Port)
-
-		destinationInstanceConfig.Port = instanceConfig.Port
-		destinationConfig.Instances[0] = destinationInstanceConfig
-		proxyConfig.SetController(destinationConfig)
-
-		logger.Info("linting dependency proxy's destination port", "new port", instanceConfig.Port)
-		logger.Warn("todo", 1, "if dependency proxy is running, then it should be restarted")
-		err := dep.SetConfiguration(proxyConfig)
-		if err != nil {
-			return fmt.Errorf("dep.SetConfiguration: %w", err)
 		}
 	}
 

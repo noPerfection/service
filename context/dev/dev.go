@@ -125,7 +125,7 @@ func (context *Context) prepareEnv() error {
 }
 
 // Dep returns the dependency from the context by its url.
-// Returns null, if the dependency wasn't found
+// Returns error, if the dependency wasn't found
 func (context *Context) Dep(url string) (*Dep, error) {
 	dep, ok := context.deps[url]
 	if !ok {

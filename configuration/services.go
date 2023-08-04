@@ -2,7 +2,6 @@ package configuration
 
 import (
 	"fmt"
-	"github.com/ahmetson/common-lib/data_type/key_value"
 	"strings"
 )
 
@@ -19,16 +18,25 @@ type Controller struct {
 }
 
 type Proxy struct {
-	Url      string
-	Instance string
-	Port     uint64
-	Context  ContextType
+	Url       string
+	Instances []ControllerInstance
+	Context   ContextType
 }
 
 type Extension struct {
 	Url      string
 	Instance string
 	Port     uint64
+}
+
+type PipeEnd struct {
+	Name string
+	Url  string
+}
+
+type Pipeline struct {
+	End  *PipeEnd
+	Head []string
 }
 
 // Service type defined in the configuration
@@ -39,7 +47,102 @@ type Service struct {
 	Controllers []Controller
 	Proxies     []Proxy
 	Extensions  []Extension
-	Pipelines   key_value.KeyValue
+	Pipelines   []Pipeline
+}
+
+// NewControllerPipeEnd creates a pipe end with the given name as the controller
+func NewControllerPipeEnd(end string) *PipeEnd {
+	return &PipeEnd{
+		Url:  "",
+		Name: end,
+	}
+}
+
+func NewThisServicePipeEnd() *PipeEnd {
+	return NewControllerPipeEnd("")
+}
+
+func (end *PipeEnd) IsController() bool {
+	return len(end.Name) > 0
+}
+
+func (end *PipeEnd) Pipeline(head []string) *Pipeline {
+	return &Pipeline{
+		End:  end,
+		Head: head,
+	}
+}
+
+func HasServicePipeline(pipelines []Pipeline) bool {
+	for _, pipeline := range pipelines {
+		if !pipeline.End.IsController() {
+			return true
+		}
+	}
+
+	return false
+}
+
+func ControllerPipelines(allPipelines []Pipeline) []Pipeline {
+	pipelines := make([]Pipeline, 0, len(allPipelines))
+	count := 0
+
+	for _, pipeline := range allPipelines {
+		if pipeline.End.IsController() {
+			pipelines[count] = pipeline
+			count++
+		}
+	}
+
+	return pipelines
+}
+
+func ServicePipeline(allPipelines []Pipeline) *Pipeline {
+	for _, pipeline := range allPipelines {
+		if !pipeline.End.IsController() {
+			return &pipeline
+		}
+	}
+
+	return nil
+}
+
+// ValidateHead makes sure that pipeline has proxies, and they are all proxies are unique
+func (pipeline *Pipeline) ValidateHead() error {
+	if !pipeline.HasBeginning() {
+		return fmt.Errorf("no head")
+	}
+	last := len(pipeline.Head) - 1
+	for i := 0; i < last; i++ {
+		needle := pipeline.Head[i]
+
+		for j := i + 1; j <= last; j++ {
+			url := pipeline.Head[j]
+			if strings.Compare(url, needle) == 0 {
+				return fmt.Errorf("the %d and %d proxies in the head are duplicates", i, j)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (pipeline *Pipeline) HasLength() bool {
+	return pipeline.End != nil && pipeline.HasBeginning()
+}
+
+func (pipeline *Pipeline) IsMultiHead() bool {
+	return len(pipeline.Head) > 1
+}
+
+// HeadFront returns all proxy except the last one.
+func (pipeline *Pipeline) HeadFront() []string {
+	return pipeline.Head[:len(pipeline.Head)-1]
+}
+
+// HeadLast returns the last proxy in the proxy chain
+func (pipeline *Pipeline) HeadLast() string {
+	return pipeline.Head[len(pipeline.Head)-1]
 }
 
 // ValidateTypes the parameters of the service
@@ -95,6 +198,16 @@ func (s *Service) Lint() error {
 	return nil
 }
 
+// Beginning Returns the first proxy url in the pipeline. Doesn't validate it.
+// Call first HasBeginning to check does the pipeline have a beginning
+func (pipeline *Pipeline) Beginning() string {
+	return pipeline.Head[0]
+}
+
+func (pipeline *Pipeline) HasBeginning() bool {
+	return len(pipeline.Head) > 0
+}
+
 // GetController returns the controller configuration by the controller name.
 // If the controller doesn't exist, then it returns an error.
 func (s *Service) GetController(name string) (Controller, error) {
@@ -105,6 +218,25 @@ func (s *Service) GetController(name string) (Controller, error) {
 	}
 
 	return Controller{}, fmt.Errorf("'%s' controller was not found in '%s' service's configuration", name, s.Url)
+}
+
+// GetControllers returns the multiple controllers of the given name.
+// If the controllers don't exist, then it returns an error
+func (s *Service) GetControllers(name string) ([]*Controller, error) {
+	controllers := make([]*Controller, 0, len(s.Controllers))
+	count := 0
+
+	for _, c := range s.Controllers {
+		if c.Name == name {
+			controllers[count] = &c
+			count++
+		}
+	}
+
+	if len(controllers) == 0 {
+		return nil, fmt.Errorf("no '%s' controlelr config", name)
+	}
+	return controllers, nil
 }
 
 // GetFirstController returns the controller without requiring its name.
@@ -141,31 +273,33 @@ func (s *Service) GetProxy(url string) *Proxy {
 	return nil
 }
 
+// SetProxy will set a new proxy. If it exists, it will overwrite it
 func (s *Service) SetProxy(proxy Proxy) {
-	s.Proxies = append(s.Proxies, proxy)
-}
-
-func (s *Service) SetExtension(extension Extension) {
-	s.Extensions = append(s.Extensions, extension)
-}
-
-// SetController Updates the controller if its already exist.
-// If not exists, adds a new controller
-func (s *Service) SetController(controller Controller) {
-	_, err := s.GetController(controller.Name)
-	if err == nil {
-		for i, serviceController := range s.Controllers {
-			if strings.Compare(serviceController.Name, controller.Name) == 0 {
-				s.Controllers[i] = controller
-			}
-		}
+	existing := s.GetProxy(proxy.Url)
+	if existing == nil {
+		s.Proxies = append(s.Proxies, proxy)
 	} else {
-		s.Controllers = append(s.Controllers, controller)
+		*existing = proxy
 	}
 }
 
-func (s *Service) SetPipeline(beginning string, end string) {
-	s.Pipelines.Set(beginning, end)
+// SetExtension will set a new extension. If it exists, it will overwrite it
+func (s *Service) SetExtension(extension Extension) {
+	existing := s.GetExtension(extension.Url)
+	if existing == nil {
+		s.Extensions = append(s.Extensions, extension)
+	} else {
+		*existing = extension
+	}
+}
+
+// SetController adds a new controller. If the controller by the same name exists, it will add a new copy.
+func (s *Service) SetController(controller Controller) {
+	s.Controllers = append(s.Controllers, controller)
+}
+
+func (s *Service) SetPipeline(pipeline Pipeline) {
+	s.Pipelines = append(s.Pipelines, pipeline)
 }
 
 // SourceName of this type should be listed within the controllers in the configuration
@@ -192,20 +326,24 @@ func ServiceToProxy(s *Service, contextType ContextType) (Proxy, error) {
 		return Proxy{}, fmt.Errorf("no source instances")
 	}
 
-	converted := Proxy{
-		Url:      s.Url,
+	instance := ControllerInstance{
 		Instance: controllerConfig.Name + " instance 01",
-		Context:  contextType,
 	}
 
 	if len(s.Proxies) == 0 {
-		converted.Port = controllerConfig.Instances[0].Port
+		instance.Port = controllerConfig.Instances[0].Port
 	} else {
 		beginning, err := findPipelineBeginning(s, SourceName, contextType)
 		if err != nil {
 			return Proxy{}, fmt.Errorf("findPipelineBeginning: %w", err)
 		}
-		converted.Port = beginning.Port
+		instance.Port = beginning.Instances[0].Port
+	}
+
+	converted := Proxy{
+		Url:       s.Url,
+		Instances: []ControllerInstance{instance},
+		Context:   contextType,
 	}
 
 	return converted, nil
@@ -214,15 +352,19 @@ func ServiceToProxy(s *Service, contextType ContextType) (Proxy, error) {
 // findPipelineBeginning returns the beginning of the pipeline.
 // If the contextType is not a default one, then it will search for the specific context type.
 func findPipelineBeginning(s *Service, requiredEnd string, contextType ContextType) (*Proxy, error) {
-	for beginning := range s.Pipelines {
-		end, err := s.Pipelines.GetString(beginning)
-		if err != nil {
-			return nil, fmt.Errorf("pipeline '%s' get the end: %w", beginning, err)
+	for _, pipeline := range s.Pipelines {
+		beginning := pipeline.Beginning()
+		if !pipeline.HasBeginning() {
+			return nil, fmt.Errorf("no pipeline beginning")
 		}
-
-		if strings.Compare(end, requiredEnd) != 0 {
-			continue
-		}
+		//end, err := s.Pipelines.GetString(beginning)
+		//if err != nil {
+		//	return nil, fmt.Errorf("pipeline '%s' get the end: %w", beginning, err)
+		//}
+		//
+		//if strings.Compare(end, requiredEnd) != 0 {
+		//	continue
+		//}
 
 		proxy := s.GetProxy(beginning)
 		if proxy == nil {
@@ -294,7 +436,7 @@ func ServiceToExtension(s *Service, contextType ContextType) (Extension, error) 
 		if err != nil {
 			return Extension{}, fmt.Errorf("findPipelineBeginning: %w", err)
 		}
-		converted.Port = beginning.Port
+		converted.Port = beginning.Instances[0].Port
 	}
 
 	return converted, nil
