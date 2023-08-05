@@ -33,7 +33,7 @@ func (dep *Dep) ConfigurationExist() (bool, error) {
 	dataPath := dep.context.config.ConfigurationPath(dep.url)
 	exists, err := path.FileExists(dataPath)
 	if err != nil {
-		return false, fmt.Errorf("path.FileExists('%s'): %w", err)
+		return false, fmt.Errorf("path.FileExists('%s'): %w", dataPath, err)
 	}
 	return exists, nil
 }
@@ -71,29 +71,29 @@ func (dep *Dep) SrcExist() (bool, error) {
 	return exists, nil
 }
 
-// Configuration returns the yaml configuration of the dependency as is
-func (dep *Dep) Configuration() (*service.Service, error) {
+// GetServiceConfig returns the yaml configuration of the dependency as is
+func (dep *Dep) GetServiceConfig() (*service.Service, error) {
 	configUrl := dep.context.config.ConfigurationPath(dep.Url())
-	service, err := dep.context.config.ReadService(configUrl)
+	serviceConfig, err := dep.context.config.ReadService(configUrl)
 	if err != nil {
 		return nil, fmt.Errorf("configuration.ReadService of %s: %w", configUrl, err)
 	}
 
-	return service, nil
+	return serviceConfig, nil
 }
 
-// SetConfiguration updates the yaml of the proxy.
+// SetServiceConfig updates the yaml of the proxy.
 //
 // It's needed for linting the dependency's destination controller with the service that relies on it.
-func (dep *Dep) SetConfiguration(config *service.Service) error {
+func (dep *Dep) SetServiceConfig(config *service.Service) error {
 	configUrl := dep.context.config.ConfigurationPath(dep.Url())
 	return dep.context.config.WriteService(configUrl, config)
 }
 
-// PrepareConfiguration creates the service.yml of the dependency.
+// PrepareConfig creates the service.yml of the dependency.
 // If it already exists, it skips.
 // The prepared service.yml would be used for linting
-func (dep *Dep) PrepareConfiguration(logger *log.Logger) error {
+func (dep *Dep) PrepareConfig(logger *log.Logger) error {
 	exist, err := dep.ConfigurationExist()
 	if err != nil {
 		return fmt.Errorf("failed to check existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
@@ -101,12 +101,11 @@ func (dep *Dep) PrepareConfiguration(logger *log.Logger) error {
 
 	if exist {
 		return nil
-	} else {
-		// first need to prepare the configuration
-		err := dep.prepareConfigurationPath()
-		if err != nil {
-			return fmt.Errorf("prepareConfigurationPath: %w", err)
-		}
+	}
+	// first need to prepare the configuration
+	err = dep.prepareConfigurationPath()
+	if err != nil {
+		return fmt.Errorf("prepareConfigurationPath: %w", err)
 	}
 
 	// check binary exists
@@ -125,104 +124,95 @@ func (dep *Dep) PrepareConfiguration(logger *log.Logger) error {
 			return fmt.Errorf("buildConfiguration of %s: %w", dep.url, err)
 		}
 		logger.Info("configuration was built, read it")
-		return dep.PrepareConfiguration(logger)
+		return nil
 	} else {
-		// first need to prepare the directory
-		err := dep.prepareBinPath()
-		if err != nil {
-			return fmt.Errorf("prepareBinPath: %w", err)
-		}
-	}
-
-	// check for source exist
-	srcExist, err := dep.SrcExist()
-	if err != nil {
-		return fmt.Errorf("failed to check src existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
-	}
-
-	if srcExist {
-		logger.Info("src exists, we need to build it")
-		err := dep.build(logger)
-		if err != nil {
-			return fmt.Errorf("build: %w", err)
-		}
-		logger.Info("file was built. generate the configuration file")
-		return dep.PrepareConfiguration(logger)
-	} else {
-		// first prepare the src directory
-		err := dep.prepareSrcPath()
-		if err != nil {
-			return fmt.Errorf("prepareSrcPath: %w", err)
-		}
-
-		logger.Warn("src doesn't exist, try to clone the source code")
-		err = dep.cloneSrc(logger)
-		if err != nil {
-			return fmt.Errorf("cloneSrc: %w", err)
-		} else {
-			logger.Info("prepare again to build the source")
-			return dep.PrepareConfiguration(logger)
-		}
+		return fmt.Errorf("bin not found. call dep.Prepare()")
 	}
 }
 
-// Prepare downloads the binary if it wasn't.
-func (dep *Dep) Prepare(port uint64, logger *log.Logger) error {
-	// check binary exists
+// Prepare downloads the dependency if it wasn't.
+// If the dependency binary exists, it will skip it.
+// If it already exists, it skips.
+// The prepared service.yml would be used for linting
+func (dep *Dep) Prepare(logger *log.Logger) error {
 	binExist, err := dep.BinExist()
 	if err != nil {
 		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
 	}
 
 	if binExist {
-		used := network.IsPortUsed(dep.context.config.Host(), port)
-		if used {
-			logger.Info("service is launched already", "url", dep.url, "port", port)
-			return nil
-		} else {
-			err := dep.start(logger)
-			if err != nil {
-				return fmt.Errorf("failed to start proxy: %w", err)
-			}
-			return nil
-		}
-	} else {
-		// first need to prepare the directory
-		err := dep.prepareBinPath()
-		if err != nil {
-			return fmt.Errorf("prepareBinPath: %w", err)
-		}
+		return nil
 	}
 
-	// check for source exist
+	// first need to prepare the directory by creating it
+	err = dep.prepareBinPath()
+	if err != nil {
+		return fmt.Errorf("prepareBinPath: %w", err)
+	}
+
+	// check for a source exist
 	srcExist, err := dep.SrcExist()
 	if err != nil {
 		return fmt.Errorf("failed to check src existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
 	}
-
 	if srcExist {
 		logger.Info("src exists, we need to build it")
 		err := dep.build(logger)
 		if err != nil {
 			return fmt.Errorf("build: %w", err)
 		}
-		logger.Info("file was built.")
-		return dep.Prepare(port, logger)
-	} else {
-		// first prepare the src directory
-		err := dep.prepareSrcPath()
-		if err != nil {
-			return fmt.Errorf("prepareSrcPath: %w", err)
-		}
 
-		logger.Warn("src doesn't exist, try to clone the source code")
-		err = dep.cloneSrc(logger)
+		return nil
+	}
+
+	// first prepare the src directory
+	err = dep.prepareSrcPath()
+	if err != nil {
+		return fmt.Errorf("prepareSrcPath: %w", err)
+	}
+
+	err = dep.cloneSrc(logger)
+	if err != nil {
+		return fmt.Errorf("cloneSrc: %w", err)
+	}
+
+	err = dep.build(logger)
+	if err != nil {
+		return fmt.Errorf("build: %w", err)
+	}
+
+	return nil
+}
+
+// Run downloads the binary if it wasn't.
+func (dep *Dep) Run(port uint64, logger *log.Logger) error {
+	// check binary exists
+	binExist, err := dep.BinExist()
+	if err != nil {
+		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
+	}
+	if !binExist {
+		return fmt.Errorf("bin not found, call dep.Prepare()")
+	}
+
+	exist, err := dep.ConfigurationExist()
+	if err != nil {
+		return fmt.Errorf("failed to check existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
+	}
+	if !exist {
+		return fmt.Errorf("configuration not found. call dep.PrepareConfiguration")
+	}
+
+	used := network.IsPortUsed(dep.context.config.Host(), port)
+	if used {
+		logger.Info("service is launched already", "url", dep.url, "port", port)
+		return nil
+	} else {
+		err := dep.start(logger)
 		if err != nil {
-			return fmt.Errorf("cloneSrc: %w", err)
-		} else {
-			logger.Info("prepare again to build the source")
-			return dep.Prepare(port, logger)
+			return fmt.Errorf("failed to start proxy: %w", err)
 		}
+		return nil
 	}
 }
 

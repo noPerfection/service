@@ -230,7 +230,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 	_, _ = suite.ok.messageHash()
 }
 
-// Prepare the request's message hash
+// Run the request's message hash
 // Then this message hash along with the signature is used by
 // app/account.SmartcontractDeveloper
 // to validate the address.

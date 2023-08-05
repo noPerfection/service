@@ -28,7 +28,7 @@ package auth
 //}
 //
 //// ServiceCredentials Gets the credentials for the service type
-//func ServiceCredentials(serviceType parameter.ServiceType, limit parameter.Limit, app_config *configuration.Configuration) (*auth.Credentials, error) {
+//func ServiceCredentials(serviceType parameter.ServiceType, limit parameter.Limit, app_config *configuration.GetServiceConfig) (*auth.Credentials, error) {
 //	name := string(serviceType)
 //	// public_key := name + "_PUBLIC_KEY"
 //	// broadcast_public_key := name + "_BROADCAST_PUBLIC_KEY"

@@ -64,7 +64,7 @@ func (proxy *Proxy) Prepare() error {
 	}
 
 	if err := proxy.service.Prepare(service2.ProxyType); err != nil {
-		return fmt.Errorf("service.Prepare as '%s' failed: %w", service2.ProxyType, err)
+		return fmt.Errorf("service.Run as '%s' failed: %w", service2.ProxyType, err)
 	}
 
 	if err := proxy.service.PrepareControllerConfiguration(service2.DestinationName, proxy.Controller.requiredDestination); err != nil {

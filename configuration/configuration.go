@@ -22,7 +22,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Config Configuration Engine based on viper.Viper
+// Config GetServiceConfig Engine based on viper.Viper
 type Config struct {
 	Name  string       // application name
 	viper *viper.Viper // used to keep default values

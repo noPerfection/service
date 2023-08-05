@@ -34,7 +34,7 @@ type Service struct {
 	RequiredProxies key_value.KeyValue // url => context type
 	Logger          *log.Logger
 	Context         *dev.Context
-	manager         controller.Interface // manage this service from other parts. it should be called before context run
+	manager         controller.Interface // manage this service from other parts. it should be called before context runs
 }
 
 // New service with the configuration engine and logger. Logger is used as is.
@@ -78,7 +78,7 @@ func (independent *Service) GetProxyContext(proxyUrl string) context.Type {
 	return contextType
 }
 
-// Pipeline creates a chain of the proxies.
+// A Pipeline creates a chain of the proxies.
 func (independent *Service) Pipeline(pipeEnd *service.PipeEnd, proxyUrls ...string) error {
 	if len(proxyUrls) == 0 {
 		return fmt.Errorf("no proxy")
@@ -248,9 +248,9 @@ func (independent *Service) preparePipelineConfigurations() error {
 			return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, proxyUrl, err)
 		}
 
-		proxyConfig, err := dep.Configuration()
+		proxyConfig, err := dep.GetServiceConfig()
 		if err != nil {
-			return fmt.Errorf("dep.Configuration: %w", err)
+			return fmt.Errorf("dep.GetServiceConfig: %w", err)
 		}
 
 		destinationConfigs, err := proxyConfig.GetControllers(service.DestinationName)
@@ -262,7 +262,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 		if len(independent.Config.Service.Controllers) != controllerAmount {
 			return fmt.Errorf("configuration has not enough controllers")
 		}
-		// The service has more controllers or less than in the configuration.
+		// The service has more controllers or fewer than in the configuration.
 		// Let's rewrite them
 		if len(destinationConfigs) != controllerAmount {
 			// two times more, source and destination for each controller
@@ -327,7 +327,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 				proxyConfig.Controllers[i] = controllerConfig
 			}
 
-			err = dep.SetConfiguration(proxyConfig)
+			err = dep.SetServiceConfig(proxyConfig)
 			if err != nil {
 				return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", dep.Url(), err)
 			}
@@ -342,9 +342,9 @@ func (independent *Service) preparePipelineConfigurations() error {
 			return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, serviceProxyUrl, err)
 		}
 
-		serviceProxyConfig, err := serviceDep.Configuration()
+		serviceProxyConfig, err := serviceDep.GetServiceConfig()
 		if err != nil {
-			return fmt.Errorf("controllerDep.Configuration: %w", err)
+			return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 		}
 
 		serviceSources, err = serviceProxyConfig.GetControllers(service.SourceName)
@@ -364,9 +364,9 @@ func (independent *Service) preparePipelineConfigurations() error {
 				return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, proxyUrl, err)
 			}
 
-			proxyConfig, err := controllerDep.Configuration()
+			proxyConfig, err := controllerDep.GetServiceConfig()
 			if err != nil {
-				return fmt.Errorf("controllerDep.Configuration: %w", err)
+				return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 			}
 
 			destinationConfigs, err := proxyConfig.GetControllers(service.DestinationName)
@@ -410,7 +410,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 					set++
 				}
 
-				err = controllerDep.SetConfiguration(proxyConfig)
+				err = controllerDep.SetServiceConfig(proxyConfig)
 				if err != nil {
 					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
 				}
@@ -428,7 +428,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 					proxyConfig.Controllers[i] = controllerConfig
 				}
 
-				err = controllerDep.SetConfiguration(proxyConfig)
+				err = controllerDep.SetServiceConfig(proxyConfig)
 				if err != nil {
 					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
 				}
@@ -443,9 +443,9 @@ func (independent *Service) preparePipelineConfigurations() error {
 				return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, proxyUrl, err)
 			}
 
-			proxyConfig, err := controllerDep.Configuration()
+			proxyConfig, err := controllerDep.GetServiceConfig()
 			if err != nil {
-				return fmt.Errorf("controllerDep.Configuration: %w", err)
+				return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 			}
 
 			sourceConfigs, err := proxyConfig.GetControllers(service.SourceName)
@@ -462,7 +462,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 
 				(*sourceConfigs[0]).Instances[0].Port = proxyConfiguration.Instances[0].Port
 
-				err = controllerDep.SetConfiguration(proxyConfig)
+				err = controllerDep.SetServiceConfig(proxyConfig)
 				if err != nil {
 					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", proxyUrl, err)
 				}
@@ -482,9 +482,9 @@ func (independent *Service) preparePipelineConfigurations() error {
 			return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, lastProxyUrl, err)
 		}
 
-		lastProxyConfig, err := lastDep.Configuration()
+		lastProxyConfig, err := lastDep.GetServiceConfig()
 		if err != nil {
-			return fmt.Errorf("controllerDep.Configuration: %w", err)
+			return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 		}
 
 		sourceConfigs, err := lastProxyConfig.GetControllers(service.SourceName)
@@ -495,15 +495,15 @@ func (independent *Service) preparePipelineConfigurations() error {
 		for i := len(proxyUrls) - 1; i >= 0; i-- {
 			proxyUrl := proxyUrls[i]
 			// if the destinations don't match with the last one, then make sure to rewrite it.
-			// otherwise make sure that proxyUrl destination matches with the lastProxyUrl source.
+			// otherwise, make sure that proxyUrl destination matches with the lastProxyUrl source.
 			controllerDep, err := independent.Context.Dep(proxyUrl)
 			if err != nil {
 				return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, proxyUrl, err)
 			}
 
-			proxyConfig, err := controllerDep.Configuration()
+			proxyConfig, err := controllerDep.GetServiceConfig()
 			if err != nil {
-				return fmt.Errorf("controllerDep.Configuration: %w", err)
+				return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 			}
 
 			destinationConfigs, err := proxyConfig.GetControllers(service.DestinationName)
@@ -547,7 +547,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 					set++
 				}
 
-				err = controllerDep.SetConfiguration(proxyConfig)
+				err = controllerDep.SetServiceConfig(proxyConfig)
 				if err != nil {
 					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
 				}
@@ -563,7 +563,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 					proxyConfig.Controllers[i] = controllerConfig
 				}
 
-				err := controllerDep.SetConfiguration(proxyConfig)
+				err := controllerDep.SetServiceConfig(proxyConfig)
 				if err != nil {
 					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
 				}
@@ -592,9 +592,9 @@ func (independent *Service) preparePipelineConfigurations() error {
 			return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, lastProxyUrl, err)
 		}
 
-		lastProxyConfig, err := lastDep.Configuration()
+		lastProxyConfig, err := lastDep.GetServiceConfig()
 		if err != nil {
-			return fmt.Errorf("controllerDep.Configuration: %w", err)
+			return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 		}
 
 		sourceConfigs, err := lastProxyConfig.GetControllers(service.SourceName)
@@ -605,15 +605,15 @@ func (independent *Service) preparePipelineConfigurations() error {
 		for i := len(proxyUrls) - 1; i >= 0; i-- {
 			proxyUrl := proxyUrls[i]
 			// if the destinations don't match with the last one, then make sure to rewrite it.
-			// otherwise make sure that proxyUrl destination matches with the lastProxyUrl source.
+			// otherwise, make sure that proxyUrl destination matches with the lastProxyUrl source.
 			controllerDep, err := independent.Context.Dep(proxyUrl)
 			if err != nil {
 				return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, proxyUrl, err)
 			}
 
-			proxyConfig, err := controllerDep.Configuration()
+			proxyConfig, err := controllerDep.GetServiceConfig()
 			if err != nil {
-				return fmt.Errorf("controllerDep.Configuration: %w", err)
+				return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 			}
 
 			destinationConfigs, err := proxyConfig.GetControllers(service.DestinationName)
@@ -657,7 +657,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 					set++
 				}
 
-				err = controllerDep.SetConfiguration(proxyConfig)
+				err = controllerDep.SetServiceConfig(proxyConfig)
 				if err != nil {
 					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
 				}
@@ -673,7 +673,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 					proxyConfig.Controllers[i] = controllerConfig
 				}
 
-				err := controllerDep.SetConfiguration(proxyConfig)
+				err := controllerDep.SetServiceConfig(proxyConfig)
 				if err != nil {
 					return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", controllerDep.Url(), err)
 				}
@@ -702,7 +702,7 @@ func (independent *Service) onClose(request message.Request, logger *log.Logger,
 			continue
 		}
 
-		// I expect that killing the process will release its resources as well.
+		// I expect that the killing process will release its resources as well.
 		err := c.Close()
 		if err != nil {
 			logger.Error("controller.Close", "error", err, "controller", name)
@@ -721,7 +721,7 @@ func (independent *Service) onClose(request message.Request, logger *log.Logger,
 // Run the context in the background. If it failed to run, then return an error.
 // The url parameter is the main service to which this context belongs too.
 //
-// The logger is the server logger as is. The context will create its own logger from it.
+// The logger is the server logger as it is. The context will create its own logger from it.
 func (independent *Service) runManager() error {
 	replier, err := controller.SyncReplier(independent.Logger.Child("manager"))
 	if err != nil {
@@ -975,12 +975,12 @@ errOccurred:
 
 func prepareContext(config context.Interface) (*dev.Context, error) {
 	// get the extensions
-	context, err := dev.New(config)
+	devContext, err := dev.New(config)
 	if err != nil {
 		return nil, fmt.Errorf("dev.New: %w", err)
 	}
 
-	return context, nil
+	return devContext, nil
 }
 
 // prepareProxy links the proxy with the dependency.
@@ -990,9 +990,9 @@ func (independent *Service) prepareProxy(dep *dev.Dep) error {
 	proxyConfiguration := independent.Config.Service.GetProxy(dep.Url())
 
 	independent.Logger.Info("prepare proxy", "url", proxyConfiguration.Url, "port", proxyConfiguration.Instances[0].Port)
-	err := dep.Prepare(proxyConfiguration.Instances[0].Port, independent.Logger)
+	err := dep.Run(proxyConfiguration.Instances[0].Port, independent.Logger)
 	if err != nil {
-		return fmt.Errorf(`dep.Prepare("%s"): %w`, dep.Url(), err)
+		return fmt.Errorf(`dep.Run("%s"): %w`, dep.Url(), err)
 	}
 
 	return nil
@@ -1005,9 +1005,9 @@ func (independent *Service) prepareExtension(dep *dev.Dep) error {
 	extensionConfiguration := independent.Config.Service.GetExtension(dep.Url())
 
 	independent.Logger.Info("prepare extension", "url", extensionConfiguration.Url, "port", extensionConfiguration.Port)
-	err := dep.Prepare(extensionConfiguration.Port, independent.Logger)
+	err := dep.Run(extensionConfiguration.Port, independent.Logger)
 	if err != nil {
-		return fmt.Errorf(`dep.Prepare("%s"): %w`, dep.Url(), err)
+		return fmt.Errorf(`dep.Run("%s"): %w`, dep.Url(), err)
 	}
 	return nil
 }
@@ -1016,12 +1016,17 @@ func (independent *Service) prepareExtension(dep *dev.Dep) error {
 //
 // if dependency doesn't exist, it will be downloaded
 func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext context.Type) error {
-	err := dep.PrepareConfiguration(independent.Logger)
+	err := dep.Prepare(independent.Logger)
 	if err != nil {
-		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", dep.Url(), err)
+		return fmt.Errorf("dev.Prepare(%s): %w", dep.Url(), err)
 	}
 
-	depConfig, err := dep.Configuration()
+	err = dep.PrepareConfig(independent.Logger)
+	if err != nil {
+		return fmt.Errorf("dev.PrepareConfig(%s): %w", dep.Url(), err)
+	}
+
+	depConfig, err := dep.GetServiceConfig()
 	converted, err := converter.ServiceToProxy(depConfig, proxyContext)
 	if err != nil {
 		return fmt.Errorf("configuration.ServiceToProxy: %w", err)
@@ -1045,7 +1050,7 @@ func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext
 
 			depConfig.SetController(source)
 
-			err = dep.SetConfiguration(depConfig)
+			err = dep.SetServiceConfig(depConfig)
 			if err != nil {
 				return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", dep.Url(), err)
 			}
@@ -1056,12 +1061,17 @@ func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext
 }
 
 func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
-	err := dep.PrepareConfiguration(independent.Logger)
+	err := dep.Prepare(independent.Logger)
 	if err != nil {
-		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", dep.Url(), err)
+		return fmt.Errorf("dev.Prepare(%s): %w", dep.Url(), err)
 	}
 
-	depConfig, err := dep.Configuration()
+	err = dep.PrepareConfig(independent.Logger)
+	if err != nil {
+		return fmt.Errorf("dev.PrepareConfig on %s: %w", dep.Url(), err)
+	}
+
+	depConfig, err := dep.GetServiceConfig()
 	converted, err := converter.ServiceToExtension(depConfig, independent.Config.Context.GetType())
 	if err != nil {
 		return fmt.Errorf("configuration.ServiceToExtension: %w", err)
@@ -1082,7 +1092,7 @@ func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
 
 			depConfig.SetController(main)
 
-			err = dep.SetConfiguration(depConfig)
+			err = dep.SetServiceConfig(depConfig)
 			if err != nil {
 				return fmt.Errorf("failed to update port in dependency extension: '%s': %w", dep.Url(), err)
 			}

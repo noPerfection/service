@@ -6,7 +6,7 @@
 // How it works?
 //
 // The context is set up. It checks the folder. And if they are not existing, it will create them.
-// >> dev.Prepare(context)
+// >> dev.Run(context)
 //
 // then lets work on the extension.
 // User is passing an extension url.
@@ -24,7 +24,7 @@
 // Then we build the binary.
 // We generate configuration.
 //
-// Lastly, the service.Prepare() will make sure that all binaries exist.
+// Lastly, the service.Run() will make sure that all binaries exist.
 // If not, then it will create them.
 //
 // -----------------------------------------------

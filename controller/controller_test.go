@@ -97,7 +97,7 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 		_ = suite.tcpController.Run()
 	}()
 
-	// Prepare for the controllers to be ready
+	// Run for the controllers to be ready
 	time.Sleep(time.Millisecond * 200)
 }
 
