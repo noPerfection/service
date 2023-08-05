@@ -5,12 +5,6 @@ import (
 	"github.com/ahmetson/service-lib/configuration"
 )
 
-// SourceName of this type should be listed within the controllers in the configuration
-const SourceName = "source"
-
-// DestinationName of this type should be listed within the controllers in the configuration
-const DestinationName = "destination"
-
 // Service type defined in the configuration
 type Service struct {
 	Type        ServiceType
@@ -21,6 +15,8 @@ type Service struct {
 	Extensions  []*Extension
 	Pipelines   []*Pipeline
 }
+
+type Services []Service
 
 // Lint sets the reference to the parent from the child.
 //
@@ -181,5 +177,3 @@ func (s *Service) HasProxy(contextType configuration.ContextType) bool {
 
 	return false
 }
-
-type Services []Service
