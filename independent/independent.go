@@ -14,6 +14,7 @@ import (
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/configuration/service/converter"
 	"github.com/ahmetson/service-lib/context/dev"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
@@ -302,7 +303,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 			}
 
 			independent.Logger.Info("make sure that converting service to proxy will convert all destinations to the proxy instances")
-			converted, err := service.ServiceToProxy(&proxyConfig, independent.GetProxyContext(proxyUrl))
+			converted, err := converter.ServiceToProxy(&proxyConfig, independent.GetProxyContext(proxyUrl))
 			if err != nil {
 				return fmt.Errorf("failed to convert the proxy")
 			}
@@ -1019,7 +1020,7 @@ func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext
 	}
 
 	depConfig, err := dep.Configuration()
-	converted, err := service.ServiceToProxy(&depConfig, proxyContext)
+	converted, err := converter.ServiceToProxy(&depConfig, proxyContext)
 	if err != nil {
 		return fmt.Errorf("configuration.ServiceToProxy: %w", err)
 	}
@@ -1059,7 +1060,7 @@ func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
 	}
 
 	depConfig, err := dep.Configuration()
-	converted, err := service.ServiceToExtension(&depConfig, independent.Config.Context.Type)
+	converted, err := converter.ServiceToExtension(&depConfig, independent.Config.Context.Type)
 	if err != nil {
 		return fmt.Errorf("configuration.ServiceToExtension: %w", err)
 	}
