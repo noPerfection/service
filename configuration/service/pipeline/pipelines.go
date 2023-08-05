@@ -1,4 +1,4 @@
-package service
+package pipeline
 
 func HasServicePipeline(pipelines []Pipeline) bool {
 	for _, pipeline := range pipelines {

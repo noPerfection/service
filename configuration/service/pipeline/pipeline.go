@@ -1,4 +1,4 @@
-package service
+package pipeline
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ type Pipeline struct {
 	Head []string
 }
 
-// ValidateHead makes sure that pipeline has proxies, and they are all proxies are unique
+// ValidateHead makes sure that the pipeline has proxies, and they are all proxies are unique
 func (pipeline *Pipeline) ValidateHead() error {
 	if !pipeline.HasBeginning() {
 		return fmt.Errorf("no head")
@@ -49,7 +49,7 @@ func (pipeline *Pipeline) HeadLast() string {
 }
 
 // Beginning Returns the first proxy url in the pipeline. Doesn't validate it.
-// Call first HasBeginning to check does the pipeline have a beginning
+// Call first beginning to check does the pipeline have a beginning
 func (pipeline *Pipeline) Beginning() string {
 	return pipeline.Head[0]
 }

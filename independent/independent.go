@@ -17,6 +17,7 @@ import (
 	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/configuration/service/converter"
+	"github.com/ahmetson/service-lib/configuration/service/pipeline"
 	"github.com/ahmetson/service-lib/context/dev"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
@@ -30,8 +31,8 @@ import (
 type Service struct {
 	Config          *configuration.Config
 	Controllers     key_value.KeyValue
-	pipelines       []service.Pipeline // Pipeline beginning: url => [Pipes]
-	RequiredProxies key_value.KeyValue // url => context type
+	pipelines       []pipeline.Pipeline // Pipeline beginning: url => [Pipes]
+	RequiredProxies key_value.KeyValue  // url => context type
 	Logger          *log.Logger
 	Context         *dev.Context
 	manager         controller.Interface // manage this service from other parts. it should be called before context runs
@@ -44,7 +45,7 @@ func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
 		Logger:          logger,
 		Controllers:     key_value.Empty(),
 		RequiredProxies: key_value.Empty(),
-		pipelines:       make([]service.Pipeline, 0),
+		pipelines:       make([]pipeline.Pipeline, 0),
 	}
 
 	return &independent, nil
@@ -79,7 +80,7 @@ func (independent *Service) GetProxyContext(proxyUrl string) context.Type {
 }
 
 // A Pipeline creates a chain of the proxies.
-func (independent *Service) Pipeline(pipeEnd *service.PipeEnd, proxyUrls ...string) error {
+func (independent *Service) Pipeline(pipeEnd *pipeline.PipeEnd, proxyUrls ...string) error {
 	if len(proxyUrls) == 0 {
 		return fmt.Errorf("no proxy")
 	}
@@ -94,7 +95,7 @@ func (independent *Service) Pipeline(pipeEnd *service.PipeEnd, proxyUrls ...stri
 			return fmt.Errorf("independent.Controllers.Exist('%s') [call independent.AddController()]: %w", pipeEnd.Id, err)
 		}
 	} else {
-		if service.HasServicePipeline(independent.pipelines) {
+		if pipeline.HasServicePipeline(independent.pipelines) {
 			return fmt.Errorf("configuration.HasServicePipeline: service pipeline exists")
 		}
 	}
@@ -137,7 +138,7 @@ func (independent *Service) prepareServiceConfiguration(expectedType service.Typ
 			Type:      expectedType,
 			Url:       url,
 			Id:        config.Name + " 1",
-			Pipelines: make([]*service.Pipeline, 0),
+			Pipelines: make([]*pipeline.Pipeline, 0),
 		}
 	} else if serviceConfig.Type != expectedType {
 		return fmt.Errorf("service type is overwritten. expected '%s', not '%s'", expectedType, serviceConfig.Type)
@@ -230,9 +231,9 @@ func (independent *Service) prepareConfiguration(expectedType service.Type) erro
 // lintPipelineConfiguration checks that proxy url and controllerName are valid.
 // Then, in the Config, it makes sure that dependency is linted.
 func (independent *Service) preparePipelineConfigurations() error {
-	hasService := service.HasServicePipeline(independent.pipelines)
-	servicePipeline := service.GetServiceEnd(independent.pipelines)
-	controllerPipelines := service.GetControllerEnds(independent.pipelines)
+	hasService := pipeline.HasServicePipeline(independent.pipelines)
+	servicePipeline := pipeline.GetServiceEnd(independent.pipelines)
+	controllerPipelines := pipeline.GetControllerEnds(independent.pipelines)
 
 	if hasService {
 		servicePipeline.End.Url = independent.Config.Service.Url

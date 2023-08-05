@@ -32,7 +32,7 @@ func (context *Context) onClose(request message.Request, logger *log.Logger, _ .
 			continue
 		}
 
-		// I expect that killing the process will release its resources as well.
+		// I expect that the killing process will release its resources as well.
 		err := dep.cmd.Process.Kill()
 		if err != nil {
 			logger.Error("dep.cmd.Process.Kill", "error", err, "dep", dep.Url(), "command", "onClose")
@@ -68,7 +68,7 @@ func (context *Context) onServiceReady(request message.Request, logger *log.Logg
 // Run the context in the background. If it failed to run, then return an error.
 // The url parameter is the main service to which this context belongs too.
 //
-// The logger is the server logger as is. The context will create its own logger from it.
+// The logger is the server logger as it is. The context will create its own logger from it.
 func (context *Context) Run(logger *log.Logger) error {
 	replier, err := controller.SyncReplier(logger.Child("context"))
 	if err != nil {

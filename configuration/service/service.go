@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration/context"
+	"github.com/ahmetson/service-lib/configuration/service/pipeline"
 )
 
 // Service type defined in the configuration
@@ -14,7 +15,7 @@ type Service struct {
 	Controllers []*Controller
 	Proxies     []*Proxy
 	Extensions  []*Extension
-	Pipelines   []*Pipeline
+	Pipelines   []*pipeline.Pipeline
 }
 
 type Services []Service
@@ -193,7 +194,7 @@ func (s *Service) SetController(controller *Controller) {
 	s.Controllers = append(s.Controllers, controller)
 }
 
-func (s *Service) SetPipeline(pipeline *Pipeline) {
+func (s *Service) SetPipeline(pipeline *pipeline.Pipeline) {
 	s.Pipelines = append(s.Pipelines, pipeline)
 }
 
