@@ -5,6 +5,7 @@ package identity
 
 import (
 	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/service"
 )
 
 const (
@@ -23,7 +24,7 @@ const (
 // At most the service should have 10 available ports.
 //
 // Each service's port number is incremented by 10.
-func DefaultConfiguration(_ configuration.ServiceType) configuration.DefaultConfig {
+func DefaultConfiguration(_ service.ServiceType) configuration.DefaultConfig {
 	/*serviceTypes := serviceTypes()
 
 	for i, value := range serviceTypes {

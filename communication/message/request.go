@@ -18,7 +18,7 @@ type Stack struct {
 	ServerInstance string `json:"server_instance"`
 }
 
-// Request message sent by Client socket and accepted by Controller socket.
+// Request message sent by Client socket and accepted by ControllerCategory socket.
 type Request struct {
 	Uuid       string             `json:"uuid,omitempty"`
 	Trace      []Stack            `json:"trace,omitempty"`

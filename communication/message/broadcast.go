@@ -7,9 +7,9 @@
 //
 //   - Request message sent by the client sockets to the remote services.
 //
-//   - Reply message sent back to clients by the Controller socket.
+//   - Reply message sent back to clients by the ControllerCategory socket.
 //
-//   - SmartcontractDeveloperRequest message sent by client sockets to the Controller.
+//   - SmartcontractDeveloperRequest message sent by client sockets to the ControllerCategory.
 //     It's similar to the Request message, but includes the authentication parameters based on
 //     Blockchain public/private keys.
 //

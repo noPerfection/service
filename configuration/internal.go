@@ -1,6 +1,7 @@
 package configuration
 
 import (
+	"github.com/ahmetson/service-lib/configuration/service"
 	"strings"
 )
 
@@ -31,17 +32,17 @@ func ContextName(url string) string {
 	return "context." + fileName
 }
 
-func InternalConfiguration(name string) *Controller {
-	instance := Instance{
-		Port:       0, // 0 means it's inproc
-		Id:         name + "_instance",
-		Controller: name,
+func InternalConfiguration(name string) *service.Controller {
+	instance := service.Instance{
+		Port:               0, // 0 means it's inproc
+		Id:                 name + "_instance",
+		ControllerCategory: name,
 	}
 
-	return &Controller{
-		Type:      SyncReplierType,
+	return &service.Controller{
+		Type:      service.SyncReplierType,
 		Category:  name,
-		Instances: []Instance{instance},
+		Instances: []service.Instance{instance},
 	}
 }
 

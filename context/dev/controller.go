@@ -98,7 +98,7 @@ func (context *Context) Run(logger *log.Logger) error {
 // Close sends a close signal to the context.
 func (context *Context) Close(logger *log.Logger) error {
 	if context.controller == nil {
-		logger.Warn("skipping, since context.Controller is not initialised", "todo", "call context.Run()")
+		logger.Warn("skipping, since context.ControllerCategory is not initialised", "todo", "call context.Run()")
 		return nil
 	}
 	contextName, contextPort := configuration.ClientUrlParameters(configuration.ContextName(context.config.GetUrl()))
@@ -132,7 +132,7 @@ func (context *Context) Close(logger *log.Logger) error {
 // ServiceReady sends a signal marking that the main service is ready.
 func (context *Context) ServiceReady(logger *log.Logger) error {
 	if context.controller == nil {
-		logger.Warn("context.Controller is not initialised", "todo", "call context.Run()")
+		logger.Warn("context.ControllerCategory is not initialised", "todo", "call context.Run()")
 		return nil
 	}
 	contextName, contextPort := configuration.ClientUrlParameters(configuration.ContextName(context.config.GetUrl()))

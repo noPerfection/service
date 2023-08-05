@@ -3,7 +3,7 @@ package controller
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/remote"
 
 	"github.com/ahmetson/service-lib/communication/command"
@@ -15,11 +15,11 @@ import (
 
 // Controller is the socket wrapper for the service.
 type Controller struct {
-	config             *configuration.Controller
+	config             *service.Controller
 	serviceUrl         string
 	socket             *zmq.Socket
 	logger             *log.Logger
-	controllerType     configuration.Type
+	controllerType     service.Type
 	routes             *command.Routes
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
@@ -28,13 +28,13 @@ type Controller struct {
 
 // AddConfig adds the parameters of the controller from the configuration.
 // The serviceUrl is the service to which this controller belongs too.
-func (c *Controller) AddConfig(controller *configuration.Controller, serviceUrl string) {
+func (c *Controller) AddConfig(controller *service.Controller, serviceUrl string) {
 	c.config = controller
 	c.serviceUrl = serviceUrl
 }
 
 // AddExtensionConfig adds the configuration of the extension that the controller depends on
-func (c *Controller) AddExtensionConfig(extension *configuration.Extension) {
+func (c *Controller) AddExtensionConfig(extension *service.Extension) {
 	c.extensionConfigs.Set(extension.Url, extension)
 }
 
@@ -51,7 +51,7 @@ func (c *Controller) RequiredExtensions() []string {
 }
 
 func (c *Controller) isReply() bool {
-	return c.controllerType == configuration.SyncReplierType
+	return c.controllerType == service.SyncReplierType
 }
 
 // reply sends to the caller the message.
@@ -103,7 +103,7 @@ func (c *Controller) extensionsAdded() error {
 	return nil
 }
 
-func (c *Controller) ControllerType() configuration.Type {
+func (c *Controller) ControllerType() service.Type {
 	return c.controllerType
 }
 
@@ -117,7 +117,7 @@ func (c *Controller) ControllerType() configuration.Type {
 // as it's intended.
 func (c *Controller) initExtensionClients() error {
 	for _, extensionInterface := range c.extensionConfigs {
-		extensionConfig := extensionInterface.(*configuration.Extension)
+		extensionConfig := extensionInterface.(*service.Extension)
 		extension, err := remote.NewReq(extensionConfig.Url, extensionConfig.Port, c.logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a request client: %w", err)

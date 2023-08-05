@@ -5,7 +5,7 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/remote"
 )
@@ -16,10 +16,10 @@ import (
 // "github.com/ahmetson/service-lib/remote" package.
 type Interface interface {
 	// AddConfig adds the parameters of the controller from the configuration
-	AddConfig(controller *configuration.Controller, serviceUrl string)
+	AddConfig(controller *service.Controller, serviceUrl string)
 
 	// AddExtensionConfig adds the configuration of the extension that the controller depends on
-	AddExtensionConfig(extension *configuration.Extension)
+	AddExtensionConfig(extension *service.Extension)
 
 	// RequireExtension marks the extensions that this controller depends on.
 	// Before running, the required extension should be added from the configuration.
@@ -33,7 +33,7 @@ type Interface interface {
 	AddRoute(route *command.Route) error
 
 	// ControllerType returns the type of the controller
-	ControllerType() configuration.Type
+	ControllerType() service.Type
 
 	// Close the controller if it's running. If it's not running, then do nothing
 	Close() error

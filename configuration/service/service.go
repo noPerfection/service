@@ -1,43 +1,9 @@
-package configuration
+package service
 
 import (
 	"fmt"
-	"strings"
+	"github.com/ahmetson/service-lib/configuration"
 )
-
-type Instance struct {
-	Port       uint64
-	Id         string
-	Controller string
-}
-
-type Controller struct {
-	Type      Type
-	Category  string
-	Instances []Instance
-}
-
-type Proxy struct {
-	Url       string
-	Instances []Instance
-	Context   ContextType
-}
-
-type Extension struct {
-	Url  string
-	Id   string
-	Port uint64
-}
-
-type PipeEnd struct {
-	Id  string
-	Url string
-}
-
-type Pipeline struct {
-	End  *PipeEnd
-	Head []string
-}
 
 // Service type defined in the configuration
 type Service struct {
@@ -50,99 +16,36 @@ type Service struct {
 	Pipelines   []Pipeline
 }
 
-// NewControllerPipeEnd creates a pipe end with the given name as the controller
-func NewControllerPipeEnd(end string) *PipeEnd {
-	return &PipeEnd{
-		Url: "",
-		Id:  end,
-	}
-}
-
-func NewThisServicePipeEnd() *PipeEnd {
-	return NewControllerPipeEnd("")
-}
-
-func (end *PipeEnd) IsController() bool {
-	return len(end.Id) > 0
-}
-
-func (end *PipeEnd) Pipeline(head []string) *Pipeline {
-	return &Pipeline{
-		End:  end,
-		Head: head,
-	}
-}
-
-func HasServicePipeline(pipelines []Pipeline) bool {
-	for _, pipeline := range pipelines {
-		if !pipeline.End.IsController() {
-			return true
-		}
-	}
-
-	return false
-}
-
-func ControllerPipelines(allPipelines []Pipeline) []Pipeline {
-	pipelines := make([]Pipeline, 0, len(allPipelines))
-	count := 0
-
-	for _, pipeline := range allPipelines {
-		if pipeline.End.IsController() {
-			pipelines[count] = pipeline
-			count++
-		}
-	}
-
-	return pipelines
-}
-
-func ServicePipeline(allPipelines []Pipeline) *Pipeline {
-	for _, pipeline := range allPipelines {
-		if !pipeline.End.IsController() {
-			return &pipeline
-		}
-	}
-
-	return nil
-}
-
-// ValidateHead makes sure that pipeline has proxies, and they are all proxies are unique
-func (pipeline *Pipeline) ValidateHead() error {
-	if !pipeline.HasBeginning() {
-		return fmt.Errorf("no head")
-	}
-	last := len(pipeline.Head) - 1
-	for i := 0; i < last; i++ {
-		needle := pipeline.Head[i]
-
-		for j := i + 1; j <= last; j++ {
-			url := pipeline.Head[j]
-			if strings.Compare(url, needle) == 0 {
-				return fmt.Errorf("the %d and %d proxies in the head are duplicates", i, j)
+// Lint sets the reference to the parent from the child.
+//
+// If the child configuration is used independently, then
+// there is no way to know to which parent it belongs too.
+//
+// In this case, it sets the reference to the controller from the controller reference.
+// If the controller instances are used independently, then other services may know to which service they belong too.
+func (s *Service) Lint() error {
+	// Lint controller instances to the controllers
+	for cI, c := range s.Controllers {
+		for iI, instance := range c.Instances {
+			if len(instance.ControllerCategory) > 0 {
+				if instance.ControllerCategory != c.Category {
+					return fmt.Errorf("invalid name for controller instance. "+
+						"In service instance '%s', controller '%s', instance '%s'. "+
+						"the '%s' name in the controller instance should be '%s'",
+						s.Id, c.Category, instance.Id, instance.ControllerCategory, c.Category)
+				} else {
+					continue
+				}
 			}
+
+			instance.ControllerCategory = c.Category
+			c.Instances[iI] = instance
 		}
+
+		s.Controllers[cI] = c
 	}
 
 	return nil
-}
-
-func (pipeline *Pipeline) HasLength() bool {
-	return pipeline.End != nil && pipeline.HasBeginning()
-}
-
-func (pipeline *Pipeline) IsMultiHead() bool {
-	return len(pipeline.Head) > 1
-}
-
-// HeadFront returns all proxy except the last one.
-func (pipeline *Pipeline) HeadFront() []string {
-	return pipeline.Head[:len(pipeline.Head)-1]
-}
-
-// HeadLast returns the last proxy in the proxy chain
-func (pipeline *Pipeline) HeadLast() string {
-	return pipeline.Head[len(pipeline.Head)-1]
 }
 
 // ValidateTypes the parameters of the service
@@ -158,54 +61,6 @@ func (s *Service) ValidateTypes() error {
 	}
 
 	return nil
-}
-
-// NewInternalExtension returns the extension that is on another thread, but not on remote.
-// The extension will be connected using the inproc protocol, not over TCP.
-func NewInternalExtension(name string) *Extension {
-	return &Extension{Url: name, Port: 0}
-}
-
-// Lint sets the reference to the parent from the child.
-//
-// If the child configuration is used independently, then
-// there is no way to know to which parent it belongs too.
-//
-// In this case, it sets the reference to the controller from the controller reference.
-// If the controller instances are used independently, then other services may know to which service they belong too.
-func (s *Service) Lint() error {
-	// Lint controller instances to the controllers
-	for cI, c := range s.Controllers {
-		for iI, instance := range c.Instances {
-			if len(instance.Controller) > 0 {
-				if instance.Controller != c.Category {
-					return fmt.Errorf("invalid name for controller instance. "+
-						"In service instance '%s', controller '%s', instance '%s'. "+
-						"the '%s' name in the controller instance should be '%s'",
-						s.Id, c.Category, instance.Id, instance.Controller, c.Category)
-				} else {
-					continue
-				}
-			}
-
-			instance.Controller = c.Category
-			c.Instances[iI] = instance
-		}
-
-		s.Controllers[cI] = c
-	}
-
-	return nil
-}
-
-// Beginning Returns the first proxy url in the pipeline. Doesn't validate it.
-// Call first HasBeginning to check does the pipeline have a beginning
-func (pipeline *Pipeline) Beginning() string {
-	return pipeline.Head[0]
-}
-
-func (pipeline *Pipeline) HasBeginning() bool {
-	return len(pipeline.Head) > 0
 }
 
 // GetController returns the controller configuration by the controller name.
@@ -312,7 +167,7 @@ const DestinationName = "destination"
 // so that it can be used as a proxy by other services.
 //
 // If the service has another proxy, then it will find it.
-func ServiceToProxy(s *Service, contextType ContextType) (Proxy, error) {
+func ServiceToProxy(s *Service, contextType configuration.ContextType) (Proxy, error) {
 	if s.Type != ProxyType {
 		return Proxy{}, fmt.Errorf("only proxy type of service can be converted")
 	}
@@ -351,7 +206,7 @@ func ServiceToProxy(s *Service, contextType ContextType) (Proxy, error) {
 
 // findPipelineBeginning returns the beginning of the pipeline.
 // If the contextType is not a default one, then it will search for the specific context type.
-func findPipelineBeginning(s *Service, requiredEnd string, contextType ContextType) (*Proxy, error) {
+func findPipelineBeginning(s *Service, requiredEnd string, contextType configuration.ContextType) (*Proxy, error) {
 	for _, pipeline := range s.Pipelines {
 		beginning := pipeline.Beginning()
 		if !pipeline.HasBeginning() {
@@ -371,14 +226,14 @@ func findPipelineBeginning(s *Service, requiredEnd string, contextType ContextTy
 			return nil, fmt.Errorf("invalid configuration. pipeline '%s' beginning not found in proxy list", beginning)
 		}
 
-		if contextType != DefaultContext {
+		if contextType != configuration.DefaultContext {
 			if proxy.Context != contextType {
 				continue
 			} else {
 				return proxy, nil
 			}
 		} else {
-			if proxy.Context == DefaultContext {
+			if proxy.Context == configuration.DefaultContext {
 				return proxy, nil
 			} else {
 				continue
@@ -391,11 +246,11 @@ func findPipelineBeginning(s *Service, requiredEnd string, contextType ContextTy
 
 // HasProxy checks is there any proxy within the context.
 // If the context is default, then it will return true for any context
-func (s *Service) HasProxy(contextType ContextType) bool {
+func (s *Service) HasProxy(contextType configuration.ContextType) bool {
 	if len(s.Proxies) == 0 {
 		return false
 	}
-	if contextType == DefaultContext {
+	if contextType == configuration.DefaultContext {
 		return true
 	}
 
@@ -410,7 +265,7 @@ func (s *Service) HasProxy(contextType ContextType) bool {
 
 // ServiceToExtension returns the service in the proxy format
 // so that it can be used as a proxy
-func ServiceToExtension(s *Service, contextType ContextType) (Extension, error) {
+func ServiceToExtension(s *Service, contextType configuration.ContextType) (Extension, error) {
 	if s.Type != ExtensionType {
 		return Extension{}, fmt.Errorf("only proxy type of service can be converted")
 	}

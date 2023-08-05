@@ -3,11 +3,12 @@ package identity
 import (
 	"fmt"
 	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/service"
 )
 
 // Service defines the parameters of the service.
 type Service struct {
-	ServiceType configuration.ServiceType
+	ServiceType service.ServiceType
 	Name        string // Service name
 	inproc      bool
 	url         string
@@ -15,8 +16,8 @@ type Service struct {
 }
 
 // Inprocess creates the service with the parameters but without any information
-func Inprocess(serviceType configuration.ServiceType) (*Service, error) {
-	if inprocErr := configuration.ValidateServiceType(serviceType); inprocErr != nil {
+func Inprocess(serviceType service.ServiceType) (*Service, error) {
+	if inprocErr := service.ValidateServiceType(serviceType); inprocErr != nil {
 		return nil, fmt.Errorf("valid or inproc_valid: %w", inprocErr)
 	}
 	name := serviceType.String()
@@ -39,12 +40,12 @@ func Inprocess(serviceType configuration.ServiceType) (*Service, error) {
 // Url should include inproc:// protocol prefix
 
 // NewExternal creates the service with the parameters but without any information
-func NewExternal(serviceType configuration.ServiceType, limit Limit, appConfig *configuration.Config) (*Service, error) {
+func NewExternal(serviceType service.ServiceType, limit Limit, appConfig *configuration.Config) (*Service, error) {
 	if appConfig == nil {
 		return nil, fmt.Errorf("missing app config")
 	}
 
-	if err := configuration.ValidateServiceType(serviceType); err != nil {
+	if err := service.ValidateServiceType(serviceType); err != nil {
 		return nil, fmt.Errorf("valid: %w", err)
 	}
 

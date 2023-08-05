@@ -2,26 +2,26 @@ package controller
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/service"
 	zmq "github.com/pebbe/zmq4"
 )
 
 type Instance struct {
-	config configuration.Instance
+	config service.Instance
 	socket *zmq.Socket
 }
 
-func NewInstance(config configuration.Instance) *Instance {
+func NewInstance(config service.Instance) *Instance {
 	return &Instance{
 		socket: nil,
 		config: config,
 	}
 }
 
-func GetType(controllerType configuration.Type) zmq.Type {
-	if controllerType == configuration.SyncReplierType {
+func GetType(controllerType service.Type) zmq.Type {
+	if controllerType == service.SyncReplierType {
 		return zmq.REP
-	} else if controllerType == configuration.ReplierType {
+	} else if controllerType == service.ReplierType {
 		return zmq.ROUTER
 	}
 	return zmq.REP
@@ -41,11 +41,11 @@ func (instance *Instance) Run(c *Controller) error {
 	// then any whitelisting users will be sent there.
 	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
 
-	url := Url(c.config.Instances[0].Controller, c.config.Instances[0].Port)
-	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances", "url", url, "name", c.config.Instances[0].Controller)
+	url := Url(c.config.Instances[0].ControllerCategory, c.config.Instances[0].Port)
+	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances", "url", url, "name", c.config.Instances[0].ControllerCategory)
 
 	if err := Bind(instance.socket, url, c.config.Instances[0].Port); err != nil {
-		return fmt.Errorf(`bind("%s"): %w`, c.config.Instances[0].Controller, err)
+		return fmt.Errorf(`bind("%s"): %w`, c.config.Instances[0].ControllerCategory, err)
 	}
 
 	poller := zmq.NewPoller()

@@ -4,6 +4,7 @@ package proxy
 import (
 	"fmt"
 	"github.com/ahmetson/service-lib/configuration"
+	service2 "github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/independent"
 	"github.com/ahmetson/service-lib/log"
@@ -22,15 +23,15 @@ type Proxy struct {
 // extension creates the configuration of the proxy controller.
 // The proxy controller itself is added as the extension to the source controllers,
 // to the request handlers and to the reply handlers.
-func extension() *configuration.Extension {
-	return configuration.NewInternalExtension(ControllerName)
+func extension() *service2.Extension {
+	return service2.NewInternalExtension(ControllerName)
 }
 
 // registerDestination registers the controller instances as the destination.
 // It adds the controller configuration.
 func (proxy *Proxy) registerDestination() {
 	for _, c := range proxy.service.Config.Service.Controllers {
-		if c.Category == configuration.DestinationName {
+		if c.Category == service2.DestinationName {
 			proxy.Controller.RegisterDestination(&c, proxy.service.Config.Service.Url)
 			break
 		}
@@ -39,7 +40,7 @@ func (proxy *Proxy) registerDestination() {
 
 // New proxy service along with its controller.
 func New(config *configuration.Config, parent *log.Logger) *Proxy {
-	logger := parent.Child("service", "service_type", configuration.ProxyType)
+	logger := parent.Child("service", "service_type", service2.ProxyType)
 
 	base, _ := independent.New(config, logger)
 
@@ -53,20 +54,20 @@ func New(config *configuration.Config, parent *log.Logger) *Proxy {
 
 func (proxy *Proxy) getSource() controller.Interface {
 	controllers := proxy.service.Controllers.Map()
-	source := controllers[configuration.SourceName].(controller.Interface)
+	source := controllers[service2.SourceName].(controller.Interface)
 	return source
 }
 
 func (proxy *Proxy) Prepare() error {
-	if proxy.Controller.requiredDestination == configuration.UnknownType {
-		return fmt.Errorf("missing the required destination. call proxy.Controller.RequireDestination")
+	if proxy.Controller.requiredDestination == service2.UnknownType {
+		return fmt.Errorf("missing the required destination. call proxy.ControllerCategory.RequireDestination")
 	}
 
-	if err := proxy.service.Prepare(configuration.ProxyType); err != nil {
-		return fmt.Errorf("service.Prepare as '%s' failed: %w", configuration.ProxyType, err)
+	if err := proxy.service.Prepare(service2.ProxyType); err != nil {
+		return fmt.Errorf("service.Prepare as '%s' failed: %w", service2.ProxyType, err)
 	}
 
-	if err := proxy.service.PrepareControllerConfiguration(configuration.DestinationName, proxy.Controller.requiredDestination); err != nil {
+	if err := proxy.service.PrepareControllerConfiguration(service2.DestinationName, proxy.Controller.requiredDestination); err != nil {
 		return fmt.Errorf("prepare destination as '%s' failed: %w", proxy.Controller.requiredDestination, err)
 	}
 
@@ -78,16 +79,16 @@ func (proxy *Proxy) Prepare() error {
 // SetDefaultSource creates a source controller of the given type.
 //
 // It loads the source name automatically.
-func (proxy *Proxy) SetDefaultSource(controllerType configuration.Type) error {
+func (proxy *Proxy) SetDefaultSource(controllerType service2.Type) error {
 	// todo move the validation to the proxy.ValidateTypes() function
 	var source controller.Interface
-	if controllerType == configuration.SyncReplierType {
+	if controllerType == service2.SyncReplierType {
 		sourceController, err := controller.SyncReplier(proxy.service.Logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a source as controller.NewReplier: %w", err)
 		}
 		source = sourceController
-	} else if controllerType == configuration.PusherType {
+	} else if controllerType == service2.PusherType {
 		sourceController, err := controller.NewPull(proxy.service.Logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a source as controller.NewPull: %w", err)
@@ -104,7 +105,7 @@ func (proxy *Proxy) SetDefaultSource(controllerType configuration.Type) error {
 
 // SetCustomSource sets the source controller, and invokes the source controller's
 func (proxy *Proxy) SetCustomSource(source controller.Interface) {
-	proxy.service.AddController(configuration.SourceName, source)
+	proxy.service.AddController(service2.SourceName, source)
 }
 
 // Run the proxy service.

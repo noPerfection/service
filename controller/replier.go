@@ -5,7 +5,7 @@ package controller
 import (
 	"fmt"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/log"
 	zmq "github.com/pebbe/zmq4"
 	"runtime"
@@ -129,12 +129,12 @@ func (c *AsyncController) handleBackend() error {
 
 // Replier creates an asynchronous replying server.
 func Replier(parent *log.Logger) (*AsyncController, error) {
-	logger := parent.Child("async-controller", "type", configuration.ReplierType)
+	logger := parent.Child("async-controller", "type", service.ReplierType)
 
 	maxWorkers := runtime.NumCPU()
 
 	base := newController(logger)
-	base.controllerType = configuration.ReplierType
+	base.controllerType = service.ReplierType
 
 	instance := &AsyncController{
 		base:       base,
@@ -153,7 +153,7 @@ func Replier(parent *log.Logger) (*AsyncController, error) {
 //
 // the name of the controller should not contain a space or special character
 func (c *AsyncController) managerUrl() string {
-	name := "async_manager_" + c.config.Instances[0].Controller
+	name := "async_manager_" + c.config.Instances[0].ControllerCategory
 
 	return Url(name, 0)
 }
@@ -166,14 +166,14 @@ func (c *AsyncController) Run() error {
 	c.socket, _ = zmq.NewSocket(zmq.ROUTER)
 	c.manager, _ = zmq.NewSocket(zmq.ROUTER)
 
-	url := Url(c.config.Instances[0].Controller, c.config.Instances[0].Port)
+	url := Url(c.config.Instances[0].ControllerCategory, c.config.Instances[0].Port)
 	if err := Bind(c.socket, url, c.config.Instances[0].Port); err != nil {
-		return fmt.Errorf("bind('%s'): %w", c.config.Instances[0].Controller, err)
+		return fmt.Errorf("bind('%s'): %w", c.config.Instances[0].ControllerCategory, err)
 	}
 
 	url = c.managerUrl()
 	if err := Bind(c.manager, url, 0); err != nil {
-		return fmt.Errorf("bind('%s'): %w", c.config.Instances[0].Controller, err)
+		return fmt.Errorf("bind('%s'): %w", c.config.Instances[0].ControllerCategory, err)
 	}
 
 	for i := 0; i < c.maxWorkers; i++ {

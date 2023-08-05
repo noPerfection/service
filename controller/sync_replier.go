@@ -6,6 +6,7 @@ import (
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/log"
 	zmq "github.com/pebbe/zmq4"
 )
@@ -13,7 +14,7 @@ import (
 func newController(logger *log.Logger) *Controller {
 	return &Controller{
 		logger:             logger,
-		controllerType:     configuration.UnknownType,
+		controllerType:     service.UnknownType,
 		routes:             command.NewRoutes(),
 		requiredExtensions: make([]string, 0),
 		extensionConfigs:   key_value.Empty(),
@@ -23,10 +24,10 @@ func newController(logger *log.Logger) *Controller {
 
 // SyncReplier creates a new synchronous Reply controller.
 func SyncReplier(parent *log.Logger) (*Controller, error) {
-	logger := parent.Child("controller", "type", configuration.SyncReplierType)
+	logger := parent.Child("controller", "type", service.SyncReplierType)
 
 	instance := newController(logger)
-	instance.controllerType = configuration.SyncReplierType
+	instance.controllerType = service.SyncReplierType
 
 	return instance, nil
 }
@@ -138,11 +139,11 @@ func (c *Controller) Run() error {
 	// then any whitelisting users will be sent there.
 	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
 
-	url := Url(c.config.Instances[0].Controller, c.config.Instances[0].Port)
-	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances", "url", url, "name", c.config.Instances[0].Controller)
+	url := Url(c.config.Instances[0].ControllerCategory, c.config.Instances[0].Port)
+	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances", "url", url, "name", c.config.Instances[0].ControllerCategory)
 
 	if err := Bind(c.socket, url, c.config.Instances[0].Port); err != nil {
-		return fmt.Errorf(`bind("%s"): %w`, c.config.Instances[0].Controller, err)
+		return fmt.Errorf(`bind("%s"): %w`, c.config.Instances[0].ControllerCategory, err)
 	}
 
 	poller := zmq.NewPoller()

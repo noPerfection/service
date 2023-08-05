@@ -5,6 +5,7 @@ package extension
 import (
 	"fmt"
 	"github.com/ahmetson/service-lib/configuration"
+	service2 "github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/independent"
 	"github.com/ahmetson/service-lib/log"
@@ -36,24 +37,24 @@ func New(config *configuration.Config, parent *log.Logger) (*Extension, error) {
 }
 
 // AddController creates a controller of this extension
-func (extension *Extension) AddController(controllerType configuration.Type) error {
-	if controllerType == configuration.UnknownType {
+func (extension *Extension) AddController(controllerType service2.Type) error {
+	if controllerType == service2.UnknownType {
 		return fmt.Errorf("unknown controller type can't be in the extension")
 	}
 
-	if controllerType == configuration.SyncReplierType {
+	if controllerType == service2.SyncReplierType {
 		replier, err := controller.SyncReplier(extension.service.Logger)
 		if err != nil {
 			return fmt.Errorf("controller.NewReplier: %w", err)
 		}
 		extension.service.AddController(defaultControllerName, replier)
-	} else if controllerType == configuration.ReplierType {
+	} else if controllerType == service2.ReplierType {
 		//router, err := controller.NewRouter(controllerLogger)
 		//if err != nil {
 		//	return fmt.Errorf("controller.NewRouter: %w", err)
 		//}
-		//extension.Controller = router
-	} else if controllerType == configuration.PusherType {
+		//extension.ControllerCategory = router
+	} else if controllerType == service2.PusherType {
 		puller, err := controller.NewPull(extension.service.Logger)
 		if err != nil {
 			return fmt.Errorf("controller.NewPuller: %w", err)
@@ -76,8 +77,8 @@ func (extension *Extension) GetControllerName() string {
 // Prepare the service by validating the configuration.
 // if the configuration doesn't exist, it will be created.
 func (extension *Extension) Prepare() error {
-	if err := extension.service.Prepare(configuration.ExtensionType); err != nil {
-		return fmt.Errorf("service.Prepare as '%s' failed: %w", configuration.ExtensionType, err)
+	if err := extension.service.Prepare(service2.ExtensionType); err != nil {
+		return fmt.Errorf("service.Prepare as '%s' failed: %w", service2.ExtensionType, err)
 	}
 
 	if len(extension.service.Controllers) != 1 {

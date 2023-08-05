@@ -3,7 +3,7 @@ package proxy
 import (
 	"fmt"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration"
+	service2 "github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/remote"
 	zmq "github.com/pebbe/zmq4"
 
@@ -23,7 +23,7 @@ const Url = "inproc://" + ControllerName
 // The socket.Type must be zmq.DEALER
 type Destination struct {
 	// Could be Remote or Inproc
-	Configuration *configuration.Controller
+	Configuration *service2.Controller
 	// The client socket
 	socket *zmq.Socket
 }
@@ -32,7 +32,7 @@ type Destination struct {
 type Controller struct {
 	destination *Destination
 	// type of the required destination
-	requiredDestination configuration.Type
+	requiredDestination service2.Type
 	logger              *log.Logger
 	serviceUrl          string
 }
@@ -43,12 +43,12 @@ func newController(logger *log.Logger) *Controller {
 	return &Controller{
 		logger:              logger,
 		destination:         nil,
-		requiredDestination: configuration.UnknownType,
+		requiredDestination: service2.UnknownType,
 	}
 }
 
-func (controller *Controller) RequireDestination(controllerType configuration.Type) {
-	if controllerType != configuration.UnknownType {
+func (controller *Controller) RequireDestination(controllerType service2.Type) {
+	if controllerType != service2.UnknownType {
 		controller.requiredDestination = controllerType
 	}
 }
@@ -58,7 +58,7 @@ func (controller *Controller) RequireDestination(controllerType configuration.Ty
 // is handled on outside. As a result, it doesn't return
 // any error.
 // SDS Core can have unique command handlers.
-func (controller *Controller) RegisterDestination(destinationConfig *configuration.Controller, serviceUrl string) {
+func (controller *Controller) RegisterDestination(destinationConfig *service2.Controller, serviceUrl string) {
 	controller.logger.Info("Adding client sockets that router will redirect", "destinationConfig", *destinationConfig)
 
 	controller.serviceUrl = serviceUrl
@@ -79,7 +79,7 @@ func (controller *Controller) setDestinationSocket() error {
 	if err != nil {
 		return fmt.Errorf("error creating socket: %w", err)
 	}
-	err = socket.Connect(remote.ClientUrl(controller.destination.Configuration.Instances[0].Controller, controller.destination.Configuration.Instances[0].Port))
+	err = socket.Connect(remote.ClientUrl(controller.destination.Configuration.Instances[0].ControllerCategory, controller.destination.Configuration.Instances[0].Port))
 	if err != nil {
 		return fmt.Errorf("setup of dealer socket: %w", err)
 	}

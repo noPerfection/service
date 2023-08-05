@@ -43,6 +43,7 @@ import (
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/env"
+	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/go-git/go-git/v5" // with go modules disabled
@@ -222,11 +223,11 @@ func (dep *Dep) SrcExist() (bool, error) {
 }
 
 // Configuration returns the yaml configuration of the dependency as is
-func (dep *Dep) Configuration() (configuration.Service, error) {
+func (dep *Dep) Configuration() (service.Service, error) {
 	configUrl := dep.ConfigurationPath()
 	service, err := configuration.ReadService(configUrl)
 	if err != nil {
-		return configuration.Service{}, fmt.Errorf("configuration.ReadService of %s: %w", configUrl, err)
+		return service.Service{}, fmt.Errorf("configuration.ReadService of %s: %w", configUrl, err)
 	}
 
 	return service, nil
@@ -235,7 +236,7 @@ func (dep *Dep) Configuration() (configuration.Service, error) {
 // SetConfiguration updates the yaml of the proxy.
 //
 // It's needed for linting the dependency's destination controller with the service that relies on it.
-func (dep *Dep) SetConfiguration(config configuration.Service) error {
+func (dep *Dep) SetConfiguration(config service.Service) error {
 	configUrl := dep.ConfigurationPath()
 	return configuration.WriteService(configUrl, config)
 }
