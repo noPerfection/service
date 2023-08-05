@@ -81,30 +81,16 @@ func (independent *Service) GetProxyContext(proxyUrl string) context.Type {
 
 // A Pipeline creates a chain of the proxies.
 func (independent *Service) Pipeline(pipeEnd *pipeline.PipeEnd, proxyUrls ...string) error {
-	if len(proxyUrls) == 0 {
-		return fmt.Errorf("no proxy")
-	}
-	for _, proxyUrl := range proxyUrls {
-		if !independent.IsProxyRequired(proxyUrl) {
-			return fmt.Errorf("proxy '%s' url not required. call independent.RequireProxy", proxyUrl)
-		}
+	pipelines := independent.pipelines
+	controllers := independent.Controllers
+	proxies := independent.RequiredProxies
+	createdPipeline := pipeEnd.Pipeline(proxyUrls)
+
+	if err := pipeline.PrepareAddingPipeline(pipelines, proxies, controllers, createdPipeline); err != nil {
+		return fmt.Errorf("pipeline.PrepareAddingPipeline: %w", err)
 	}
 
-	if pipeEnd.IsController() {
-		if err := independent.Controllers.Exist(pipeEnd.Id); err != nil {
-			return fmt.Errorf("independent.Controllers.Exist('%s') [call independent.AddController()]: %w", pipeEnd.Id, err)
-		}
-	} else {
-		if pipeline.HasServicePipeline(independent.pipelines) {
-			return fmt.Errorf("configuration.HasServicePipeline: service pipeline exists")
-		}
-	}
-
-	pipeline := pipeEnd.Pipeline(proxyUrls)
-	if err := pipeline.ValidateHead(); err != nil {
-		return fmt.Errorf("pipeline.ValidateHead: %w", err)
-	}
-	independent.pipelines = append(independent.pipelines, *pipeline)
+	independent.pipelines = append(independent.pipelines, *createdPipeline)
 
 	return nil
 }
