@@ -96,9 +96,16 @@ func New(parent *log.Logger) (*Config, error) {
 		config.viper.SetDefault("SERVICE_CONFIG_PATH", execPath)
 	}
 
-	// set up the context
-	context.initContext(&config)
-	context.setDevContext(&config)
+	contextDefault, err := context.GetDefaultConfigs()
+	if err != nil {
+		return nil, fmt.Errorf("context.GetDefaultConfigs: %w", err)
+	}
+	config.SetDefaults(*contextDefault)
+	devContext, err := context.NewDev(&config)
+	if err != nil {
+		return nil, fmt.Errorf("context.NewDev: %w", err)
+	}
+	config.Context = devContext
 
 	configName := config.viper.GetString("SERVICE_CONFIG_NAME")
 	configPath := config.viper.GetString("SERVICE_CONFIG_PATH")

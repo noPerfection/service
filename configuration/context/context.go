@@ -1,6 +1,8 @@
 package context
 
 import (
+	"fmt"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/path"
 )
@@ -27,40 +29,45 @@ type Context struct {
 	url  string
 }
 
-func initContext(config *configuration.Config) {
+func GetDefaultConfigs() (*configuration.DefaultConfig, error) {
 	exePath, err := path.GetExecPath()
 	if err != nil {
-		config.logger.Fatal("failed to get the executable path", "error", err)
+		return nil, fmt.Errorf("failed to get the executable path: %w", err)
 	}
 
-	config.viper.SetDefault(SrcKey, path.GetPath(exePath, "./deps/.src"))
-	config.viper.SetDefault(BinKey, path.GetPath(exePath, "./deps/.bin"))
-	config.viper.SetDefault(DataKey, path.GetPath(exePath, "./deps/.data"))
+	return &configuration.DefaultConfig{
+		Title: "Context",
+		Parameters: key_value.Empty().
+			Set(SrcKey, path.GetPath(exePath, "./deps/.src")).
+			Set(BinKey, path.GetPath(exePath, "./deps/.bin")).
+			Set(DataKey, path.GetPath(exePath, "./deps/.data")),
+	}, nil
 }
 
-func newContext(config *configuration.Config) *Context {
+func newContext(config *configuration.Config) (*Context, error) {
 	execPath, err := path.GetExecPath()
 	if err != nil {
-		config.logger.Fatal("path.GetExecPath: %w", err)
+		return nil, fmt.Errorf("path.GetExecPath: %w", err)
 	}
-	srcPath := path.GetPath(execPath, config.viper.GetString(SrcKey))
-	dataPath := path.GetPath(execPath, config.viper.GetString(DataKey))
-	binPath := path.GetPath(execPath, config.viper.GetString(BinKey))
-
-	config.logger.Info("context paths", "source", srcPath, "data", dataPath, "bin", binPath)
+	srcPath := path.GetPath(execPath, config.Engine().GetString(SrcKey))
+	dataPath := path.GetPath(execPath, config.Engine().GetString(DataKey))
+	binPath := path.GetPath(execPath, config.Engine().GetString(BinKey))
 
 	return &Context{
 		Src:  srcPath,
 		Bin:  binPath,
 		Data: dataPath,
-	}
+	}, nil
 }
 
-func setDevContext(config *configuration.Config) {
-	context := newContext(config)
+// NewDev creates a dev context
+func NewDev(config *configuration.Config) (*Context, error) {
+	context, err := newContext(config)
+	if err != nil {
+		return nil, fmt.Errorf("newContext: %w", err)
+	}
 	context.Type = DevContext
-
-	config.Context = context
+	return context, nil
 }
 
 func (context *Context) Paths() []string {
