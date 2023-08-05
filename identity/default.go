@@ -24,7 +24,7 @@ const (
 // At most the service should have 10 available ports.
 //
 // Each service's port number is incremented by 10.
-func DefaultConfiguration(_ service.ServiceType) configuration.DefaultConfig {
+func DefaultConfiguration(_ service.Type) configuration.DefaultConfig {
 	/*serviceTypes := serviceTypes()
 
 	for i, value := range serviceTypes {

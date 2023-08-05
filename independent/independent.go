@@ -13,6 +13,8 @@ import (
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/context"
+	devContext "github.com/ahmetson/service-lib/configuration/context/dev"
+	"github.com/ahmetson/service-lib/configuration/network"
 	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/configuration/service/converter"
@@ -55,7 +57,7 @@ func (independent *Service) AddController(name string, controller controller.Int
 }
 
 // RequireProxy adds a proxy that's needed for this service to run
-func (independent *Service) RequireProxy(url string, contextType context.ContextType) {
+func (independent *Service) RequireProxy(url string, contextType context.Type) {
 	independent.RequiredProxies.Set(url, contextType)
 }
 
@@ -69,8 +71,8 @@ func (independent *Service) IsProxyRequired(proxyUrl string) bool {
 	return false
 }
 
-func (independent *Service) GetProxyContext(proxyUrl string) context.ContextType {
-	contextType, ok := independent.RequiredProxies[proxyUrl].(context.ContextType)
+func (independent *Service) GetProxyContext(proxyUrl string) context.Type {
+	contextType, ok := independent.RequiredProxies[proxyUrl].(context.Type)
 	if !ok {
 		return context.DefaultContext
 	}
@@ -118,7 +120,7 @@ func (independent *Service) requiredControllerExtensions() []string {
 	return extensions
 }
 
-func (independent *Service) prepareServiceConfiguration(expectedType service.ServiceType) error {
+func (independent *Service) prepareServiceConfiguration(expectedType service.Type) error {
 	// validate the independent itself
 	config := independent.Config
 	serviceConfig := independent.Config.Service
@@ -132,11 +134,11 @@ func (independent *Service) prepareServiceConfiguration(expectedType service.Ser
 			return fmt.Errorf("argument.Value: %w", err)
 		}
 
-		serviceConfig = service.Service{
+		serviceConfig = &service.Service{
 			Type:      expectedType,
 			Url:       url,
 			Id:        config.Name + " 1",
-			Pipelines: make([]service.Pipeline, 0),
+			Pipelines: make([]*service.Pipeline, 0),
 		}
 	} else if serviceConfig.Type != expectedType {
 		return fmt.Errorf("service type is overwritten. expected '%s', not '%s'", expectedType, serviceConfig.Type)
@@ -162,7 +164,7 @@ func (independent *Service) prepareControllerConfigurations() error {
 	return nil
 }
 
-func (independent *Service) PrepareControllerConfiguration(name string, as service.Type) error {
+func (independent *Service) PrepareControllerConfiguration(name string, as service.ControllerType) error {
 	serviceConfig := independent.Config.Service
 
 	// validate the Controllers
@@ -172,7 +174,7 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 			return fmt.Errorf("controller expected to be of '%s' type, not '%s'", as, controllerConfig.Type)
 		}
 	} else {
-		controllerConfig = service.Controller{
+		controllerConfig = &service.Controller{
 			Type:     as,
 			Category: name,
 		}
@@ -189,11 +191,11 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 	return nil
 }
 
-func (independent *Service) prepareInstanceConfiguration(controllerConfig service.Controller) error {
+func (independent *Service) prepareInstanceConfiguration(controllerConfig *service.Controller) error {
 	serviceConfig := independent.Config.Service
 
 	if len(controllerConfig.Instances) == 0 {
-		port := independent.Config.GetFreePort()
+		port := network.GetFreePort()
 
 		sourceInstance := service.Instance{
 			ControllerCategory: controllerConfig.Category,
@@ -213,7 +215,7 @@ func (independent *Service) prepareInstanceConfiguration(controllerConfig servic
 }
 
 // prepareConfiguration prepares yaml in service, controller, and controller instances
-func (independent *Service) prepareConfiguration(expectedType service.ServiceType) error {
+func (independent *Service) prepareConfiguration(expectedType service.Type) error {
 	if err := independent.prepareServiceConfiguration(expectedType); err != nil {
 		return fmt.Errorf("prepareServiceConfiguration as %s: %w", expectedType, err)
 	}
@@ -230,8 +232,8 @@ func (independent *Service) prepareConfiguration(expectedType service.ServiceTyp
 // Then, in the Config, it makes sure that dependency is linted.
 func (independent *Service) preparePipelineConfigurations() error {
 	hasService := service.HasServicePipeline(independent.pipelines)
-	servicePipeline := service.ServicePipeline(independent.pipelines)
-	controllerPipelines := service.ControllerPipelines(independent.pipelines)
+	servicePipeline := service.GetServiceEnd(independent.pipelines)
+	controllerPipelines := service.GetControllerEnds(independent.pipelines)
 
 	if hasService {
 		servicePipeline.End.Url = independent.Config.Service.Url
@@ -265,7 +267,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 		// Let's rewrite them
 		if len(destinationConfigs) != controllerAmount {
 			// two times more, source and destination for each controller
-			proxyConfig.Controllers = make([]service.Controller, controllerAmount*2)
+			proxyConfig.Controllers = make([]*service.Controller, controllerAmount*2)
 			set := 0
 
 			// rewrite the destinations in the dependency
@@ -276,10 +278,10 @@ func (independent *Service) preparePipelineConfigurations() error {
 				instance := service.Instance{
 					ControllerCategory: service.SourceName,
 					Id:                 fmt.Sprintf("%s 01", name),
-					Port:               uint64(independent.Config.GetFreePort()),
+					Port:               uint64(network.GetFreePort()),
 				}
 
-				controllerConfig := service.Controller{
+				controllerConfig := &service.Controller{
 					Type:      c.ControllerType(),
 					Category:  service.SourceName,
 					Instances: []service.Instance{instance},
@@ -294,7 +296,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 					Port:               origControllerConfig.Instances[0].Port,
 				}
 
-				desControllerConfig := service.Controller{
+				desControllerConfig := &service.Controller{
 					Type:      c.ControllerType(),
 					Category:  service.DestinationName,
 					Instances: []service.Instance{desInstance},
@@ -304,12 +306,12 @@ func (independent *Service) preparePipelineConfigurations() error {
 			}
 
 			independent.Logger.Info("make sure that converting service to proxy will convert all destinations to the proxy instances")
-			converted, err := converter.ServiceToProxy(&proxyConfig, independent.GetProxyContext(proxyUrl))
+			converted, err := converter.ServiceToProxy(proxyConfig, independent.GetProxyContext(proxyUrl))
 			if err != nil {
 				return fmt.Errorf("failed to convert the proxy")
 			}
 
-			independent.Config.Service.SetProxy(converted)
+			independent.Config.Service.SetProxy(&converted)
 		} else {
 			// The order of the destination should match.
 			// Check that ports match, if not then update the ports.
@@ -323,7 +325,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 
 			// save the configuration
 			for i, controllerConfig := range destinationConfigs {
-				proxyConfig.Controllers[i] = *controllerConfig
+				proxyConfig.Controllers[i] = controllerConfig
 			}
 
 			err = dep.SetConfiguration(proxyConfig)
@@ -374,7 +376,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 			}
 
 			if len(serviceSources) != len(destinationConfigs) {
-				proxyConfig.Controllers = make([]service.Controller, len(serviceSources)*2)
+				proxyConfig.Controllers = make([]*service.Controller, len(serviceSources)*2)
 				set := 0
 
 				// rewrite the destinations in the dependency
@@ -383,10 +385,10 @@ func (independent *Service) preparePipelineConfigurations() error {
 					instance := service.Instance{
 						ControllerCategory: service.SourceName,
 						Id:                 fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Id),
-						Port:               uint64(independent.Config.GetFreePort()),
+						Port:               uint64(network.GetFreePort()),
 					}
 
-					controllerConfig := service.Controller{
+					controllerConfig := &service.Controller{
 						Type:      sourceConfig.Type,
 						Category:  service.SourceName,
 						Instances: []service.Instance{instance},
@@ -400,7 +402,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 						Port:               sourceConfig.Instances[0].Port,
 					}
 
-					desControllerConfig := service.Controller{
+					desControllerConfig := &service.Controller{
 						Type:      sourceConfig.Type,
 						Category:  service.DestinationName,
 						Instances: []service.Instance{desInstance},
@@ -424,7 +426,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 
 				// save the configuration
 				for i, controllerConfig := range destinationConfigs {
-					proxyConfig.Controllers[i] = *controllerConfig
+					proxyConfig.Controllers[i] = controllerConfig
 				}
 
 				err = controllerDep.SetConfiguration(proxyConfig)
@@ -511,7 +513,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 			}
 
 			if len(sourceConfigs) != len(destinationConfigs) {
-				proxyConfig.Controllers = make([]service.Controller, len(sourceConfigs)*2)
+				proxyConfig.Controllers = make([]*service.Controller, len(sourceConfigs)*2)
 				set := 0
 
 				// rewrite the destinations in the dependency
@@ -520,10 +522,10 @@ func (independent *Service) preparePipelineConfigurations() error {
 					instance := service.Instance{
 						ControllerCategory: service.SourceName,
 						Id:                 fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Id),
-						Port:               uint64(independent.Config.GetFreePort()),
+						Port:               uint64(network.GetFreePort()),
 					}
 
-					controllerConfig := service.Controller{
+					controllerConfig := &service.Controller{
 						Type:      sourceConfig.Type,
 						Category:  service.SourceName,
 						Instances: []service.Instance{instance},
@@ -537,7 +539,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 						Port:               sourceConfig.Instances[0].Port,
 					}
 
-					desControllerConfig := service.Controller{
+					desControllerConfig := &service.Controller{
 						Type:      sourceConfig.Type,
 						Category:  service.DestinationName,
 						Instances: []service.Instance{desInstance},
@@ -559,7 +561,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 
 				// save the configuration
 				for i, controllerConfig := range destinationConfigs {
-					proxyConfig.Controllers[i] = *controllerConfig
+					proxyConfig.Controllers[i] = controllerConfig
 				}
 
 				err := controllerDep.SetConfiguration(proxyConfig)
@@ -621,7 +623,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 			}
 
 			if len(sourceConfigs) != len(destinationConfigs) {
-				proxyConfig.Controllers = make([]service.Controller, len(sourceConfigs)*2)
+				proxyConfig.Controllers = make([]*service.Controller, len(sourceConfigs)*2)
 				set := 0
 
 				// rewrite the destinations in the dependency
@@ -630,10 +632,10 @@ func (independent *Service) preparePipelineConfigurations() error {
 					instance := service.Instance{
 						ControllerCategory: service.SourceName,
 						Id:                 fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Id),
-						Port:               uint64(independent.Config.GetFreePort()),
+						Port:               uint64(network.GetFreePort()),
 					}
 
-					controllerConfig := service.Controller{
+					controllerConfig := &service.Controller{
 						Type:      sourceConfig.Type,
 						Category:  service.SourceName,
 						Instances: []service.Instance{instance},
@@ -647,7 +649,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 						Port:               sourceConfig.Instances[0].Port,
 					}
 
-					desControllerConfig := service.Controller{
+					desControllerConfig := &service.Controller{
 						Type:      sourceConfig.Type,
 						Category:  service.DestinationName,
 						Instances: []service.Instance{desInstance},
@@ -669,7 +671,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 
 				// save the configuration
 				for i, controllerConfig := range destinationConfigs {
-					proxyConfig.Controllers[i] = *controllerConfig
+					proxyConfig.Controllers[i] = controllerConfig
 				}
 
 				err := controllerDep.SetConfiguration(proxyConfig)
@@ -743,7 +745,7 @@ func (independent *Service) runManager() error {
 }
 
 // Prepare the services by validating, linting the configurations, as well as setting up the dependencies
-func (independent *Service) Prepare(as service.ServiceType) error {
+func (independent *Service) Prepare(as service.Type) error {
 	if len(independent.Controllers) == 0 {
 		return fmt.Errorf("no Controllers. call independent.AddController")
 	}
@@ -777,7 +779,7 @@ func (independent *Service) Prepare(as service.ServiceType) error {
 	//--------------------------------------------------
 	if len(independent.RequiredProxies) > 0 {
 		for requiredProxy, contextInterface := range independent.RequiredProxies {
-			contextType := contextInterface.(context.ContextType)
+			contextType := contextInterface.(context.Type)
 			var dep *dev.Dep
 
 			dep, err = independent.Context.New(requiredProxy)
@@ -830,7 +832,7 @@ func (independent *Service) Prepare(as service.ServiceType) error {
 	//---------------------------------------------------------
 	for name, controllerInterface := range independent.Controllers {
 		c := controllerInterface.(controller.Interface)
-		var controllerConfig service.Controller
+		var controllerConfig *service.Controller
 		var controllerExtensions []string
 
 		controllerConfig, err = independent.Config.Service.GetController(name)
@@ -839,7 +841,7 @@ func (independent *Service) Prepare(as service.ServiceType) error {
 			goto closeContext
 		}
 
-		c.AddConfig(&controllerConfig, independent.Config.Service.Url)
+		c.AddConfig(controllerConfig, independent.Config.Service.Url)
 		controllerExtensions = c.RequiredExtensions()
 		for _, extensionUrl := range controllerExtensions {
 			requiredExtension := independent.Config.Service.GetExtension(extensionUrl)
@@ -908,7 +910,7 @@ func (independent *Service) BuildConfiguration() {
 
 	independent.Config.Service.Url = url
 
-	err = configuration.WriteService(outputPath, independent.Config.Service)
+	err = devContext.WriteService(outputPath, independent.Config.Service)
 	if err != nil {
 		independent.Logger.Fatal("failed to write the proxy into the file", "error", err)
 	}
@@ -1014,21 +1016,21 @@ func (independent *Service) prepareExtension(dep *dev.Dep) error {
 // prepareProxyConfiguration links the proxy with the dependency.
 //
 // if dependency doesn't exist, it will be downloaded
-func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext context.ContextType) error {
+func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext context.Type) error {
 	err := dep.PrepareConfiguration(independent.Logger)
 	if err != nil {
 		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", dep.Url(), err)
 	}
 
 	depConfig, err := dep.Configuration()
-	converted, err := converter.ServiceToProxy(&depConfig, proxyContext)
+	converted, err := converter.ServiceToProxy(depConfig, proxyContext)
 	if err != nil {
 		return fmt.Errorf("configuration.ServiceToProxy: %w", err)
 	}
 
 	proxyConfiguration := independent.Config.Service.GetProxy(dep.Url())
 	if proxyConfiguration == nil {
-		independent.Config.Service.SetProxy(converted)
+		independent.Config.Service.SetProxy(&converted)
 	} else {
 		if strings.Compare(proxyConfiguration.Url, converted.Url) != 0 {
 			return fmt.Errorf("the proxy urls are not matching. in your configuration: %s, in the deps: %s", proxyConfiguration.Url, converted.Url)
@@ -1061,14 +1063,14 @@ func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
 	}
 
 	depConfig, err := dep.Configuration()
-	converted, err := converter.ServiceToExtension(&depConfig, independent.Config.Context.Type)
+	converted, err := converter.ServiceToExtension(depConfig, independent.Config.Context.Type)
 	if err != nil {
 		return fmt.Errorf("configuration.ServiceToExtension: %w", err)
 	}
 
 	extensionConfiguration := independent.Config.Service.GetExtension(dep.Url())
 	if extensionConfiguration == nil {
-		independent.Config.Service.SetExtension(converted)
+		independent.Config.Service.SetExtension(&converted)
 	} else {
 		if strings.Compare(extensionConfiguration.Url, converted.Url) != 0 {
 			return fmt.Errorf("the extension url in your '%s' configuration not matches to '%s' in the dependency", extensionConfiguration.Url, converted.Url)

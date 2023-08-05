@@ -18,7 +18,7 @@ func NewInstance(config service.Instance) *Instance {
 	}
 }
 
-func GetType(controllerType service.Type) zmq.Type {
+func GetType(controllerType service.ControllerType) zmq.Type {
 	if controllerType == service.SyncReplierType {
 		return zmq.REP
 	} else if controllerType == service.ReplierType {

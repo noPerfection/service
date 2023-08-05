@@ -1,6 +1,7 @@
 package path
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -39,4 +40,22 @@ func SplitServicePath(servicePath string) (string, string) {
 	fileName = fileName[0 : len(fileName)-4]
 
 	return dir, fileName
+}
+
+// FileExists returns true if the file exists. if the path is a directory, it will return false.
+func FileExists(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		} else {
+			return false, fmt.Errorf("os.Stat('%s'): %w", path, err)
+		}
+	}
+
+	if info.IsDir() {
+		return false, fmt.Errorf("path('%s') is directory", path)
+	}
+
+	return true, nil
 }

@@ -33,7 +33,7 @@ type Interface interface {
 	AddRoute(route *command.Route) error
 
 	// ControllerType returns the type of the controller
-	ControllerType() service.Type
+	ControllerType() service.ControllerType
 
 	// Close the controller if it's running. If it's not running, then do nothing
 	Close() error

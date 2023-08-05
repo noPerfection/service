@@ -71,7 +71,7 @@ func (route *Route) Handle(request message.Request, logger *log.Logger, allExten
 //
 // The response of the remote service is assigned to the reply.
 //
-// The reply should be passed by pointer.
+// Pointer should pass the reply.
 //
 // Example:
 //
@@ -187,7 +187,7 @@ func (route *Route) Push(socket *zmq.Socket, request interface{}) error {
 // The socket parameter is the proxy/broker socket.
 // The service type is the service name that will accept the requests and response the reply.
 //
-// The reply parameter must be passed by pointer.
+// Pointer must pass the reply parameter.
 //
 // In SeascapeSDS terminology, we call the proxy/broker as Router.
 //

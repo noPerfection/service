@@ -67,9 +67,9 @@ func FindClient(clients []*ClientSocket, name string) *ClientSocket {
 
 // Initiates the socket with a timeout.
 // If the socket is already given, then reconnect() closes it.
-// Then creates a new socket.
+// Then create a new socket.
 //
-// If no socket is given, then initiates a zmq.REQ socket.
+// If no socket is given, then initiate a zmq.REQ socket.
 func (socket *ClientSocket) reconnect() error {
 	var socketCtx *zmq.Context
 	var socketType zmq.Type
@@ -183,8 +183,8 @@ func (socket *ClientSocket) Close() error {
 	return nil
 }
 
-// RequestRouter sends request message to the router. Then router will redirect it to the controller
-// defined in the service_type.
+// RequestRouter sends a request message to the router.
+// Then the router will redirect it to the controller defined in the service_type.
 //
 // Supports both inproc and TCP protocols.
 //
@@ -226,12 +226,14 @@ func (socket *ClientSocket) RequestRouter(service *service.Service, request *mes
 		}
 
 		//  Here we process a server reply and exit our loop if the
-		//  reply is valid. If we didn't a reply we close the client
-		//  socket and resend the request. We try a number of times
+		//  reply is valid.
+		//  If we didn't have a reply, we close the client
+		//  socket and resend the request.
+		//  We try a number of times
 		//  before finally abandoning:
 
 		if len(sockets) > 0 {
-			// Wait for reply.
+			// Wait for a reply.
 			r, err := socket.socket.RecvMessage(0)
 			if err != nil {
 				return nil, fmt.Errorf("failed to receive the command '%s' message. socket error: %w", request.Command, err)
@@ -274,7 +276,7 @@ func (socket *ClientSocket) RequestRouter(service *service.Service, request *mes
 //
 // Error is returned in other cases.
 //
-// If the remote service returned failure message its converted into an error.
+// If the remote service returned a failure message, it's converted into an error.
 //
 // The socket type should be REQ or PUSH.
 func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
@@ -314,12 +316,14 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 		}
 
 		//  Here we process a server reply and exit our loop if the
-		//  reply is valid. If we didn't a reply we close the client
-		//  socket and resend the request. We try a number of times
+		//  reply is valid.
+		// If we didn't have a reply, we close the client
+		//  socket and resend the request.
+		// We try a number of times
 		//  before finally abandoning:
 
 		if len(sockets) > 0 {
-			// Wait for reply.
+			// Wait for a reply.
 			r, err := socket.socket.RecvMessage(0)
 			if err != nil {
 				return nil, fmt.Errorf("failed to receive the command '%s' message. socket error: %w", request.Command, err)
@@ -385,19 +389,21 @@ func (socket *ClientSocket) RequestRawMessage(requestString string) ([]string, e
 			return nil, fmt.Errorf("failed to send the message. socket error: %w", err)
 		}
 
-		//  Poll socket for a reply, with timeout
+		// Poll socket for a reply, with timeout
 		sockets, err := socket.poller.Poll(requestTimeout)
 		if err != nil {
 			return nil, fmt.Errorf("poll error: %w", err)
 		}
 
-		//  Here we process a server reply and exit our loop if the
-		//  reply is valid. If we didn't a reply we close the client
-		//  socket and resend the request. We try a number of times
+		// Here we process a server reply and exit our loop if the
+		//  reply is valid.
+		// If we didn't have a reply, we close the client
+		//  socket and resend the request.
+		// We try a number of times
 		//  before finally abandoning:
 
 		if len(sockets) > 0 {
-			// Wait for reply.
+			// Wait for a reply.
 			r, err := socket.socket.RecvMessage(0)
 			if err != nil {
 				return nil, fmt.Errorf("failed to message. socket error: %w", err)
@@ -436,7 +442,7 @@ func (socket *ClientSocket) RequestRawMessage(requestString string) ([]string, e
 
 // NewTcpSocket creates a new client socket over TCP protocol.
 //
-// The returned socket client then can send message to controller.Router and controller.Reply
+// The returned socket client then can send a message to controller.Router and controller.Reply
 func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig *configuration.Config) (*ClientSocket, error) {
 	if appConfig == nil {
 		return nil, fmt.Errorf("missing app_config")
@@ -478,9 +484,9 @@ func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig 
 	return &newSocket, nil
 }
 
-// NewReq creates a new client to connect to the service labelled as name (usually it's url)
+// NewReq creates a new client to connect to the service labeled as name (usually it's url)
 //
-// The returned socket client then can send message to the controller.Replier
+// The returned socket client then can send a message to the controller.Replier
 func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error) {
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {

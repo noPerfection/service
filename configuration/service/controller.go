@@ -1,7 +1,7 @@
 package service
 
 type Controller struct {
-	Type      Type
+	Type      ControllerType
 	Category  string
 	Instances []Instance
 }

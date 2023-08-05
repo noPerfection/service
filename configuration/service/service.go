@@ -2,12 +2,13 @@ package service
 
 import (
 	"fmt"
+	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration/context"
 )
 
 // Service type defined in the configuration
 type Service struct {
-	Type        ServiceType
+	Type        Type
 	Url         string
 	Id          string
 	Controllers []*Controller
@@ -17,6 +18,43 @@ type Service struct {
 }
 
 type Services []Service
+
+func (s *Service) PrepareService() error {
+	err := s.ValidateTypes()
+	if err != nil {
+		return fmt.Errorf("service.ValidateTypes: %w", err)
+	}
+	err = s.Lint()
+	if err != nil {
+		return fmt.Errorf("service.Lint: %w", err)
+	}
+
+	return nil
+}
+
+// UnmarshalService decodes the yaml into the configuration.
+func UnmarshalService(services []interface{}) (*Service, error) {
+	if len(services) == 0 {
+		return nil, nil
+	}
+
+	kv, err := key_value.NewFromInterface(services[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert raw config service into map: %w", err)
+	}
+
+	var serviceConfig Service
+	err = kv.Interface(&serviceConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert raw config service to configuration.Service: %w", err)
+	}
+	err = serviceConfig.PrepareService()
+	if err != nil {
+		return nil, fmt.Errorf("prepareService: %w", err)
+	}
+
+	return &serviceConfig, nil
+}
 
 // Lint sets the reference to the parent from the child.
 //
@@ -161,7 +199,7 @@ func (s *Service) SetPipeline(pipeline *Pipeline) {
 
 // HasProxy checks is there any proxy within the context.
 // If the context is default, then it will return true for any context
-func (s *Service) HasProxy(contextType context.ContextType) bool {
+func (s *Service) HasProxy(contextType context.Type) bool {
 	if len(s.Proxies) == 0 {
 		return false
 	}

@@ -1,39 +1,39 @@
-// Package dev handles the dependencies in the development environment
+// Package dev handles the dependencies in the development environment,
 // which means it's in the current machine.
 //
 // The dependencies are including the extensions and proxies.
 //
 // How it works?
 //
-// The context is set up. It checks the folder. and if they are not existing, it will create them.
+// The context is set up. It checks the folder. And if they are not existing, it will create them.
 // >> dev.Prepare(context)
 //
 // then lets work on the extension.
-// user is passing an extension url.
-// the service is checking whether it exists in the data or not.
-// if the service exists, it gets the yaml. and returns the configuration.
+// User is passing an extension url.
+// The service is checking whether it exists in the data or not.
+// If the service exists, it gets the yaml. And returns the configuration.
 //
-// if the service doesn't exist, it checks whether the service exists in the bin.
-// if it exists, then it runs it with --build-configuration.
+// If the service doesn't exist, it checks whether the service exists in the bin.
+// If it exists, then it runs it with --build-configuration.
 //
-// then, if the service doesn't exist in the bin, it checks the source.
-// if the source exists, then it will call `go build`.
-// then call bin file with the generated files.
+// Then, if the service doesn't exist in the bin, it checks the source.
+// If the source exists, then it will call `go build`.
+// Then call bin file with the generated files.
 //
-// lastly, if source doesn't exist, it will download the files from the repository using go-git.
-// then we build the binary.
-// we generate configuration.
+// Lastly, if a source doesn't exist, it will download the files from the repository using go-git.
+// Then we build the binary.
+// We generate configuration.
 //
-// lastly, the service.Prepare() will make sure that all binaries exist.
-// if not then it will create them.
+// Lastly, the service.Prepare() will make sure that all binaries exist.
+// If not, then it will create them.
 //
 // -----------------------------------------------
 // running the application will do the following.
-// it checks is the port of proxies are in use. if it's not, then it will call a run.
+// It checks is the port of proxies are in use. If it's not, then it will call a run.
 //
-// then it will call itself.
+// Then it will call itself.
 //
-// the service will have a command to "shutdown" contexts. as well as "rebuild"
+// The service will have a command to "shutdown" contexts. As well as "rebuild"
 package dev
 
 import (
@@ -43,7 +43,9 @@ import (
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/context"
+	"github.com/ahmetson/service-lib/configuration/context/dev"
 	"github.com/ahmetson/service-lib/configuration/env"
+	"github.com/ahmetson/service-lib/configuration/network"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
@@ -224,11 +226,11 @@ func (dep *Dep) SrcExist() (bool, error) {
 }
 
 // Configuration returns the yaml configuration of the dependency as is
-func (dep *Dep) Configuration() (service.Service, error) {
+func (dep *Dep) Configuration() (*service.Service, error) {
 	configUrl := dep.ConfigurationPath()
-	service, err := configuration.ReadService(configUrl)
+	service, err := dev.ReadService(configUrl)
 	if err != nil {
-		return service.Service{}, fmt.Errorf("configuration.ReadService of %s: %w", configUrl, err)
+		return nil, fmt.Errorf("configuration.ReadService of %s: %w", configUrl, err)
 	}
 
 	return service, nil
@@ -237,9 +239,9 @@ func (dep *Dep) Configuration() (service.Service, error) {
 // SetConfiguration updates the yaml of the proxy.
 //
 // It's needed for linting the dependency's destination controller with the service that relies on it.
-func (dep *Dep) SetConfiguration(config service.Service) error {
+func (dep *Dep) SetConfiguration(config *service.Service) error {
 	configUrl := dep.ConfigurationPath()
-	return configuration.WriteService(configUrl, config)
+	return dev.WriteService(configUrl, config)
 }
 
 // PrepareConfiguration creates the service.yml of the dependency.
@@ -261,7 +263,7 @@ func (dep *Dep) PrepareConfiguration(logger *log.Logger) error {
 		}
 	}
 
-	// check is binary exist
+	// check binary exists
 	binExist, err := dep.BinExist()
 	if err != nil {
 		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
@@ -320,14 +322,14 @@ func (dep *Dep) PrepareConfiguration(logger *log.Logger) error {
 
 // Prepare downloads the binary if it wasn't.
 func (dep *Dep) Prepare(port uint64, logger *log.Logger) error {
-	// check is binary exist
+	// check binary exists
 	binExist, err := dep.BinExist()
 	if err != nil {
 		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
 	}
 
 	if binExist {
-		used := configuration.IsPortUsed(dep.context.config.Host(), port)
+		used := network.IsPortUsed(dep.context.config.Host(), port)
 		if used {
 			logger.Info("service is launched already", "url", dep.url, "port", port)
 			return nil
@@ -415,7 +417,7 @@ func (dep *Dep) build(logger *log.Logger) error {
 	return nil
 }
 
-// start is run without attachment
+// start is run without an attachment
 func (dep *Dep) start(logger *log.Logger) error {
 	binUrl := dep.BinPath()
 	configFlag := fmt.Sprintf("--configuration=%s", dep.ConfigurationPath())

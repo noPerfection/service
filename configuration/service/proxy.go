@@ -15,5 +15,5 @@ const (
 type Proxy struct {
 	Url       string
 	Instances []Instance
-	Context   context.ContextType
+	Context   context.Type
 }

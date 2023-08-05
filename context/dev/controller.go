@@ -3,8 +3,8 @@ package dev
 //
 // The context controller has only one command.
 //
-// close
-// this command has no arguments. and when it's given it will close all the dependencies it has
+// Close
+// this command has no arguments. And when it's given, it will close all the dependencies it has
 //
 
 import (

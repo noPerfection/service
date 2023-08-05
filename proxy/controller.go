@@ -20,7 +20,7 @@ const Url = "inproc://" + ControllerName
 // The Dealer is the Request from Router to the
 // Reply Controller.
 //
-// The socket.Type must be zmq.DEALER
+// The socket.ControllerType must be zmq.DEALER
 type Destination struct {
 	// Could be Remote or Inproc
 	Configuration *service2.Controller
@@ -32,7 +32,7 @@ type Destination struct {
 type Controller struct {
 	destination *Destination
 	// type of the required destination
-	requiredDestination service2.Type
+	requiredDestination service2.ControllerType
 	logger              *log.Logger
 	serviceUrl          string
 }
@@ -47,7 +47,7 @@ func newController(logger *log.Logger) *Controller {
 	}
 }
 
-func (controller *Controller) RequireDestination(controllerType service2.Type) {
+func (controller *Controller) RequireDestination(controllerType service2.ControllerType) {
 	if controllerType != service2.UnknownType {
 		controller.requiredDestination = controllerType
 	}
@@ -73,7 +73,7 @@ func (controller *Controller) RegisterDestination(destinationConfig *service2.Co
 //
 // If the Router creating thread calls
 // then as thread-unsafely, will lead to the unexpected
-// behaviours.
+// behaviors.
 func (controller *Controller) setDestinationSocket() error {
 	socket, err := zmq.NewSocket(zmq.DEALER)
 	if err != nil {
@@ -101,7 +101,7 @@ func (controller *Controller) setDestinationSocket() error {
 //
 //		0 - bytes request id
 //		1 - ""; empty delimiter
-//		2 - string (app/parameter.ServiceType) service name as a tag of dealer.
+//		2 - string (app/parameter.Type) service name as a tag of dealer.
 //	     to identify which dealer to use
 //		3 - app/remote/message.Request the message that is redirected to the zmq.REP controller
 //

@@ -10,7 +10,7 @@ func HasServicePipeline(pipelines []Pipeline) bool {
 	return false
 }
 
-func ControllerPipelines(allPipelines []Pipeline) []Pipeline {
+func GetControllerEnds(allPipelines []Pipeline) []Pipeline {
 	pipelines := make([]Pipeline, 0, len(allPipelines))
 	count := 0
 
@@ -24,7 +24,7 @@ func ControllerPipelines(allPipelines []Pipeline) []Pipeline {
 	return pipelines
 }
 
-func ServicePipeline(allPipelines []Pipeline) *Pipeline {
+func GetServiceEnd(allPipelines []Pipeline) *Pipeline {
 	for _, pipeline := range allPipelines {
 		if !pipeline.End.IsController() {
 			return &pipeline

@@ -8,7 +8,7 @@ import (
 
 // Service defines the parameters of the service.
 type Service struct {
-	ServiceType service.ServiceType
+	ServiceType service.Type
 	Name        string // Service name
 	inproc      bool
 	url         string
@@ -16,7 +16,7 @@ type Service struct {
 }
 
 // Inprocess creates the service with the parameters but without any information
-func Inprocess(serviceType service.ServiceType) (*Service, error) {
+func Inprocess(serviceType service.Type) (*Service, error) {
 	if inprocErr := service.ValidateServiceType(serviceType); inprocErr != nil {
 		return nil, fmt.Errorf("valid or inproc_valid: %w", inprocErr)
 	}
@@ -40,7 +40,7 @@ func Inprocess(serviceType service.ServiceType) (*Service, error) {
 // Url should include inproc:// protocol prefix
 
 // NewExternal creates the service with the parameters but without any information
-func NewExternal(serviceType service.ServiceType, limit Limit, appConfig *configuration.Config) (*Service, error) {
+func NewExternal(serviceType service.Type, limit Limit, appConfig *configuration.Config) (*Service, error) {
 	if appConfig == nil {
 		return nil, fmt.Errorf("missing app config")
 	}

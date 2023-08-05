@@ -5,7 +5,8 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/network"
+	"github.com/ahmetson/service-lib/configuration/process"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/log"
 	zmq "github.com/pebbe/zmq4"
@@ -49,13 +50,13 @@ func (c *Controller) prepare() error {
 func Bind(sock *zmq.Socket, url string, port uint64) error {
 	if err := sock.Bind(url); err != nil {
 		if port > 0 {
-			// for now, the host name is hardcoded. later, we need to get it from the context
-			if configuration.IsPortUsed("localhost", port) {
-				pid, err := configuration.PortToPid(port)
+			// for now, the host name is hardcoded. later we need to get it from the context
+			if network.IsPortUsed("localhost", port) {
+				pid, err := process.PortToPid(port)
 				if err != nil {
 					err = fmt.Errorf("configuration.PortToPid(%d): %w", port, err)
 				} else {
-					currentPid := configuration.CurrentPid()
+					currentPid := process.CurrentPid()
 					if currentPid == pid {
 						err = fmt.Errorf("another dependency is using it within this context")
 					} else {
@@ -134,9 +135,9 @@ func (c *Controller) Run() error {
 	}
 
 	// if secure and not inproc
-	// then we add the domain name of controller to the security layer
+	// then we add the domain name of controller to the security layer,
 	//
-	// then any whitelisting users will be sent there.
+	// then any pass-listing users will be sent there.
 	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
 
 	url := Url(c.config.Instances[0].ControllerCategory, c.config.Instances[0].Port)

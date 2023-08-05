@@ -8,19 +8,13 @@ package configuration
 
 import (
 	"fmt"
-	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/context"
+	"github.com/ahmetson/service-lib/configuration/context/dev"
 	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/ahmetson/service-lib/configuration/service"
-	"github.com/cakturk/go-netstat/netstat"
 	"github.com/fsnotify/fsnotify"
-	"github.com/phayes/freeport"
-	"gopkg.in/yaml.v3"
-	"net"
-	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/ahmetson/service-lib/configuration/env"
@@ -84,10 +78,6 @@ func New(parent *log.Logger) (*Config, error) {
 
 		absPath := path.GetPath(execPath, configurationPath)
 
-		if err := validateServicePath(absPath); err != nil {
-			return nil, fmt.Errorf("configuration path '%s' validation: %w", absPath, err)
-		}
-
 		dir, fileName := path.SplitServicePath(absPath)
 		config.viper.Set("SERVICE_CONFIG_NAME", fileName)
 		config.viper.Set("SERVICE_CONFIG_PATH", dir)
@@ -96,12 +86,12 @@ func New(parent *log.Logger) (*Config, error) {
 		config.viper.SetDefault("SERVICE_CONFIG_PATH", execPath)
 	}
 
-	contextDefault, err := context.GetDefaultConfigs()
+	contextDefault, err := dev.GetDefaultConfigs()
 	if err != nil {
 		return nil, fmt.Errorf("context.GetDefaultConfigs: %w", err)
 	}
 	config.SetDefaults(*contextDefault)
-	devContext, err := context.NewDev(&config)
+	devContext, err := dev.New(&config)
 	if err != nil {
 		return nil, fmt.Errorf("context.NewDev: %w", err)
 	}
@@ -151,7 +141,7 @@ func (config *Config) readFile() (*service.Service, error) {
 		"todo 4", "make sure that services are all of the same kind but of different instance",
 		"todo 5", "make sure that all controllers have the unique name in the config")
 
-	serviceConfig, err := UnmarshalService(services)
+	serviceConfig, err := service.UnmarshalService(services)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshalling service configuration failed: %w", err)
 	}
@@ -166,110 +156,10 @@ func (config *Config) GetServicePath() string {
 	return filepath.Join(configPath, configName+".yml")
 }
 
-// GetFreePort returns a TCP port to use
-func (config *Config) GetFreePort() int {
-	port, err := freeport.GetFreePort()
-	if err != nil {
-		config.logger.Fatal("kernel error", "error", err)
-	}
-
-	return port
-}
-
-func CurrentPid() uint64 {
-	return uint64(os.Getpid())
-}
-
-func PortToPid[V int | uint64](port V) (uint64, error) {
-	socks, err := netstat.TCPSocks(func(s *netstat.SockTabEntry) bool {
-		return s.LocalAddr.Port == uint16(port)
-	})
-	if err != nil {
-		return 0, fmt.Errorf("netstart.TCPSocks: %w", err)
-	}
-	if len(socks) == 0 {
-		return 0, fmt.Errorf("no process on port %d: %w", port, err)
-	}
-	sock := socks[0]
-
-	return uint64(sock.Process.Pid), nil
-}
-
-func IsPortUsed[V int | uint64](host string, port V) bool {
-	portString := fmt.Sprintf("%d", port)
-	timeout := time.Second
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, portString), timeout)
-	if err != nil {
-		return false
-	}
-	if conn != nil {
-		err := conn.Close()
-		if err != nil {
-			return false
-		}
-	}
-	return true
-}
-
-// UnmarshalService decodes the yaml into the configuration.
-func UnmarshalService(services []interface{}) (*service.Service, error) {
-	if len(services) == 0 {
-		return nil, nil
-	}
-
-	kv, err := key_value.NewFromInterface(services[0])
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert raw config service into map: %w", err)
-	}
-
-	var serviceConfig service.Service
-	err = kv.Interface(&serviceConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert raw config service to configuration.Service: %w", err)
-	}
-	err = prepareService(&serviceConfig)
-	if err != nil {
-		return nil, fmt.Errorf("prepareService: %w", err)
-	}
-
-	return &serviceConfig, nil
-}
-
-func prepareService(service *service.Service) error {
-	err := service.ValidateTypes()
-	if err != nil {
-		return fmt.Errorf("service.ValidateTypes: %w", err)
-	}
-	err = service.Lint()
-	if err != nil {
-		return fmt.Errorf("service.Lint: %w", err)
-	}
-
-	return nil
-}
-
 // Engine returns the underlying configuration engine.
 // In our case, it will be Viper.
 func (config *Config) Engine() *viper.Viper {
 	return config.viper
-}
-
-// FileExists returns true if the file exists. if the path is a directory, it will return false.
-func FileExists(path string) (bool, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		} else {
-			return false, fmt.Errorf("os.Stat('%s'): %w", path, err)
-		}
-	}
-
-	if info.IsDir() {
-		return false, fmt.Errorf("path('%s') is directory", path)
-	}
-
-	return true, nil
 }
 
 // Watch tracks the configuration change in the file.
@@ -284,7 +174,7 @@ func (config *Config) Watch(watchHandle func(*service.Service, error)) error {
 
 	servicePath := config.GetServicePath()
 
-	exists, err := FileExists(servicePath)
+	exists, err := path.FileExists(servicePath)
 	if err != nil {
 		return fmt.Errorf("FileExists('%s'): %w", servicePath, err)
 	}
@@ -306,7 +196,7 @@ func (config *Config) Watch(watchHandle func(*service.Service, error)) error {
 func (config *Config) watchFileCreation() {
 	servicePath := config.GetServicePath()
 	for {
-		exists, err := FileExists(servicePath)
+		exists, err := path.FileExists(servicePath)
 		if err != nil {
 			config.handleChange(nil, fmt.Errorf("watchFileCreation: FileExists: %w", err))
 			break
@@ -331,7 +221,7 @@ func (config *Config) watchFileCreation() {
 func (config *Config) watchFileDeletion() {
 	servicePath := config.GetServicePath()
 	for {
-		exists, err := FileExists(servicePath)
+		exists, err := path.FileExists(servicePath)
 		if err != nil {
 			config.handleChange(nil, fmt.Errorf("watchFileDeletion: FileExists: %w", err))
 			break
@@ -405,102 +295,4 @@ func (config *Config) GetUint64(name string) uint64 {
 func (config *Config) GetBool(name string) bool {
 	value := config.viper.GetBool(name)
 	return value
-}
-
-// validateServicePath returns an error if the path is not a valid .yml link
-func validateServicePath(path string) error {
-	if len(path) < 5 || len(filepath.Base(path)) < 5 {
-		return fmt.Errorf("path is too short")
-	}
-	_, found := strings.CutSuffix(path, ".yml")
-	if !found {
-		return fmt.Errorf("the path should end with '.yml'")
-	}
-
-	return nil
-}
-
-// ReadService on the given path.
-// If a path is not obsolete, then it should be relative to the executable.
-// The path should have the .yml extension
-func ReadService(path string) (*service.Service, error) {
-	if err := validateServicePath(path); err != nil {
-		return nil, fmt.Errorf("validateServicePath: %w", err)
-	}
-
-	bytes, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("os.ReadFile of %s: %w", path, err)
-	}
-
-	yamlConfig := createYaml()
-	kv := yamlConfig.Map()
-	err = yaml.Unmarshal(bytes, &kv)
-
-	if err != nil {
-		return nil, fmt.Errorf("yaml.Unmarshal of %s: %w", path, err)
-	}
-
-	fmt.Println("service", kv)
-
-	yamlConfig = key_value.New(kv)
-	if err := yamlConfig.Exist("Services"); err != nil {
-		return nil, fmt.Errorf("no services in yaml: %w", err)
-	}
-
-	services, err := yamlConfig.GetKeyValueList("Services")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get services as key value list: %w", err)
-	}
-
-	if len(services) == 0 {
-		return nil, fmt.Errorf("no services in the configuration")
-	}
-
-	var serviceConfig service.Service
-	err = services[0].Interface(&serviceConfig)
-	if err != nil {
-		return nil, fmt.Errorf("convert key value to Service: %w", err)
-	}
-
-	err = prepareService(&serviceConfig)
-	if err != nil {
-		return nil, fmt.Errorf("prepareService: %w", err)
-	}
-
-	return &serviceConfig, nil
-}
-
-func createYaml(configs ...service.Service) key_value.KeyValue {
-	var services = configs
-	kv := key_value.Empty()
-	kv.Set("Services", services)
-
-	return kv
-}
-
-// WriteService writes the service as the yaml on the given path.
-// If the path doesn't contain the file extension, it will through an error
-func WriteService(path string, service service.Service) error {
-	if err := validateServicePath(path); err != nil {
-		return fmt.Errorf("validateServicePath: %w", err)
-	}
-
-	kv := createYaml(service)
-
-	serviceConfig, err := yaml.Marshal(kv.Map())
-	if err != nil {
-		return fmt.Errorf("failed to marshall config.Service: %w", err)
-	}
-
-	f, _ := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-	_, err = f.Write(serviceConfig)
-	closeErr := f.Close()
-	if err != nil {
-		return fmt.Errorf("failed to write service into the given path: %w", err)
-	} else if closeErr != nil {
-		return fmt.Errorf("failed to close the file descriptor: %w", closeErr)
-	} else {
-		return nil
-	}
 }

@@ -32,7 +32,7 @@ func extension() *service2.Extension {
 func (proxy *Proxy) registerDestination() {
 	for _, c := range proxy.service.Config.Service.Controllers {
 		if c.Category == service2.DestinationName {
-			proxy.Controller.RegisterDestination(&c, proxy.service.Config.Service.Url)
+			proxy.Controller.RegisterDestination(c, proxy.service.Config.Service.Url)
 			break
 		}
 	}
@@ -79,7 +79,7 @@ func (proxy *Proxy) Prepare() error {
 // SetDefaultSource creates a source controller of the given type.
 //
 // It loads the source name automatically.
-func (proxy *Proxy) SetDefaultSource(controllerType service2.Type) error {
+func (proxy *Proxy) SetDefaultSource(controllerType service2.ControllerType) error {
 	// todo move the validation to the proxy.ValidateTypes() function
 	var source controller.Interface
 	if controllerType == service2.SyncReplierType {

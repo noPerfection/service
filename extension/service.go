@@ -37,7 +37,7 @@ func New(config *configuration.Config, parent *log.Logger) (*Extension, error) {
 }
 
 // AddController creates a controller of this extension
-func (extension *Extension) AddController(controllerType service2.Type) error {
+func (extension *Extension) AddController(controllerType service2.ControllerType) error {
 	if controllerType == service2.UnknownType {
 		return fmt.Errorf("unknown controller type can't be in the extension")
 	}

@@ -19,7 +19,7 @@ type Controller struct {
 	serviceUrl         string
 	socket             *zmq.Socket
 	logger             *log.Logger
-	controllerType     service.Type
+	controllerType     service.ControllerType
 	routes             *command.Routes
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
@@ -54,9 +54,9 @@ func (c *Controller) isReply() bool {
 	return c.controllerType == service.SyncReplierType
 }
 
-// reply sends to the caller the message.
+// A reply sends to the caller the message.
 //
-// If controller doesn't support replying (for example PULL controller)
+// If controller doesn't support replying (for example, PULL controller),
 // then it returns success.
 func (c *Controller) reply(socket *zmq.Socket, message message.Reply) error {
 	if !c.isReply() {
@@ -103,14 +103,14 @@ func (c *Controller) extensionsAdded() error {
 	return nil
 }
 
-func (c *Controller) ControllerType() service.Type {
+func (c *Controller) ControllerType() service.ControllerType {
 	return c.controllerType
 }
 
 // initExtensionClients will set up the extension clients for this controller.
-// it will be called by c.Run(), automatically.
+// It will be called by c.Run(), automatically.
 //
-// The reason of call of this function by c.Run() is due to the thread-safety.
+// The reason for why we call it by c.Run() is due to the thread-safety.
 //
 // The controller is intended to be called as the goroutine. And if the sockets
 // are not initiated within the same goroutine, then zeromq doesn't guarantee the socket work
