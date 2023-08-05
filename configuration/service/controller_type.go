@@ -5,7 +5,7 @@ import "fmt"
 // Type defines the available kind of controllers
 type Type string
 
-// ReplierType or PublisherType or PublisherType or ReplierType
+// ReplierType or PublisherType or ReplierType
 const (
 	// SyncReplierType controllers are serving one request at a time. It's the server in a
 	// traditional client-server model.
@@ -22,7 +22,7 @@ const (
 )
 
 // ValidateControllerType checks whether the given string is the valid or not.
-// If not valid then returns the error otherwise returns nil.
+// If not valid, then returns the error otherwise returns nil.
 func ValidateControllerType(t Type) error {
 	if t == SyncReplierType || t == PusherType || t == PublisherType || t == ReplierType {
 		return nil
