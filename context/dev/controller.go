@@ -21,7 +21,7 @@ import (
 // onClose closing all the dependencies in the context.
 func (context *Context) onClose(request message.Request, logger *log.Logger, _ ...*remote.ClientSocket) message.Reply {
 	logger.Info("closing the context",
-		"context type", context.config.Type,
+		"context type", context.config.GetType(),
 		"service", context.config.GetUrl(),
 		"todo", "close all dependencies if any",
 		"todo", "close the main service",

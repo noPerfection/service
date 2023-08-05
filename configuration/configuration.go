@@ -32,7 +32,7 @@ type Config struct {
 	Secure       bool
 	logger       *log.Logger // debug purpose only
 	Service      *service.Service
-	Context      *context.Context
+	Context      context.Interface
 	handleChange func(*service.Service, error)
 }
 

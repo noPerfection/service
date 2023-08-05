@@ -21,6 +21,14 @@ const (
 	DataKey = "SERVICE_DEPS_DATA"
 )
 
+// A Context handles the configuration of the contexts
+type Context struct {
+	Src  string `json:"SERVICE_DEPS_SRC"`
+	Bin  string `json:"SERVICE_DEPS_BIN"`
+	Data string `json:"SERVICE_DEPS_DATA"`
+	url  string
+}
+
 func GetDefaultConfigs() (*configuration.DefaultConfig, error) {
 	exePath, err := path.GetExecPath()
 	if err != nil {
@@ -28,7 +36,7 @@ func GetDefaultConfigs() (*configuration.DefaultConfig, error) {
 	}
 
 	return &configuration.DefaultConfig{
-		Title: "Context",
+		Title: "Interface",
 		Parameters: key_value.Empty().
 			Set(SrcKey, path.GetPath(exePath, "./deps/.src")).
 			Set(BinKey, path.GetPath(exePath, "./deps/.bin")).
@@ -37,7 +45,7 @@ func GetDefaultConfigs() (*configuration.DefaultConfig, error) {
 }
 
 // New creates a dev context
-func New(config *configuration.Config) (*context.Context, error) {
+func New(config *configuration.Config) (*Context, error) {
 	execPath, err := path.GetExecPath()
 	if err != nil {
 		return nil, fmt.Errorf("path.GetExecPath: %w", err)
@@ -46,11 +54,10 @@ func New(config *configuration.Config) (*context.Context, error) {
 	dataPath := path.GetPath(execPath, config.Engine().GetString(DataKey))
 	binPath := path.GetPath(execPath, config.Engine().GetString(BinKey))
 
-	devContext := &context.Context{
+	devContext := &Context{
 		Src:  srcPath,
 		Bin:  binPath,
 		Data: dataPath,
-		Type: context.DevContext,
 	}
 
 	if err != nil {
@@ -59,10 +66,14 @@ func New(config *configuration.Config) (*context.Context, error) {
 	return devContext, nil
 }
 
+func (c *Context) GetType() context.Type {
+	return context.DevContext
+}
+
 // ReadService on the given path.
 // If a path is not obsolete, then it should be relative to the executable.
 // The path should have the .yml extension
-func ReadService(path string) (*service.Service, error) {
+func (c *Context) ReadService(path string) (*service.Service, error) {
 	if err := validateServicePath(path); err != nil {
 		return nil, fmt.Errorf("validateServicePath: %w", err)
 	}
@@ -112,7 +123,7 @@ func ReadService(path string) (*service.Service, error) {
 
 // WriteService writes the service as the yaml on the given path.
 // If the path doesn't contain the file extension, it will through an error
-func WriteService(path string, service *service.Service) error {
+func (c *Context) WriteService(path string, service *service.Service) error {
 	if err := validateServicePath(path); err != nil {
 		return fmt.Errorf("validateServicePath: %w", err)
 	}
@@ -155,4 +166,39 @@ func createYaml(configs ...*service.Service) key_value.KeyValue {
 	kv.Set("Services", services)
 
 	return kv
+}
+
+func (c *Context) Paths() []string {
+	return []string{c.Data, c.Bin, c.Src}
+}
+
+func (c *Context) SetUrl(url string) {
+	c.url = url
+}
+
+func (c *Context) GetUrl() string {
+	return c.url
+}
+
+func (c *Context) Host() string {
+	return "localhost"
+}
+
+//----------------------------------------------------------
+// below are the specific functions for the dev context. other contexts may not have them
+//----------------------------------------------------------
+
+// EnvPath is the shared configurations between dependencies
+func (c *Context) EnvPath() string {
+	return filepath.Join(c.Data, ".env")
+}
+
+// ConfigurationPath returns configuration url in the context's data
+func (c *Context) ConfigurationPath(url string) string {
+	fileName := configuration.UrlToFileName(c.GetUrl())
+	return filepath.Join(c.Data, url, fileName+".yml")
+}
+
+func (c *Context) SrcPath(url string) string {
+	return filepath.Join(c.Src, url)
 }

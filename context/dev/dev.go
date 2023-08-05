@@ -37,15 +37,14 @@
 package dev
 
 import (
-	"errors"
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/context"
 	"github.com/ahmetson/service-lib/configuration/context/dev"
 	"github.com/ahmetson/service-lib/configuration/env"
 	"github.com/ahmetson/service-lib/configuration/network"
+	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/log"
@@ -57,7 +56,7 @@ import (
 )
 
 type Context struct {
-	config       *context.Context
+	config       *dev.Context
 	controller   controller.Interface
 	serviceReady bool
 	deps         map[string]*Dep
@@ -93,9 +92,17 @@ func preparePath(path string) error {
 }
 
 // New creates a context including its directories.
-func New(config *context.Context) (*Context, error) {
+func New(config context.Interface) (*Context, error) {
+	if config.GetType() != context.DevContext {
+		return nil, fmt.Errorf("context config is not a dev context. it's %s", config.GetType())
+	}
+	configContext, ok := config.(*dev.Context)
+	if !ok {
+		return nil, fmt.Errorf("can not convert context config into dev context")
+	}
+
 	context := &Context{
-		config:     config,
+		config:     configContext,
 		deps:       make(map[string]*Dep),
 		controller: nil,
 	}
@@ -120,7 +127,7 @@ func (context *Context) prepareEnv() error {
 		return fmt.Errorf("prepareEnv: %w", err)
 	}
 
-	err = env.WriteEnv(kv, context.EnvPath())
+	err = env.WriteEnv(kv, context.config.EnvPath())
 	if err != nil {
 		return fmt.Errorf("env.WriteEnv: %w", err)
 	}
@@ -150,85 +157,56 @@ func (context *Context) New(url string) (*Dep, error) {
 	return dep, nil
 }
 
-// EnvPath is the shared configurations between dependencies
-func (context *Context) EnvPath() string {
-	return filepath.Join(context.config.Data, ".env")
-}
-
 func (dep *Dep) Url() string {
 	return dep.url
 }
 
-// ConfigurationPath returns configuration url in the context's data
-func (dep *Dep) ConfigurationPath() string {
-	fileName := configuration.UrlToFileName(dep.context.config.GetUrl())
-	return filepath.Join(dep.context.config.Data, dep.url, fileName+".yml")
-}
-
 func (dep *Dep) ConfigurationExist() (bool, error) {
-	dataPath := dep.ConfigurationPath()
-	_, err := os.Stat(dataPath)
+	dataPath := dep.context.config.ConfigurationPath(dep.url)
+	exists, err := path.FileExists(dataPath)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
-		} else {
-			return false, fmt.Errorf("failed to read the stat of %s: %w", dataPath, err)
-		}
+		return false, fmt.Errorf("path.FileExists('%s'): %w", err)
 	}
-	return true, nil
+	return exists, nil
 }
 
 func (dep *Dep) prepareConfigurationPath() error {
-	dir := filepath.Dir(dep.ConfigurationPath())
+	dir := filepath.Dir(dep.context.config.ConfigurationPath(dep.Url()))
 	return preparePath(dir)
 }
 
 func (dep *Dep) prepareBinPath() error {
-	dir := filepath.Dir(dep.BinPath())
+	dir := filepath.Dir(dep.context.config.BinPath(dep.Url()))
 	return preparePath(dir)
 }
 
 func (dep *Dep) prepareSrcPath() error {
-	dir := filepath.Dir(dep.SrcPath())
+	dir := filepath.Dir(dep.context.config.SrcPath(dep.Url()))
 	return preparePath(dir)
 }
 
 func (dep *Dep) BinExist() (bool, error) {
-	dataPath := dep.BinPath()
-	println("the bin path is", dataPath)
-	_, err := os.Stat(dataPath)
+	dataPath := dep.context.config.BinPath(dep.Url())
+	exists, err := path.FileExists(dataPath)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
-		} else {
-			return false, fmt.Errorf("failed to read the stat of %s: %w", dataPath, err)
-		}
+		return false, fmt.Errorf("path.FileExists('%s'): %w", dep.Url(), err)
 	}
-	return true, nil
-}
-
-func (dep *Dep) SrcPath() string {
-	return filepath.Join(dep.context.config.Src, dep.url)
+	return exists, nil
 }
 
 func (dep *Dep) SrcExist() (bool, error) {
-	dataPath := dep.SrcPath()
-	println("the source path is", dataPath)
-	_, err := os.Stat(dataPath)
+	dataPath := dep.context.config.SrcPath(dep.Url())
+	exists, err := path.FileExists(dataPath)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
-		} else {
-			return false, fmt.Errorf("failed to read the stat of %s: %w", dataPath, err)
-		}
+		return false, fmt.Errorf("path.FileExists('%s'): %w", dep.Url(), err)
 	}
-	return true, nil
+	return exists, nil
 }
 
 // Configuration returns the yaml configuration of the dependency as is
 func (dep *Dep) Configuration() (*service.Service, error) {
-	configUrl := dep.ConfigurationPath()
-	service, err := dev.ReadService(configUrl)
+	configUrl := dep.context.config.ConfigurationPath(dep.Url())
+	service, err := dep.context.config.ReadService(configUrl)
 	if err != nil {
 		return nil, fmt.Errorf("configuration.ReadService of %s: %w", configUrl, err)
 	}
@@ -240,8 +218,8 @@ func (dep *Dep) Configuration() (*service.Service, error) {
 //
 // It's needed for linting the dependency's destination controller with the service that relies on it.
 func (dep *Dep) SetConfiguration(config *service.Service) error {
-	configUrl := dep.ConfigurationPath()
-	return dev.WriteService(configUrl, config)
+	configUrl := dep.context.config.ConfigurationPath(dep.Url())
+	return dep.context.config.WriteService(configUrl, config)
 }
 
 // PrepareConfiguration creates the service.yml of the dependency.
@@ -250,7 +228,7 @@ func (dep *Dep) SetConfiguration(config *service.Service) error {
 func (dep *Dep) PrepareConfiguration(logger *log.Logger) error {
 	exist, err := dep.ConfigurationExist()
 	if err != nil {
-		return fmt.Errorf("failed to check existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
+		return fmt.Errorf("failed to check existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
 	}
 
 	if exist {
@@ -266,7 +244,7 @@ func (dep *Dep) PrepareConfiguration(logger *log.Logger) error {
 	// check binary exists
 	binExist, err := dep.BinExist()
 	if err != nil {
-		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
+		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
 	}
 
 	if binExist {
@@ -291,7 +269,7 @@ func (dep *Dep) PrepareConfiguration(logger *log.Logger) error {
 	// check for source exist
 	srcExist, err := dep.SrcExist()
 	if err != nil {
-		return fmt.Errorf("failed to check src existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
+		return fmt.Errorf("failed to check src existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
 	}
 
 	if srcExist {
@@ -325,7 +303,7 @@ func (dep *Dep) Prepare(port uint64, logger *log.Logger) error {
 	// check binary exists
 	binExist, err := dep.BinExist()
 	if err != nil {
-		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
+		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
 	}
 
 	if binExist {
@@ -351,7 +329,7 @@ func (dep *Dep) Prepare(port uint64, logger *log.Logger) error {
 	// check for source exist
 	srcExist, err := dep.SrcExist()
 	if err != nil {
-		return fmt.Errorf("failed to check src existence of %s in %s context: %w", dep.url, dep.context.config.Type, err)
+		return fmt.Errorf("failed to check src existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
 	}
 
 	if srcExist {
@@ -381,7 +359,7 @@ func (dep *Dep) Prepare(port uint64, logger *log.Logger) error {
 }
 
 func bindEnvs(context *Context, args []string) ([]string, error) {
-	envs := []string{context.EnvPath()}
+	envs := []string{context.config.EnvPath()}
 	loadedEnvs, err := argument.GetEnvPaths()
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to get env paths: %w", err)
@@ -394,8 +372,8 @@ func bindEnvs(context *Context, args []string) ([]string, error) {
 
 // builds the application
 func (dep *Dep) build(logger *log.Logger) error {
-	srcUrl := dep.SrcPath()
-	binUrl := dep.BinPath()
+	srcUrl := dep.context.config.SrcPath(dep.Url())
+	binUrl := dep.context.config.BinPath(dep.Url())
 
 	logger.Info("building", "src", srcUrl, "bin", binUrl)
 
@@ -419,8 +397,8 @@ func (dep *Dep) build(logger *log.Logger) error {
 
 // start is run without an attachment
 func (dep *Dep) start(logger *log.Logger) error {
-	binUrl := dep.BinPath()
-	configFlag := fmt.Sprintf("--configuration=%s", dep.ConfigurationPath())
+	binUrl := dep.context.config.BinPath(dep.Url())
+	configFlag := fmt.Sprintf("--configuration=%s", dep.context.config.ConfigurationPath(dep.Url()))
 
 	args, err := bindEnvs(dep.context, []string{configFlag})
 	if err != nil {
@@ -488,8 +466,8 @@ func cleanBuild(srcUrl string, logger *log.Logger) error {
 
 // calls `go mod tidy`
 func (dep *Dep) buildConfiguration(logger *log.Logger) error {
-	binUrl := dep.BinPath()
-	pathFlag := fmt.Sprintf("--path=%s", dep.ConfigurationPath())
+	binUrl := dep.context.config.BinPath(dep.Url())
+	pathFlag := fmt.Sprintf("--path=%s", dep.context.config.ConfigurationPath(dep.Url()))
 	urlFlag := fmt.Sprintf("--url=%s", dep.url)
 
 	args, err := bindEnvs(dep.context, []string{"--build-configuration", pathFlag, urlFlag})
@@ -527,7 +505,7 @@ func (dep *Dep) cloneSrc(logger *log.Logger) error {
 	if err != nil {
 		return fmt.Errorf("convertToGitUrl of %s: %w", dep.url, err)
 	}
-	srcUrl := dep.SrcPath()
+	srcUrl := dep.context.config.SrcPath(dep.Url())
 	_, err = git.PlainClone(srcUrl, false, &git.CloneOptions{
 		URL:      gitUrl,
 		Progress: logger,

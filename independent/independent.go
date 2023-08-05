@@ -13,7 +13,6 @@ import (
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/argument"
 	"github.com/ahmetson/service-lib/configuration/context"
-	devContext "github.com/ahmetson/service-lib/configuration/context/dev"
 	"github.com/ahmetson/service-lib/configuration/network"
 	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/ahmetson/service-lib/configuration/service"
@@ -246,7 +245,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 
 		dep, err := independent.Context.Dep(proxyUrl)
 		if err != nil {
-			return fmt.Errorf(`independent.Context.Dep("%s"): %w`, proxyUrl, err)
+			return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, proxyUrl, err)
 		}
 
 		proxyConfig, err := dep.Configuration()
@@ -340,7 +339,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 		serviceProxyUrl := servicePipeline.Beginning()
 		serviceDep, err := independent.Context.Dep(serviceProxyUrl)
 		if err != nil {
-			return fmt.Errorf(`independent.Context.Dep("%s"): %w`, serviceProxyUrl, err)
+			return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, serviceProxyUrl, err)
 		}
 
 		serviceProxyConfig, err := serviceDep.Configuration()
@@ -362,7 +361,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 		if hasService {
 			controllerDep, err := independent.Context.Dep(proxyUrl)
 			if err != nil {
-				return fmt.Errorf(`independent.Context.Dep("%s"): %w`, proxyUrl, err)
+				return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, proxyUrl, err)
 			}
 
 			proxyConfig, err := controllerDep.Configuration()
@@ -441,7 +440,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 
 			controllerDep, err := independent.Context.Dep(proxyUrl)
 			if err != nil {
-				return fmt.Errorf(`independent.Context.Dep("%s"): %w`, proxyUrl, err)
+				return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, proxyUrl, err)
 			}
 
 			proxyConfig, err := controllerDep.Configuration()
@@ -480,7 +479,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 
 		lastDep, err := independent.Context.Dep(lastProxyUrl)
 		if err != nil {
-			return fmt.Errorf(`independent.Context.Dep("%s"): %w`, lastProxyUrl, err)
+			return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, lastProxyUrl, err)
 		}
 
 		lastProxyConfig, err := lastDep.Configuration()
@@ -499,7 +498,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 			// otherwise make sure that proxyUrl destination matches with the lastProxyUrl source.
 			controllerDep, err := independent.Context.Dep(proxyUrl)
 			if err != nil {
-				return fmt.Errorf(`independent.Context.Dep("%s"): %w`, proxyUrl, err)
+				return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, proxyUrl, err)
 			}
 
 			proxyConfig, err := controllerDep.Configuration()
@@ -590,7 +589,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 
 		lastDep, err := independent.Context.Dep(lastProxyUrl)
 		if err != nil {
-			return fmt.Errorf(`independent.Context.Dep("%s"): %w`, lastProxyUrl, err)
+			return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, lastProxyUrl, err)
 		}
 
 		lastProxyConfig, err := lastDep.Configuration()
@@ -609,7 +608,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 			// otherwise make sure that proxyUrl destination matches with the lastProxyUrl source.
 			controllerDep, err := independent.Context.Dep(proxyUrl)
 			if err != nil {
-				return fmt.Errorf(`independent.Context.Dep("%s"): %w`, proxyUrl, err)
+				return fmt.Errorf(`independent.Interface.Dep("%s"): %w`, proxyUrl, err)
 			}
 
 			proxyConfig, err := controllerDep.Configuration()
@@ -784,7 +783,7 @@ func (independent *Service) Prepare(as service.Type) error {
 
 			dep, err = independent.Context.New(requiredProxy)
 			if err != nil {
-				err = fmt.Errorf(`independent.Context.New("%s"): %w`, requiredProxy, err)
+				err = fmt.Errorf(`independent.Interface.New("%s"): %w`, requiredProxy, err)
 				goto closeContext
 			}
 
@@ -816,7 +815,7 @@ func (independent *Service) Prepare(as service.Type) error {
 
 			dep, err = independent.Context.New(requiredExtension)
 			if err != nil {
-				err = fmt.Errorf(`independent.Context.New("%s"): %w`, requiredExtension, err)
+				err = fmt.Errorf(`independent.Interface.New("%s"): %w`, requiredExtension, err)
 				goto closeContext
 			}
 
@@ -910,7 +909,7 @@ func (independent *Service) BuildConfiguration() {
 
 	independent.Config.Service.Url = url
 
-	err = devContext.WriteService(outputPath, independent.Config.Service)
+	err = independent.Config.Context.WriteService(outputPath, independent.Config.Service)
 	if err != nil {
 		independent.Logger.Fatal("failed to write the proxy into the file", "error", err)
 	}
@@ -966,7 +965,7 @@ errOccurred:
 			)
 			closeErr := independent.Context.Close(independent.Logger)
 			if closeErr != nil {
-				independent.Logger.Fatal("independent.Context.Close", "error", closeErr, "error to print", err)
+				independent.Logger.Fatal("independent.Interface.Close", "error", closeErr, "error to print", err)
 			}
 		}
 
@@ -974,7 +973,7 @@ errOccurred:
 	}
 }
 
-func prepareContext(config *context.Context) (*dev.Context, error) {
+func prepareContext(config context.Interface) (*dev.Context, error) {
 	// get the extensions
 	context, err := dev.New(config)
 	if err != nil {
@@ -1063,7 +1062,7 @@ func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
 	}
 
 	depConfig, err := dep.Configuration()
-	converted, err := converter.ServiceToExtension(depConfig, independent.Config.Context.Type)
+	converted, err := converter.ServiceToExtension(depConfig, independent.Config.Context.GetType())
 	if err != nil {
 		return fmt.Errorf("configuration.ServiceToExtension: %w", err)
 	}
