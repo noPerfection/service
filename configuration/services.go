@@ -5,33 +5,33 @@ import (
 	"strings"
 )
 
-type ControllerInstance struct {
-	Port     uint64
-	Instance string
-	Name     string
+type Instance struct {
+	Port       uint64
+	Id         string
+	Controller string
 }
 
 type Controller struct {
 	Type      Type
-	Name      string
-	Instances []ControllerInstance
+	Category  string
+	Instances []Instance
 }
 
 type Proxy struct {
 	Url       string
-	Instances []ControllerInstance
+	Instances []Instance
 	Context   ContextType
 }
 
 type Extension struct {
-	Url      string
-	Instance string
-	Port     uint64
+	Url  string
+	Id   string
+	Port uint64
 }
 
 type PipeEnd struct {
-	Name string
-	Url  string
+	Id  string
+	Url string
 }
 
 type Pipeline struct {
@@ -43,7 +43,7 @@ type Pipeline struct {
 type Service struct {
 	Type        ServiceType
 	Url         string
-	Instance    string
+	Id          string
 	Controllers []Controller
 	Proxies     []Proxy
 	Extensions  []Extension
@@ -53,8 +53,8 @@ type Service struct {
 // NewControllerPipeEnd creates a pipe end with the given name as the controller
 func NewControllerPipeEnd(end string) *PipeEnd {
 	return &PipeEnd{
-		Url:  "",
-		Name: end,
+		Url: "",
+		Id:  end,
 	}
 }
 
@@ -63,7 +63,7 @@ func NewThisServicePipeEnd() *PipeEnd {
 }
 
 func (end *PipeEnd) IsController() bool {
-	return len(end.Name) > 0
+	return len(end.Id) > 0
 }
 
 func (end *PipeEnd) Pipeline(head []string) *Pipeline {
@@ -177,18 +177,18 @@ func (s *Service) Lint() error {
 	// Lint controller instances to the controllers
 	for cI, c := range s.Controllers {
 		for iI, instance := range c.Instances {
-			if len(instance.Name) > 0 {
-				if instance.Name != c.Name {
+			if len(instance.Controller) > 0 {
+				if instance.Controller != c.Category {
 					return fmt.Errorf("invalid name for controller instance. "+
 						"In service instance '%s', controller '%s', instance '%s'. "+
 						"the '%s' name in the controller instance should be '%s'",
-						s.Instance, c.Name, instance.Instance, instance.Name, c.Name)
+						s.Id, c.Category, instance.Id, instance.Controller, c.Category)
 				} else {
 					continue
 				}
 			}
 
-			instance.Name = c.Name
+			instance.Controller = c.Category
 			c.Instances[iI] = instance
 		}
 
@@ -212,7 +212,7 @@ func (pipeline *Pipeline) HasBeginning() bool {
 // If the controller doesn't exist, then it returns an error.
 func (s *Service) GetController(name string) (Controller, error) {
 	for _, c := range s.Controllers {
-		if c.Name == name {
+		if c.Category == name {
 			return c, nil
 		}
 	}
@@ -227,7 +227,7 @@ func (s *Service) GetControllers(name string) ([]*Controller, error) {
 	count := 0
 
 	for _, c := range s.Controllers {
-		if c.Name == name {
+		if c.Category == name {
 			controllers[count] = &c
 			count++
 		}
@@ -326,8 +326,8 @@ func ServiceToProxy(s *Service, contextType ContextType) (Proxy, error) {
 		return Proxy{}, fmt.Errorf("no source instances")
 	}
 
-	instance := ControllerInstance{
-		Instance: controllerConfig.Name + " instance 01",
+	instance := Instance{
+		Id: controllerConfig.Category + " instance 01",
 	}
 
 	if len(s.Proxies) == 0 {
@@ -342,7 +342,7 @@ func ServiceToProxy(s *Service, contextType ContextType) (Proxy, error) {
 
 	converted := Proxy{
 		Url:       s.Url,
-		Instances: []ControllerInstance{instance},
+		Instances: []Instance{instance},
 		Context:   contextType,
 	}
 
@@ -425,8 +425,8 @@ func ServiceToExtension(s *Service, contextType ContextType) (Extension, error) 
 	}
 
 	converted := Extension{
-		Url:      s.Url,
-		Instance: controllerConfig.Name + " instance 01",
+		Url: s.Url,
+		Id:  controllerConfig.Category + " instance 01",
 	}
 
 	if !s.HasProxy(contextType) {

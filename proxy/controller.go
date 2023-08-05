@@ -79,7 +79,7 @@ func (controller *Controller) setDestinationSocket() error {
 	if err != nil {
 		return fmt.Errorf("error creating socket: %w", err)
 	}
-	err = socket.Connect(remote.ClientUrl(controller.destination.Configuration.Instances[0].Name, controller.destination.Configuration.Instances[0].Port))
+	err = socket.Connect(remote.ClientUrl(controller.destination.Configuration.Instances[0].Controller, controller.destination.Configuration.Instances[0].Port))
 	if err != nil {
 		return fmt.Errorf("setup of dealer socket: %w", err)
 	}
@@ -124,7 +124,7 @@ func (controller *Controller) Run() {
 	// let's set the socket
 	err := controller.setDestinationSocket()
 	if err != nil {
-		controller.logger.Fatal("setDestinationSocket", "destination instance", controller.destination.Configuration.Instances[0].Instance)
+		controller.logger.Fatal("setDestinationSocket", "destination instance", controller.destination.Configuration.Instances[0].Id)
 	}
 	poller.Add(controller.destination.socket, zmq.POLLIN)
 	controller.logger.Info("dealers set up successfully")

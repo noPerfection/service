@@ -86,8 +86,8 @@ func (independent *Service) Pipeline(pipeEnd *configuration.PipeEnd, proxyUrls .
 	}
 
 	if pipeEnd.IsController() {
-		if err := independent.Controllers.Exist(pipeEnd.Name); err != nil {
-			return fmt.Errorf("independent.Controllers.Exist('%s') [call independent.AddController()]: %w", pipeEnd.Name, err)
+		if err := independent.Controllers.Exist(pipeEnd.Id); err != nil {
+			return fmt.Errorf("independent.Controllers.Exist('%s') [call independent.AddController()]: %w", pipeEnd.Id, err)
 		}
 	} else {
 		if configuration.HasServicePipeline(independent.pipelines) {
@@ -132,7 +132,7 @@ func (independent *Service) prepareServiceConfiguration(expectedType configurati
 		serviceConfig = configuration.Service{
 			Type:      expectedType,
 			Url:       url,
-			Instance:  config.Name + " 1",
+			Id:        config.Name + " 1",
 			Pipelines: make([]configuration.Pipeline, 0),
 		}
 	} else if serviceConfig.Type != expectedType {
@@ -170,8 +170,8 @@ func (independent *Service) PrepareControllerConfiguration(name string, as confi
 		}
 	} else {
 		controllerConfig = configuration.Controller{
-			Type: as,
-			Name: name,
+			Type:     as,
+			Category: name,
 		}
 
 		serviceConfig.Controllers = append(serviceConfig.Controllers, controllerConfig)
@@ -180,7 +180,7 @@ func (independent *Service) PrepareControllerConfiguration(name string, as confi
 
 	err = independent.prepareInstanceConfiguration(controllerConfig)
 	if err != nil {
-		return fmt.Errorf("failed preparing '%s' controller instance configuration: %w", controllerConfig.Name, err)
+		return fmt.Errorf("failed preparing '%s' controller instance configuration: %w", controllerConfig.Category, err)
 	}
 
 	return nil
@@ -192,10 +192,10 @@ func (independent *Service) prepareInstanceConfiguration(controllerConfig config
 	if len(controllerConfig.Instances) == 0 {
 		port := independent.Config.GetFreePort()
 
-		sourceInstance := configuration.ControllerInstance{
-			Name:     controllerConfig.Name,
-			Instance: controllerConfig.Name + "1",
-			Port:     uint64(port),
+		sourceInstance := configuration.Instance{
+			Controller: controllerConfig.Category,
+			Id:         controllerConfig.Category + "1",
+			Port:       uint64(port),
 		}
 		controllerConfig.Instances = append(controllerConfig.Instances, sourceInstance)
 		serviceConfig.SetController(controllerConfig)
@@ -270,31 +270,31 @@ func (independent *Service) preparePipelineConfigurations() error {
 				c := raw.(controller.Interface)
 
 				// set the source
-				instance := configuration.ControllerInstance{
-					Name:     configuration.SourceName,
-					Instance: fmt.Sprintf("%s 01", name),
-					Port:     uint64(independent.Config.GetFreePort()),
+				instance := configuration.Instance{
+					Controller: configuration.SourceName,
+					Id:         fmt.Sprintf("%s 01", name),
+					Port:       uint64(independent.Config.GetFreePort()),
 				}
 
 				controllerConfig := configuration.Controller{
 					Type:      c.ControllerType(),
-					Name:      configuration.SourceName,
-					Instances: []configuration.ControllerInstance{instance},
+					Category:  configuration.SourceName,
+					Instances: []configuration.Instance{instance},
 				}
 				proxyConfig.Controllers[set] = controllerConfig
 				set++
 
 				origControllerConfig, _ := independent.Config.Service.GetController(name)
-				desInstance := configuration.ControllerInstance{
-					Name:     configuration.DestinationName,
-					Instance: fmt.Sprintf("%s 01", name),
-					Port:     origControllerConfig.Instances[0].Port,
+				desInstance := configuration.Instance{
+					Controller: configuration.DestinationName,
+					Id:         fmt.Sprintf("%s 01", name),
+					Port:       origControllerConfig.Instances[0].Port,
 				}
 
 				desControllerConfig := configuration.Controller{
 					Type:      c.ControllerType(),
-					Name:      configuration.DestinationName,
-					Instances: []configuration.ControllerInstance{desInstance},
+					Category:  configuration.DestinationName,
+					Instances: []configuration.Instance{desInstance},
 				}
 				proxyConfig.Controllers[set] = desControllerConfig
 				set++
@@ -377,30 +377,30 @@ func (independent *Service) preparePipelineConfigurations() error {
 				// rewrite the destinations in the dependency
 				for _, sourceConfig := range serviceSources {
 					// set the source
-					instance := configuration.ControllerInstance{
-						Name:     configuration.SourceName,
-						Instance: fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Instance),
-						Port:     uint64(independent.Config.GetFreePort()),
+					instance := configuration.Instance{
+						Controller: configuration.SourceName,
+						Id:         fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Id),
+						Port:       uint64(independent.Config.GetFreePort()),
 					}
 
 					controllerConfig := configuration.Controller{
 						Type:      sourceConfig.Type,
-						Name:      configuration.SourceName,
-						Instances: []configuration.ControllerInstance{instance},
+						Category:  configuration.SourceName,
+						Instances: []configuration.Instance{instance},
 					}
 					proxyConfig.Controllers[set] = controllerConfig
 					set++
 
-					desInstance := configuration.ControllerInstance{
-						Name:     configuration.DestinationName,
-						Instance: fmt.Sprintf("%s 01", sourceConfig.Instances[0].Instance),
-						Port:     sourceConfig.Instances[0].Port,
+					desInstance := configuration.Instance{
+						Controller: configuration.DestinationName,
+						Id:         fmt.Sprintf("%s 01", sourceConfig.Instances[0].Id),
+						Port:       sourceConfig.Instances[0].Port,
 					}
 
 					desControllerConfig := configuration.Controller{
 						Type:      sourceConfig.Type,
-						Name:      configuration.DestinationName,
-						Instances: []configuration.ControllerInstance{desInstance},
+						Category:  configuration.DestinationName,
+						Instances: []configuration.Instance{desInstance},
 					}
 					proxyConfig.Controllers[set] = desControllerConfig
 					set++
@@ -430,7 +430,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 				}
 			}
 		} else {
-			controllerName := pipeline.End.Name
+			controllerName := pipeline.End.Id
 
 			proxyConfiguration, _ := independent.Config.Service.GetController(controllerName)
 
@@ -514,30 +514,30 @@ func (independent *Service) preparePipelineConfigurations() error {
 				// rewrite the destinations in the dependency
 				for _, sourceConfig := range sourceConfigs {
 					// set the source
-					instance := configuration.ControllerInstance{
-						Name:     configuration.SourceName,
-						Instance: fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Instance),
-						Port:     uint64(independent.Config.GetFreePort()),
+					instance := configuration.Instance{
+						Controller: configuration.SourceName,
+						Id:         fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Id),
+						Port:       uint64(independent.Config.GetFreePort()),
 					}
 
 					controllerConfig := configuration.Controller{
 						Type:      sourceConfig.Type,
-						Name:      configuration.SourceName,
-						Instances: []configuration.ControllerInstance{instance},
+						Category:  configuration.SourceName,
+						Instances: []configuration.Instance{instance},
 					}
 					proxyConfig.Controllers[set] = controllerConfig
 					set++
 
-					desInstance := configuration.ControllerInstance{
-						Name:     configuration.DestinationName,
-						Instance: fmt.Sprintf("%s 01", sourceConfig.Instances[0].Instance),
-						Port:     sourceConfig.Instances[0].Port,
+					desInstance := configuration.Instance{
+						Controller: configuration.DestinationName,
+						Id:         fmt.Sprintf("%s 01", sourceConfig.Instances[0].Id),
+						Port:       sourceConfig.Instances[0].Port,
 					}
 
 					desControllerConfig := configuration.Controller{
 						Type:      sourceConfig.Type,
-						Name:      configuration.DestinationName,
-						Instances: []configuration.ControllerInstance{desInstance},
+						Category:  configuration.DestinationName,
+						Instances: []configuration.Instance{desInstance},
 					}
 					proxyConfig.Controllers[set] = desControllerConfig
 					set++
@@ -624,30 +624,30 @@ func (independent *Service) preparePipelineConfigurations() error {
 				// rewrite the destinations in the dependency
 				for _, sourceConfig := range sourceConfigs {
 					// set the source
-					instance := configuration.ControllerInstance{
-						Name:     configuration.SourceName,
-						Instance: fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Instance),
-						Port:     uint64(independent.Config.GetFreePort()),
+					instance := configuration.Instance{
+						Controller: configuration.SourceName,
+						Id:         fmt.Sprintf("%s source 01", sourceConfig.Instances[0].Id),
+						Port:       uint64(independent.Config.GetFreePort()),
 					}
 
 					controllerConfig := configuration.Controller{
 						Type:      sourceConfig.Type,
-						Name:      configuration.SourceName,
-						Instances: []configuration.ControllerInstance{instance},
+						Category:  configuration.SourceName,
+						Instances: []configuration.Instance{instance},
 					}
 					proxyConfig.Controllers[set] = controllerConfig
 					set++
 
-					desInstance := configuration.ControllerInstance{
-						Name:     configuration.DestinationName,
-						Instance: fmt.Sprintf("%s 01", sourceConfig.Instances[0].Instance),
-						Port:     sourceConfig.Instances[0].Port,
+					desInstance := configuration.Instance{
+						Controller: configuration.DestinationName,
+						Id:         fmt.Sprintf("%s 01", sourceConfig.Instances[0].Id),
+						Port:       sourceConfig.Instances[0].Port,
 					}
 
 					desControllerConfig := configuration.Controller{
 						Type:      sourceConfig.Type,
-						Name:      configuration.DestinationName,
-						Instances: []configuration.ControllerInstance{desInstance},
+						Category:  configuration.DestinationName,
+						Instances: []configuration.Instance{desInstance},
 					}
 					proxyConfig.Controllers[set] = desControllerConfig
 					set++

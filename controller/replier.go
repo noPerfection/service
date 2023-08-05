@@ -40,7 +40,7 @@ func (c *AsyncController) worker() {
 	for {
 		sockets, err := poller.Poll(-1)
 		if err != nil {
-			newErr := fmt.Errorf("poller.Poll(%s): %w", c.config.Name, err)
+			newErr := fmt.Errorf("poller.Poll(%s): %w", c.config.Category, err)
 			c.logger.Error("worker polling:", "error", newErr)
 		}
 
@@ -153,7 +153,7 @@ func Replier(parent *log.Logger) (*AsyncController, error) {
 //
 // the name of the controller should not contain a space or special character
 func (c *AsyncController) managerUrl() string {
-	name := "async_manager_" + c.config.Instances[0].Name
+	name := "async_manager_" + c.config.Instances[0].Controller
 
 	return Url(name, 0)
 }
@@ -166,14 +166,14 @@ func (c *AsyncController) Run() error {
 	c.socket, _ = zmq.NewSocket(zmq.ROUTER)
 	c.manager, _ = zmq.NewSocket(zmq.ROUTER)
 
-	url := Url(c.config.Instances[0].Name, c.config.Instances[0].Port)
+	url := Url(c.config.Instances[0].Controller, c.config.Instances[0].Port)
 	if err := Bind(c.socket, url, c.config.Instances[0].Port); err != nil {
-		return fmt.Errorf("bind('%s'): %w", c.config.Instances[0].Name, err)
+		return fmt.Errorf("bind('%s'): %w", c.config.Instances[0].Controller, err)
 	}
 
 	url = c.managerUrl()
 	if err := Bind(c.manager, url, 0); err != nil {
-		return fmt.Errorf("bind('%s'): %w", c.config.Instances[0].Name, err)
+		return fmt.Errorf("bind('%s'): %w", c.config.Instances[0].Controller, err)
 	}
 
 	for i := 0; i < c.maxWorkers; i++ {

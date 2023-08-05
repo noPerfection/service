@@ -7,11 +7,11 @@ import (
 )
 
 type Instance struct {
-	config configuration.ControllerInstance
+	config configuration.Instance
 	socket *zmq.Socket
 }
 
-func NewInstance(config configuration.ControllerInstance) *Instance {
+func NewInstance(config configuration.Instance) *Instance {
 	return &Instance{
 		socket: nil,
 		config: config,
@@ -41,11 +41,11 @@ func (instance *Instance) Run(c *Controller) error {
 	// then any whitelisting users will be sent there.
 	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
 
-	url := Url(c.config.Instances[0].Name, c.config.Instances[0].Port)
-	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances", "url", url, "name", c.config.Instances[0].Name)
+	url := Url(c.config.Instances[0].Controller, c.config.Instances[0].Port)
+	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances", "url", url, "name", c.config.Instances[0].Controller)
 
 	if err := Bind(instance.socket, url, c.config.Instances[0].Port); err != nil {
-		return fmt.Errorf(`bind("%s"): %w`, c.config.Instances[0].Name, err)
+		return fmt.Errorf(`bind("%s"): %w`, c.config.Instances[0].Controller, err)
 	}
 
 	poller := zmq.NewPoller()
@@ -54,7 +54,7 @@ func (instance *Instance) Run(c *Controller) error {
 	for {
 		sockets, err := poller.Poll(-1)
 		if err != nil {
-			newErr := fmt.Errorf("poller.Poll(%s): %w", c.config.Name, err)
+			newErr := fmt.Errorf("poller.Poll(%s): %w", c.config.Category, err)
 			return newErr
 		}
 

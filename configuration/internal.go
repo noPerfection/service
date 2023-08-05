@@ -32,16 +32,16 @@ func ContextName(url string) string {
 }
 
 func InternalConfiguration(name string) *Controller {
-	instance := ControllerInstance{
-		Port:     0, // 0 means it's inproc
-		Instance: name + "_instance",
-		Name:     name,
+	instance := Instance{
+		Port:       0, // 0 means it's inproc
+		Id:         name + "_instance",
+		Controller: name,
 	}
 
 	return &Controller{
 		Type:      SyncReplierType,
-		Name:      name,
-		Instances: []ControllerInstance{instance},
+		Category:  name,
+		Instances: []Instance{instance},
 	}
 }
 

@@ -91,7 +91,7 @@ func (c *Controller) processMessage(msgRaw []string, metadata map[string]string)
 	if request.IsFirst() {
 		request.SetUuid()
 	}
-	request.AddRequestStack(c.serviceUrl, c.config.Name, c.config.Instances[0].Instance)
+	request.AddRequestStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id)
 
 	var reply message.Reply
 	var routeInterface interface{}
@@ -113,7 +113,7 @@ func (c *Controller) processMessage(msgRaw []string, metadata map[string]string)
 	}
 
 	// update the stack
-	if err = reply.SetStack(c.serviceUrl, c.config.Name, c.config.Instances[0].Instance); err != nil {
+	if err = reply.SetStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id); err != nil {
 		c.logger.Warn("failed to update the reply stack", "error", err)
 	}
 
@@ -138,11 +138,11 @@ func (c *Controller) Run() error {
 	// then any whitelisting users will be sent there.
 	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
 
-	url := Url(c.config.Instances[0].Name, c.config.Instances[0].Port)
-	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances", "url", url, "name", c.config.Instances[0].Name)
+	url := Url(c.config.Instances[0].Controller, c.config.Instances[0].Port)
+	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances", "url", url, "name", c.config.Instances[0].Controller)
 
 	if err := Bind(c.socket, url, c.config.Instances[0].Port); err != nil {
-		return fmt.Errorf(`bind("%s"): %w`, c.config.Instances[0].Name, err)
+		return fmt.Errorf(`bind("%s"): %w`, c.config.Instances[0].Controller, err)
 	}
 
 	poller := zmq.NewPoller()
@@ -151,7 +151,7 @@ func (c *Controller) Run() error {
 	for {
 		sockets, err := poller.Poll(-1)
 		if err != nil {
-			newErr := fmt.Errorf("poller.Poll(%s): %w", c.config.Name, err)
+			newErr := fmt.Errorf("poller.Poll(%s): %w", c.config.Category, err)
 			return newErr
 		}
 

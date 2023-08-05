@@ -30,7 +30,7 @@ func extension() *configuration.Extension {
 // It adds the controller configuration.
 func (proxy *Proxy) registerDestination() {
 	for _, c := range proxy.service.Config.Service.Controllers {
-		if c.Name == configuration.DestinationName {
+		if c.Category == configuration.DestinationName {
 			proxy.Controller.RegisterDestination(&c, proxy.service.Config.Service.Url)
 			break
 		}
