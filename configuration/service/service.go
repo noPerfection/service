@@ -2,7 +2,7 @@ package service
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/context"
 )
 
 // Service type defined in the configuration
@@ -161,11 +161,11 @@ func (s *Service) SetPipeline(pipeline *Pipeline) {
 
 // HasProxy checks is there any proxy within the context.
 // If the context is default, then it will return true for any context
-func (s *Service) HasProxy(contextType configuration.ContextType) bool {
+func (s *Service) HasProxy(contextType context.ContextType) bool {
 	if len(s.Proxies) == 0 {
 		return false
 	}
-	if contextType == configuration.DefaultContext {
+	if contextType == context.DefaultContext {
 		return true
 	}
 

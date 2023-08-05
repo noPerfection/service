@@ -42,6 +42,7 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/argument"
+	"github.com/ahmetson/service-lib/configuration/context"
 	"github.com/ahmetson/service-lib/configuration/env"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/controller"
@@ -54,7 +55,7 @@ import (
 )
 
 type Context struct {
-	config       *configuration.Context
+	config       *context.Context
 	controller   controller.Interface
 	serviceReady bool
 	deps         map[string]*Dep
@@ -90,7 +91,7 @@ func preparePath(path string) error {
 }
 
 // New creates a context including its directories.
-func New(config *configuration.Context) (*Context, error) {
+func New(config *context.Context) (*Context, error) {
 	context := &Context{
 		config:     config,
 		deps:       make(map[string]*Dep),

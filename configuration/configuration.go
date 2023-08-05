@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration/argument"
+	"github.com/ahmetson/service-lib/configuration/context"
 	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/cakturk/go-netstat/netstat"
@@ -37,7 +38,7 @@ type Config struct {
 	Secure       bool
 	logger       *log.Logger // debug purpose only
 	Service      *service.Service
-	Context      *Context
+	Context      *context.Context
 	handleChange func(*service.Service, error)
 }
 
@@ -96,8 +97,8 @@ func New(parent *log.Logger) (*Config, error) {
 	}
 
 	// set up the context
-	initContext(&config)
-	setDevContext(&config)
+	context.initContext(&config)
+	context.setDevContext(&config)
 
 	configName := config.viper.GetString("SERVICE_CONFIG_NAME")
 	configPath := config.viper.GetString("SERVICE_CONFIG_PATH")

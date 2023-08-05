@@ -12,6 +12,7 @@ import (
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/argument"
+	"github.com/ahmetson/service-lib/configuration/context"
 	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/configuration/service/converter"
@@ -54,7 +55,7 @@ func (independent *Service) AddController(name string, controller controller.Int
 }
 
 // RequireProxy adds a proxy that's needed for this service to run
-func (independent *Service) RequireProxy(url string, contextType configuration.ContextType) {
+func (independent *Service) RequireProxy(url string, contextType context.ContextType) {
 	independent.RequiredProxies.Set(url, contextType)
 }
 
@@ -68,10 +69,10 @@ func (independent *Service) IsProxyRequired(proxyUrl string) bool {
 	return false
 }
 
-func (independent *Service) GetProxyContext(proxyUrl string) configuration.ContextType {
-	contextType, ok := independent.RequiredProxies[proxyUrl].(configuration.ContextType)
+func (independent *Service) GetProxyContext(proxyUrl string) context.ContextType {
+	contextType, ok := independent.RequiredProxies[proxyUrl].(context.ContextType)
 	if !ok {
-		return configuration.DefaultContext
+		return context.DefaultContext
 	}
 	return contextType
 }
@@ -776,7 +777,7 @@ func (independent *Service) Prepare(as service.ServiceType) error {
 	//--------------------------------------------------
 	if len(independent.RequiredProxies) > 0 {
 		for requiredProxy, contextInterface := range independent.RequiredProxies {
-			contextType := contextInterface.(configuration.ContextType)
+			contextType := contextInterface.(context.ContextType)
 			var dep *dev.Dep
 
 			dep, err = independent.Context.New(requiredProxy)
@@ -971,7 +972,7 @@ errOccurred:
 	}
 }
 
-func prepareContext(config *configuration.Context) (*dev.Context, error) {
+func prepareContext(config *context.Context) (*dev.Context, error) {
 	// get the extensions
 	context, err := dev.New(config)
 	if err != nil {
@@ -1013,7 +1014,7 @@ func (independent *Service) prepareExtension(dep *dev.Dep) error {
 // prepareProxyConfiguration links the proxy with the dependency.
 //
 // if dependency doesn't exist, it will be downloaded
-func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext configuration.ContextType) error {
+func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext context.ContextType) error {
 	err := dep.PrepareConfiguration(independent.Logger)
 	if err != nil {
 		return fmt.Errorf("dev.PrepareConfiguration on %s: %w", dep.Url(), err)

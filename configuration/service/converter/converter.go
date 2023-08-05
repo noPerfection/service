@@ -2,7 +2,7 @@ package converter
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/configuration/context"
 	"github.com/ahmetson/service-lib/configuration/service"
 )
 
@@ -10,7 +10,7 @@ import (
 // so that it can be used as a proxy by other services.
 //
 // If the service has another proxy, then it will find it.
-func ServiceToProxy(s *service.Service, contextType configuration.ContextType) (service.Proxy, error) {
+func ServiceToProxy(s *service.Service, contextType context.ContextType) (service.Proxy, error) {
 	if s.Type != service.ProxyType {
 		return service.Proxy{}, fmt.Errorf("only proxy type of service can be converted")
 	}
@@ -49,7 +49,7 @@ func ServiceToProxy(s *service.Service, contextType configuration.ContextType) (
 
 // findPipelineBeginning returns the beginning of the pipeline.
 // If the contextType is not a default one, then it will search for the specific context type.
-func findPipelineBeginning(s *service.Service, requiredEnd string, contextType configuration.ContextType) (*service.Proxy, error) {
+func findPipelineBeginning(s *service.Service, requiredEnd string, contextType context.ContextType) (*service.Proxy, error) {
 	for _, pipeline := range s.Pipelines {
 		beginning := pipeline.Beginning()
 		if !pipeline.HasBeginning() {
@@ -69,14 +69,14 @@ func findPipelineBeginning(s *service.Service, requiredEnd string, contextType c
 			return nil, fmt.Errorf("invalid configuration. pipeline '%s' beginning not found in proxy list", beginning)
 		}
 
-		if contextType != configuration.DefaultContext {
+		if contextType != context.DefaultContext {
 			if proxy.Context != contextType {
 				continue
 			} else {
 				return proxy, nil
 			}
 		} else {
-			if proxy.Context == configuration.DefaultContext {
+			if proxy.Context == context.DefaultContext {
 				return proxy, nil
 			} else {
 				continue
@@ -89,7 +89,7 @@ func findPipelineBeginning(s *service.Service, requiredEnd string, contextType c
 
 // ServiceToExtension returns the service in the proxy format
 // so that it can be used as a proxy
-func ServiceToExtension(s *service.Service, contextType configuration.ContextType) (service.Extension, error) {
+func ServiceToExtension(s *service.Service, contextType context.ContextType) (service.Extension, error) {
 	if s.Type != service.ExtensionType {
 		return service.Extension{}, fmt.Errorf("only proxy type of service can be converted")
 	}

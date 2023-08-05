@@ -1,6 +1,7 @@
-package configuration
+package context
 
 import (
+	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/path"
 )
 
@@ -26,7 +27,7 @@ type Context struct {
 	url  string
 }
 
-func initContext(config *Config) {
+func initContext(config *configuration.Config) {
 	exePath, err := path.GetExecPath()
 	if err != nil {
 		config.logger.Fatal("failed to get the executable path", "error", err)
@@ -37,7 +38,7 @@ func initContext(config *Config) {
 	config.viper.SetDefault(DataKey, path.GetPath(exePath, "./deps/.data"))
 }
 
-func newContext(config *Config) *Context {
+func newContext(config *configuration.Config) *Context {
 	execPath, err := path.GetExecPath()
 	if err != nil {
 		config.logger.Fatal("path.GetExecPath: %w", err)
@@ -55,7 +56,7 @@ func newContext(config *Config) *Context {
 	}
 }
 
-func setDevContext(config *Config) {
+func setDevContext(config *configuration.Config) {
 	context := newContext(config)
 	context.Type = DevContext
 

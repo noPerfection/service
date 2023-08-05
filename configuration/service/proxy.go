@@ -1,6 +1,8 @@
 package service
 
-import "github.com/ahmetson/service-lib/configuration"
+import (
+	"github.com/ahmetson/service-lib/configuration/context"
+)
 
 const (
 	// SourceName of this type should be listed within the controllers in the configuration
@@ -13,5 +15,5 @@ const (
 type Proxy struct {
 	Url       string
 	Instances []Instance
-	Context   configuration.ContextType
+	Context   context.ContextType
 }
