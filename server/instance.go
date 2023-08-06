@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config/service"
 	zmq "github.com/pebbe/zmq4"
 )
 

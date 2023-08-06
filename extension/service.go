@@ -4,8 +4,8 @@ package extension
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/configuration"
-	service2 "github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config"
+	service2 "github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/independent"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/server"
@@ -21,7 +21,7 @@ type Extension struct {
 }
 
 // New extension service based on the configurations
-func New(config *configuration.Config, parent *log.Logger) (*Extension, error) {
+func New(config *config.Config, parent *log.Logger) (*Extension, error) {
 	logger := parent.Child("extension")
 
 	base, err := independent.New(config, logger)
@@ -74,8 +74,8 @@ func (extension *Extension) GetControllerName() string {
 	return defaultControllerName
 }
 
-// Prepare the service by validating the configuration.
-// If the configuration doesn't exist, it will be created.
+// Prepare the service by validating the config.
+// If the config doesn't exist, it will be created.
 func (extension *Extension) Prepare() error {
 	if err := extension.service.Prepare(service2.ExtensionType); err != nil {
 		return fmt.Errorf("service.Run as '%s' failed: %w", service2.ExtensionType, err)

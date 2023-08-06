@@ -1,13 +1,13 @@
-// Package dev in the configuration package handles the dev orchester data.
-// In the dev orchester, the configuration files are stored in the local filesystem.
+// Package dev in the config package handles the dev orchester data.
+// In the dev orchester, the config files are stored in the local filesystem.
 package dev
 
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/configuration"
-	"github.com/ahmetson/service-lib/configuration/context"
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config"
+	"github.com/ahmetson/service-lib/config/context"
+	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/os/path"
 	"gopkg.in/yaml.v3"
 	"os"
@@ -21,7 +21,7 @@ const (
 	DataKey = "SERVICE_DEPS_DATA"
 )
 
-// A Context handles the configuration of the contexts
+// A Context handles the config of the contexts
 type Context struct {
 	Src  string `json:"SERVICE_DEPS_SRC"`
 	Bin  string `json:"SERVICE_DEPS_BIN"`
@@ -29,13 +29,13 @@ type Context struct {
 	url  string
 }
 
-func GetDefaultConfigs() (*configuration.DefaultConfig, error) {
+func GetDefaultConfigs() (*config.DefaultConfig, error) {
 	exePath, err := path.GetExecPath()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the executable path: %w", err)
 	}
 
-	return &configuration.DefaultConfig{
+	return &config.DefaultConfig{
 		Title: "Interface",
 		Parameters: key_value.Empty().
 			Set(SrcKey, path.GetPath(exePath, "./deps/.src")).
@@ -45,7 +45,7 @@ func GetDefaultConfigs() (*configuration.DefaultConfig, error) {
 }
 
 // New creates a dev orchester
-func New(config *configuration.Config) (*Context, error) {
+func New(config *config.Config) (*Context, error) {
 	execPath, err := path.GetExecPath()
 	if err != nil {
 		return nil, fmt.Errorf("path.GetExecPath: %w", err)
@@ -106,7 +106,7 @@ func (c *Context) ReadService(url string) (*service.Service, error) {
 	}
 
 	if len(services) == 0 {
-		return nil, fmt.Errorf("no services in the configuration")
+		return nil, fmt.Errorf("no services in the config")
 	}
 
 	var serviceConfig service.Service
@@ -197,9 +197,9 @@ func (c *Context) EnvPath() string {
 	return filepath.Join(c.Data, ".env")
 }
 
-// ConfigurationPath returns configuration url in the orchester's data
+// ConfigurationPath returns config url in the orchester's data
 func (c *Context) ConfigurationPath(url string) string {
-	fileName := configuration.UrlToFileName(c.GetUrl())
+	fileName := config.UrlToFileName(c.GetUrl())
 	return filepath.Join(c.Data, url, fileName+".yml")
 }
 

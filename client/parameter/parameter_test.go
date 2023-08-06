@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/stretchr/testify/suite"
 )
@@ -14,7 +14,7 @@ import (
 // returns the current testing orchester
 type TestBroadcastSuite struct {
 	suite.Suite
-	appConfig *configuration.Config
+	appConfig *config.Config
 }
 
 // Make sure that Account is set to five
@@ -23,7 +23,7 @@ func (suite *TestBroadcastSuite) SetupTest() {
 	logger, err := log.New("parameter", true)
 	suite.Require().NoError(err)
 
-	appConfig, err := configuration.New(logger)
+	appConfig, err := config.New(logger)
 	suite.Require().NoError(err)
 
 	suite.appConfig = appConfig

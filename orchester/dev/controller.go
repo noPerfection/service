@@ -13,7 +13,7 @@ import (
 	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/server"
 )
@@ -75,7 +75,7 @@ func (context *Context) Run(logger *log.Logger) error {
 		return fmt.Errorf("server.SyncReplierType: %w", err)
 	}
 
-	config := configuration.InternalConfiguration(configuration.ContextName(context.config.GetUrl()))
+	config := config.InternalConfiguration(config.ContextName(context.config.GetUrl()))
 	replier.AddConfig(config, context.config.GetUrl())
 
 	closeRoute := command.NewRoute("close", context.onClose)
@@ -105,7 +105,7 @@ func (context *Context) Close(logger *log.Logger) error {
 		logger.Warn("skipping, since orchester.ControllerCategory is not initialised", "todo", "call orchester.Run()")
 		return nil
 	}
-	contextName, contextPort := configuration.ClientUrlParameters(configuration.ContextName(context.config.GetUrl()))
+	contextName, contextPort := config.ClientUrlParameters(config.ContextName(context.config.GetUrl()))
 	contextClient, err := client.NewReq(contextName, contextPort, logger)
 	if err != nil {
 		logger.Error("client.NewReq", "error", err)
@@ -139,7 +139,7 @@ func (context *Context) ServiceReady(logger *log.Logger) error {
 		logger.Warn("orchester.ControllerCategory is not initialised", "todo", "call orchester.Run()")
 		return nil
 	}
-	contextName, contextPort := configuration.ClientUrlParameters(configuration.ContextName(context.config.GetUrl()))
+	contextName, contextPort := config.ClientUrlParameters(config.ContextName(context.config.GetUrl()))
 	contextClient, err := client.NewReq(contextName, contextPort, logger)
 	if err != nil {
 		return fmt.Errorf("close the service by hand. client.NewReq: %w", err)
@@ -172,7 +172,7 @@ func (context *Context) closeService(logger *log.Logger) error {
 	}
 	logger.Info("main service is linted to the orchester. send a signal to main service to be closed")
 
-	contextName, contextPort := configuration.ClientUrlParameters(configuration.ManagerName(context.config.GetUrl()))
+	contextName, contextPort := config.ClientUrlParameters(config.ManagerName(context.config.GetUrl()))
 	contextClient, err := client.NewReq(contextName, contextPort, logger)
 	if err != nil {
 		return fmt.Errorf("close the service by hand. client.NewReq: %w", err)

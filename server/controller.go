@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/client"
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config/service"
 
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
@@ -26,20 +26,20 @@ type Controller struct {
 	extensions         client.Clients
 }
 
-// AddConfig adds the parameters of the server from the configuration.
+// AddConfig adds the parameters of the server from the config.
 // The serviceUrl is the service to which this server belongs too.
 func (c *Controller) AddConfig(controller *service.Controller, serviceUrl string) {
 	c.config = controller
 	c.serviceUrl = serviceUrl
 }
 
-// AddExtensionConfig adds the configuration of the extension that the server depends on
+// AddExtensionConfig adds the config of the extension that the server depends on
 func (c *Controller) AddExtensionConfig(extension *service.Extension) {
 	c.extensionConfigs.Set(extension.Url, extension)
 }
 
 // RequireExtension marks the extensions that this server depends on.
-// Before running, the required extension should be added from the configuration.
+// Before running, the required extension should be added from the config.
 // Otherwise, server won't run.
 func (c *Controller) RequireExtension(name string) {
 	c.requiredExtensions = append(c.requiredExtensions, name)
@@ -96,7 +96,7 @@ func (c *Controller) AddRoute(route *command.Route) error {
 func (c *Controller) extensionsAdded() error {
 	for _, name := range c.requiredExtensions {
 		if err := c.extensionConfigs.Exist(name); err != nil {
-			return fmt.Errorf("required '%s' extension. but it wasn't added to the server (does it exist in configuration.yml?)", name)
+			return fmt.Errorf("required '%s' extension. but it wasn't added to the server (does it exist in config.yml?)", name)
 		}
 	}
 

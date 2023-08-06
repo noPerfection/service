@@ -5,7 +5,7 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/os/network"
 	"github.com/ahmetson/service-lib/os/process"
@@ -41,7 +41,7 @@ func (c *Controller) prepare() error {
 		return fmt.Errorf("initExtensionClients: %w", err)
 	}
 	if c.config == nil || len(c.config.Instances) == 0 {
-		return fmt.Errorf("server doesn't have the configuration or instances are missing")
+		return fmt.Errorf("server doesn't have the config or instances are missing")
 	}
 
 	return nil
@@ -54,7 +54,7 @@ func Bind(sock *zmq.Socket, url string, port uint64) error {
 			if network.IsPortUsed("localhost", port) {
 				pid, err := process.PortToPid(port)
 				if err != nil {
-					err = fmt.Errorf("configuration.PortToPid(%d): %w", port, err)
+					err = fmt.Errorf("config.PortToPid(%d): %w", port, err)
 				} else {
 					currentPid := process.CurrentPid()
 					if currentPid == pid {

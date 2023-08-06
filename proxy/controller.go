@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/message"
-	service2 "github.com/ahmetson/service-lib/configuration/service"
+	service2 "github.com/ahmetson/service-lib/config/service"
 	zmq "github.com/pebbe/zmq4"
 
 	"github.com/ahmetson/service-lib/log"

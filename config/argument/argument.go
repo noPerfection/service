@@ -10,11 +10,11 @@ import (
 
 // List of service flags
 const (
-	Secure             = "secure"              // If passed, then TCP sockets will require authentication. Default is false
-	BuildConfiguration = "build-configuration" // returns the extensions, controllers that the service will need
-	Path               = "path"                // The file path to include for generation it should end with .yml
-	Url                = "url"                 // The url of the service to set when building the configuration
-	Configuration      = "configuration"       // The path to the configuration. It should end with .yml
+	Secure             = "secure"       // If passed, then TCP sockets will require authentication. Default is false
+	BuildConfiguration = "build-config" // returns the extensions, controllers that the service will need
+	Path               = "path"         // The file path to include for generation it should end with .yml
+	Url                = "url"          // The url of the service to set when building the config
+	Configuration      = "config"       // The path to the config. It should end with .yml
 )
 
 // GetEnvPaths any command line data that comes after the files are .env file paths

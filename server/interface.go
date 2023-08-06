@@ -6,7 +6,7 @@ import (
 	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/log"
 )
 
@@ -15,14 +15,14 @@ import (
 // The interface that it accepts is the *client.ClientSocket from the
 // "github.com/ahmetson/service-lib/client" package.
 type Interface interface {
-	// AddConfig adds the parameters of the server from the configuration
+	// AddConfig adds the parameters of the server from the config
 	AddConfig(controller *service.Controller, serviceUrl string)
 
-	// AddExtensionConfig adds the configuration of the extension that the server depends on
+	// AddExtensionConfig adds the config of the extension that the server depends on
 	AddExtensionConfig(extension *service.Extension)
 
 	// RequireExtension marks the extensions that this server depends on.
-	// Before running, the required extension should be added from the configuration.
+	// Before running, the required extension should be added from the config.
 	// Otherwise, server won't run.
 	RequireExtension(name string)
 

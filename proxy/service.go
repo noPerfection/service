@@ -3,8 +3,8 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/configuration"
-	service2 "github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config"
+	service2 "github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/independent"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/server"
@@ -20,7 +20,7 @@ type Proxy struct {
 	Controller *Controller
 }
 
-// An extension creates the configuration of the proxy server.
+// An extension creates the config of the proxy server.
 // The proxy server itself is added as the extension to the source controllers,
 // to the request handlers and to the reply handlers.
 func extension() *service2.Extension {
@@ -28,7 +28,7 @@ func extension() *service2.Extension {
 }
 
 // registerDestination registers the server instances as the destination.
-// It adds the server configuration.
+// It adds the server config.
 func (proxy *Proxy) registerDestination() {
 	for _, c := range proxy.service.Config.Service.Controllers {
 		if c.Category == service2.DestinationName {
@@ -39,7 +39,7 @@ func (proxy *Proxy) registerDestination() {
 }
 
 // New proxy service along with its server.
-func New(config *configuration.Config, parent *log.Logger) *Proxy {
+func New(config *config.Config, parent *log.Logger) *Proxy {
 	logger := parent.Child("service", "service_type", service2.ProxyType)
 
 	base, _ := independent.New(config, logger)

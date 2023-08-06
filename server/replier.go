@@ -5,7 +5,7 @@ package server
 import (
 	"fmt"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/log"
 	zmq "github.com/pebbe/zmq4"
 	"runtime"
@@ -157,7 +157,7 @@ func Replier(parent *log.Logger) (*AsyncController, error) {
 
 }
 
-// call it only after adding a configuration.
+// call it only after adding a config.
 // returns an inproc url
 //
 // the name of the server should not contain a space or special character

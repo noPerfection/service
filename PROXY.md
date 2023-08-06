@@ -49,7 +49,7 @@ start to write it. The first thing is the `service.yml` configuration.
 Services:
   - Type: Proxy           # We are defining the proxy service
     Url: url        # Custom name of the service to classify it.
-    Instance: unique-id   # Unique id through this configuration
+    Instance: unique-id   # Unique id through this config
     Controllers:
       - Name: source      # Source server
         Type: Replier     # The type of the server.

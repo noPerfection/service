@@ -2,7 +2,7 @@ package converter
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config/service"
 )
 
 // ServiceToProxy returns the service in the proxy format
@@ -64,7 +64,7 @@ func findPipelineBeginning(s *service.Service, requiredEnd string) (*service.Pro
 
 		proxy := s.GetProxy(beginning)
 		if proxy == nil {
-			return nil, fmt.Errorf("invalid configuration. pipeline '%s' beginning not found in proxy list", beginning)
+			return nil, fmt.Errorf("invalid config. pipeline '%s' beginning not found in proxy list", beginning)
 		}
 
 		return proxy, nil

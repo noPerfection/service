@@ -6,7 +6,7 @@ import (
 
 	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/log"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
@@ -28,7 +28,7 @@ func (suite *TestCommandSuite) SetupTest() {
 	logger, err := log.New("command_test", true)
 	suite.NoError(err, "failed to create logger")
 
-	appConfig, err := configuration.New(logger)
+	appConfig, err := config.New(logger)
 	suite.NoError(err, "failed to create app config")
 
 	shortUrl := "short"

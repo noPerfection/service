@@ -1,7 +1,7 @@
-package configuration
+package config
 
 import (
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config/service"
 	"strings"
 )
 
@@ -16,7 +16,7 @@ import (
 //	serviceUrl = "github.com/ahmetson/sample-service"
 //	contextUrl = "orchester.github.com.ahmetson.sample-service"
 //
-// This controllerName is set as the server's name in the configuration.
+// This controllerName is set as the server's name in the config.
 // Then the server package will generate an inproc:// url based on the server name.
 func UrlToFileName(url string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(url, "/", "."), "\\", ".")

@@ -11,12 +11,12 @@ import (
 	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration"
-	"github.com/ahmetson/service-lib/configuration/argument"
-	"github.com/ahmetson/service-lib/configuration/context"
-	"github.com/ahmetson/service-lib/configuration/service"
-	"github.com/ahmetson/service-lib/configuration/service/converter"
-	"github.com/ahmetson/service-lib/configuration/service/pipeline"
+	"github.com/ahmetson/service-lib/config"
+	"github.com/ahmetson/service-lib/config/argument"
+	"github.com/ahmetson/service-lib/config/context"
+	"github.com/ahmetson/service-lib/config/service"
+	"github.com/ahmetson/service-lib/config/service/converter"
+	"github.com/ahmetson/service-lib/config/service/pipeline"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/orchester/dev"
 	"github.com/ahmetson/service-lib/os/network"
@@ -29,7 +29,7 @@ import (
 
 // Service keeps all necessary parameters of the service.
 type Service struct {
-	Config          *configuration.Config
+	Config          *config.Config
 	Controllers     key_value.KeyValue
 	pipelines       []*pipeline.Pipeline // Pipeline beginning: url => [Pipes]
 	RequiredProxies []string             // url => orchester type
@@ -38,8 +38,8 @@ type Service struct {
 	manager         server.Interface // manage this service from other parts. it should be called before orchester runs
 }
 
-// New service with the configuration engine and logger. Logger is used as is.
-func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
+// New service with the config engine and logger. Logger is used as is.
+func New(config *config.Config, logger *log.Logger) (*Service, error) {
 	independent := Service{
 		Config:          config,
 		Logger:          logger,
@@ -138,7 +138,7 @@ func (independent *Service) prepareControllerConfigurations() error {
 
 		err := independent.PrepareControllerConfiguration(name, c.ControllerType())
 		if err != nil {
-			return fmt.Errorf("prepare '%s' server configuration as '%s' type: %w", name, c.ControllerType(), err)
+			return fmt.Errorf("prepare '%s' server config as '%s' type: %w", name, c.ControllerType(), err)
 		}
 	}
 
@@ -166,7 +166,7 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 
 	err = independent.prepareInstanceConfiguration(controllerConfig)
 	if err != nil {
-		return fmt.Errorf("failed preparing '%s' server instance configuration: %w", controllerConfig.Category, err)
+		return fmt.Errorf("failed preparing '%s' server instance config: %w", controllerConfig.Category, err)
 	}
 
 	return nil
@@ -270,7 +270,7 @@ func (independent *Service) runManager() error {
 		return fmt.Errorf("server.SyncReplierType: %w", err)
 	}
 
-	config := configuration.InternalConfiguration(configuration.ManagerName(independent.Config.Service.Url))
+	config := config.InternalConfiguration(config.ManagerName(independent.Config.Service.Url))
 	replier.AddConfig(config, independent.Config.Service.Url)
 
 	closeRoute := command.NewRoute("close", independent.onClose)
@@ -296,7 +296,7 @@ func (independent *Service) Prepare(as service.Type) error {
 	}
 
 	//
-	// prepare the configuration with the service, it's controllers and instances.
+	// prepare the config with the service, it's controllers and instances.
 	// it doesn't prepare the proxies, pipelines and extensions
 	//----------------------------------------------------
 	err := independent.prepareConfiguration(as)
@@ -396,7 +396,7 @@ func (independent *Service) Prepare(as service.Type) error {
 	// run proxies if they are needed.
 	if len(independent.RequiredProxies) > 0 {
 		for _, requiredProxy := range independent.RequiredProxies {
-			// We don't check for the error, since preparing the configuration should do that already.
+			// We don't check for the error, since preparing the config should do that already.
 			dep, _ := independent.Context.Dep(requiredProxy)
 
 			if err = independent.prepareProxy(dep); err != nil {
@@ -409,7 +409,7 @@ func (independent *Service) Prepare(as service.Type) error {
 	// run extensions if they are needed.
 	if len(requiredExtensions) > 0 {
 		for _, requiredExtension := range requiredExtensions {
-			// We don't check for the error, since preparing the configuration should do that already.
+			// We don't check for the error, since preparing the config should do that already.
 			dep, _ := independent.Context.Dep(requiredExtension)
 
 			if err = independent.prepareExtension(dep); err != nil {
@@ -429,8 +429,8 @@ closeContext:
 	return err
 }
 
-// BuildConfiguration is invoked from Run. It's passed if the --build-configuration flag was given.
-// This function creates a yaml configuration with the service parameters.
+// BuildConfiguration is invoked from Run. It's passed if the --build-config flag was given.
+// This function creates a yaml config with the service parameters.
 func (independent *Service) BuildConfiguration() {
 	if !argument.Exist(argument.BuildConfiguration) {
 		return
@@ -459,7 +459,7 @@ func (independent *Service) BuildConfiguration() {
 		independent.Logger.Fatal("failed to write the proxy into the file", "error", err)
 	}
 
-	independent.Logger.Info("yaml configuration was generated", "output path", outputPath)
+	independent.Logger.Info("yaml config was generated", "output path", outputPath)
 
 	os.Exit(0)
 }
@@ -478,7 +478,7 @@ func (independent *Service) Run() {
 	for name, controllerInterface := range independent.Controllers {
 		c := controllerInterface.(server.Interface)
 		if err = independent.Controllers.Exist(name); err != nil {
-			independent.Logger.Error("independent.Controllers.Exist", "configuration", name, "error", err)
+			independent.Logger.Error("independent.Controllers.Exist", "config", name, "error", err)
 			break
 		}
 
@@ -574,7 +574,7 @@ func (independent *Service) prepareProxyConfiguration(dep *dev.Dep) error {
 	depConfig, err := dep.GetServiceConfig()
 	converted, err := converter.ServiceToProxy(depConfig)
 	if err != nil {
-		return fmt.Errorf("configuration.ServiceToProxy: %w", err)
+		return fmt.Errorf("config.ServiceToProxy: %w", err)
 	}
 
 	proxyConfiguration := independent.Config.Service.GetProxy(dep.Url())
@@ -582,10 +582,10 @@ func (independent *Service) prepareProxyConfiguration(dep *dev.Dep) error {
 		independent.Config.Service.SetProxy(&converted)
 	} else {
 		if strings.Compare(proxyConfiguration.Url, converted.Url) != 0 {
-			return fmt.Errorf("the proxy urls are not matching. in your configuration: %s, in the deps: %s", proxyConfiguration.Url, converted.Url)
+			return fmt.Errorf("the proxy urls are not matching. in your config: %s, in the deps: %s", proxyConfiguration.Url, converted.Url)
 		}
 		if proxyConfiguration.Context != converted.Context {
-			return fmt.Errorf("the proxy contexts are not matching. in your configuration: %s, in the deps: %s", proxyConfiguration.Context, converted.Context)
+			return fmt.Errorf("the proxy contexts are not matching. in your config: %s, in the deps: %s", proxyConfiguration.Context, converted.Context)
 		}
 		if proxyConfiguration.Instances[0].Port != converted.Instances[0].Port {
 			independent.Logger.Warn("dependency port not matches to the proxy port. Overwriting the source", "port", proxyConfiguration.Instances[0].Port, "dependency port", converted.Instances[0].Port)
@@ -619,7 +619,7 @@ func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
 	depConfig, err := dep.GetServiceConfig()
 	converted, err := converter.ServiceToExtension(depConfig)
 	if err != nil {
-		return fmt.Errorf("configuration.ServiceToExtension: %w", err)
+		return fmt.Errorf("config.ServiceToExtension: %w", err)
 	}
 
 	extensionConfiguration := independent.Config.Service.GetExtension(dep.Url())
@@ -627,7 +627,7 @@ func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
 		independent.Config.Service.SetExtension(&converted)
 	} else {
 		if strings.Compare(extensionConfiguration.Url, converted.Url) != 0 {
-			return fmt.Errorf("the extension url in your '%s' configuration not matches to '%s' in the dependency", extensionConfiguration.Url, converted.Url)
+			return fmt.Errorf("the extension url in your '%s' config not matches to '%s' in the dependency", extensionConfiguration.Url, converted.Url)
 		}
 		if extensionConfiguration.Port != converted.Port {
 			independent.Logger.Warn("dependency port not matches to the extension port. Overwriting the source", "port", extensionConfiguration.Port, "dependency port", converted.Port)

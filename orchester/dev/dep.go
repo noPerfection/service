@@ -6,8 +6,8 @@ package dev
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/configuration/argument"
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config/argument"
+	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/os/network"
 	"github.com/ahmetson/service-lib/os/path"
@@ -71,11 +71,11 @@ func (dep *Dep) SrcExist() (bool, error) {
 	return exists, nil
 }
 
-// GetServiceConfig returns the yaml configuration of the dependency as is
+// GetServiceConfig returns the yaml config of the dependency as is
 func (dep *Dep) GetServiceConfig() (*service.Service, error) {
 	serviceConfig, err := dep.context.config.ReadService(dep.Url())
 	if err != nil {
-		return nil, fmt.Errorf("configuration.ReadService(%s): %w", dep.Url(), err)
+		return nil, fmt.Errorf("config.ReadService(%s): %w", dep.Url(), err)
 	}
 
 	return serviceConfig, nil
@@ -100,7 +100,7 @@ func (dep *Dep) PrepareConfig(logger *log.Logger) error {
 	if exist {
 		return nil
 	}
-	// first need to prepare the configuration
+	// first need to prepare the config
 	err = dep.prepareConfigurationPath()
 	if err != nil {
 		return fmt.Errorf("prepareConfigurationPath: %w", err)
@@ -115,13 +115,13 @@ func (dep *Dep) PrepareConfig(logger *log.Logger) error {
 	if binExist {
 		logger.Warn("todo: for the file when it's running we need to set the current orchester as the same orchester by setting .env")
 		logger.Warn("todo: so that proxies or extensions will share the same orchester")
-		logger.Info("build configuration from the binary")
+		logger.Info("build config from the binary")
 
 		err := dep.buildConfiguration(logger)
 		if err != nil {
 			return fmt.Errorf("buildConfiguration of %s: %w", dep.url, err)
 		}
-		logger.Info("configuration was built, read it")
+		logger.Info("config was built, read it")
 		return nil
 	} else {
 		return fmt.Errorf("bin not found. call dep.Prepare()")
@@ -198,7 +198,7 @@ func (dep *Dep) Run(port uint64, logger *log.Logger) error {
 		return fmt.Errorf("failed to check existence of %s in %s orchester: %w", dep.url, dep.context.config.GetType(), err)
 	}
 	if !exist {
-		return fmt.Errorf("configuration not found. call dep.PrepareConfiguration")
+		return fmt.Errorf("config not found. call dep.PrepareConfiguration")
 	}
 
 	used := network.IsPortUsed(dep.context.config.Host(), port)
@@ -242,7 +242,7 @@ func (dep *Dep) build(logger *log.Logger) error {
 // start is run without an attachment
 func (dep *Dep) start(logger *log.Logger) error {
 	binUrl := dep.context.config.BinPath(dep.Url())
-	configFlag := fmt.Sprintf("--configuration=%s", dep.context.config.ConfigurationPath(dep.Url()))
+	configFlag := fmt.Sprintf("--config=%s", dep.context.config.ConfigurationPath(dep.Url()))
 
 	args, err := bindEnvs(dep.context, []string{configFlag})
 	if err != nil {
@@ -300,7 +300,7 @@ func (dep *Dep) buildConfiguration(logger *log.Logger) error {
 	pathFlag := fmt.Sprintf("--path=%s", dep.context.config.ConfigurationPath(dep.Url()))
 	urlFlag := fmt.Sprintf("--url=%s", dep.url)
 
-	args, err := bindEnvs(dep.context, []string{"--build-configuration", pathFlag, urlFlag})
+	args, err := bindEnvs(dep.context, []string{"--build-config", pathFlag, urlFlag})
 	if err != nil {
 		return fmt.Errorf("bindEnvs to args: %w", err)
 	}

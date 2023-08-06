@@ -10,7 +10,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/config"
 )
 
 // todo remove the functions
@@ -32,14 +32,14 @@ const (
 
 // NewContextWithTimeout returns a new orchester with the request timeout
 // and the timeout with SDS_REQUEST_TIMEOUT
-func NewContextWithTimeout(parent context.Context, appConfig *configuration.Config) (context.Context, context.CancelFunc) {
+func NewContextWithTimeout(parent context.Context, appConfig *config.Config) (context.Context, context.CancelFunc) {
 	newCtx, cancelFunc := context.WithTimeout(parent, RequestTimeout(appConfig))
 	return newCtx, cancelFunc
 }
 
-// RequestTimeout Request timeout, from the configuration.
-// If the configuration doesn't exist, then return the default value.
-func RequestTimeout(appConfig *configuration.Config) time.Duration {
+// RequestTimeout Request timeout, from the config.
+// If the config doesn't exist, then return the default value.
+func RequestTimeout(appConfig *config.Config) time.Duration {
 	requestTimeout := DefaultTimeout
 	if appConfig != nil && appConfig.Exist("SDS_REQUEST_TIMEOUT") {
 		envTimeout := appConfig.GetUint64("SDS_REQUEST_TIMEOUT")
@@ -53,9 +53,9 @@ func RequestTimeout(appConfig *configuration.Config) time.Duration {
 
 // Attempt How many attempts we make to request the client service before we will
 // return an error.
-// It returns the attempt amount from the configuration.
-// If the configuration doesn't exist, then we the default value.
-func Attempt(appConfig *configuration.Config) uint {
+// It returns the attempt amount from the config.
+// If the config doesn't exist, then we the default value.
+func Attempt(appConfig *config.Config) uint {
 	attempt := DefaultAttempt
 	if appConfig != nil && appConfig.Exist("SDS_REQUEST_ATTEMPT") {
 		envAttempt := appConfig.GetUint64("SDS_REQUEST_ATTEMPT")

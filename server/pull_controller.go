@@ -13,7 +13,7 @@ package server
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config/service"
 
 	"github.com/ahmetson/service-lib/log"
 

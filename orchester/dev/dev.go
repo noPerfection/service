@@ -11,10 +11,10 @@
 // then lets work on the extension.
 // User is passing an extension url.
 // The service is checking whether it exists in the data or not.
-// If the service exists, it gets the yaml. And returns the configuration.
+// If the service exists, it gets the yaml. And returns the config.
 //
 // If the service doesn't exist, it checks whether the service exists in the bin.
-// If it exists, then it runs it with --build-configuration.
+// If it exists, then it runs it with --build-config.
 //
 // Then, if the service doesn't exist in the bin, it checks the source.
 // If the source exists, then it will call `go build`.
@@ -22,7 +22,7 @@
 //
 // Lastly, if a source doesn't exist, it will download the files from the repository using go-git.
 // Then we build the binary.
-// We generate configuration.
+// We generate config.
 //
 // Lastly, the service.Run() will make sure that all binaries exist.
 // If not, then it will create them.
@@ -39,9 +39,9 @@ package dev
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/configuration/context"
-	"github.com/ahmetson/service-lib/configuration/context/dev"
-	"github.com/ahmetson/service-lib/configuration/env"
+	"github.com/ahmetson/service-lib/config/context"
+	"github.com/ahmetson/service-lib/config/context/dev"
+	"github.com/ahmetson/service-lib/config/env"
 	"github.com/ahmetson/service-lib/server"
 	"os"
 )

@@ -1,23 +1,23 @@
-// Package configuration defines a configuration engine for the entire app.
+// Package config defines a config engine for the entire app.
 //
-// The configuration features:
+// The config features:
 //   - reads the command line arguments for the app such as authentication enabled or not.
 //   - automatically loads the environment variables files.
 //   - Allows setting default variables if user didn't define them.
-package configuration
+package config
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/configuration/argument"
-	"github.com/ahmetson/service-lib/configuration/context"
-	"github.com/ahmetson/service-lib/configuration/context/dev"
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config/argument"
+	"github.com/ahmetson/service-lib/config/context"
+	"github.com/ahmetson/service-lib/config/context/dev"
+	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/os/path"
 	"github.com/fsnotify/fsnotify"
 	"path/filepath"
 	"time"
 
-	"github.com/ahmetson/service-lib/configuration/env"
+	"github.com/ahmetson/service-lib/config/env"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/spf13/viper"
 )
@@ -36,7 +36,7 @@ type Config struct {
 	handleChange func(*service.Service, error)
 }
 
-// New creates a global configuration for the entire application.
+// New creates a global config for the entire application.
 //
 // Automatically reads the command line arguments.
 // Loads the environment variables.
@@ -45,7 +45,7 @@ type Config struct {
 func New(parent *log.Logger) (*Config, error) {
 	config := Config{
 		Name:         parent.Prefix(),
-		logger:       parent.Child("configuration"),
+		logger:       parent.Child("config"),
 		Service:      nil,
 		handleChange: nil,
 	}
@@ -69,11 +69,11 @@ func New(parent *log.Logger) (*Config, error) {
 		return nil, fmt.Errorf("path.GetExecPath: %w", err)
 	}
 
-	// Use the service configuration given from the path
+	// Use the service config given from the path
 	if argument.Exist(argument.Configuration) {
 		configurationPath, err := argument.Value(argument.Configuration)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get the configuration path: %w", err)
+			return nil, fmt.Errorf("failed to get the config path: %w", err)
 		}
 
 		absPath := path.GetPath(execPath, configurationPath)
@@ -99,7 +99,7 @@ func New(parent *log.Logger) (*Config, error) {
 
 	configName := config.viper.GetString("SERVICE_CONFIG_NAME")
 	configPath := config.viper.GetString("SERVICE_CONFIG_PATH")
-	// load the service configuration
+	// load the service config
 	config.viper.SetConfigName(configName)
 	config.viper.SetConfigType("yaml")
 	config.viper.AddConfigPath(configPath)
@@ -132,7 +132,7 @@ func (config *Config) readFile() (*service.Service, error) {
 	services, ok := config.viper.Get("services").([]interface{})
 	if !ok {
 		config.logger.Info("services", "Service", services, "raw", config.viper.Get("services"))
-		return nil, fmt.Errorf("configuration.yml Service should be a list not a one object")
+		return nil, fmt.Errorf("config.yml Service should be a list not a one object")
 	}
 
 	config.logger.Info("todo", "todo 1", "make sure that proxy pipeline is correct",
@@ -143,7 +143,7 @@ func (config *Config) readFile() (*service.Service, error) {
 
 	serviceConfig, err := service.UnmarshalService(services)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshalling service configuration failed: %w", err)
+		return nil, fmt.Errorf("unmarshalling service config failed: %w", err)
 	}
 
 	return serviceConfig, nil
@@ -156,13 +156,13 @@ func (config *Config) GetServicePath() string {
 	return filepath.Join(configPath, configName+".yml")
 }
 
-// Engine returns the underlying configuration engine.
+// Engine returns the underlying config engine.
 // In our case, it will be Viper.
 func (config *Config) Engine() *viper.Viper {
 	return config.viper
 }
 
-// Watch tracks the configuration change in the file.
+// Watch tracks the config change in the file.
 //
 // Watch could be called only once. If it's already called, then it will skip it without an error.
 //
@@ -252,7 +252,7 @@ func (config *Config) watchChange() {
 	})
 }
 
-// SetDefaults sets the default configuration parameters.
+// SetDefaults sets the default config parameters.
 func (config *Config) SetDefaults(defaultConfig DefaultConfig) {
 	for name, value := range defaultConfig.Parameters {
 		if value == nil {
@@ -267,31 +267,31 @@ func (config *Config) SetDefaults(defaultConfig DefaultConfig) {
 	}
 }
 
-// SetDefault sets the default configuration name to the value
+// SetDefault sets the default config name to the value
 func (config *Config) SetDefault(name string, value interface{}) {
 	config.viper.SetDefault(name, value)
 }
 
-// Exist Checks whether the configuration variable exists or not
-// If the configuration exists or its default value exists, then returns true.
+// Exist Checks whether the config variable exists or not
+// If the config exists or its default value exists, then returns true.
 func (config *Config) Exist(name string) bool {
 	value := config.viper.GetString(name)
 	return len(value) > 0
 }
 
-// GetString Returns the configuration parameter as a string
+// GetString Returns the config parameter as a string
 func (config *Config) GetString(name string) string {
 	value := config.viper.GetString(name)
 	return value
 }
 
-// GetUint64 Returns the configuration parameter as an unsigned 64-bit number
+// GetUint64 Returns the config parameter as an unsigned 64-bit number
 func (config *Config) GetUint64(name string) uint64 {
 	value := config.viper.GetUint64(name)
 	return value
 }
 
-// GetBool Returns the configuration parameter as a boolean
+// GetBool Returns the config parameter as a boolean
 func (config *Config) GetBool(name string) bool {
 	value := config.viper.GetBool(name)
 	return value

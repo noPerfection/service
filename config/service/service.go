@@ -3,10 +3,10 @@ package service
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/configuration/service/pipeline"
+	"github.com/ahmetson/service-lib/config/service/pipeline"
 )
 
-// Service type defined in the configuration
+// Service type defined in the config
 type Service struct {
 	Type        Type
 	Url         string
@@ -32,7 +32,7 @@ func (s *Service) PrepareService() error {
 	return nil
 }
 
-// UnmarshalService decodes the yaml into the configuration.
+// UnmarshalService decodes the yaml into the config.
 func UnmarshalService(services []interface{}) (*Service, error) {
 	if len(services) == 0 {
 		return nil, nil
@@ -46,7 +46,7 @@ func UnmarshalService(services []interface{}) (*Service, error) {
 	var serviceConfig Service
 	err = kv.Interface(&serviceConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert raw config service to configuration.Service: %w", err)
+		return nil, fmt.Errorf("failed to convert raw config service to config.Service: %w", err)
 	}
 	err = serviceConfig.PrepareService()
 	if err != nil {
@@ -58,7 +58,7 @@ func UnmarshalService(services []interface{}) (*Service, error) {
 
 // Lint sets the reference to the parent from the child.
 //
-// If the child configuration is used independently, then
+// If the child config is used independently, then
 // there is no way to know to which parent it belongs too.
 //
 // In this case, it sets the reference to the server from the server reference.
@@ -103,7 +103,7 @@ func (s *Service) ValidateTypes() error {
 	return nil
 }
 
-// GetController returns the server configuration by the server name.
+// GetController returns the server config by the server name.
 // If the server doesn't exist, then it returns an error.
 func (s *Service) GetController(name string) (*Controller, error) {
 	for _, c := range s.Controllers {
@@ -112,7 +112,7 @@ func (s *Service) GetController(name string) (*Controller, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("'%s' server was not found in '%s' service's configuration", name, s.Url)
+	return nil, fmt.Errorf("'%s' server was not found in '%s' service's config", name, s.Url)
 }
 
 // GetControllers returns the multiple controllers of the given name.
@@ -145,7 +145,7 @@ func (s *Service) GetFirstController() (*Controller, error) {
 	return controller, nil
 }
 
-// GetExtension returns the extension configuration by the url.
+// GetExtension returns the extension config by the url.
 // If the extension doesn't exist, then it returns nil
 func (s *Service) GetExtension(url string) *Extension {
 	for _, e := range s.Extensions {

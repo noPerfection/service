@@ -4,11 +4,11 @@ package client
 import (
 	"fmt"
 	"github.com/ahmetson/service-lib/client/parameter"
-	"github.com/ahmetson/service-lib/configuration/service"
+	"github.com/ahmetson/service-lib/config/service"
 
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/log"
 
 	// todo
@@ -28,7 +28,7 @@ type ClientSocket struct {
 	socket          *zmq.Socket
 	protocol        string
 	logger          *log.Logger
-	appConfig       *configuration.Config
+	appConfig       *config.Config
 	serviceName     string
 	servicePort     uint64
 }
@@ -443,7 +443,7 @@ func (socket *ClientSocket) RequestRawMessage(requestString string) ([]string, e
 // NewTcpSocket creates a new client socket over TCP protocol.
 //
 // The returned socket client then can send a message to server.Router and server.Reply
-func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig *configuration.Config) (*ClientSocket, error) {
+func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig *config.Config) (*ClientSocket, error) {
 	if appConfig == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}
@@ -517,7 +517,7 @@ func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error)
 // The created client socket can connect to server.Router or server.Reply.
 //
 // The `url` parameter must start with `inproc://`
-func InprocRequestSocket(url string, parent *log.Logger, appConfig *configuration.Config) (*ClientSocket, error) {
+func InprocRequestSocket(url string, parent *log.Logger, appConfig *config.Config) (*ClientSocket, error) {
 	if appConfig == nil {
 		return nil, fmt.Errorf("missing app_config")
 	}
@@ -555,7 +555,7 @@ func InprocRequestSocket(url string, parent *log.Logger, appConfig *configuratio
 
 // // NewTcpSubscriber create a new client socket on TCP protocol.
 // // The created client can subscribe to broadcast.Broadcast
-// func NewTcpSubscriber(e *service.Service, server_public_key string, client *auth.Credentials, parent log.Logger, app_config *configuration.GetServiceConfig) (*ClientSocket, error) {
+// func NewTcpSubscriber(e *service.Service, server_public_key string, client *auth.Credentials, parent log.Logger, app_config *config.GetServiceConfig) (*ClientSocket, error) {
 // 	if app_config == nil {
 // 		return nil, fmt.Errorf("missing app_config")
 // 	}

@@ -9,9 +9,9 @@ package pipeline
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/configuration/context"
-	"github.com/ahmetson/service-lib/configuration/service"
-	"github.com/ahmetson/service-lib/configuration/service/converter"
+	"github.com/ahmetson/service-lib/config/context"
+	"github.com/ahmetson/service-lib/config/service"
+	"github.com/ahmetson/service-lib/config/service/converter"
 	"github.com/ahmetson/service-lib/os/network"
 	"slices"
 )
@@ -45,7 +45,7 @@ func PrepareAddingPipeline(pipelines []*Pipeline, proxies []string, controllers 
 		}
 	} else {
 		if FindServiceEnd(pipelines) != nil {
-			return fmt.Errorf("configuration.HasServicePipeline: service pipeline added already")
+			return fmt.Errorf("config.HasServicePipeline: service pipeline added already")
 		}
 	}
 
@@ -152,8 +152,8 @@ func LintControllers(proxyDestinations []*service.Controller, serviceControllers
 	return updated, nil
 }
 
-// LintProxyToService returns the updated proxy configuration against the service configuration.
-// Another function LintServiceToProxy updates the service configuration by proxy configuration.
+// LintProxyToService returns the updated proxy config against the service config.
+// Another function LintServiceToProxy updates the service config by proxy config.
 //
 // The proxyConfig will have the same number of destinations as controllers in the destinationService
 func LintProxyToService(proxyConfig *service.Service, destinationService *service.Service) (bool, error) {
@@ -167,8 +167,8 @@ func LintProxyToService(proxyConfig *service.Service, destinationService *servic
 	return lintDestinationsToControllers(proxyConfig, destinationService.Controllers)
 }
 
-// LintProxyToProxy returns the updated proxy configuration against another proxy.
-// Another function LintServiceToProxy updates the service configuration by proxy configuration.
+// LintProxyToProxy returns the updated proxy config against another proxy.
+// Another function LintServiceToProxy updates the service config by proxy config.
 func LintProxyToProxy(proxyConfig *service.Service, destinationService *service.Service) (bool, error) {
 	if proxyConfig.Type != service.ProxyType {
 		return false, fmt.Errorf("proxyConfig.Type is not proxy")
@@ -194,7 +194,7 @@ func lintDestinationsToControllers(proxyConfig *service.Service, controllers []*
 	controllerAmount := len(controllers)
 
 	updated := false
-	// The service has more controllers or fewer than in the configuration.
+	// The service has more controllers or fewer than in the config.
 	// Let's rewrite them
 	if len(proxyDestinations) != controllerAmount {
 		if err := rewriteControllers(proxyConfig, controllers); err != nil {

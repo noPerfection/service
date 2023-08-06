@@ -3,7 +3,7 @@ package client
 import (
 	"testing"
 
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/stretchr/testify/suite"
 )
@@ -33,7 +33,7 @@ func (suite *TestSocketSuite) SetupTest() {
 func (suite *TestSocketSuite) TestNewSockets() {
 	logger, err := log.New("log", false)
 	suite.NoError(err, "failed to create logger")
-	appConfig, err := configuration.New(logger)
+	appConfig, err := config.New(logger)
 	suite.NoError(err, "failed to create logger")
 
 	// We can't initiate the socket with THIS limit

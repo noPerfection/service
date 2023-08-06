@@ -1,6 +1,6 @@
 package context
 
-import "github.com/ahmetson/service-lib/configuration/service"
+import "github.com/ahmetson/service-lib/config/service"
 
 type Type = string
 

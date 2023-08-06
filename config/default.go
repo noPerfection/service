@@ -1,10 +1,10 @@
-package configuration
+package config
 
 import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 )
 
-// DefaultConfig Default configuration for the package
+// DefaultConfig Default config for the package
 type DefaultConfig struct {
 	Title      string             // package title
 	Parameters key_value.KeyValue // parameters
