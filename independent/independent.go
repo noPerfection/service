@@ -51,12 +51,13 @@ func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
 	return &independent, nil
 }
 
-// AddController by their name
-func (independent *Service) AddController(name string, controller controller.Interface) {
-	independent.Controllers.Set(name, controller)
+// AddController of category
+func (independent *Service) AddController(category string, controller controller.Interface) {
+	independent.Controllers.Set(category, controller)
 }
 
-// RequireProxy adds a proxy that's needed for this service to run
+// RequireProxy adds a proxy that's needed for this service to run.
+// Service has to have a pipeline.
 func (independent *Service) RequireProxy(url string, contextType context.Type) {
 	independent.RequiredProxies.Set(url, contextType)
 }
