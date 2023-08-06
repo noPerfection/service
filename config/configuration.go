@@ -11,8 +11,6 @@ import (
 	"github.com/ahmetson/service-lib/config/arg"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/os/path"
-	"github.com/ahmetson/service-lib/service/orchestra"
-	"github.com/ahmetson/service-lib/service/orchestra/dev"
 	"github.com/fsnotify/fsnotify"
 	"path/filepath"
 	"time"
@@ -32,7 +30,6 @@ type Config struct {
 	Secure       bool
 	logger       *log.Logger // debug purpose only
 	Service      *service.Service
-	Context      orchestra.Interface
 	handleChange func(*service.Service, error)
 }
 
@@ -85,17 +82,6 @@ func New(parent *log.Logger) (*Config, error) {
 		config.viper.SetDefault("SERVICE_CONFIG_NAME", "service")
 		config.viper.SetDefault("SERVICE_CONFIG_PATH", execPath)
 	}
-
-	contextDefault, err := dev.GetDefaultConfigs()
-	if err != nil {
-		return nil, fmt.Errorf("orchestra.GetDefaultConfigs: %w", err)
-	}
-	config.SetDefaults(*contextDefault)
-	devContext, err := dev.New(&config)
-	if err != nil {
-		return nil, fmt.Errorf("orchestra.NewDev: %w", err)
-	}
-	config.Context = devContext
 
 	configName := config.viper.GetString("SERVICE_CONFIG_NAME")
 	configPath := config.viper.GetString("SERVICE_CONFIG_PATH")

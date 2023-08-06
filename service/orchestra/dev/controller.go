@@ -21,8 +21,8 @@ import (
 // onClose closing all the dependencies in the orchestra.
 func (context *Context) onClose(request message.Request, logger *log.Logger, _ ...*client.ClientSocket) message.Reply {
 	logger.Info("closing the orchestra",
-		"orchestra type", context.config.GetType(),
-		"service", context.config.GetUrl(),
+		"orchestra type", context.GetType(),
+		"service", context.GetUrl(),
 		"todo", "close all dependencies if any",
 		"todo", "close the main service",
 		"goal", "exit the application")
@@ -75,8 +75,8 @@ func (context *Context) Run(logger *log.Logger) error {
 		return fmt.Errorf("server.SyncReplierType: %w", err)
 	}
 
-	config := config.InternalConfiguration(config.ContextName(context.config.GetUrl()))
-	replier.AddConfig(config, context.config.GetUrl())
+	config := config.InternalConfiguration(config.ContextName(context.GetUrl()))
+	replier.AddConfig(config, context.GetUrl())
 
 	closeRoute := command.NewRoute("close", context.onClose)
 	serviceReadyRoute := command.NewRoute("service-ready", context.onServiceReady)
@@ -105,7 +105,7 @@ func (context *Context) Close(logger *log.Logger) error {
 		logger.Warn("skipping, since orchestra.ControllerCategory is not initialised", "todo", "call orchestra.Run()")
 		return nil
 	}
-	contextName, contextPort := config.ClientUrlParameters(config.ContextName(context.config.GetUrl()))
+	contextName, contextPort := config.ClientUrlParameters(config.ContextName(context.GetUrl()))
 	contextClient, err := client.NewReq(contextName, contextPort, logger)
 	if err != nil {
 		logger.Error("client.NewReq", "error", err)
@@ -139,7 +139,7 @@ func (context *Context) ServiceReady(logger *log.Logger) error {
 		logger.Warn("orchestra.ControllerCategory is not initialised", "todo", "call orchestra.Run()")
 		return nil
 	}
-	contextName, contextPort := config.ClientUrlParameters(config.ContextName(context.config.GetUrl()))
+	contextName, contextPort := config.ClientUrlParameters(config.ContextName(context.GetUrl()))
 	contextClient, err := client.NewReq(contextName, contextPort, logger)
 	if err != nil {
 		return fmt.Errorf("close the service by hand. client.NewReq: %w", err)
@@ -172,7 +172,7 @@ func (context *Context) closeService(logger *log.Logger) error {
 	}
 	logger.Info("main service is linted to the orchestra. send a signal to main service to be closed")
 
-	contextName, contextPort := config.ClientUrlParameters(config.ManagerName(context.config.GetUrl()))
+	contextName, contextPort := config.ClientUrlParameters(config.ManagerName(context.GetUrl()))
 	contextClient, err := client.NewReq(contextName, contextPort, logger)
 	if err != nil {
 		return fmt.Errorf("close the service by hand. client.NewReq: %w", err)

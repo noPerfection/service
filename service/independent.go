@@ -34,7 +34,7 @@ type Service struct {
 	RequiredProxies []string             // url => orchestra type
 	Logger          *log.Logger
 	Context         *dev2.Context
-	manager         server.Interface // manage this service from other parts. it should be called before orchestra runs
+	manager         server.Interface // manage this service from other parts. it should be called before the orchestra runs
 }
 
 // New service with the config engine and logger. Logger is used as is.
@@ -102,7 +102,7 @@ func (independent *Service) requiredControllerExtensions() []string {
 
 func (independent *Service) prepareServiceConfiguration(expectedType service.Type) error {
 	// validate the service itself
-	config := independent.Config
+	conf := independent.Config
 	serviceConfig := independent.Config.Service
 	if len(serviceConfig.Type) == 0 {
 		if !arg.Exist(arg.Url) {
@@ -117,7 +117,7 @@ func (independent *Service) prepareServiceConfiguration(expectedType service.Typ
 		serviceConfig = &service.Service{
 			Type:      expectedType,
 			Url:       url,
-			Id:        config.Name + " 1",
+			Id:        conf.Name + " 1",
 			Pipelines: make([]*pipeline.Pipeline, 0),
 		}
 	} else if serviceConfig.Type != expectedType {
@@ -125,7 +125,6 @@ func (independent *Service) prepareServiceConfiguration(expectedType service.Typ
 	}
 
 	independent.Config.Service = serviceConfig
-	independent.Config.Context.SetUrl(serviceConfig.Url)
 
 	return nil
 }
@@ -216,13 +215,13 @@ func (independent *Service) preparePipelineConfigurations() error {
 	if servicePipeline != nil {
 		servicePipeline.End.Url = independent.Config.Service.Url
 		independent.Logger.Info("dont forget to update the yaml with the controllerPipeline service end url")
-		err := pipeline.LintToService(independent.Config.Context, independent.Config.Service, servicePipeline)
+		err := pipeline.LintToService(independent.Context, independent.Config.Service, servicePipeline)
 		if err != nil {
 			return fmt.Errorf("pipeline.LintToService: %w", err)
 		}
 	}
 
-	err := pipeline.LintToControllers(independent.Config.Context, independent.Config.Service, independent.pipelines)
+	err := pipeline.LintToControllers(independent.Context, independent.Config.Service, independent.pipelines)
 	if err != nil {
 		return fmt.Errorf("pipeline.LintToControllers: %w", err)
 	}
@@ -269,8 +268,8 @@ func (independent *Service) runManager() error {
 		return fmt.Errorf("server.SyncReplierType: %w", err)
 	}
 
-	config := config.InternalConfiguration(config.ManagerName(independent.Config.Service.Url))
-	replier.AddConfig(config, independent.Config.Service.Url)
+	conf := config.InternalConfiguration(config.ManagerName(independent.Config.Service.Url))
+	replier.AddConfig(conf, independent.Config.Service.Url)
 
 	closeRoute := command.NewRoute("close", independent.onClose)
 	err = replier.AddRoute(closeRoute)
@@ -453,7 +452,7 @@ func (independent *Service) BuildConfiguration() {
 
 	independent.Config.Service.Url = url
 
-	err = independent.Config.Context.SetConfig(outputPath, independent.Config.Service)
+	err = independent.Context.SetConfig(outputPath, independent.Config.Service)
 	if err != nil {
 		independent.Logger.Fatal("failed to write the proxy into the file", "error", err)
 	}
@@ -463,7 +462,7 @@ func (independent *Service) BuildConfiguration() {
 	os.Exit(0)
 }
 
-// Run the service service.
+// Run the service.
 func (independent *Service) Run() {
 	independent.BuildConfiguration()
 	var wg sync.WaitGroup
