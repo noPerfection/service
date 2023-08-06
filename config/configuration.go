@@ -8,7 +8,7 @@ package config
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/config/argument"
+	"github.com/ahmetson/service-lib/config/arg"
 	"github.com/ahmetson/service-lib/config/context"
 	"github.com/ahmetson/service-lib/config/context/dev"
 	"github.com/ahmetson/service-lib/config/service"
@@ -27,7 +27,7 @@ type Config struct {
 	Name  string       // application name
 	viper *viper.Viper // used to keep default values
 
-	// Passed as --secure command line argument.
+	// Passed as --secure command line arg.
 	// If it's passed, then authentication is switched off.
 	Secure       bool
 	logger       *log.Logger // debug purpose only
@@ -57,7 +57,7 @@ func New(parent *log.Logger) (*Config, error) {
 		return nil, fmt.Errorf("loading environment variables: %w", err)
 	}
 
-	paths, _ := argument.GetEnvPaths()
+	paths, _ := arg.GetEnvPaths()
 	config.logger.Info("Starting Viper with environment variables", "loaded files", paths)
 
 	// replace the values with the ones we fetched from environment variables
@@ -70,8 +70,8 @@ func New(parent *log.Logger) (*Config, error) {
 	}
 
 	// Use the service config given from the path
-	if argument.Exist(argument.Configuration) {
-		configurationPath, err := argument.Value(argument.Configuration)
+	if arg.Exist(arg.Configuration) {
+		configurationPath, err := arg.Value(arg.Configuration)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get the config path: %w", err)
 		}

@@ -17,7 +17,7 @@ import (
 // and set the default values to the request timeout
 
 // Request-Reply checks the internet connection after this amount of time.
-// This is the default time if argument wasn't given that changes the REQUEST_TIMEOUT
+// This is the default time if arg wasn't given that changes the REQUEST_TIMEOUT
 const (
 	// DefaultTimeout in the seconds.
 	// Set the SDS_REQUEST_TIMEOUT.

@@ -12,8 +12,8 @@ const DevContext Type = "development"
 const DefaultContext Type = "default"
 
 type Interface interface {
-	ReadService(string) (*service.Service, error) // string argument is the service url
-	WriteService(string, *service.Service) error  // string argument is service url
+	ReadService(string) (*service.Service, error) // string arg is the service url
+	WriteService(string, *service.Service) error  // string arg is service url
 	Paths() []string
 	SetUrl(url string)
 	GetUrl() string

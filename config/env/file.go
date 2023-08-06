@@ -5,20 +5,20 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 
-	"github.com/ahmetson/service-lib/config/argument"
+	"github.com/ahmetson/service-lib/config/arg"
 	"github.com/joho/godotenv"
 )
 
-// LoadAnyEnv gets the list of all .env file paths in the command line argument.
+// LoadAnyEnv gets the list of all .env file paths in the command line arg.
 // Then loads them up to the application's environment variables.
 //
 // The values later will be available via app/config.Config.
 //
 // The .env files are locations are related to the exec path
 func LoadAnyEnv() error {
-	opts, err := argument.GetEnvPaths()
+	opts, err := arg.GetEnvPaths()
 	if err != nil {
-		return fmt.Errorf("argument.GetEnvPaths: %w", err)
+		return fmt.Errorf("arg.GetEnvPaths: %w", err)
 	}
 
 	if len(opts) == 0 {

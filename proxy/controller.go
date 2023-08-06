@@ -150,7 +150,7 @@ func (controller *Controller) Run() {
 
 	//  Switch messages between sockets
 	for {
-		// The '-1' argument indicates waiting for the
+		// The '-1' arg indicates waiting for the
 		// infinite amount of time.
 		sockets, err := poller.Poll(-1)
 		if err != nil {

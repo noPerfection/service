@@ -1,4 +1,4 @@
-package argument
+package arg
 
 import (
 	"fmt"
@@ -52,17 +52,17 @@ func (suite *TestArgumentSuite) TestRun() {
 	suite.False(Has(arguments, "not_exist"))
 	// The .env variable doesn't exist
 	suite.False(Has(arguments, "./.test.env"))
-	// Key Value argument is returned
+	// Key Value arg is returned
 	suite.True(Has(arguments, "number-key"))
 	suite.True(Has(arguments, "plain"))
 	suite.True(Has(arguments, "account"))
 
-	// Identical to argument.Has() except that
+	// Identical to arg.Has() except that
 	// arguments are loaded from OS directly
 	suite.False(Exist("not_exist"))
 	// The .env variable doesn't exist
 	suite.False(Exist("./.test.env"))
-	// Key Value argument is returned
+	// Key Value arg is returned
 	suite.True(Exist("number-key"))
 	suite.True(Exist("plain"))
 	suite.True(Exist("account"))

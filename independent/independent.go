@@ -12,7 +12,7 @@ import (
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/config/argument"
+	"github.com/ahmetson/service-lib/config/arg"
 	"github.com/ahmetson/service-lib/config/context"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/config/service/converter"
@@ -106,13 +106,13 @@ func (independent *Service) prepareServiceConfiguration(expectedType service.Typ
 	config := independent.Config
 	serviceConfig := independent.Config.Service
 	if len(serviceConfig.Type) == 0 {
-		if !argument.Exist(argument.Url) {
+		if !arg.Exist(arg.Url) {
 			return fmt.Errorf("missing --url")
 		}
 
-		url, err := argument.Value(argument.Url)
+		url, err := arg.Value(arg.Url)
 		if err != nil {
-			return fmt.Errorf("argument.Value: %w", err)
+			return fmt.Errorf("arg.Value: %w", err)
 		}
 
 		serviceConfig = &service.Service{
@@ -432,15 +432,15 @@ closeContext:
 // BuildConfiguration is invoked from Run. It's passed if the --build-config flag was given.
 // This function creates a yaml config with the service parameters.
 func (independent *Service) BuildConfiguration() {
-	if !argument.Exist(argument.BuildConfiguration) {
+	if !arg.Exist(arg.BuildConfiguration) {
 		return
 	}
-	relativePath, err := argument.Value(argument.Path)
+	relativePath, err := arg.Value(arg.Path)
 	if err != nil {
 		independent.Logger.Fatal("requires 'path' flag", "error", err)
 	}
 
-	url, err := argument.Value(argument.Url)
+	url, err := arg.Value(arg.Url)
 	if err != nil {
 		independent.Logger.Fatal("requires 'url' flag", "error", err)
 	}

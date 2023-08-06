@@ -6,7 +6,7 @@ package dev
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/config/argument"
+	"github.com/ahmetson/service-lib/config/arg"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/os/network"
@@ -364,7 +364,7 @@ func cleanBuild(srcUrl string, logger *log.Logger) error {
 
 func bindEnvs(context *Context, args []string) ([]string, error) {
 	envs := []string{context.config.EnvPath()}
-	loadedEnvs, err := argument.GetEnvPaths()
+	loadedEnvs, err := arg.GetEnvPaths()
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to get env paths: %w", err)
 	} else {
