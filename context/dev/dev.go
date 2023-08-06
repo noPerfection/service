@@ -42,13 +42,13 @@ import (
 	"github.com/ahmetson/service-lib/configuration/context"
 	"github.com/ahmetson/service-lib/configuration/context/dev"
 	"github.com/ahmetson/service-lib/configuration/env"
-	"github.com/ahmetson/service-lib/controller"
+	"github.com/ahmetson/service-lib/server"
 	"os"
 )
 
 type Context struct {
 	config       *dev.Context
-	controller   controller.Interface
+	controller   server.Interface
 	serviceReady bool
 	deps         map[string]*Dep
 }

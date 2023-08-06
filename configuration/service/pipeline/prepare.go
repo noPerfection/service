@@ -83,7 +83,7 @@ func newDestinationInstances(config *service.Controller) []service.Instance {
 }
 
 // returns generated source and destination controllers.
-// the parameters of the destination controller derived from config.
+// the parameters of the destination server derived from config.
 func newProxyControllers(config *service.Controller) []*service.Controller {
 	// set the source
 	return []*service.Controller{
@@ -106,7 +106,7 @@ func rewriteControllers(proxyConfig *service.Service, controllers []*service.Con
 	if len(controllers) == 0 {
 		return fmt.Errorf("no destination controllers")
 	}
-	// two times more, source and destinationService for each controller
+	// two times more, source and destinationService for each server
 	proxyConfig.Controllers = make([]*service.Controller, len(controllers)*2)
 	set := 0
 
@@ -145,7 +145,7 @@ func LintControllers(proxyDestinations []*service.Controller, serviceControllers
 		}
 
 		if dest.Type != controllerConfig.Type {
-			return false, fmt.Errorf("proxy #%d destination type %s mismatches service controller: %s", i, dest.Type, controllerConfig.Type)
+			return false, fmt.Errorf("proxy #%d destination type %s mismatches service server: %s", i, dest.Type, controllerConfig.Type)
 		}
 	}
 
@@ -222,8 +222,8 @@ func LintToControllers(ctx context.Interface, serviceConfig *service.Service, pi
 	}
 	controllerPipelines := FindControllerEnds(pipelines)
 
-	// lets lint the controller's last head destination to the service controller's source or
-	// to the controller itself.
+	// lets lint the server's last head destination to the service server's source or
+	// to the server itself.
 	for _, controllerPipeline := range controllerPipelines {
 		if servicePipeline != nil {
 			if err := lintLastToProxy(ctx, serviceProxyConfig, controllerPipeline); err != nil {
@@ -244,8 +244,8 @@ func LintToControllers(ctx context.Interface, serviceConfig *service.Service, pi
 }
 
 func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, pipeline *Pipeline) error {
-	// lets lint the controller's last head destination to the service controller's source or
-	// to the controller itself.
+	// lets lint the server's last head destination to the service server's source or
+	// to the server itself.
 	lastUrl := pipeline.HeadLast()
 
 	lastConfig, err := ctx.ReadService(lastUrl)
@@ -275,8 +275,8 @@ func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, pipe
 	return nil
 }
 func lintLastToController(ctx context.Interface, serviceConfig *service.Service, pipeline *Pipeline) error {
-	// lets lint the controller's last head destination to the service controller's source or
-	// to the controller itself.
+	// lets lint the server's last head destination to the service server's source or
+	// to the server itself.
 	lastUrl := pipeline.HeadLast()
 
 	lastConfig, err := ctx.ReadService(lastUrl)
@@ -284,7 +284,7 @@ func lintLastToController(ctx context.Interface, serviceConfig *service.Service,
 		return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 	}
 
-	// During the addition of the service, it should validate the controller
+	// During the addition of the service, it should validate the server
 	controllerConfigs, _ := serviceConfig.GetControllers(pipeline.End.Id)
 
 	if len(lastConfig.Controllers) != 2 {

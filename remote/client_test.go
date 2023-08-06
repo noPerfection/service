@@ -24,7 +24,7 @@ type TestSocketSuite struct {
 // Test close (attempt to request)
 
 // Todo test in-process and external types of controllers
-// Todo test the business of the controller
+// Todo test the business of the server
 // Make sure that Account is set to five
 // before each test
 func (suite *TestSocketSuite) SetupTest() {

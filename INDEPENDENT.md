@@ -39,10 +39,10 @@ Services:
     Url: github.com/ahmetson/     # Custom name of the service to classify it.
     Instance: unique-id   # Unique id through this configuration
     Controllers:
-      - Name: Name        # Source controller
-        Type: Replier     # The type of the controller.
+      - Name: Name        # Source server
+        Type: Replier     # The type of the server.
         Instances:
-          - Instance: unique-controller
+          - Instance: unique-server
             Port: 8082
       - Name: pub
         Type: Publisher
@@ -52,7 +52,7 @@ Services:
     Proxies:
       - Url: "" # optional proxies that it depends on
     Pipeline:
-      - "proxy->controller" # name of the proxy to bind to the controller name
+      - "proxy->server" # name of the proxy to bind to the server name
     Extensions:
       - Url: "database"  # optional extension that it depends on.
                           # the extensions are passed to the handlers.
@@ -84,7 +84,7 @@ func main() {
 	logger, _ := log.New("app-name", false)
 	appConfig, _ := configuration.New(logger)
 
-	service, _ := independent.New(appConfig, logger.Child("controller"))
+	service, _ := independent.New(appConfig, logger.Child("server"))
 	
 	// The extensions are defined in the controllers
 	replier := handler.NewReplier(logger)
@@ -94,7 +94,7 @@ func main() {
 	proxyUrl := "github.com/ahmetson/web-proxy"
 	service.RequireProxy(proxyUrl)
 	
-	// Assign the controller to the proxy
+	// Assign the server to the proxy
 	service.Pipe(proxyUrl, "replierInstance")
 	
 	service.Prepare()

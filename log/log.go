@@ -133,7 +133,7 @@ func (logger *Logger) Error(title string, kv ...interface{}) {
 //
 //	parent, _ := log.New("main", false)
 //	db_log, _ := parent.Child("database")
-//	reply, _ := parent.Child("controller")
+//	reply, _ := parent.Child("server")
 //
 //	parent.Info("starting", "security_enabled", true)
 //	db_log.Info("starting")
@@ -142,7 +142,7 @@ func (logger *Logger) Error(title string, kv ...interface{}) {
 //	// prints the following
 //	// INFO main: starting: security_enabled=true
 //	// INFO main::database: starting
-//	// INFO main::controller: starting, port=443
+//	// INFO main::server: starting, port=443
 func (logger *Logger) Child(prefix string, kv ...interface{}) *Logger {
 	child := logger.logger.With(kv...)
 	child.SetReportTimestamp(true)

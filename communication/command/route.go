@@ -11,7 +11,7 @@ import (
 // HandleFunc is the function type that manipulates the commands.
 // It accepts at least message.Request and log.Logger then returns message.Reply.
 //
-// Optionally, the controller can pass the shared states in the additional parameters.
+// Optionally, the server can pass the shared states in the additional parameters.
 // The most use case for optional parameter is to pass the link to the Database.
 type HandleFunc = func(message.Request, *log.Logger, ...*remote.ClientSocket) message.Reply
 

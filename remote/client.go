@@ -184,7 +184,7 @@ func (socket *ClientSocket) Close() error {
 
 //
 //// RequestRouter sends a request message to the router.
-//// Then the router will redirect it to the controller defined in the service_type.
+//// Then the router will redirect it to the server defined in the service_type.
 ////
 //// Supports both inproc and TCP protocols.
 ////
@@ -442,7 +442,7 @@ func (socket *ClientSocket) RequestRawMessage(requestString string) ([]string, e
 
 // NewTcpSocket creates a new client socket over TCP protocol.
 //
-// The returned socket client then can send a message to controller.Router and controller.Reply
+// The returned socket client then can send a message to server.Router and server.Reply
 func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig *configuration.Config) (*ClientSocket, error) {
 	if appConfig == nil {
 		return nil, fmt.Errorf("missing app_config")
@@ -476,7 +476,7 @@ func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig 
 
 // NewReq creates a new client to connect to the service labeled as name (usually it's url)
 //
-// The returned socket client then can send a message to the controller.Replier
+// The returned socket client then can send a message to the server.Replier
 func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error) {
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
@@ -514,7 +514,7 @@ func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error)
 }
 
 // InprocRequestSocket creates a client socket with inproc protocol.
-// The created client socket can connect to controller.Router or controller.Reply.
+// The created client socket can connect to server.Router or server.Reply.
 //
 // The `url` parameter must start with `inproc://`
 func InprocRequestSocket(url string, parent *log.Logger, appConfig *configuration.Config) (*ClientSocket, error) {
@@ -604,7 +604,7 @@ func InprocRequestSocket(url string, parent *log.Logger, appConfig *configuratio
 // 	}, nil
 // }
 
-// ClientUrl creates url of the controller for the client to connect
+// ClientUrl creates url of the server for the client to connect
 //
 // If the port is 0, then the client will be inproc, not as tcp
 func ClientUrl(name string, port uint64) string {

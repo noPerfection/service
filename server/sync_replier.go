@@ -1,4 +1,4 @@
-package controller
+package server
 
 import (
 	"fmt"
@@ -23,9 +23,9 @@ func newController(logger *log.Logger) *Controller {
 	}
 }
 
-// SyncReplier creates a new synchronous Reply controller.
+// SyncReplier creates a new synchronous Reply server.
 func SyncReplier(parent *log.Logger) (*Controller, error) {
-	logger := parent.Child("controller", "type", service.SyncReplierType)
+	logger := parent.Child("server", "type", service.SyncReplierType)
 
 	instance := newController(logger)
 	instance.controllerType = service.SyncReplierType
@@ -41,7 +41,7 @@ func (c *Controller) prepare() error {
 		return fmt.Errorf("initExtensionClients: %w", err)
 	}
 	if c.config == nil || len(c.config.Instances) == 0 {
-		return fmt.Errorf("controller doesn't have the configuration or instances are missing")
+		return fmt.Errorf("server doesn't have the configuration or instances are missing")
 	}
 
 	return nil
@@ -64,11 +64,11 @@ func Bind(sock *zmq.Socket, url string, port uint64) error {
 					}
 				}
 			} else {
-				err = fmt.Errorf(`controller.socket.Bind("tcp://*:%d)": %w`, port, err)
+				err = fmt.Errorf(`server.socket.Bind("tcp://*:%d)": %w`, port, err)
 			}
 			return err
 		} else {
-			return fmt.Errorf(`controller.socket.bind("inproc://%s"): %w`, url, err)
+			return fmt.Errorf(`server.socket.bind("inproc://%s"): %w`, url, err)
 		}
 	}
 
@@ -125,7 +125,7 @@ func (c *Controller) processMessage(msgRaw []string, metadata map[string]string)
 func (c *Controller) Run() error {
 	var err error
 	if err := c.prepare(); err != nil {
-		return fmt.Errorf("controller.prepare: %w", err)
+		return fmt.Errorf("server.prepare: %w", err)
 	}
 
 	// Socket to talk to clients
@@ -135,7 +135,7 @@ func (c *Controller) Run() error {
 	}
 
 	// if secure and not inproc
-	// then we add the domain name of controller to the security layer,
+	// then we add the domain name of server to the security layer,
 	//
 	// then any pass-listing users will be sent there.
 	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")

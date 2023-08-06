@@ -1,4 +1,4 @@
-package controller
+package server
 
 import (
 	"fmt"
@@ -26,26 +26,26 @@ type Controller struct {
 	extensions         remote.Clients
 }
 
-// AddConfig adds the parameters of the controller from the configuration.
-// The serviceUrl is the service to which this controller belongs too.
+// AddConfig adds the parameters of the server from the configuration.
+// The serviceUrl is the service to which this server belongs too.
 func (c *Controller) AddConfig(controller *service.Controller, serviceUrl string) {
 	c.config = controller
 	c.serviceUrl = serviceUrl
 }
 
-// AddExtensionConfig adds the configuration of the extension that the controller depends on
+// AddExtensionConfig adds the configuration of the extension that the server depends on
 func (c *Controller) AddExtensionConfig(extension *service.Extension) {
 	c.extensionConfigs.Set(extension.Url, extension)
 }
 
-// RequireExtension marks the extensions that this controller depends on.
+// RequireExtension marks the extensions that this server depends on.
 // Before running, the required extension should be added from the configuration.
-// Otherwise, controller won't run.
+// Otherwise, server won't run.
 func (c *Controller) RequireExtension(name string) {
 	c.requiredExtensions = append(c.requiredExtensions, name)
 }
 
-// RequiredExtensions returns the list of extension names required by this controller
+// RequiredExtensions returns the list of extension names required by this server
 func (c *Controller) RequiredExtensions() []string {
 	return c.requiredExtensions
 }
@@ -56,7 +56,7 @@ func (c *Controller) isReply() bool {
 
 // A reply sends to the caller the message.
 //
-// If controller doesn't support replying (for example, PULL controller),
+// If server doesn't support replying (for example, PULL server),
 // then it returns success.
 func (c *Controller) reply(socket *zmq.Socket, message message.Reply) error {
 	if !c.isReply() {
@@ -71,13 +71,13 @@ func (c *Controller) reply(socket *zmq.Socket, message message.Reply) error {
 	return nil
 }
 
-// Calls controller.reply() with the error message.
+// Calls server.reply() with the error message.
 func (c *Controller) replyError(socket *zmq.Socket, err error) error {
 	request := message.Request{}
 	return c.reply(socket, request.Fail(err.Error()))
 }
 
-// AddRoute adds a command along with its handler to this controller
+// AddRoute adds a command along with its handler to this server
 func (c *Controller) AddRoute(route *command.Route) error {
 	if c.routes.Exist(route.Command) {
 		return nil
@@ -91,12 +91,12 @@ func (c *Controller) AddRoute(route *command.Route) error {
 	return nil
 }
 
-// extensionsAdded checks that the required extensions are added into the controller.
-// If no extensions are added by calling controller.RequireExtension(), then it will return nil.
+// extensionsAdded checks that the required extensions are added into the server.
+// If no extensions are added by calling server.RequireExtension(), then it will return nil.
 func (c *Controller) extensionsAdded() error {
 	for _, name := range c.requiredExtensions {
 		if err := c.extensionConfigs.Exist(name); err != nil {
-			return fmt.Errorf("required '%s' extension. but it wasn't added to the controller (does it exist in configuration.yml?)", name)
+			return fmt.Errorf("required '%s' extension. but it wasn't added to the server (does it exist in configuration.yml?)", name)
 		}
 	}
 
@@ -107,12 +107,12 @@ func (c *Controller) ControllerType() service.ControllerType {
 	return c.controllerType
 }
 
-// initExtensionClients will set up the extension clients for this controller.
+// initExtensionClients will set up the extension clients for this server.
 // It will be called by c.Run(), automatically.
 //
 // The reason for why we call it by c.Run() is due to the thread-safety.
 //
-// The controller is intended to be called as the goroutine. And if the sockets
+// The server is intended to be called as the goroutine. And if the sockets
 // are not initiated within the same goroutine, then zeromq doesn't guarantee the socket work
 // as it's intended.
 func (c *Controller) initExtensionClients() error {
@@ -135,13 +135,13 @@ func (c *Controller) Close() error {
 
 	err := c.socket.Close()
 	if err != nil {
-		return fmt.Errorf("controller.socket.Close: %w", err)
+		return fmt.Errorf("server.socket.Close: %w", err)
 	}
 
 	return nil
 }
 
-// Url creates url of the controller url for binding.
+// Url creates url of the server url for binding.
 // For clients to connect to this url, call remote.ClientUrl()
 func Url(name string, port uint64) string {
 	if port == 0 {

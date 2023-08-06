@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/ahmetson/service-lib/configuration"
 	service2 "github.com/ahmetson/service-lib/configuration/service"
-	"github.com/ahmetson/service-lib/controller"
+	"github.com/ahmetson/service-lib/server"
 	"github.com/ahmetson/service-lib/independent"
 	"github.com/ahmetson/service-lib/log"
 )
@@ -36,28 +36,28 @@ func New(config *configuration.Config, parent *log.Logger) (*Extension, error) {
 	return &service, nil
 }
 
-// AddController creates a controller of this extension
+// AddController creates a server of this extension
 func (extension *Extension) AddController(controllerType service2.ControllerType) error {
 	if controllerType == service2.UnknownType {
-		return fmt.Errorf("unknown controller type can't be in the extension")
+		return fmt.Errorf("unknown server type can't be in the extension")
 	}
 
 	if controllerType == service2.SyncReplierType {
-		replier, err := controller.SyncReplier(extension.service.Logger)
+		replier, err := server.SyncReplier(extension.service.Logger)
 		if err != nil {
-			return fmt.Errorf("controller.NewReplier: %w", err)
+			return fmt.Errorf("server.NewReplier: %w", err)
 		}
 		extension.service.AddController(defaultControllerName, replier)
 	} else if controllerType == service2.ReplierType {
-		//router, err := controller.NewRouter(controllerLogger)
+		//router, err := server.NewRouter(controllerLogger)
 		//if err != nil {
-		//	return fmt.Errorf("controller.NewRouter: %w", err)
+		//	return fmt.Errorf("server.NewRouter: %w", err)
 		//}
 		//extension.ControllerCategory = router
 	} else if controllerType == service2.PusherType {
-		puller, err := controller.NewPull(extension.service.Logger)
+		puller, err := server.NewPull(extension.service.Logger)
 		if err != nil {
-			return fmt.Errorf("controller.NewPuller: %w", err)
+			return fmt.Errorf("server.NewPuller: %w", err)
 		}
 		extension.service.AddController(defaultControllerName, puller)
 	}
@@ -65,9 +65,9 @@ func (extension *Extension) AddController(controllerType service2.ControllerType
 	return nil
 }
 
-func (extension *Extension) GetController() controller.Interface {
+func (extension *Extension) GetController() server.Interface {
 	controllerInterface, _ := extension.service.Controllers[defaultControllerName]
-	return controllerInterface.(controller.Interface)
+	return controllerInterface.(server.Interface)
 }
 
 func (extension *Extension) GetControllerName() string {
@@ -82,7 +82,7 @@ func (extension *Extension) Prepare() error {
 	}
 
 	if len(extension.service.Controllers) != 1 {
-		return fmt.Errorf("extensions support one controller only")
+		return fmt.Errorf("extensions support one server only")
 	}
 
 	return nil

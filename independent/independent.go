@@ -1,6 +1,6 @@
 // Package independent is the primary service.
 // This package is calling out the context. Then within that context sets up
-// - controller
+// - server
 // - proxies
 // - extensions
 package independent
@@ -17,7 +17,7 @@ import (
 	"github.com/ahmetson/service-lib/configuration/service/converter"
 	"github.com/ahmetson/service-lib/configuration/service/pipeline"
 	"github.com/ahmetson/service-lib/context/dev"
-	"github.com/ahmetson/service-lib/controller"
+	"github.com/ahmetson/service-lib/server"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/os/network"
 	"github.com/ahmetson/service-lib/os/path"
@@ -35,7 +35,7 @@ type Service struct {
 	RequiredProxies []string             // url => context type
 	Logger          *log.Logger
 	Context         *dev.Context
-	manager         controller.Interface // manage this service from other parts. it should be called before context runs
+	manager         server.Interface // manage this service from other parts. it should be called before context runs
 }
 
 // New service with the configuration engine and logger. Logger is used as is.
@@ -52,7 +52,7 @@ func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
 }
 
 // AddController of category
-func (independent *Service) AddController(category string, controller controller.Interface) {
+func (independent *Service) AddController(category string, controller server.Interface) {
 	independent.Controllers.Set(category, controller)
 }
 
@@ -94,7 +94,7 @@ func (independent *Service) Pipeline(pipeEnd *pipeline.PipeEnd, proxyUrls ...str
 func (independent *Service) requiredControllerExtensions() []string {
 	var extensions []string
 	for _, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(controller.Interface)
+		c := controllerInterface.(server.Interface)
 		extensions = append(extensions, c.RequiredExtensions()...)
 	}
 
@@ -134,11 +134,11 @@ func (independent *Service) prepareServiceConfiguration(expectedType service.Typ
 func (independent *Service) prepareControllerConfigurations() error {
 	// validate the Controllers
 	for name, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(controller.Interface)
+		c := controllerInterface.(server.Interface)
 
 		err := independent.PrepareControllerConfiguration(name, c.ControllerType())
 		if err != nil {
-			return fmt.Errorf("prepare '%s' controller configuration as '%s' type: %w", name, c.ControllerType(), err)
+			return fmt.Errorf("prepare '%s' server configuration as '%s' type: %w", name, c.ControllerType(), err)
 		}
 	}
 
@@ -152,7 +152,7 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 	controllerConfig, err := serviceConfig.GetController(name)
 	if err == nil {
 		if controllerConfig.Type != as {
-			return fmt.Errorf("controller expected to be of '%s' type, not '%s'", as, controllerConfig.Type)
+			return fmt.Errorf("server expected to be of '%s' type, not '%s'", as, controllerConfig.Type)
 		}
 	} else {
 		controllerConfig = &service.Controller{
@@ -166,7 +166,7 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 
 	err = independent.prepareInstanceConfiguration(controllerConfig)
 	if err != nil {
-		return fmt.Errorf("failed preparing '%s' controller instance configuration: %w", controllerConfig.Category, err)
+		return fmt.Errorf("failed preparing '%s' server instance configuration: %w", controllerConfig.Category, err)
 	}
 
 	return nil
@@ -195,7 +195,7 @@ func (independent *Service) prepareInstanceConfiguration(controllerConfig *servi
 	return nil
 }
 
-// prepareConfiguration prepares yaml in service, controller, and controller instances
+// prepareConfiguration prepares yaml in service, server, and server instances
 func (independent *Service) prepareConfiguration(expectedType service.Type) error {
 	if err := independent.prepareServiceConfiguration(expectedType); err != nil {
 		return fmt.Errorf("prepareServiceConfiguration as %s: %w", expectedType, err)
@@ -239,7 +239,7 @@ func (independent *Service) onClose(request message.Request, logger *log.Logger,
 	)
 
 	for name, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(controller.Interface)
+		c := controllerInterface.(server.Interface)
 		if c == nil {
 			continue
 		}
@@ -247,10 +247,10 @@ func (independent *Service) onClose(request message.Request, logger *log.Logger,
 		// I expect that the killing process will release its resources as well.
 		err := c.Close()
 		if err != nil {
-			logger.Error("controller.Close", "error", err, "controller", name)
-			request.Fail(fmt.Sprintf(`controller.Close("%s"): %v`, name, err))
+			logger.Error("server.Close", "error", err, "server", name)
+			request.Fail(fmt.Sprintf(`server.Close("%s"): %v`, name, err))
 		}
-		logger.Info("controller was closed", "name", name)
+		logger.Info("server was closed", "name", name)
 	}
 
 	// remove the context lint
@@ -265,9 +265,9 @@ func (independent *Service) onClose(request message.Request, logger *log.Logger,
 //
 // The logger is the server logger as it is. The context will create its own logger from it.
 func (independent *Service) runManager() error {
-	replier, err := controller.SyncReplier(independent.Logger.Child("manager"))
+	replier, err := server.SyncReplier(independent.Logger.Child("manager"))
 	if err != nil {
-		return fmt.Errorf("controller.SyncReplierType: %w", err)
+		return fmt.Errorf("server.SyncReplierType: %w", err)
 	}
 
 	config := configuration.InternalConfiguration(configuration.ManagerName(independent.Config.Service.Url))
@@ -340,7 +340,7 @@ func (independent *Service) Prepare(as service.Type) error {
 		}
 
 		if len(independent.pipelines) == 0 {
-			err = fmt.Errorf("no pipepline to lint the proxy to the controller")
+			err = fmt.Errorf("no pipepline to lint the proxy to the server")
 			goto closeContext
 		}
 
@@ -375,7 +375,7 @@ func (independent *Service) Prepare(as service.Type) error {
 	// lint extensions, configurations to the controllers
 	//---------------------------------------------------------
 	for name, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(controller.Interface)
+		c := controllerInterface.(server.Interface)
 		var controllerConfig *service.Controller
 		var controllerExtensions []string
 
@@ -476,7 +476,7 @@ func (independent *Service) Run() {
 	}
 
 	for name, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(controller.Interface)
+		c := controllerInterface.(server.Interface)
 		if err = independent.Controllers.Exist(name); err != nil {
 			independent.Logger.Error("independent.Controllers.Exist", "configuration", name, "error", err)
 			break
@@ -502,11 +502,11 @@ errOccurred:
 		if independent.Context != nil {
 			independent.Logger.Warn("context wasn't closed, close it")
 			independent.Logger.Warn("might happen a race condition." +
-				"if the error occurred in the controller" +
+				"if the error occurred in the server" +
 				"here we will close the context." +
 				"context will close the service." +
 				"service will again will come to this place, since all controllers will be cleaned out" +
-				"and controller empty will come to here, it will try to close context again",
+				"and server empty will come to here, it will try to close context again",
 			)
 			closeErr := independent.Context.Close(independent.Logger)
 			if closeErr != nil {

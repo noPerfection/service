@@ -1,4 +1,4 @@
-package controller
+package server
 
 // Asynchronous replier
 
@@ -138,7 +138,7 @@ func (c *AsyncController) handleBackend() error {
 
 // Replier creates an asynchronous replying server.
 func Replier(parent *log.Logger) (*AsyncController, error) {
-	logger := parent.Child("async-controller", "type", service.ReplierType)
+	logger := parent.Child("async-server", "type", service.ReplierType)
 
 	maxWorkers := runtime.NumCPU()
 
@@ -160,7 +160,7 @@ func Replier(parent *log.Logger) (*AsyncController, error) {
 // call it only after adding a configuration.
 // returns an inproc url
 //
-// the name of the controller should not contain a space or special character
+// the name of the server should not contain a space or special character
 func (c *AsyncController) managerUrl() string {
 	name := "async_manager_" + c.config.Instances[0].ControllerCategory
 

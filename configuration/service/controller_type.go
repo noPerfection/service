@@ -28,5 +28,5 @@ func ValidateControllerType(t ControllerType) error {
 		return nil
 	}
 
-	return fmt.Errorf("'%s' is not valid controller type", t)
+	return fmt.Errorf("'%s' is not valid server type", t)
 }

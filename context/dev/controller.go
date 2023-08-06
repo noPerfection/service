@@ -1,7 +1,7 @@
 package dev
 
 //
-// The context controller has only one command.
+// The context server has only one command.
 //
 // Close
 // this command has no arguments. And when it's given, it will close all the dependencies it has
@@ -13,7 +13,7 @@ import (
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
-	"github.com/ahmetson/service-lib/controller"
+	"github.com/ahmetson/service-lib/server"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/remote"
 )
@@ -70,9 +70,9 @@ func (context *Context) onServiceReady(request message.Request, logger *log.Logg
 //
 // The logger is the server logger as it is. The context will create its own logger from it.
 func (context *Context) Run(logger *log.Logger) error {
-	replier, err := controller.SyncReplier(logger.Child("context"))
+	replier, err := server.SyncReplier(logger.Child("context"))
 	if err != nil {
-		return fmt.Errorf("controller.SyncReplierType: %w", err)
+		return fmt.Errorf("server.SyncReplierType: %w", err)
 	}
 
 	config := configuration.InternalConfiguration(configuration.ContextName(context.config.GetUrl()))
@@ -92,7 +92,7 @@ func (context *Context) Run(logger *log.Logger) error {
 	context.controller = replier
 	go func() {
 		if err := context.controller.Run(); err != nil {
-			logger.Fatal("context.controller.Run: %w", err)
+			logger.Fatal("context.server.Run: %w", err)
 		}
 	}()
 

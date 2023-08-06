@@ -1,4 +1,4 @@
-package controller
+package server
 
 import (
 	"github.com/ahmetson/service-lib/log"
@@ -14,14 +14,14 @@ import (
 func WhitelistAccess(logger log.Logger, domain string, publicKeys []string) {
 	logger.Info("get the whitelisted services")
 
-	// We set the assisted accounts that have access to this controller
+	// We set the assisted accounts that have access to this server
 	zmq.AuthCurveAdd(domain, publicKeys...)
 
 	logger.Info("get the whitelisted subscribers")
 }
 
-// // Set the private key, so connected clients can identify this controller
-// // You call it before running the controller
+// // Set the private key, so connected clients can identify this server
+// // You call it before running the server
 // func (c *ControllerCategory) SetControllerPrivateKey(service_credentials *auth.Credentials) error {
 // 	err := service_credentials.SetSocketAuthCurve(c.socket, c.service.Url)
 // 	if err == nil {
