@@ -454,7 +454,7 @@ func (independent *Service) BuildConfiguration() {
 
 	independent.Config.Service.Url = url
 
-	err = independent.Config.Context.WriteService(outputPath, independent.Config.Service)
+	err = independent.Config.Context.SetConfig(outputPath, independent.Config.Service)
 	if err != nil {
 		independent.Logger.Fatal("failed to write the proxy into the file", "error", err)
 	}

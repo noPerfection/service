@@ -13,8 +13,8 @@ const (
 )
 
 type Interface interface {
-	ReadService(string) (*service.Service, error) // string arg is the service url
-	WriteService(string, *service.Service) error  // string arg is service url
+	GetConfig(string) (*service.Service, error) // string arg is the service url
+	SetConfig(string, *service.Service) error   // string arg is service url
 	Paths() []string
 	SetUrl(url string)
 	GetUrl() string

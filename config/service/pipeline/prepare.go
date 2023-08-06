@@ -216,9 +216,9 @@ func lintDestinationsToControllers(proxyConfig *service.Service, controllers []*
 // If there is a pipeline with the service, then pipelines will lint through that.
 func LintToControllers(ctx context.Interface, serviceConfig *service.Service, pipelines []*Pipeline) error {
 	servicePipeline := FindServiceEnd(pipelines)
-	serviceProxyConfig, err := ctx.ReadService(servicePipeline.Beginning())
+	serviceProxyConfig, err := ctx.GetConfig(servicePipeline.Beginning())
 	if err != nil {
-		return fmt.Errorf("orchestra.ReadService('%s'): %w", servicePipeline.Beginning(), err)
+		return fmt.Errorf("orchestra.GetConfig('%s'): %w", servicePipeline.Beginning(), err)
 	}
 	controllerPipelines := FindControllerEnds(pipelines)
 
@@ -248,7 +248,7 @@ func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, pipe
 	// to the server itself.
 	lastUrl := pipeline.HeadLast()
 
-	lastConfig, err := ctx.ReadService(lastUrl)
+	lastConfig, err := ctx.GetConfig(lastUrl)
 	if err != nil {
 		return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 	}
@@ -259,7 +259,7 @@ func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, pipe
 	}
 
 	if updated {
-		err = ctx.WriteService(lastUrl, lastConfig)
+		err = ctx.SetConfig(lastUrl, lastConfig)
 		if err != nil {
 			return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", lastUrl, err)
 		}
@@ -279,7 +279,7 @@ func lintLastToController(ctx context.Interface, serviceConfig *service.Service,
 	// to the server itself.
 	lastUrl := pipeline.HeadLast()
 
-	lastConfig, err := ctx.ReadService(lastUrl)
+	lastConfig, err := ctx.GetConfig(lastUrl)
 	if err != nil {
 		return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 	}
@@ -303,7 +303,7 @@ func lintLastToController(ctx context.Interface, serviceConfig *service.Service,
 	}
 
 	if updated {
-		err = ctx.WriteService(lastUrl, lastConfig)
+		err = ctx.SetConfig(lastUrl, lastConfig)
 		if err != nil {
 			return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", lastUrl, err)
 		}
@@ -320,7 +320,7 @@ func lintLastToService(ctx context.Interface, config *service.Service, pipeline 
 	// lets lint the service's last head's destination to this service
 	lastUrl := pipeline.HeadLast()
 
-	lastConfig, err := ctx.ReadService(lastUrl)
+	lastConfig, err := ctx.GetConfig(lastUrl)
 	if err != nil {
 		return fmt.Errorf("orchestra.GetServiceConfig: %w", err)
 	}
@@ -331,7 +331,7 @@ func lintLastToService(ctx context.Interface, config *service.Service, pipeline 
 	}
 
 	if updated {
-		err = ctx.WriteService(lastUrl, lastConfig)
+		err = ctx.SetConfig(lastUrl, lastConfig)
 		if err != nil {
 			return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", lastUrl, err)
 		}
@@ -351,7 +351,7 @@ func lintFront(ctx context.Interface, pipeline *Pipeline) error {
 	// lets lint the service's last head's destination to this service
 	lastUrl := pipeline.HeadLast()
 
-	lastConfig, err := ctx.ReadService(lastUrl)
+	lastConfig, err := ctx.GetConfig(lastUrl)
 	if err != nil {
 		return fmt.Errorf("orchestra.GetServiceConfig: %w", err)
 	}
@@ -362,7 +362,7 @@ func lintFront(ctx context.Interface, pipeline *Pipeline) error {
 	i := len(proxyUrls) - 1
 	for ; i >= 0; i-- {
 		proxyUrl := proxyUrls[i]
-		proxyConfig, err := ctx.ReadService(proxyUrl)
+		proxyConfig, err := ctx.GetConfig(proxyUrl)
 		if err != nil {
 			return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 		}
@@ -373,7 +373,7 @@ func lintFront(ctx context.Interface, pipeline *Pipeline) error {
 		}
 
 		if updated {
-			err = ctx.WriteService(proxyUrl, proxyConfig)
+			err = ctx.SetConfig(proxyUrl, proxyConfig)
 			if err != nil {
 				return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", proxyUrl, err)
 			}

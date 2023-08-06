@@ -29,7 +29,7 @@
 //
 // -----------------------------------------------
 // running the application will do the following.
-// It checks the port of proxies are in use. If it's not, then it will call a run.
+// It checks the port of proxies is in use. If it's not, then it will call a run.
 //
 // Then it will call itself.
 //
@@ -74,7 +74,7 @@ func preparePath(path string) error {
 	return nil
 }
 
-// New creates a orchestra including its directories.
+// New creates an orchestra including its directories.
 func New(config context.Interface) (*Context, error) {
 	if config.GetType() != context.DevContext {
 		return nil, fmt.Errorf("ctx config is not a dev ctx. it's %s", config.GetType())
