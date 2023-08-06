@@ -17,8 +17,8 @@ import (
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/config/service/converter"
 	"github.com/ahmetson/service-lib/config/service/pipeline"
+	dev2 "github.com/ahmetson/service-lib/independent/orchestra/dev"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/orchestra/dev"
 	"github.com/ahmetson/service-lib/os/network"
 	"github.com/ahmetson/service-lib/os/path"
 	"github.com/ahmetson/service-lib/server"
@@ -34,7 +34,7 @@ type Service struct {
 	pipelines       []*pipeline.Pipeline // Pipeline beginning: url => [Pipes]
 	RequiredProxies []string             // url => orchestra type
 	Logger          *log.Logger
-	Context         *dev.Context
+	Context         *dev2.Context
 	manager         server.Interface // manage this service from other parts. it should be called before orchestra runs
 }
 
@@ -324,7 +324,7 @@ func (independent *Service) Prepare(as service.Type) error {
 	//--------------------------------------------------
 	if len(independent.RequiredProxies) > 0 {
 		for _, requiredProxy := range independent.RequiredProxies {
-			var dep *dev.Dep
+			var dep *dev2.Dep
 
 			dep, err = independent.Context.New(requiredProxy)
 			if err != nil {
@@ -356,7 +356,7 @@ func (independent *Service) Prepare(as service.Type) error {
 	if len(requiredExtensions) > 0 {
 		independent.Logger.Warn("extensions needed to be prepared", "extensions", requiredExtensions)
 		for _, requiredExtension := range requiredExtensions {
-			var dep *dev.Dep
+			var dep *dev2.Dep
 
 			dep, err = independent.Context.New(requiredExtension)
 			if err != nil {
@@ -518,9 +518,9 @@ errOccurred:
 	}
 }
 
-func prepareContext(config context.Interface) (*dev.Context, error) {
+func prepareContext(config context.Interface) (*dev2.Context, error) {
 	// get the extensions
-	devContext, err := dev.New(config)
+	devContext, err := dev2.New(config)
 	if err != nil {
 		return nil, fmt.Errorf("dev.New: %w", err)
 	}
@@ -531,7 +531,7 @@ func prepareContext(config context.Interface) (*dev.Context, error) {
 // prepareProxy links the proxy with the dependency.
 //
 // if dependency doesn't exist, it will be downloaded
-func (independent *Service) prepareProxy(dep *dev.Dep) error {
+func (independent *Service) prepareProxy(dep *dev2.Dep) error {
 	proxyConfiguration := independent.Config.Service.GetProxy(dep.Url())
 
 	independent.Logger.Info("prepare proxy", "url", proxyConfiguration.Url, "port", proxyConfiguration.Instances[0].Port)
@@ -546,7 +546,7 @@ func (independent *Service) prepareProxy(dep *dev.Dep) error {
 // prepareExtension links the extension with the dependency.
 //
 // if dependency doesn't exist, it will be downloaded
-func (independent *Service) prepareExtension(dep *dev.Dep) error {
+func (independent *Service) prepareExtension(dep *dev2.Dep) error {
 	extensionConfiguration := independent.Config.Service.GetExtension(dep.Url())
 
 	independent.Logger.Info("prepare extension", "url", extensionConfiguration.Url, "port", extensionConfiguration.Port)
@@ -560,7 +560,7 @@ func (independent *Service) prepareExtension(dep *dev.Dep) error {
 // prepareProxyConfiguration links the proxy with the dependency.
 //
 // if dependency doesn't exist, it will be downloaded
-func (independent *Service) prepareProxyConfiguration(dep *dev.Dep) error {
+func (independent *Service) prepareProxyConfiguration(dep *dev2.Dep) error {
 	err := dep.Prepare(independent.Logger)
 	if err != nil {
 		return fmt.Errorf("dev.Prepare(%s): %w", dep.Url(), err)
@@ -605,7 +605,7 @@ func (independent *Service) prepareProxyConfiguration(dep *dev.Dep) error {
 	return nil
 }
 
-func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
+func (independent *Service) prepareExtensionConfiguration(dep *dev2.Dep) error {
 	err := dep.Prepare(independent.Logger)
 	if err != nil {
 		return fmt.Errorf("dev.Prepare(%s): %w", dep.Url(), err)
