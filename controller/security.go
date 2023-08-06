@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"github.com/ahmetson/service-lib/identity"
 	"github.com/ahmetson/service-lib/log"
 
 	// todo
@@ -12,11 +11,11 @@ import (
 )
 
 // WhitelistAccess Adds assisted services
-func WhitelistAccess(logger log.Logger, blockchainEnv *identity.Service, publicKeys []string) {
+func WhitelistAccess(logger log.Logger, domain string, publicKeys []string) {
 	logger.Info("get the whitelisted services")
 
 	// We set the assisted accounts that have access to this controller
-	zmq.AuthCurveAdd(blockchainEnv.Name, publicKeys...)
+	zmq.AuthCurveAdd(domain, publicKeys...)
 
 	logger.Info("get the whitelisted subscribers")
 }

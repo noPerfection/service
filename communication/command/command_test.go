@@ -1,7 +1,6 @@
 package command
 
 import (
-	service "github.com/ahmetson/service-lib/identity"
 	goLog "log"
 	"testing"
 
@@ -141,17 +140,6 @@ func (suite *TestCommandSuite) TestRun() {
 	err = command2.Push(client, pushParameters)
 	suite.NoError(err)
 
-	indexerService, _ := service.Inprocess("INDEXER")
-
-	// Test command.RequestRouter()
-	command3 := Route{
-		Command: "command_router",
-	}
-	err = command3.RequestRouter(suite.client, indexerService, requestParameters, &replyParameters)
-	suite.NoError(err)
-	repliedCommand, err := replyParameters.GetString("command")
-	suite.NoError(err)
-	suite.EqualValues(repliedCommand, command3.Command)
 }
 
 // In order for 'go test' to run this suite, we need to create

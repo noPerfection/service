@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/ahmetson/service-lib/configuration"
-	parameter "github.com/ahmetson/service-lib/identity"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/stretchr/testify/suite"
 )
@@ -37,30 +36,6 @@ func (suite *TestSocketSuite) TestNewSockets() {
 	appConfig, err := configuration.New(logger)
 	suite.NoError(err, "failed to create logger")
 
-	inprocIndexerService, err := parameter.Inprocess("indexer")
-	suite.Require().NoError(err)
-	_, err = NewTcpSocket(inprocIndexerService, logger, appConfig)
-	suite.Require().Error(err)
-
-	indexerService, err := parameter.NewExternal("indexer", parameter.THIS, appConfig)
-	suite.Require().NoError(err)
-	clientService, err := parameter.NewExternal("indexer", parameter.REMOTE, appConfig)
-	suite.Require().NoError(err)
-	_, err = parameter.NewExternal("indexer", parameter.SUBSCRIBE, appConfig)
-	suite.Require().NoError(err)
-
-	// We can't initiate the socket with THIS limit
-	_, err = NewTcpSocket(indexerService, logger, appConfig)
-	suite.Require().Error(err)
-	// We can't initiate with the empty service
-	_, err = NewTcpSocket(clientService, logger, nil)
-	suite.Require().Error(err)
-	// We can't initiate with the empty service
-	_, err = NewTcpSocket(nil, logger, appConfig)
-	suite.Require().Error(err)
-	_, err = NewTcpSocket(clientService, logger, appConfig)
-	suite.Require().NoError(err)
-
 	// We can't initiate the socket with THIS limit
 	_, err = InprocRequestSocket("", logger, appConfig)
 	suite.Require().Error(err)
@@ -72,10 +47,6 @@ func (suite *TestSocketSuite) TestNewSockets() {
 	_, err = InprocRequestSocket("inproc://", logger, appConfig)
 	suite.Require().NoError(err)
 	// We can't initiate with the non inproc url
-	_, err = InprocRequestSocket(indexerService.Url(), logger, appConfig)
-	suite.Require().Error(err)
-	_, err = InprocRequestSocket(inprocIndexerService.Url(), logger, appConfig)
-	suite.Require().NoError(err)
 	//
 	//// We can't initiate the socket with the non SUBSCRIBE limit
 	//_, err = NewTcpSubscriber(indexer_service, "", nil, logger, app_config)

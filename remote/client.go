@@ -3,12 +3,12 @@ package remote
 
 import (
 	"fmt"
+	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/remote/parameter"
 
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
-	service "github.com/ahmetson/service-lib/identity"
 	"github.com/ahmetson/service-lib/log"
 
 	// todo
@@ -22,7 +22,6 @@ import (
 type ClientSocket struct {
 	// The name of remote SDS service and its URL
 	// its used as a clarification
-	remoteService *service.Service
 	// client_credentials *auth.Credentials
 	serverPublicKey string
 	poller          *zmq.Poller
@@ -183,93 +182,94 @@ func (socket *ClientSocket) Close() error {
 	return nil
 }
 
-// RequestRouter sends a request message to the router.
-// Then the router will redirect it to the controller defined in the service_type.
 //
-// Supports both inproc and TCP protocols.
+//// RequestRouter sends a request message to the router.
+//// Then the router will redirect it to the controller defined in the service_type.
+////
+//// Supports both inproc and TCP protocols.
+////
+//// The socket should be the router's socket.
+//func (socket *ClientSocket) RequestRouter(service *service.Service, request *message.Request) (key_value.KeyValue, error) {
+//	requestTimeout := parameter.RequestTimeout(socket.appConfig)
 //
-// The socket should be the router's socket.
-func (socket *ClientSocket) RequestRouter(service *service.Service, request *message.Request) (key_value.KeyValue, error) {
-	requestTimeout := parameter.RequestTimeout(socket.appConfig)
-
-	if socket.protocol == "inproc" {
-		err := socket.inprocReconnect()
-		if err != nil {
-			return nil, fmt.Errorf("inproc_reconnect: %w", err)
-		}
-
-	} else {
-		err := socket.reconnect()
-		if err != nil {
-			return nil, fmt.Errorf("reconnect: %w", err)
-		}
-	}
-
-	requestString, err := request.String()
-	if err != nil {
-		return nil, fmt.Errorf("request.String: %w", err)
-	}
-
-	attempt := parameter.Attempt(socket.appConfig)
-
-	// we attempt requests for an infinite amount of time.
-	for {
-		//  We send a request, then we work to get a reply
-		if _, err := socket.socket.SendMessage(service.Name, requestString); err != nil {
-			return nil, fmt.Errorf("failed to send the command '%s' to. socket error: %w", request.Command, err)
-		}
-
-		//  Poll socket for a reply, with timeout
-		sockets, err := socket.poller.Poll(requestTimeout)
-		if err != nil {
-			return nil, fmt.Errorf("failed to to send the command '%s'. poll error: %w", request.Command, err)
-		}
-
-		//  Here we process a server reply and exit our loop if the
-		//  reply is valid.
-		//  If we didn't have a reply, we close the client
-		//  socket and resend the request.
-		//  We try a number of times
-		//  before finally abandoning:
-
-		if len(sockets) > 0 {
-			// Wait for a reply.
-			r, err := socket.socket.RecvMessage(0)
-			if err != nil {
-				return nil, fmt.Errorf("failed to receive the command '%s' message. socket error: %w", request.Command, err)
-			}
-
-			reply, err := message.ParseReply(r)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse the command '%s': %w", request.Command, err)
-			}
-
-			if !reply.IsOK() {
-				return nil, fmt.Errorf("the command '%s' replied with a failure: %s", request.Command, reply.Message)
-			}
-
-			return reply.Parameters, nil
-		} else {
-			socket.logger.Warn("Timeout! Are you sure that remote service is running?", "target service name", service.Name, "request_command", request.Command, "attempts_left", attempt, "request_timeout", requestTimeout)
-			// if attempts are 0, we reconnect to remove the buffer queue.
-			if socket.protocol == "inproc" {
-				err := socket.inprocReconnect()
-				if err != nil {
-					return nil, fmt.Errorf("socket.inproc_reconnect: %w", err)
-				}
-			} else {
-				err := socket.reconnect()
-				if err != nil {
-					return nil, fmt.Errorf("socket.reconnect: %w", err)
-				}
-			}
-			if attempt == 0 {
-				return nil, fmt.Errorf("timeout")
-			}
-			attempt--
-		}
-	}
-}
+//	if socket.protocol == "inproc" {
+//		err := socket.inprocReconnect()
+//		if err != nil {
+//			return nil, fmt.Errorf("inproc_reconnect: %w", err)
+//		}
+//
+//	} else {
+//		err := socket.reconnect()
+//		if err != nil {
+//			return nil, fmt.Errorf("reconnect: %w", err)
+//		}
+//	}
+//
+//	requestString, err := request.String()
+//	if err != nil {
+//		return nil, fmt.Errorf("request.String: %w", err)
+//	}
+//
+//	attempt := parameter.Attempt(socket.appConfig)
+//
+//	// we attempt requests for an infinite amount of time.
+//	for {
+//		//  We send a request, then we work to get a reply
+//		if _, err := socket.socket.SendMessage(service.Name, requestString); err != nil {
+//			return nil, fmt.Errorf("failed to send the command '%s' to. socket error: %w", request.Command, err)
+//		}
+//
+//		//  Poll socket for a reply, with timeout
+//		sockets, err := socket.poller.Poll(requestTimeout)
+//		if err != nil {
+//			return nil, fmt.Errorf("failed to to send the command '%s'. poll error: %w", request.Command, err)
+//		}
+//
+//		//  Here we process a server reply and exit our loop if the
+//		//  reply is valid.
+//		//  If we didn't have a reply, we close the client
+//		//  socket and resend the request.
+//		//  We try a number of times
+//		//  before finally abandoning:
+//
+//		if len(sockets) > 0 {
+//			// Wait for a reply.
+//			r, err := socket.socket.RecvMessage(0)
+//			if err != nil {
+//				return nil, fmt.Errorf("failed to receive the command '%s' message. socket error: %w", request.Command, err)
+//			}
+//
+//			reply, err := message.ParseReply(r)
+//			if err != nil {
+//				return nil, fmt.Errorf("failed to parse the command '%s': %w", request.Command, err)
+//			}
+//
+//			if !reply.IsOK() {
+//				return nil, fmt.Errorf("the command '%s' replied with a failure: %s", request.Command, reply.Message)
+//			}
+//
+//			return reply.Parameters, nil
+//		} else {
+//			socket.logger.Warn("Timeout! Are you sure that remote service is running?", "target service name", service.Name, "request_command", request.Command, "attempts_left", attempt, "request_timeout", requestTimeout)
+//			// if attempts are 0, we reconnect to remove the buffer queue.
+//			if socket.protocol == "inproc" {
+//				err := socket.inprocReconnect()
+//				if err != nil {
+//					return nil, fmt.Errorf("socket.inproc_reconnect: %w", err)
+//				}
+//			} else {
+//				err := socket.reconnect()
+//				if err != nil {
+//					return nil, fmt.Errorf("socket.reconnect: %w", err)
+//				}
+//			}
+//			if attempt == 0 {
+//				return nil, fmt.Errorf("timeout")
+//			}
+//			attempt--
+//		}
+//	}
+//}
 
 // RequestRemoteService sends the request message to the socket.
 // Returns the message.Reply.Parameters in case of success.
@@ -448,12 +448,6 @@ func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig 
 		return nil, fmt.Errorf("missing app_config")
 	}
 
-	if remoteService == nil ||
-		remoteService.IsInproc() ||
-		!remoteService.IsRemote() {
-		return nil, fmt.Errorf("remote service is not a remote service with REMOTE limit")
-	}
-
 	sock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
@@ -462,10 +456,8 @@ func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig 
 	var logger *log.Logger
 	if parent != nil {
 		logger = parent.Child("client_socket",
-			"remote_service", remoteService.Name,
 			"protocol", "tcp",
 			"socket_type", "REQ",
-			"remote_service_url", remoteService.Url(),
 		)
 	}
 	if err != nil {
@@ -473,8 +465,6 @@ func NewTcpSocket(remoteService *service.Service, parent *log.Logger, appConfig 
 	}
 
 	newSocket := ClientSocket{
-		remoteService: remoteService,
-		// client_credentials: nil,
 		socket:    sock,
 		protocol:  "tcp",
 		logger:    logger,
@@ -512,13 +502,12 @@ func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error)
 	}
 
 	newSocket := ClientSocket{
-		remoteService: nil,
-		socket:        sock,
-		protocol:      protocol,
-		logger:        logger,
-		appConfig:     nil,
-		serviceName:   name,
-		servicePort:   port,
+		socket:      sock,
+		protocol:    protocol,
+		logger:      logger,
+		appConfig:   nil,
+		serviceName: name,
+		servicePort: port,
 	}
 
 	return &newSocket, nil

@@ -8,7 +8,6 @@ import (
 	"github.com/ahmetson/common-lib/data_type"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/message"
-	parameter "github.com/ahmetson/service-lib/identity"
 	"github.com/ahmetson/service-lib/remote"
 
 	zmq "github.com/pebbe/zmq4"
@@ -183,63 +182,64 @@ func (route *Route) Push(socket *zmq.Socket, request interface{}) error {
 	return nil
 }
 
-// RequestRouter sends the command to the remote thread or service that over the proxy.
-// The socket parameter is the proxy/broker socket.
-// The service type is the service name that will accept the requests and response the reply.
 //
-// Pointer must pass the reply parameter.
+//// RequestRouter sends the command to the remote thread or service that over the proxy.
+//// The socket parameter is the proxy/broker socket.
+//// The service type is the service name that will accept the requests and response the reply.
+////
+//// Pointer must pass the reply parameter.
+////
+//// In SeascapeSDS terminology, we call the proxy/broker as Router.
+////
+//// Example:
+////
+////	        var reply key_value.KeyValue
+////			request_parameters := key_value.Empty().
+////		        Set("gold", 123)
+////			set := New("SET") // create a command
+////	        db_service := parameter.DB
+////			// Send SET command to the database via the authentication proxy.
+////			_ := set.RequestRouter(auth_socket, db_service, request_parameters, &reply_parameters)
+//func (route *Route) RequestRouter(socket *remote.ClientSocket, targetService *parameter.Service, request interface{}, reply interface{}) error {
+//	_, ok := request.(message.Request)
+//	if ok {
+//		return fmt.Errorf("the request can not be of message.Request type")
+//	}
+//	_, ok = request.(message.SmartcontractDeveloperRequest)
+//	if ok {
+//		return fmt.Errorf("the request can not be of message.SmartcontractDeveloperRequest type")
+//	}
 //
-// In SeascapeSDS terminology, we call the proxy/broker as Router.
+//	_, ok = reply.(message.Reply)
+//	if ok {
+//		return fmt.Errorf("the reply can not be of message.Reply type")
+//	}
+//	_, ok = reply.(message.Broadcast)
+//	if ok {
+//		return fmt.Errorf("the reply can not be of message.Broadcast type")
+//	}
+//	if !data_type.IsPointer(reply) {
+//		return fmt.Errorf("the reply must be passed by pointer")
+//	}
 //
-// Example:
+//	requestParameters, err := key_value.NewFromInterface(request)
+//	if err != nil {
+//		return fmt.Errorf("convert parameters to: %w", err)
+//	}
 //
-//	        var reply key_value.KeyValue
-//			request_parameters := key_value.Empty().
-//		        Set("gold", 123)
-//			set := New("SET") // create a command
-//	        db_service := parameter.DB
-//			// Send SET command to the database via the authentication proxy.
-//			_ := set.RequestRouter(auth_socket, db_service, request_parameters, &reply_parameters)
-func (route *Route) RequestRouter(socket *remote.ClientSocket, targetService *parameter.Service, request interface{}, reply interface{}) error {
-	_, ok := request.(message.Request)
-	if ok {
-		return fmt.Errorf("the request can not be of message.Request type")
-	}
-	_, ok = request.(message.SmartcontractDeveloperRequest)
-	if ok {
-		return fmt.Errorf("the request can not be of message.SmartcontractDeveloperRequest type")
-	}
-
-	_, ok = reply.(message.Reply)
-	if ok {
-		return fmt.Errorf("the reply can not be of message.Reply type")
-	}
-	_, ok = reply.(message.Broadcast)
-	if ok {
-		return fmt.Errorf("the reply can not be of message.Broadcast type")
-	}
-	if !data_type.IsPointer(reply) {
-		return fmt.Errorf("the reply must be passed by pointer")
-	}
-
-	requestParameters, err := key_value.NewFromInterface(request)
-	if err != nil {
-		return fmt.Errorf("convert parameters to: %w", err)
-	}
-
-	requestMessage := message.Request{
-		Command:    route.Command,
-		Parameters: requestParameters,
-	}
-
-	replyParameters, err := socket.RequestRouter(targetService, &requestMessage)
-	if err != nil {
-		return fmt.Errorf("socket.RequestRemoteService: %w", err)
-	}
-
-	err = replyParameters.Interface(reply)
-	return err
-}
+//	requestMessage := message.Request{
+//		Command:    route.Command,
+//		Parameters: requestParameters,
+//	}
+//
+//	replyParameters, err := socket.RequestRouter(targetService, &requestMessage)
+//	if err != nil {
+//		return fmt.Errorf("socket.RequestRemoteService: %w", err)
+//	}
+//
+//	err = replyParameters.Interface(reply)
+//	return err
+//}
 
 // Reply creates a successful message.Reply with the given reply parameters.
 func Reply(reply interface{}) (message.Reply, error) {
