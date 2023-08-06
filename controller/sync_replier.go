@@ -5,10 +5,10 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/configuration/network"
-	"github.com/ahmetson/service-lib/configuration/process"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/service-lib/runtime/network"
+	"github.com/ahmetson/service-lib/runtime/process"
 	zmq "github.com/pebbe/zmq4"
 )
 

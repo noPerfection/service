@@ -7,10 +7,10 @@ package dev
 import (
 	"fmt"
 	"github.com/ahmetson/service-lib/configuration/argument"
-	"github.com/ahmetson/service-lib/configuration/network"
-	"github.com/ahmetson/service-lib/configuration/path"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/service-lib/runtime/network"
+	"github.com/ahmetson/service-lib/runtime/path"
 	"github.com/go-git/go-git/v5"
 	"net/url"
 	"os/exec"

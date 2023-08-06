@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/configuration/context"
-	"github.com/ahmetson/service-lib/configuration/network"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/configuration/service/converter"
+	"github.com/ahmetson/service-lib/runtime/network"
 	"slices"
 )
 
