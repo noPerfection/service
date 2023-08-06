@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"github.com/ahmetson/service-lib/config"
 	service2 "github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/independent"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/server"
 )
 
 const defaultControllerName = "main"
 
-type service = independent.Service
+type service = service.Service
 
 // Extension of the extension type
 type Extension struct {
@@ -24,9 +23,9 @@ type Extension struct {
 func New(config *config.Config, parent *log.Logger) (*Extension, error) {
 	logger := parent.Child("extension")
 
-	base, err := independent.New(config, logger)
+	base, err := service.New(config, logger)
 	if err != nil {
-		return nil, fmt.Errorf("independent.New: %w", err)
+		return nil, fmt.Errorf("service.New: %w", err)
 	}
 
 	service := Extension{
@@ -88,7 +87,7 @@ func (extension *Extension) Prepare() error {
 	return nil
 }
 
-// Run the independent service.
+// Run the service service.
 func (extension *Extension) Run() {
 	extension.service.Run()
 }

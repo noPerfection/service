@@ -1,9 +1,9 @@
-// Package independent is the primary service.
+// Package service is the primary service.
 // This package is calling out the orchestra. Then within that orchestra sets up
 // - server
 // - proxies
 // - extensions
-package independent
+package service
 
 import (
 	"fmt"
@@ -17,11 +17,11 @@ import (
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/config/service/converter"
 	"github.com/ahmetson/service-lib/config/service/pipeline"
-	dev2 "github.com/ahmetson/service-lib/independent/orchestra/dev"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/os/network"
 	"github.com/ahmetson/service-lib/os/path"
 	"github.com/ahmetson/service-lib/server"
+	dev2 "github.com/ahmetson/service-lib/service/orchestra/dev"
 	"os"
 	"strings"
 	"sync"
@@ -102,7 +102,7 @@ func (independent *Service) requiredControllerExtensions() []string {
 }
 
 func (independent *Service) prepareServiceConfiguration(expectedType service.Type) error {
-	// validate the independent itself
+	// validate the service itself
 	config := independent.Config
 	serviceConfig := independent.Config.Service
 	if len(serviceConfig.Type) == 0 {
@@ -282,7 +282,7 @@ func (independent *Service) runManager() error {
 	independent.manager = replier
 	go func() {
 		if err := independent.manager.Run(); err != nil {
-			independent.Logger.Fatal("independent.manager.Run: %w", err)
+			independent.Logger.Fatal("service.manager.Run: %w", err)
 		}
 	}()
 
@@ -292,7 +292,7 @@ func (independent *Service) runManager() error {
 // Prepare the services by validating, linting the configurations, as well as setting up the dependencies
 func (independent *Service) Prepare(as service.Type) error {
 	if len(independent.Controllers) == 0 {
-		return fmt.Errorf("no Controllers. call independent.AddController")
+		return fmt.Errorf("no Controllers. call service.AddController")
 	}
 
 	//
@@ -328,7 +328,7 @@ func (independent *Service) Prepare(as service.Type) error {
 
 			dep, err = independent.Context.New(requiredProxy)
 			if err != nil {
-				err = fmt.Errorf(`independent.Interface.New("%s"): %w`, requiredProxy, err)
+				err = fmt.Errorf(`service.Interface.New("%s"): %w`, requiredProxy, err)
 				goto closeContext
 			}
 
@@ -360,7 +360,7 @@ func (independent *Service) Prepare(as service.Type) error {
 
 			dep, err = independent.Context.New(requiredExtension)
 			if err != nil {
-				err = fmt.Errorf(`independent.Interface.New("%s"): %w`, requiredExtension, err)
+				err = fmt.Errorf(`service.Interface.New("%s"): %w`, requiredExtension, err)
 				goto closeContext
 			}
 
@@ -464,21 +464,21 @@ func (independent *Service) BuildConfiguration() {
 	os.Exit(0)
 }
 
-// Run the independent service.
+// Run the service service.
 func (independent *Service) Run() {
 	independent.BuildConfiguration()
 	var wg sync.WaitGroup
 
 	err := independent.runManager()
 	if err != nil {
-		err = fmt.Errorf("independent.runManager: %w", err)
+		err = fmt.Errorf("service.runManager: %w", err)
 		goto errOccurred
 	}
 
 	for name, controllerInterface := range independent.Controllers {
 		c := controllerInterface.(server.Interface)
 		if err = independent.Controllers.Exist(name); err != nil {
-			independent.Logger.Error("independent.Controllers.Exist", "config", name, "error", err)
+			independent.Logger.Error("service.Controllers.Exist", "config", name, "error", err)
 			break
 		}
 
@@ -510,7 +510,7 @@ errOccurred:
 			)
 			closeErr := independent.Context.Close(independent.Logger)
 			if closeErr != nil {
-				independent.Logger.Fatal("independent.Interface.Close", "error", closeErr, "error to print", err)
+				independent.Logger.Fatal("service.Interface.Close", "error", closeErr, "error to print", err)
 			}
 		}
 

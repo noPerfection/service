@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"github.com/ahmetson/service-lib/config"
 	service2 "github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/independent"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/server"
 	"sync"
 )
 
-type service = independent.Service
+type service = service.Service
 
 // Proxy defines the parameters of the proxy service
 type Proxy struct {
@@ -42,7 +41,7 @@ func (proxy *Proxy) registerDestination() {
 func New(config *config.Config, parent *log.Logger) *Proxy {
 	logger := parent.Child("service", "service_type", service2.ProxyType)
 
-	base, _ := independent.New(config, logger)
+	base, _ := service.New(config, logger)
 
 	service := Proxy{
 		service:    base,

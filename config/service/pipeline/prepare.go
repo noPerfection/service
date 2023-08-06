@@ -35,13 +35,13 @@ func PrepareAddingPipeline(pipelines []*Pipeline, proxies []string, controllers 
 
 	for _, proxyUrl := range pipeline.Head {
 		if !slices.Contains(proxies, proxyUrl) {
-			return fmt.Errorf("proxy '%s' url not required. call independent.RequireProxy", proxyUrl)
+			return fmt.Errorf("proxy '%s' url not required", proxyUrl)
 		}
 	}
 
 	if pipeline.End.IsController() {
 		if err := controllers.Exist(pipeline.End.Id); err != nil {
-			return fmt.Errorf("independent.Controllers.Exist('%s') [call independent.AddController()]: %w", pipeline.End.Id, err)
+			return fmt.Errorf("service.Controllers.Exist('%s'): %w", pipeline.End.Id, err)
 		}
 	} else {
 		if FindServiceEnd(pipelines) != nil {

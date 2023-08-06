@@ -35,7 +35,7 @@ Create the `service.yml` configuration.
 ```yaml
 # Should have at least one service
 Services:
-  - Type: Independent     # We are defining the independent service
+  - Type: Independent     # We are defining the service service
     Url: github.com/ahmetson/     # Custom name of the service to classify it.
     Instance: unique-id   # Unique id through this config
     Controllers:
