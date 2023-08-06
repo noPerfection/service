@@ -73,7 +73,9 @@ func (c *Context) GetType() context.Type {
 // ReadService on the given path.
 // If a path is not obsolete, then it should be relative to the executable.
 // The path should have the .yml extension
-func (c *Context) ReadService(path string) (*service.Service, error) {
+func (c *Context) ReadService(url string) (*service.Service, error) {
+	path := c.ConfigurationPath(url)
+
 	if err := validateServicePath(path); err != nil {
 		return nil, fmt.Errorf("validateServicePath: %w", err)
 	}
@@ -123,7 +125,9 @@ func (c *Context) ReadService(path string) (*service.Service, error) {
 
 // WriteService writes the service as the yaml on the given path.
 // If the path doesn't contain the file extension, it will through an error
-func (c *Context) WriteService(path string, service *service.Service) error {
+func (c *Context) WriteService(url string, service *service.Service) error {
+	path := c.ConfigurationPath(url)
+
 	if err := validateServicePath(path); err != nil {
 		return fmt.Errorf("validateServicePath: %w", err)
 	}

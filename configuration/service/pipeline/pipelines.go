@@ -1,17 +1,7 @@
 package pipeline
 
-func HasServicePipeline(pipelines []Pipeline) bool {
-	for _, pipeline := range pipelines {
-		if !pipeline.End.IsController() {
-			return true
-		}
-	}
-
-	return false
-}
-
-func GetControllerEnds(allPipelines []Pipeline) []Pipeline {
-	pipelines := make([]Pipeline, 0, len(allPipelines))
+func FindControllerEnds(allPipelines []*Pipeline) []*Pipeline {
+	pipelines := make([]*Pipeline, 0, len(allPipelines))
 	count := 0
 
 	for _, pipeline := range allPipelines {
@@ -24,10 +14,10 @@ func GetControllerEnds(allPipelines []Pipeline) []Pipeline {
 	return pipelines
 }
 
-func GetServiceEnd(allPipelines []Pipeline) *Pipeline {
+func FindServiceEnd(allPipelines []*Pipeline) *Pipeline {
 	for _, pipeline := range allPipelines {
 		if !pipeline.End.IsController() {
-			return &pipeline
+			return pipeline
 		}
 	}
 

@@ -73,10 +73,9 @@ func (dep *Dep) SrcExist() (bool, error) {
 
 // GetServiceConfig returns the yaml configuration of the dependency as is
 func (dep *Dep) GetServiceConfig() (*service.Service, error) {
-	configUrl := dep.context.config.ConfigurationPath(dep.Url())
-	serviceConfig, err := dep.context.config.ReadService(configUrl)
+	serviceConfig, err := dep.context.config.ReadService(dep.Url())
 	if err != nil {
-		return nil, fmt.Errorf("configuration.ReadService of %s: %w", configUrl, err)
+		return nil, fmt.Errorf("configuration.ReadService(%s): %w", dep.Url(), err)
 	}
 
 	return serviceConfig, nil
@@ -86,8 +85,7 @@ func (dep *Dep) GetServiceConfig() (*service.Service, error) {
 //
 // It's needed for linting the dependency's destination controller with the service that relies on it.
 func (dep *Dep) SetServiceConfig(config *service.Service) error {
-	configUrl := dep.context.config.ConfigurationPath(dep.Url())
-	return dep.context.config.WriteService(configUrl, config)
+	return dep.context.config.WriteService(dep.Url(), config)
 }
 
 // PrepareConfig creates the service.yml of the dependency.
