@@ -217,13 +217,13 @@ func (independent *Service) preparePipelineConfigurations() error {
 	if servicePipeline != nil {
 		servicePipeline.End.Url = independent.Config.Service.Url
 		independent.Logger.Info("dont forget to update the yaml with the controllerPipeline service end url")
-		err := pipeline.LintToService(independent.Config.Context, independent.Config.Service, independent.RequiredProxies, servicePipeline)
+		err := pipeline.LintToService(independent.Config.Context, independent.Config.Service, servicePipeline)
 		if err != nil {
 			return fmt.Errorf("pipeline.LintToService: %w", err)
 		}
 	}
 
-	err := pipeline.LintToControllers(independent.Config.Context, independent.Config.Service, independent.RequiredProxies, independent.pipelines)
+	err := pipeline.LintToControllers(independent.Config.Context, independent.Config.Service, independent.pipelines)
 	if err != nil {
 		return fmt.Errorf("pipeline.LintToControllers: %w", err)
 	}

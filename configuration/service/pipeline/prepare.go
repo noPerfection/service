@@ -214,7 +214,7 @@ func lintDestinationsToControllers(proxyConfig *service.Service, controllers []*
 //
 // Rule for linting:
 // If there is a pipeline with the service, then pipelines will lint through that.
-func LintToControllers(ctx context.Interface, serviceConfig *service.Service, proxyContexts []string, pipelines []*Pipeline) error {
+func LintToControllers(ctx context.Interface, serviceConfig *service.Service, pipelines []*Pipeline) error {
 	servicePipeline := FindServiceEnd(pipelines)
 	serviceProxyConfig, err := ctx.ReadService(servicePipeline.Beginning())
 	if err != nil {
@@ -226,7 +226,7 @@ func LintToControllers(ctx context.Interface, serviceConfig *service.Service, pr
 	// to the controller itself.
 	for _, controllerPipeline := range controllerPipelines {
 		if servicePipeline != nil {
-			if err := lintLastToProxy(ctx, serviceProxyConfig, proxyContexts, controllerPipeline); err != nil {
+			if err := lintLastToProxy(ctx, serviceProxyConfig, controllerPipeline); err != nil {
 				return fmt.Errorf("lintLastToService: %w", err)
 			}
 		} else {
@@ -243,7 +243,7 @@ func LintToControllers(ctx context.Interface, serviceConfig *service.Service, pr
 	return nil
 }
 
-func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, proxyContexts []string, pipeline *Pipeline) error {
+func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, pipeline *Pipeline) error {
 	// lets lint the controller's last head destination to the service controller's source or
 	// to the controller itself.
 	lastUrl := pipeline.HeadLast()
@@ -311,7 +311,7 @@ func lintLastToController(ctx context.Interface, serviceConfig *service.Service,
 
 	return nil
 }
-func lintLastToService(ctx context.Interface, config *service.Service, proxyContexts []string, pipeline *Pipeline) error {
+func lintLastToService(ctx context.Interface, config *service.Service, pipeline *Pipeline) error {
 	// bridge the proxies between the proxies
 	if !pipeline.IsMultiHead() {
 		return nil
@@ -386,8 +386,8 @@ func lintFront(ctx context.Interface, pipeline *Pipeline) error {
 	return nil
 }
 
-func LintToService(ctx context.Interface, config *service.Service, proxyContexts []string, pipeline *Pipeline) error {
-	if err := lintLastToService(ctx, config, proxyContexts, pipeline); err != nil {
+func LintToService(ctx context.Interface, config *service.Service, pipeline *Pipeline) error {
+	if err := lintLastToService(ctx, config, pipeline); err != nil {
 		return fmt.Errorf("lintLastToService: %w", err)
 	}
 
