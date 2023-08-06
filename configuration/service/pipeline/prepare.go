@@ -13,6 +13,7 @@ import (
 	"github.com/ahmetson/service-lib/configuration/network"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/configuration/service/converter"
+	"slices"
 )
 
 // PrepareAddingPipeline validates a new pipeline
@@ -24,7 +25,7 @@ import (
 // - Ensures the proxies exist
 // - Ensures that only one service pipeline exists.
 // - Ensures that controllers exist.
-func PrepareAddingPipeline(pipelines []*Pipeline, proxies key_value.KeyValue, controllers key_value.KeyValue, pipeline *Pipeline) error {
+func PrepareAddingPipeline(pipelines []*Pipeline, proxies []string, controllers key_value.KeyValue, pipeline *Pipeline) error {
 	if !pipeline.HasLength() {
 		return fmt.Errorf("no proxy")
 	}
@@ -33,8 +34,7 @@ func PrepareAddingPipeline(pipelines []*Pipeline, proxies key_value.KeyValue, co
 	}
 
 	for _, proxyUrl := range pipeline.Head {
-		_, ok := proxies[proxyUrl]
-		if !ok {
+		if !slices.Contains(proxies, proxyUrl) {
 			return fmt.Errorf("proxy '%s' url not required. call independent.RequireProxy", proxyUrl)
 		}
 	}
@@ -214,7 +214,7 @@ func lintDestinationsToControllers(proxyConfig *service.Service, controllers []*
 //
 // Rule for linting:
 // If there is a pipeline with the service, then pipelines will lint through that.
-func LintToControllers(ctx context.Interface, serviceConfig *service.Service, proxyContexts key_value.KeyValue, pipelines []*Pipeline) error {
+func LintToControllers(ctx context.Interface, serviceConfig *service.Service, proxyContexts []string, pipelines []*Pipeline) error {
 	servicePipeline := FindServiceEnd(pipelines)
 	serviceProxyConfig, err := ctx.ReadService(servicePipeline.Beginning())
 	if err != nil {
@@ -243,7 +243,7 @@ func LintToControllers(ctx context.Interface, serviceConfig *service.Service, pr
 	return nil
 }
 
-func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, proxyContexts key_value.KeyValue, pipeline *Pipeline) error {
+func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, proxyContexts []string, pipeline *Pipeline) error {
 	// lets lint the controller's last head destination to the service controller's source or
 	// to the controller itself.
 	lastUrl := pipeline.HeadLast()
@@ -264,7 +264,7 @@ func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, prox
 			return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", lastUrl, err)
 		}
 
-		converted, err := converter.ServiceToProxy(lastConfig, proxyContexts[lastUrl].(string))
+		converted, err := converter.ServiceToProxy(lastConfig, context.DevContext)
 		if err != nil {
 			return fmt.Errorf("failed to convert the proxy")
 		}
@@ -311,7 +311,7 @@ func lintLastToController(ctx context.Interface, serviceConfig *service.Service,
 
 	return nil
 }
-func lintLastToService(ctx context.Interface, config *service.Service, proxyContexts key_value.KeyValue, pipeline *Pipeline) error {
+func lintLastToService(ctx context.Interface, config *service.Service, proxyContexts []string, pipeline *Pipeline) error {
 	// bridge the proxies between the proxies
 	if !pipeline.IsMultiHead() {
 		return nil
@@ -336,7 +336,7 @@ func lintLastToService(ctx context.Interface, config *service.Service, proxyCont
 			return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", lastUrl, err)
 		}
 
-		converted, err := converter.ServiceToProxy(lastConfig, proxyContexts[lastUrl].(string))
+		converted, err := converter.ServiceToProxy(lastConfig, context.DevContext)
 		if err != nil {
 			return fmt.Errorf("failed to convert the proxy")
 		}
@@ -386,7 +386,7 @@ func lintFront(ctx context.Interface, pipeline *Pipeline) error {
 	return nil
 }
 
-func LintToService(ctx context.Interface, config *service.Service, proxyContexts key_value.KeyValue, pipeline *Pipeline) error {
+func LintToService(ctx context.Interface, config *service.Service, proxyContexts []string, pipeline *Pipeline) error {
 	if err := lintLastToService(ctx, config, proxyContexts, pipeline); err != nil {
 		return fmt.Errorf("lintLastToService: %w", err)
 	}

@@ -32,7 +32,7 @@ type Service struct {
 	Config          *configuration.Config
 	Controllers     key_value.KeyValue
 	pipelines       []*pipeline.Pipeline // Pipeline beginning: url => [Pipes]
-	RequiredProxies key_value.KeyValue   // url => context type
+	RequiredProxies []string             // url => context type
 	Logger          *log.Logger
 	Context         *dev.Context
 	manager         controller.Interface // manage this service from other parts. it should be called before context runs
@@ -44,7 +44,7 @@ func New(config *configuration.Config, logger *log.Logger) (*Service, error) {
 		Config:          config,
 		Logger:          logger,
 		Controllers:     key_value.Empty(),
-		RequiredProxies: key_value.Empty(),
+		RequiredProxies: []string{},
 		pipelines:       make([]*pipeline.Pipeline, 0),
 	}
 
@@ -58,26 +58,20 @@ func (independent *Service) AddController(category string, controller controller
 
 // RequireProxy adds a proxy that's needed for this service to run.
 // Service has to have a pipeline.
-func (independent *Service) RequireProxy(url string, contextType context.Type) {
-	independent.RequiredProxies.Set(url, contextType)
+func (independent *Service) RequireProxy(url string) {
+	if !independent.IsProxyRequired(url) {
+		independent.RequiredProxies = append(independent.RequiredProxies, url)
+	}
 }
 
 func (independent *Service) IsProxyRequired(proxyUrl string) bool {
-	for url := range independent.RequiredProxies {
+	for _, url := range independent.RequiredProxies {
 		if strings.Compare(url, proxyUrl) == 0 {
 			return true
 		}
 	}
 
 	return false
-}
-
-func (independent *Service) GetProxyContext(proxyUrl string) context.Type {
-	contextType, ok := independent.RequiredProxies[proxyUrl].(context.Type)
-	if !ok {
-		return context.DefaultContext
-	}
-	return contextType
 }
 
 // A Pipeline creates a chain of the proxies.
@@ -325,8 +319,7 @@ func (independent *Service) Prepare(as service.Type) error {
 	// prepare proxies configurations
 	//--------------------------------------------------
 	if len(independent.RequiredProxies) > 0 {
-		for requiredProxy, contextInterface := range independent.RequiredProxies {
-			contextType := contextInterface.(context.Type)
+		for _, requiredProxy := range independent.RequiredProxies {
 			var dep *dev.Dep
 
 			dep, err = independent.Context.New(requiredProxy)
@@ -336,8 +329,8 @@ func (independent *Service) Prepare(as service.Type) error {
 			}
 
 			// Sets the default values.
-			if err = independent.prepareProxyConfiguration(dep, contextType); err != nil {
-				err = fmt.Errorf("service.prepareProxyConfiguration of %s in context %s: %w", requiredProxy, contextType, err)
+			if err = independent.prepareProxyConfiguration(dep, context.DevContext); err != nil {
+				err = fmt.Errorf("service.prepareProxyConfiguration of %s in context %s: %w", requiredProxy, context.DevContext, err)
 				goto closeContext
 			}
 		}
@@ -398,7 +391,7 @@ func (independent *Service) Prepare(as service.Type) error {
 
 	// run proxies if they are needed.
 	if len(independent.RequiredProxies) > 0 {
-		for requiredProxy := range independent.RequiredProxies {
+		for _, requiredProxy := range independent.RequiredProxies {
 			// We don't check for the error, since preparing the configuration should do that already.
 			dep, _ := independent.Context.Dep(requiredProxy)
 
