@@ -75,7 +75,7 @@ func (extension *Extension) GetControllerName() string {
 }
 
 // Prepare the service by validating the configuration.
-// if the configuration doesn't exist, it will be created.
+// If the configuration doesn't exist, it will be created.
 func (extension *Extension) Prepare() error {
 	if err := extension.service.Prepare(service2.ExtensionType); err != nil {
 		return fmt.Errorf("service.Run as '%s' failed: %w", service2.ExtensionType, err)

@@ -280,7 +280,11 @@ func (independent *Service) runManager() error {
 	}
 
 	independent.manager = replier
-	go independent.manager.Run()
+	go func() {
+		if err := independent.manager.Run(); err != nil {
+			independent.Logger.Fatal("independent.manager.Run: %w", err)
+		}
+	}()
 
 	return nil
 }
@@ -329,8 +333,8 @@ func (independent *Service) Prepare(as service.Type) error {
 			}
 
 			// Sets the default values.
-			if err = independent.prepareProxyConfiguration(dep, context.DevContext); err != nil {
-				err = fmt.Errorf("service.prepareProxyConfiguration of %s in context %s: %w", requiredProxy, context.DevContext, err)
+			if err = independent.prepareProxyConfiguration(dep); err != nil {
+				err = fmt.Errorf("service.prepareProxyConfiguration(%s): %w", requiredProxy, err)
 				goto closeContext
 			}
 		}
@@ -556,7 +560,7 @@ func (independent *Service) prepareExtension(dep *dev.Dep) error {
 // prepareProxyConfiguration links the proxy with the dependency.
 //
 // if dependency doesn't exist, it will be downloaded
-func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext context.Type) error {
+func (independent *Service) prepareProxyConfiguration(dep *dev.Dep) error {
 	err := dep.Prepare(independent.Logger)
 	if err != nil {
 		return fmt.Errorf("dev.Prepare(%s): %w", dep.Url(), err)
@@ -568,7 +572,7 @@ func (independent *Service) prepareProxyConfiguration(dep *dev.Dep, proxyContext
 	}
 
 	depConfig, err := dep.GetServiceConfig()
-	converted, err := converter.ServiceToProxy(depConfig, proxyContext)
+	converted, err := converter.ServiceToProxy(depConfig)
 	if err != nil {
 		return fmt.Errorf("configuration.ServiceToProxy: %w", err)
 	}
@@ -613,7 +617,7 @@ func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
 	}
 
 	depConfig, err := dep.GetServiceConfig()
-	converted, err := converter.ServiceToExtension(depConfig, independent.Config.Context.GetType())
+	converted, err := converter.ServiceToExtension(depConfig)
 	if err != nil {
 		return fmt.Errorf("configuration.ServiceToExtension: %w", err)
 	}

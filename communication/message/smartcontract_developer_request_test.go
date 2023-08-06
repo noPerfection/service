@@ -231,8 +231,8 @@ func (suite *TestSmRequestSuite) TestParsing() {
 }
 
 // Run the request's message hash
-// Then this message hash along with the signature is used by
-// app/account.SmartcontractDeveloper
+// app/account uses this message hash along with the signature
+// .SmartcontractDeveloper
 // to validate the address.
 func (suite *TestSmRequestSuite) TestHashing() {
 	request := []byte(`{"command":"get_data","parameters":{"_address":"0xdead","_nonce_timestamp":12312,"data_id":1}}`)

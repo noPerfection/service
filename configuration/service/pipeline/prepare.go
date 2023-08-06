@@ -264,7 +264,7 @@ func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, pipe
 			return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", lastUrl, err)
 		}
 
-		converted, err := converter.ServiceToProxy(lastConfig, context.DevContext)
+		converted, err := converter.ServiceToProxy(lastConfig)
 		if err != nil {
 			return fmt.Errorf("failed to convert the proxy")
 		}
@@ -336,7 +336,7 @@ func lintLastToService(ctx context.Interface, config *service.Service, pipeline 
 			return fmt.Errorf("failed to update source port in dependency porxy: '%s': %w", lastUrl, err)
 		}
 
-		converted, err := converter.ServiceToProxy(lastConfig, context.DevContext)
+		converted, err := converter.ServiceToProxy(lastConfig)
 		if err != nil {
 			return fmt.Errorf("failed to convert the proxy")
 		}

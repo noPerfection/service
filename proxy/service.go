@@ -20,7 +20,7 @@ type Proxy struct {
 	Controller *Controller
 }
 
-// extension creates the configuration of the proxy controller.
+// An extension creates the configuration of the proxy controller.
 // The proxy controller itself is added as the extension to the source controllers,
 // to the request handlers and to the reply handlers.
 func extension() *service2.Extension {

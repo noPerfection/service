@@ -11,11 +11,11 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// WhitelistAccess Adds whitelisted services
+// WhitelistAccess Adds assisted services
 func WhitelistAccess(logger log.Logger, blockchainEnv *identity.Service, publicKeys []string) {
 	logger.Info("get the whitelisted services")
 
-	// We set the whitelisted accounts that has access to this controller
+	// We set the assisted accounts that have access to this controller
 	zmq.AuthCurveAdd(blockchainEnv.Name, publicKeys...)
 
 	logger.Info("get the whitelisted subscribers")

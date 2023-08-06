@@ -29,7 +29,7 @@
 //
 // -----------------------------------------------
 // running the application will do the following.
-// It checks is the port of proxies are in use. If it's not, then it will call a run.
+// It checks the port of proxies are in use. If it's not, then it will call a run.
 //
 // Then it will call itself.
 //
@@ -77,29 +77,29 @@ func preparePath(path string) error {
 // New creates a context including its directories.
 func New(config context.Interface) (*Context, error) {
 	if config.GetType() != context.DevContext {
-		return nil, fmt.Errorf("context config is not a dev context. it's %s", config.GetType())
+		return nil, fmt.Errorf("ctx config is not a dev ctx. it's %s", config.GetType())
 	}
 	configContext, ok := config.(*dev.Context)
 	if !ok {
-		return nil, fmt.Errorf("can not convert context config into dev context")
+		return nil, fmt.Errorf("can not convert ctx config into dev ctx")
 	}
 
-	context := &Context{
+	ctx := &Context{
 		config:     configContext,
 		deps:       make(map[string]*Dep),
 		controller: nil,
 	}
 	for _, path := range config.Paths() {
 		if err := preparePath(path); err != nil {
-			return context, fmt.Errorf("preparePath(%s): %w", path, err)
+			return ctx, fmt.Errorf("preparePath(%s): %w", path, err)
 		}
 	}
 
-	if err := context.prepareEnv(); err != nil {
-		return context, fmt.Errorf("prepareEnv: %w", err)
+	if err := ctx.prepareEnv(); err != nil {
+		return ctx, fmt.Errorf("prepareEnv: %w", err)
 	}
 
-	return context, nil
+	return ctx, nil
 }
 
 // prepareEnv writes the .env of the context to share between dependencies.

@@ -90,7 +90,11 @@ func (context *Context) Run(logger *log.Logger) error {
 	}
 
 	context.controller = replier
-	go context.controller.Run()
+	go func() {
+		if err := context.controller.Run(); err != nil {
+			logger.Fatal("context.controller.Run: %w", err)
+		}
+	}()
 
 	return nil
 }

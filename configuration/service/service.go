@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/configuration/context"
 	"github.com/ahmetson/service-lib/configuration/service/pipeline"
 )
 
@@ -198,21 +197,6 @@ func (s *Service) SetPipeline(pipeline *pipeline.Pipeline) {
 	s.Pipelines = append(s.Pipelines, pipeline)
 }
 
-// HasProxy checks is there any proxy within the context.
-// If the context is default, then it will return true for any context
-func (s *Service) HasProxy(contextType context.Type) bool {
-	if len(s.Proxies) == 0 {
-		return false
-	}
-	if contextType == context.DefaultContext {
-		return true
-	}
-
-	for _, proxy := range s.Proxies {
-		if proxy.Context == contextType {
-			return true
-		}
-	}
-
-	return false
+func (s *Service) HasProxy() bool {
+	return len(s.Proxies) > 0
 }

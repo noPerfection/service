@@ -38,7 +38,7 @@ func (instance *Instance) Run(c *Controller) error {
 	// if secure and not inproc
 	// then we add the domain name of controller to the security layer
 	//
-	// then any whitelisting users will be sent there.
+	// then any pass-listing users will be sent there.
 	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
 
 	url := Url(c.config.Instances[0].ControllerCategory, c.config.Instances[0].Port)

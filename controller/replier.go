@@ -29,10 +29,14 @@ const (
 // Workers are calling command handlers defined in command.HandleFunc
 func (c *AsyncController) worker() {
 	socket, _ := zmq.NewSocket(zmq.REQ)
-	url := c.managerUrl()
-
-	socket.Connect(url)
-	socket.SendMessage(WorkerReady)
+	err := socket.Connect(c.managerUrl())
+	if err != nil {
+		c.logger.Fatal("finished working")
+	}
+	_, err = socket.SendMessage(WorkerReady)
+	if err != nil {
+		c.logger.Fatal("send message")
+	}
 
 	poller := zmq.NewPoller()
 	poller.Add(socket, zmq.POLLIN)
@@ -80,15 +84,18 @@ func (c *AsyncController) worker() {
 //
 // This function will forward the messages to the backend.
 // Since backend is calling the workers which means the worker will be busy, this function removes the worker from the queue.
-// since the queue is removed, it will remove the frontend from the reactor.
-// frontend will still receive the messages, however they will be queued until frontend will not be added to the reactor.
+// Since the queue is removed, it will remove the frontend from the reactor.
+// Frontend will still receive the messages, however they will be queued until frontend will not be added to the reactor.
 func (c *AsyncController) handleFrontend() error {
 	msg, err := c.socket.RecvMessage(0)
 	if err != nil {
 		return err
 	}
 
-	c.manager.SendMessage(c.workers[0], "", msg)
+	_, err = c.manager.SendMessage(c.workers[0], "", msg)
+	if err != nil {
+		return fmt.Errorf("manager.SendMessage: %w", err)
+	}
 	c.workers = c.workers[1:]
 
 	// stop accepting messages from the frontend.
@@ -121,7 +128,9 @@ func (c *AsyncController) handleBackend() error {
 	}
 
 	if msg[0] != WorkerReady {
-		c.socket.SendMessage(msg)
+		if _, err = c.socket.SendMessage(msg); err != nil {
+			return fmt.Errorf("socket.SendMessage: %w", err)
+		}
 	}
 
 	return nil
