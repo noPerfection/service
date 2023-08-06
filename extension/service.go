@@ -8,15 +8,16 @@ import (
 	service2 "github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/server"
+	"github.com/ahmetson/service-lib/service"
 )
 
 const defaultControllerName = "main"
 
-type service = service.Service
+type _service = service.Service
 
 // Extension of the extension type
 type Extension struct {
-	*service
+	*_service
 }
 
 // New extension service based on the configurations
@@ -29,7 +30,7 @@ func New(config *config.Config, parent *log.Logger) (*Extension, error) {
 	}
 
 	service := Extension{
-		service: base,
+		_service: base,
 	}
 
 	return &service, nil
@@ -42,11 +43,11 @@ func (extension *Extension) AddController(controllerType service2.ControllerType
 	}
 
 	if controllerType == service2.SyncReplierType {
-		replier, err := server.SyncReplier(extension.service.Logger)
+		replier, err := server.SyncReplier(extension._service.Logger)
 		if err != nil {
 			return fmt.Errorf("server.NewReplier: %w", err)
 		}
-		extension.service.AddController(defaultControllerName, replier)
+		extension._service.AddController(defaultControllerName, replier)
 	} else if controllerType == service2.ReplierType {
 		//router, err := server.NewRouter(controllerLogger)
 		//if err != nil {
@@ -54,18 +55,18 @@ func (extension *Extension) AddController(controllerType service2.ControllerType
 		//}
 		//extension.ControllerCategory = router
 	} else if controllerType == service2.PusherType {
-		puller, err := server.NewPull(extension.service.Logger)
+		puller, err := server.NewPull(extension._service.Logger)
 		if err != nil {
 			return fmt.Errorf("server.NewPuller: %w", err)
 		}
-		extension.service.AddController(defaultControllerName, puller)
+		extension._service.AddController(defaultControllerName, puller)
 	}
 
 	return nil
 }
 
 func (extension *Extension) GetController() server.Interface {
-	controllerInterface, _ := extension.service.Controllers[defaultControllerName]
+	controllerInterface, _ := extension._service.Controllers[defaultControllerName]
 	return controllerInterface.(server.Interface)
 }
 
@@ -76,18 +77,18 @@ func (extension *Extension) GetControllerName() string {
 // Prepare the service by validating the config.
 // If the config doesn't exist, it will be created.
 func (extension *Extension) Prepare() error {
-	if err := extension.service.Prepare(service2.ExtensionType); err != nil {
+	if err := extension._service.Prepare(service2.ExtensionType); err != nil {
 		return fmt.Errorf("service.Run as '%s' failed: %w", service2.ExtensionType, err)
 	}
 
-	if len(extension.service.Controllers) != 1 {
+	if len(extension._service.Controllers) != 1 {
 		return fmt.Errorf("extensions support one server only")
 	}
 
 	return nil
 }
 
-// Run the service service.
+// Run the service.
 func (extension *Extension) Run() {
-	extension.service.Run()
+	extension._service.Run()
 }
