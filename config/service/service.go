@@ -3,7 +3,9 @@ package service
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/service-lib/config/arg"
 	"github.com/ahmetson/service-lib/config/service/pipeline"
+	"path"
 )
 
 // Service type defined in the config
@@ -18,6 +20,24 @@ type Service struct {
 }
 
 type Services []Service
+
+func NewService(as Type) (*Service, error) {
+	if !arg.Exist(arg.Url) {
+		return nil, fmt.Errorf("missing --url")
+	}
+
+	url, err := arg.Value(arg.Url)
+	if err != nil {
+		return nil, fmt.Errorf("arg.Value: %w", err)
+	}
+
+	return &Service{
+		Type:      as,
+		Url:       url,
+		Id:        path.Base(url),
+		Pipelines: make([]*pipeline.Pipeline, 0),
+	}, nil
+}
 
 func (s *Service) PrepareService() error {
 	err := s.ValidateTypes()

@@ -17,7 +17,6 @@ import (
 	"github.com/ahmetson/service-lib/config/service/converter"
 	"github.com/ahmetson/service-lib/config/service/pipeline"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/os/network"
 	"github.com/ahmetson/service-lib/os/path"
 	"github.com/ahmetson/service-lib/server"
 	dev2 "github.com/ahmetson/service-lib/service/orchestra/dev"
@@ -101,44 +100,6 @@ func (independent *Service) requiredControllerExtensions() []string {
 }
 
 func (independent *Service) prepareServiceConfiguration(expectedType service.Type) error {
-	// validate the service itself
-	conf := independent.Config
-	serviceConfig := independent.Config.Service
-	if len(serviceConfig.Type) == 0 {
-		if !arg.Exist(arg.Url) {
-			return fmt.Errorf("missing --url")
-		}
-
-		url, err := arg.Value(arg.Url)
-		if err != nil {
-			return fmt.Errorf("arg.Value: %w", err)
-		}
-
-		serviceConfig = &service.Service{
-			Type:      expectedType,
-			Url:       url,
-			Id:        conf.Name + " 1",
-			Pipelines: make([]*pipeline.Pipeline, 0),
-		}
-	} else if serviceConfig.Type != expectedType {
-		return fmt.Errorf("service type is overwritten. expected '%s', not '%s'", expectedType, serviceConfig.Type)
-	}
-
-	independent.Config.Service = serviceConfig
-
-	return nil
-}
-
-func (independent *Service) prepareControllerConfigurations() error {
-	// validate the Controllers
-	for name, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(server.Interface)
-
-		err := independent.PrepareControllerConfiguration(name, c.ControllerType())
-		if err != nil {
-			return fmt.Errorf("prepare '%s' server config as '%s' type: %w", name, c.ControllerType(), err)
-		}
-	}
 
 	return nil
 }
@@ -153,10 +114,7 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 			return fmt.Errorf("server expected to be of '%s' type, not '%s'", as, controllerConfig.Type)
 		}
 	} else {
-		controllerConfig = &service.Controller{
-			Type:     as,
-			Category: name,
-		}
+		controllerConfig = service.NewController(as, name)
 
 		serviceConfig.Controllers = append(serviceConfig.Controllers, controllerConfig)
 		independent.Config.Service = serviceConfig
@@ -174,14 +132,11 @@ func (independent *Service) prepareInstanceConfiguration(controllerConfig *servi
 	serviceConfig := independent.Config.Service
 
 	if len(controllerConfig.Instances) == 0 {
-		port := network.GetFreePort()
-
-		sourceInstance := service.Instance{
-			ControllerCategory: controllerConfig.Category,
-			Id:                 controllerConfig.Category + "1",
-			Port:               uint64(port),
+		sourceInstance, err := service.NewInstance(controllerConfig.Category)
+		if err != nil {
+			return fmt.Errorf("service.NewInstance: %w", err)
 		}
-		controllerConfig.Instances = append(controllerConfig.Instances, sourceInstance)
+		controllerConfig.Instances = append(controllerConfig.Instances, *sourceInstance)
 		serviceConfig.SetController(controllerConfig)
 		independent.Config.Service = serviceConfig
 	} else {
@@ -193,15 +148,34 @@ func (independent *Service) prepareInstanceConfiguration(controllerConfig *servi
 	return nil
 }
 
-// prepareConfiguration prepares yaml in service, server, and server instances
+// prepareConfiguration prepares the configuration.
 func (independent *Service) prepareConfiguration(expectedType service.Type) error {
-	if err := independent.prepareServiceConfiguration(expectedType); err != nil {
-		return fmt.Errorf("prepareServiceConfiguration as %s: %w", expectedType, err)
+	// validate the service itself
+	serviceConfig := independent.Config.Service
+	var err error
+
+	// yaml was given?
+	if len(serviceConfig.Type) > 0 {
+		if serviceConfig.Type != expectedType {
+			return fmt.Errorf("service type is overwritten. expected '%s', not '%s'", expectedType, serviceConfig.Type)
+		}
+	} else {
+		serviceConfig, err = service.NewService(expectedType)
+		if err != nil {
+			return fmt.Errorf("service.NewService(%s): %w", expectedType, err)
+		}
+
+		independent.Config.Service = serviceConfig
 	}
 
 	// validate the Controllers
-	if err := independent.prepareControllerConfigurations(); err != nil {
-		return fmt.Errorf("prepareControllerConfigurations: %w", err)
+	for category, controllerInterface := range independent.Controllers {
+		c := controllerInterface.(server.Interface)
+
+		err := independent.PrepareControllerConfiguration(category, c.ControllerType())
+		if err != nil {
+			return fmt.Errorf("prepare '%s' server config as '%s' type: %w", category, c.ControllerType(), err)
+		}
 	}
 
 	return nil
@@ -293,6 +267,8 @@ func (independent *Service) Prepare(as service.Type) error {
 		return fmt.Errorf("no Controllers. call service.AddController")
 	}
 
+	requiredExtensions := independent.requiredControllerExtensions()
+
 	//
 	// prepare the config with the service, it's controllers and instances.
 	// it doesn't prepare the proxies, pipelines and extensions
@@ -309,8 +285,6 @@ func (independent *Service) Prepare(as service.Type) error {
 	if err != nil {
 		return fmt.Errorf("service.prepareContext: %w", err)
 	}
-
-	requiredExtensions := independent.requiredControllerExtensions()
 
 	err = independent.Context.Run(independent.Logger)
 	if err != nil {
