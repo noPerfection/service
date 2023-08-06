@@ -1,4 +1,4 @@
-package context
+package orchestra
 
 import "github.com/ahmetson/service-lib/config/service"
 

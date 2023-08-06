@@ -13,7 +13,6 @@ import (
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/config/arg"
-	"github.com/ahmetson/service-lib/config/context"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/config/service/converter"
 	"github.com/ahmetson/service-lib/config/service/pipeline"
@@ -21,6 +20,7 @@ import (
 	"github.com/ahmetson/service-lib/os/network"
 	"github.com/ahmetson/service-lib/os/path"
 	"github.com/ahmetson/service-lib/server"
+	"github.com/ahmetson/service-lib/service/orchestra"
 	dev2 "github.com/ahmetson/service-lib/service/orchestra/dev"
 	"os"
 	"strings"
@@ -518,7 +518,7 @@ errOccurred:
 	}
 }
 
-func prepareContext(config context.Interface) (*dev2.Context, error) {
+func prepareContext(config orchestra.Interface) (*dev2.Context, error) {
 	// get the extensions
 	devContext, err := dev2.New(config)
 	if err != nil {

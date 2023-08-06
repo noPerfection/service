@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/config/context"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/os/path"
+	"github.com/ahmetson/service-lib/service/orchestra"
 	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
@@ -66,11 +66,11 @@ func New(config *config.Config) (*Context, error) {
 	return devContext, nil
 }
 
-func (c *Context) GetType() context.Type {
-	return context.DevContext
+func (c *Context) GetType() orchestra.Type {
+	return orchestra.DevContext
 }
 
-// ReadService on the given path.
+// GetConfig on the given path.
 // If a path is not obsolete, then it should be relative to the executable.
 // The path should have the .yml extension
 func (c *Context) GetConfig(url string) (*service.Service, error) {

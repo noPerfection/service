@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/ahmetson/service-lib/config/context"
+	"github.com/ahmetson/service-lib/service/orchestra"
 )
 
 const (
@@ -15,5 +15,5 @@ const (
 type Proxy struct {
 	Url       string
 	Instances []Instance
-	Context   context.Type
+	Context   orchestra.Type
 }

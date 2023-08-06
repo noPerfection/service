@@ -9,10 +9,10 @@ package config
 import (
 	"fmt"
 	"github.com/ahmetson/service-lib/config/arg"
-	"github.com/ahmetson/service-lib/config/context"
 	"github.com/ahmetson/service-lib/config/context/dev"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/os/path"
+	"github.com/ahmetson/service-lib/service/orchestra"
 	"github.com/fsnotify/fsnotify"
 	"path/filepath"
 	"time"
@@ -32,7 +32,7 @@ type Config struct {
 	Secure       bool
 	logger       *log.Logger // debug purpose only
 	Service      *service.Service
-	Context      context.Interface
+	Context      orchestra.Interface
 	handleChange func(*service.Service, error)
 }
 

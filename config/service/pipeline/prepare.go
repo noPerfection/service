@@ -9,10 +9,10 @@ package pipeline
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/config/context"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/config/service/converter"
 	"github.com/ahmetson/service-lib/os/network"
+	"github.com/ahmetson/service-lib/service/orchestra"
 	"slices"
 )
 
@@ -214,7 +214,7 @@ func lintDestinationsToControllers(proxyConfig *service.Service, controllers []*
 //
 // Rule for linting:
 // If there is a pipeline with the service, then pipelines will lint through that.
-func LintToControllers(ctx context.Interface, serviceConfig *service.Service, pipelines []*Pipeline) error {
+func LintToControllers(ctx orchestra.Interface, serviceConfig *service.Service, pipelines []*Pipeline) error {
 	servicePipeline := FindServiceEnd(pipelines)
 	serviceProxyConfig, err := ctx.GetConfig(servicePipeline.Beginning())
 	if err != nil {
@@ -243,7 +243,7 @@ func LintToControllers(ctx context.Interface, serviceConfig *service.Service, pi
 	return nil
 }
 
-func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, pipeline *Pipeline) error {
+func lintLastToProxy(ctx orchestra.Interface, serviceConfig *service.Service, pipeline *Pipeline) error {
 	// lets lint the server's last head destination to the service server's source or
 	// to the server itself.
 	lastUrl := pipeline.HeadLast()
@@ -274,7 +274,7 @@ func lintLastToProxy(ctx context.Interface, serviceConfig *service.Service, pipe
 
 	return nil
 }
-func lintLastToController(ctx context.Interface, serviceConfig *service.Service, pipeline *Pipeline) error {
+func lintLastToController(ctx orchestra.Interface, serviceConfig *service.Service, pipeline *Pipeline) error {
 	// lets lint the server's last head destination to the service server's source or
 	// to the server itself.
 	lastUrl := pipeline.HeadLast()
@@ -311,7 +311,7 @@ func lintLastToController(ctx context.Interface, serviceConfig *service.Service,
 
 	return nil
 }
-func lintLastToService(ctx context.Interface, config *service.Service, pipeline *Pipeline) error {
+func lintLastToService(ctx orchestra.Interface, config *service.Service, pipeline *Pipeline) error {
 	// bridge the proxies between the proxies
 	if !pipeline.IsMultiHead() {
 		return nil
@@ -347,7 +347,7 @@ func lintLastToService(ctx context.Interface, config *service.Service, pipeline 
 	return nil
 }
 
-func lintFront(ctx context.Interface, pipeline *Pipeline) error {
+func lintFront(ctx orchestra.Interface, pipeline *Pipeline) error {
 	// lets lint the service's last head's destination to this service
 	lastUrl := pipeline.HeadLast()
 
@@ -386,7 +386,7 @@ func lintFront(ctx context.Interface, pipeline *Pipeline) error {
 	return nil
 }
 
-func LintToService(ctx context.Interface, config *service.Service, pipeline *Pipeline) error {
+func LintToService(ctx orchestra.Interface, config *service.Service, pipeline *Pipeline) error {
 	if err := lintLastToService(ctx, config, pipeline); err != nil {
 		return fmt.Errorf("lintLastToService: %w", err)
 	}

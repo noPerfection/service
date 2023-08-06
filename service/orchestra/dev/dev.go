@@ -39,10 +39,10 @@ package dev
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/config/context"
 	"github.com/ahmetson/service-lib/config/context/dev"
 	"github.com/ahmetson/service-lib/config/env"
 	"github.com/ahmetson/service-lib/server"
+	"github.com/ahmetson/service-lib/service/orchestra"
 	"os"
 )
 
@@ -75,8 +75,8 @@ func preparePath(path string) error {
 }
 
 // New creates an orchestra including its directories.
-func New(config context.Interface) (*Context, error) {
-	if config.GetType() != context.DevContext {
+func New(config orchestra.Interface) (*Context, error) {
+	if config.GetType() != orchestra.DevContext {
 		return nil, fmt.Errorf("ctx config is not a dev ctx. it's %s", config.GetType())
 	}
 	configContext, ok := config.(*dev.Context)
