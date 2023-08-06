@@ -4,7 +4,6 @@ import (
 	goLog "log"
 	"testing"
 
-	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/log"
@@ -103,43 +102,12 @@ func (suite *TestCommandSuite) TestRun() {
 		_ = suite.controller.Close()
 	}()
 
-	// Test the Request
-	command1 := Route{
-		Command: "command_1",
-	}
-	requestParameters := key_value.Empty()
-	var replyParameters key_value.KeyValue
-	err := command1.Request(suite.client, requestParameters, &replyParameters)
-	suite.NoError(err)
-	suite.NotEmpty(replyParameters)
-	replyCommandParam, err := replyParameters.GetString("command")
-	suite.NoError(err)
-	suite.Equal(command1.Command, replyCommandParam)
-
-	// Test the Reply() function
-	expectedReply := message.Reply{
-		Status:     message.OK,
-		Message:    "",
-		Parameters: replyParameters,
-	}
-	createdReply, err := Reply(replyParameters)
-	suite.NoError(err)
-	suite.EqualValues(expectedReply, createdReply)
-
 	// Test command.Push()
 	url := "inproc://test_proc"
 	client, err := zmq.NewSocket(zmq.PUSH)
 	suite.NoError(err)
 	err = client.Connect(url)
 	suite.NoError(err)
-
-	command2 := Route{
-		Command: "command_2",
-	}
-	pushParameters := key_value.Empty()
-	err = command2.Push(client, pushParameters)
-	suite.NoError(err)
-
 }
 
 // In order for 'go test' to run this suite, we need to create

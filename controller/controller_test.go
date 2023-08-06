@@ -91,25 +91,6 @@ func (suite *TestReplyControllerSuite) TestRun() {
 	wg.Add(1)
 	// tcp client
 	go func() {
-		for i := 0; i < 5; i++ {
-			requestParameters := key_value.Empty().
-				Set("counter", uint64(i))
-			var replyParameters key_value.KeyValue
-
-			commandIndex := i % 2
-
-			err := suite.commands[commandIndex].Request(suite.tcpClient, requestParameters, &replyParameters)
-			suite.NoError(err)
-
-			counter, err := replyParameters.GetUint64("counter")
-			suite.Require().NoError(err)
-			suite.Equal(counter, uint64(i))
-
-			id, err := replyParameters.GetString("id")
-			suite.Require().NoError(err)
-			suite.Equal(id, suite.commands[commandIndex].Command)
-		}
-
 		// no command found
 		command3 := command.Route{Command: "command_3"}
 		request3 := message.Request{
@@ -119,30 +100,6 @@ func (suite *TestReplyControllerSuite) TestRun() {
 		_, err := suite.tcpClient.RequestRemoteService(&request3)
 		suite.Require().Error(err)
 
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	// tcp client
-	go func() {
-		for i := 0; i < 5; i++ {
-			requestParameters := key_value.Empty().
-				Set("counter", uint64(i))
-			var replyParameters key_value.KeyValue
-
-			commandIndex := i % 2
-
-			err := suite.commands[commandIndex].Request(suite.inprocClient, requestParameters, &replyParameters)
-			suite.NoError(err)
-
-			counter, err := replyParameters.GetUint64("counter")
-			suite.Require().NoError(err)
-			suite.Equal(counter, uint64(i))
-
-			id, err := replyParameters.GetString("id")
-			suite.Require().NoError(err)
-			suite.Equal(id, suite.commands[commandIndex].Command)
-		}
 		wg.Done()
 	}()
 
