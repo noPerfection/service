@@ -12,7 +12,7 @@ import (
 	"github.com/ahmetson/service-lib/configuration/context"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/configuration/service/converter"
-	"github.com/ahmetson/service-lib/runtime/network"
+	"github.com/ahmetson/service-lib/os/network"
 	"slices"
 )
 

@@ -8,7 +8,7 @@ import (
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/configuration/context"
 	"github.com/ahmetson/service-lib/configuration/service"
-	"github.com/ahmetson/service-lib/runtime/path"
+	"github.com/ahmetson/service-lib/os/path"
 	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"

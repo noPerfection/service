@@ -7,8 +7,8 @@ import (
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/runtime/network"
-	"github.com/ahmetson/service-lib/runtime/process"
+	"github.com/ahmetson/service-lib/os/network"
+	"github.com/ahmetson/service-lib/os/process"
 	zmq "github.com/pebbe/zmq4"
 )
 

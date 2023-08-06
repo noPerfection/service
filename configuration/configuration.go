@@ -12,7 +12,7 @@ import (
 	"github.com/ahmetson/service-lib/configuration/context"
 	"github.com/ahmetson/service-lib/configuration/context/dev"
 	"github.com/ahmetson/service-lib/configuration/service"
-	"github.com/ahmetson/service-lib/runtime/path"
+	"github.com/ahmetson/service-lib/os/path"
 	"github.com/fsnotify/fsnotify"
 	"path/filepath"
 	"time"
