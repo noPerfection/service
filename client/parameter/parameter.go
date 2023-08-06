@@ -23,7 +23,7 @@ const (
 	// Set the SDS_REQUEST_TIMEOUT.
 	// If the timeout is float, then its rounded
 	DefaultTimeout = 30 * time.Second
-	// DefaultAttempt How many attempts to do if the remote socket doesn't respond.
+	// DefaultAttempt How many attempts to do if the client socket doesn't respond.
 	// Set the SDS_REQUEST_ATTEMPT
 	// If the SDS_REQUEST_ATTEMPT is a float number
 	// then its rounded.
@@ -51,7 +51,7 @@ func RequestTimeout(appConfig *configuration.Config) time.Duration {
 	return requestTimeout
 }
 
-// Attempt How many attempts we make to request the remote service before we will
+// Attempt How many attempts we make to request the client service before we will
 // return an error.
 // It returns the attempt amount from the configuration.
 // If the configuration doesn't exist, then we the default value.

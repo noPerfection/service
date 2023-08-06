@@ -8,6 +8,7 @@ package independent
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
@@ -20,7 +21,6 @@ import (
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/os/network"
 	"github.com/ahmetson/service-lib/os/path"
-	"github.com/ahmetson/service-lib/remote"
 	"github.com/ahmetson/service-lib/server"
 	"os"
 	"strings"
@@ -232,7 +232,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 }
 
 // onClose closing all the dependencies in the context.
-func (independent *Service) onClose(request message.Request, logger *log.Logger, _ ...*remote.ClientSocket) message.Reply {
+func (independent *Service) onClose(request message.Request, logger *log.Logger, _ ...*client.ClientSocket) message.Reply {
 	logger.Info("service received a signal to close",
 		"service", independent.Config.Service.Url,
 		"todo", "close all controllers",

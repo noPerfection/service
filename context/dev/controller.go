@@ -10,16 +10,16 @@ package dev
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/remote"
 	"github.com/ahmetson/service-lib/server"
 )
 
 // onClose closing all the dependencies in the context.
-func (context *Context) onClose(request message.Request, logger *log.Logger, _ ...*remote.ClientSocket) message.Reply {
+func (context *Context) onClose(request message.Request, logger *log.Logger, _ ...*client.ClientSocket) message.Reply {
 	logger.Info("closing the context",
 		"context type", context.config.GetType(),
 		"service", context.config.GetUrl(),
@@ -54,7 +54,7 @@ func (context *Context) onClose(request message.Request, logger *log.Logger, _ .
 }
 
 // onSetMainService marks the main service to be ready.
-func (context *Context) onServiceReady(request message.Request, logger *log.Logger, _ ...*remote.ClientSocket) message.Reply {
+func (context *Context) onServiceReady(request message.Request, logger *log.Logger, _ ...*client.ClientSocket) message.Reply {
 	logger.Info("onServiceReady", "type", "handler", "state", "enter")
 
 	if context.serviceReady {
@@ -106,10 +106,10 @@ func (context *Context) Close(logger *log.Logger) error {
 		return nil
 	}
 	contextName, contextPort := configuration.ClientUrlParameters(configuration.ContextName(context.config.GetUrl()))
-	contextClient, err := remote.NewReq(contextName, contextPort, logger)
+	contextClient, err := client.NewReq(contextName, contextPort, logger)
 	if err != nil {
-		logger.Error("remote.NewReq", "error", err)
-		return fmt.Errorf("close the service by hand. remote.NewReq: %w", err)
+		logger.Error("client.NewReq", "error", err)
+		return fmt.Errorf("close the service by hand. client.NewReq: %w", err)
 	}
 
 	closeRequest := &message.Request{
@@ -140,9 +140,9 @@ func (context *Context) ServiceReady(logger *log.Logger) error {
 		return nil
 	}
 	contextName, contextPort := configuration.ClientUrlParameters(configuration.ContextName(context.config.GetUrl()))
-	contextClient, err := remote.NewReq(contextName, contextPort, logger)
+	contextClient, err := client.NewReq(contextName, contextPort, logger)
 	if err != nil {
-		return fmt.Errorf("close the service by hand. remote.NewReq: %w", err)
+		return fmt.Errorf("close the service by hand. client.NewReq: %w", err)
 	}
 
 	closeRequest := &message.Request{
@@ -173,9 +173,9 @@ func (context *Context) closeService(logger *log.Logger) error {
 	logger.Info("main service is linted to the context. send a signal to main service to be closed")
 
 	contextName, contextPort := configuration.ClientUrlParameters(configuration.ManagerName(context.config.GetUrl()))
-	contextClient, err := remote.NewReq(contextName, contextPort, logger)
+	contextClient, err := client.NewReq(contextName, contextPort, logger)
 	if err != nil {
-		return fmt.Errorf("close the service by hand. remote.NewReq: %w", err)
+		return fmt.Errorf("close the service by hand. client.NewReq: %w", err)
 	}
 
 	closeRequest := &message.Request{

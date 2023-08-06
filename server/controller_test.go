@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/remote"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -20,8 +20,8 @@ type TestReplyControllerSuite struct {
 	suite.Suite
 	tcpController    *Controller
 	inprocController *Controller
-	tcpClient        *remote.ClientSocket
-	inprocClient     *remote.ClientSocket
+	tcpClient        *client.ClientSocket
+	inprocClient     *client.ClientSocket
 	commands         []command.Route
 }
 
@@ -36,7 +36,7 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	// todo test the inproc broadcasting
 	// todo add the exit
 	_, err = SyncReplier(logger)
-	suite.Require().Error(err, "remote limited service should be failed as the parameter.Url() will not return wildcard host")
+	suite.Require().Error(err, "client limited service should be failed as the parameter.Url() will not return wildcard host")
 	tcpController, err := SyncReplier(logger)
 	suite.NoError(err)
 	suite.tcpController = tcpController
@@ -48,7 +48,7 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	// Socket to talk to clients
 
 	command1 := command.Route{Command: "command_1"}
-	var command1Handler = func(request message.Request, _ *log.Logger, _ ...*remote.ClientSocket) message.Reply {
+	var command1Handler = func(request message.Request, _ *log.Logger, _ ...*client.ClientSocket) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",
@@ -58,7 +58,7 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	_ = command1.AddHandler(command1Handler)
 
 	command2 := command.Route{Command: "command_2"}
-	command2Handler := func(request message.Request, _ *log.Logger, _ ...*remote.ClientSocket) message.Reply {
+	command2Handler := func(request message.Request, _ *log.Logger, _ ...*client.ClientSocket) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
 			Message:    "",

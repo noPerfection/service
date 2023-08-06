@@ -2,9 +2,9 @@ package proxy
 
 import (
 	"fmt"
+	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/message"
 	service2 "github.com/ahmetson/service-lib/configuration/service"
-	"github.com/ahmetson/service-lib/remote"
 	zmq "github.com/pebbe/zmq4"
 
 	"github.com/ahmetson/service-lib/log"
@@ -16,7 +16,7 @@ const ControllerName = "proxy_controller"
 // Url defines the proxy server path
 const Url = "inproc://" + ControllerName
 
-// Destination is the client connected to the server of the remote service.
+// Destination is the client connected to the server of the client service.
 // The Dealer is the Request from Router to the
 // Reply Controller.
 //
@@ -79,7 +79,7 @@ func (controller *Controller) setDestinationSocket() error {
 	if err != nil {
 		return fmt.Errorf("error creating socket: %w", err)
 	}
-	err = socket.Connect(remote.ClientUrl(controller.destination.Configuration.Instances[0].ControllerCategory, controller.destination.Configuration.Instances[0].Port))
+	err = socket.Connect(client.ClientUrl(controller.destination.Configuration.Instances[0].ControllerCategory, controller.destination.Configuration.Instances[0].Port))
 	if err != nil {
 		return fmt.Errorf("setup of dealer socket: %w", err)
 	}
@@ -103,7 +103,7 @@ func (controller *Controller) setDestinationSocket() error {
 //		1 - ""; empty delimiter
 //		2 - string (app/parameter.Type) service name as a tag of dealer.
 //	     to identify which dealer to use
-//		3 - app/remote/message.Request the message that is redirected to the zmq.REP server
+//		3 - app/client/message.Request the message that is redirected to the zmq.REP server
 //
 // The request id is used to identify the client. Once the dealer gets the reply from zmq.REP server
 // the router will return it back to the client by request id.

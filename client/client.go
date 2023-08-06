@@ -1,10 +1,10 @@
-// Package remote defines client socket that can access to the remote service.
-package remote
+// Package client defines client socket that can access to the client service.
+package client
 
 import (
 	"fmt"
+	"github.com/ahmetson/service-lib/client/parameter"
 	"github.com/ahmetson/service-lib/configuration/service"
-	"github.com/ahmetson/service-lib/remote/parameter"
 
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/service-lib/communication/message"
@@ -18,9 +18,9 @@ import (
 )
 
 // ClientSocket is the wrapper around zeromq's socket.
-// The socket is the client's socket that will try to interact with the remote service.
+// The socket is the client's socket that will try to interact with the client service.
 type ClientSocket struct {
-	// The name of remote SDS service and its URL
+	// The name of client SDS service and its URL
 	// its used as a clarification
 	// client_credentials *auth.Credentials
 	serverPublicKey string
@@ -250,7 +250,7 @@ func (socket *ClientSocket) Close() error {
 //
 //			return reply.Parameters, nil
 //		} else {
-//			socket.logger.Warn("Timeout! Are you sure that remote service is running?", "target service name", service.Name, "request_command", request.Command, "attempts_left", attempt, "request_timeout", requestTimeout)
+//			socket.logger.Warn("Timeout! Are you sure that client service is running?", "target service name", service.Name, "request_command", request.Command, "attempts_left", attempt, "request_timeout", requestTimeout)
 //			// if attempts are 0, we reconnect to remove the buffer queue.
 //			if socket.protocol == "inproc" {
 //				err := socket.inprocReconnect()
@@ -276,7 +276,7 @@ func (socket *ClientSocket) Close() error {
 //
 // Error is returned in other cases.
 //
-// If the remote service returned a failure message, it's converted into an error.
+// If the client service returned a failure message, it's converted into an error.
 //
 // The socket type should be REQ or PUSH.
 func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
@@ -334,7 +334,7 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 				return nil, fmt.Errorf("failed to parse the command '%s': %w", request.Command, err)
 			}
 
-			// remote service will add its own stack.
+			// client service will add its own stack.
 			request.SyncTrace(&reply)
 
 			if !reply.IsOK() {
@@ -432,7 +432,7 @@ func (socket *ClientSocket) RequestRawMessage(requestString string) ([]string, e
 	}
 }
 
-// // SetSecurity will set the curve credentials in the socket to authenticate with the remote service.
+// // SetSecurity will set the curve credentials in the socket to authenticate with the client service.
 // func (socket *ClientSocket) SetSecurity(server_public_key string, client *auth.Credentials) *ClientSocket {
 // 	socket.server_public_key = server_public_key
 // 	socket.client_credentials = client

@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/configuration/service"
-	"github.com/ahmetson/service-lib/remote"
 
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
@@ -23,7 +23,7 @@ type Controller struct {
 	routes             *command.Routes
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
-	extensions         remote.Clients
+	extensions         client.Clients
 }
 
 // AddConfig adds the parameters of the server from the configuration.
@@ -118,7 +118,7 @@ func (c *Controller) ControllerType() service.ControllerType {
 func (c *Controller) initExtensionClients() error {
 	for _, extensionInterface := range c.extensionConfigs {
 		extensionConfig := extensionInterface.(*service.Extension)
-		extension, err := remote.NewReq(extensionConfig.Url, extensionConfig.Port, c.logger)
+		extension, err := client.NewReq(extensionConfig.Url, extensionConfig.Port, c.logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a request client: %w", err)
 		}
@@ -142,7 +142,7 @@ func (c *Controller) Close() error {
 }
 
 // Url creates url of the server url for binding.
-// For clients to connect to this url, call remote.ClientUrl()
+// For clients to connect to this url, call client.ClientUrl()
 func Url(name string, port uint64) string {
 	if port == 0 {
 		return fmt.Sprintf("inproc://%s", name)

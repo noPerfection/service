@@ -3,17 +3,17 @@ package server
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/remote"
 )
 
 // Interface of the server. All controllers have it
 //
-// The interface that it accepts is the *remote.ClientSocket from the
-// "github.com/ahmetson/service-lib/remote" package.
+// The interface that it accepts is the *client.ClientSocket from the
+// "github.com/ahmetson/service-lib/client" package.
 type Interface interface {
 	// AddConfig adds the parameters of the server from the configuration
 	AddConfig(controller *service.Controller, serviceUrl string)
@@ -42,7 +42,7 @@ type Interface interface {
 }
 
 // Does nothing, simply returns the data
-var anyHandler = func(request message.Request, _ *log.Logger, _ ...*remote.ClientSocket) message.Reply {
+var anyHandler = func(request message.Request, _ *log.Logger, _ ...*client.ClientSocket) message.Reply {
 	replyParameters := key_value.Empty()
 	replyParameters.Set("command", request.Command)
 

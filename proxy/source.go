@@ -2,15 +2,15 @@ package proxy
 
 import (
 	"fmt"
+	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/remote"
 	"github.com/ahmetson/service-lib/server"
 )
 
-var anyHandler = func(request message.Request, _ *log.Logger, extensions ...*remote.ClientSocket) message.Reply {
-	proxyClient := remote.FindClient(extensions, ControllerName)
+var anyHandler = func(request message.Request, _ *log.Logger, extensions ...*client.ClientSocket) message.Reply {
+	proxyClient := client.FindClient(extensions, ControllerName)
 	replyParameters, err := proxyClient.RequestRemoteService(&request)
 	if err != nil {
 		return request.Fail(err.Error())

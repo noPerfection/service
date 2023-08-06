@@ -4,10 +4,10 @@ import (
 	goLog "log"
 	"testing"
 
+	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/remote"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 )
@@ -18,7 +18,7 @@ import (
 type TestCommandSuite struct {
 	suite.Suite
 	controller *zmq.Socket
-	client     *remote.ClientSocket
+	client     *client.ClientSocket
 }
 
 // Make sure that Account is set to five
@@ -33,14 +33,14 @@ func (suite *TestCommandSuite) SetupTest() {
 
 	shortUrl := "short"
 	// at least len(protocol prefix) + 1 = 9 + 1
-	_, err = remote.InprocRequestSocket(shortUrl, logger, appConfig)
+	_, err = client.InprocRequestSocket(shortUrl, logger, appConfig)
 	suite.Error(err)
 	noProtocolUrl := "indexer"
-	_, err = remote.InprocRequestSocket(noProtocolUrl, logger, appConfig)
+	_, err = client.InprocRequestSocket(noProtocolUrl, logger, appConfig)
 	suite.Error(err)
 
 	url := "inproc://test_proc"
-	socket, err := remote.InprocRequestSocket(url, logger, appConfig)
+	socket, err := client.InprocRequestSocket(url, logger, appConfig)
 	suite.NoError(err)
 
 	controller, err := zmq.NewSocket(zmq.REP)

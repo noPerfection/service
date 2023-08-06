@@ -1,4 +1,4 @@
-package remote
+package client
 
 import (
 	"testing"
@@ -19,7 +19,7 @@ type TestSocketSuite struct {
 
 // Test setup (inproc, tcp and sub)
 //	Along with the reconnect
-// Test Requests (router, remote)
+// Test Requests (router, client)
 // Test the timeouts
 // Test close (attempt to request)
 

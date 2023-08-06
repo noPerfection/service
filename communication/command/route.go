@@ -3,9 +3,9 @@ package command
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/remote"
 )
 
 // HandleFunc is the function type that manipulates the commands.
@@ -13,7 +13,7 @@ import (
 //
 // Optionally, the server can pass the shared states in the additional parameters.
 // The most use case for optional parameter is to pass the link to the Database.
-type HandleFunc = func(message.Request, *log.Logger, ...*remote.ClientSocket) message.Reply
+type HandleFunc = func(message.Request, *log.Logger, ...*client.ClientSocket) message.Reply
 
 // Route is the command, handler of the command
 // and the extensions that this command depends on.
@@ -54,14 +54,14 @@ func (route *Route) AddHandler(handler HandleFunc) error {
 }
 
 // FilterExtensionClients returns the list of the clients specific for this command
-func (route *Route) filterExtensionClients(clients remote.Clients) []*remote.ClientSocket {
-	routeClients := make([]*remote.ClientSocket, len(route.Extensions))
+func (route *Route) filterExtensionClients(clients client.Clients) []*client.ClientSocket {
+	routeClients := make([]*client.ClientSocket, len(route.Extensions))
 
 	added := 0
 	for extensionName := range clients {
 		for i := 0; i < len(route.Extensions); i++ {
 			if route.Extensions[i] == extensionName {
-				routeClients[added] = clients[extensionName].(*remote.ClientSocket)
+				routeClients[added] = clients[extensionName].(*client.ClientSocket)
 				added++
 			}
 		}
@@ -70,7 +70,7 @@ func (route *Route) filterExtensionClients(clients remote.Clients) []*remote.Cli
 	return routeClients
 }
 
-func (route *Route) Handle(request message.Request, logger *log.Logger, allExtensions remote.Clients) message.Reply {
+func (route *Route) Handle(request message.Request, logger *log.Logger, allExtensions client.Clients) message.Reply {
 	extensions := route.filterExtensionClients(allExtensions)
 	return route.handler(request, logger, extensions...)
 }
