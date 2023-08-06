@@ -8,6 +8,13 @@ import (
 	"github.com/ahmetson/service-lib/remote"
 )
 
+// HandleFunc is the function type that manipulates the commands.
+// It accepts at least message.Request and log.Logger then returns message.Reply.
+//
+// Optionally, the controller can pass the shared states in the additional parameters.
+// The most use case for optional parameter is to pass the link to the Database.
+type HandleFunc = func(message.Request, *log.Logger, ...*remote.ClientSocket) message.Reply
+
 // Route is the command, handler of the command
 // and the extensions that this command depends on.
 type Route struct {
@@ -18,6 +25,14 @@ type Route struct {
 
 // Any command name
 const Any string = "*"
+
+// Routes Binding of Command to the Command Handler.
+type Routes = key_value.List
+
+// NewRoutes returns an empty routes
+func NewRoutes() *Routes {
+	return key_value.NewList()
+}
 
 // NewRoute returns a new command handler. It's used by the controllers.
 func NewRoute(command string, handler HandleFunc, extensions ...string) *Route {
@@ -72,4 +87,19 @@ func Reply(reply interface{}) (message.Reply, error) {
 		Message:    "",
 		Parameters: replyParameters,
 	}, nil
+}
+
+// Commands returns the commands from the routes
+func Commands(routes *Routes) []string {
+	commands := make([]string, routes.Len())
+
+	list := routes.List()
+
+	i := 0
+	for name := range list {
+		commands[i] = name.(string)
+		i++
+	}
+
+	return commands
 }
