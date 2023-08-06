@@ -265,7 +265,7 @@ func (independent *Service) onClose(request message.Request, logger *log.Logger,
 	return request.Ok(key_value.Empty())
 }
 
-// Run the context in the background. If it failed to run, then return an error.
+// runManager the context in the background. If it failed to run, then return an error.
 // The url parameter is the main service to which this context belongs too.
 //
 // The logger is the server logger as it is. The context will create its own logger from it.
