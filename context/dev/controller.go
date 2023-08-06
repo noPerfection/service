@@ -13,9 +13,9 @@ import (
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/configuration"
-	"github.com/ahmetson/service-lib/server"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/remote"
+	"github.com/ahmetson/service-lib/server"
 )
 
 // onClose closing all the dependencies in the context.

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/server"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/remote"
+	"github.com/ahmetson/service-lib/server"
 )
 
 var anyHandler = func(request message.Request, _ *log.Logger, extensions ...*remote.ClientSocket) message.Reply {

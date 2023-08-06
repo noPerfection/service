@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/ahmetson/service-lib/configuration"
 	service2 "github.com/ahmetson/service-lib/configuration/service"
-	"github.com/ahmetson/service-lib/server"
 	"github.com/ahmetson/service-lib/independent"
 	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/service-lib/server"
 	"sync"
 )
 
