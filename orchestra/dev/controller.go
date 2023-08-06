@@ -1,7 +1,7 @@
 package dev
 
 //
-// The orchester server has only one command.
+// The orchestra server has only one command.
 //
 // Close
 // this command has no arguments. And when it's given, it will close all the dependencies it has
@@ -18,10 +18,10 @@ import (
 	"github.com/ahmetson/service-lib/server"
 )
 
-// onClose closing all the dependencies in the orchester.
+// onClose closing all the dependencies in the orchestra.
 func (context *Context) onClose(request message.Request, logger *log.Logger, _ ...*client.ClientSocket) message.Reply {
-	logger.Info("closing the orchester",
-		"orchester type", context.config.GetType(),
+	logger.Info("closing the orchestra",
+		"orchestra type", context.config.GetType(),
 		"service", context.config.GetUrl(),
 		"todo", "close all dependencies if any",
 		"todo", "close the main service",
@@ -43,9 +43,9 @@ func (context *Context) onClose(request message.Request, logger *log.Logger, _ .
 
 	err := context.closeService(logger)
 	if err != nil {
-		return request.Fail(fmt.Sprintf("orchester.closeServer: %v", err))
+		return request.Fail(fmt.Sprintf("orchestra.closeServer: %v", err))
 	}
-	// since we closed the service, for the orchester the service is not ready.
+	// since we closed the service, for the orchestra the service is not ready.
 	// the service should call itself
 	context.serviceReady = false
 
@@ -58,19 +58,19 @@ func (context *Context) onServiceReady(request message.Request, logger *log.Logg
 	logger.Info("onServiceReady", "type", "handler", "state", "enter")
 
 	if context.serviceReady {
-		return request.Fail("main service was set as true in the orchester")
+		return request.Fail("main service was set as true in the orchestra")
 	}
 	context.serviceReady = true
 	logger.Info("onServiceReady", "type", "handler", "state", "end")
 	return request.Ok(key_value.Empty())
 }
 
-// Run the orchester in the background. If it failed to run, then return an error.
-// The url request is the main service to which this orchester belongs too.
+// Run the orchestra in the background. If it failed to run, then return an error.
+// The url request is the main service to which this orchestra belongs too.
 //
-// The logger is the server logger as it is. The orchester will create its own logger from it.
+// The logger is the server logger as it is. The orchestra will create its own logger from it.
 func (context *Context) Run(logger *log.Logger) error {
-	replier, err := server.SyncReplier(logger.Child("orchester"))
+	replier, err := server.SyncReplier(logger.Child("orchestra"))
 	if err != nil {
 		return fmt.Errorf("server.SyncReplierType: %w", err)
 	}
@@ -92,17 +92,17 @@ func (context *Context) Run(logger *log.Logger) error {
 	context.controller = replier
 	go func() {
 		if err := context.controller.Run(); err != nil {
-			logger.Fatal("orchester.server.Run: %w", err)
+			logger.Fatal("orchestra.server.Run: %w", err)
 		}
 	}()
 
 	return nil
 }
 
-// Close sends a close signal to the orchester.
+// Close sends a close signal to the orchestra.
 func (context *Context) Close(logger *log.Logger) error {
 	if context.controller == nil {
-		logger.Warn("skipping, since orchester.ControllerCategory is not initialised", "todo", "call orchester.Run()")
+		logger.Warn("skipping, since orchestra.ControllerCategory is not initialised", "todo", "call orchestra.Run()")
 		return nil
 	}
 	contextName, contextPort := config.ClientUrlParameters(config.ContextName(context.config.GetUrl()))
@@ -123,7 +123,7 @@ func (context *Context) Close(logger *log.Logger) error {
 		return fmt.Errorf("close the service by hand. contextClient.RequestRemoteService: %w", err)
 	}
 
-	// release the orchester parameters
+	// release the orchestra parameters
 	err = contextClient.Close()
 	if err != nil {
 		logger.Error("contextClient.Close", "error", err)
@@ -136,7 +136,7 @@ func (context *Context) Close(logger *log.Logger) error {
 // ServiceReady sends a signal marking that the main service is ready.
 func (context *Context) ServiceReady(logger *log.Logger) error {
 	if context.controller == nil {
-		logger.Warn("orchester.ControllerCategory is not initialised", "todo", "call orchester.Run()")
+		logger.Warn("orchestra.ControllerCategory is not initialised", "todo", "call orchestra.Run()")
 		return nil
 	}
 	contextName, contextPort := config.ClientUrlParameters(config.ContextName(context.config.GetUrl()))
@@ -155,7 +155,7 @@ func (context *Context) ServiceReady(logger *log.Logger) error {
 		return fmt.Errorf("close the service by hand. contextClient.RequestRemoteService: %w", err)
 	}
 
-	// release the orchester parameters
+	// release the orchestra parameters
 	err = contextClient.Close()
 	if err != nil {
 		return fmt.Errorf("contextClient.Close: %w", err)
@@ -167,10 +167,10 @@ func (context *Context) ServiceReady(logger *log.Logger) error {
 // CloseService sends a close signal to the manager.
 func (context *Context) closeService(logger *log.Logger) error {
 	if !context.serviceReady {
-		logger.Warn("!orchester.serviceReady")
+		logger.Warn("!orchestra.serviceReady")
 		return nil
 	}
-	logger.Info("main service is linted to the orchester. send a signal to main service to be closed")
+	logger.Info("main service is linted to the orchestra. send a signal to main service to be closed")
 
 	contextName, contextPort := config.ClientUrlParameters(config.ManagerName(context.config.GetUrl()))
 	contextClient, err := client.NewReq(contextName, contextPort, logger)
@@ -188,7 +188,7 @@ func (context *Context) closeService(logger *log.Logger) error {
 		return fmt.Errorf("close the service by hand. contextClient.RequestRemoteService: %w", err)
 	}
 
-	// release the orchester parameters
+	// release the orchestra parameters
 	err = contextClient.Close()
 	if err != nil {
 		return fmt.Errorf("contextClient.Close: %w", err)

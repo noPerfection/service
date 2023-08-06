@@ -30,7 +30,7 @@ const (
 	DefaultAttempt = uint(5)
 )
 
-// NewContextWithTimeout returns a new orchester with the request timeout
+// NewContextWithTimeout returns a new orchestra with the request timeout
 // and the timeout with SDS_REQUEST_TIMEOUT
 func NewContextWithTimeout(parent context.Context, appConfig *config.Config) (context.Context, context.CancelFunc) {
 	newCtx, cancelFunc := context.WithTimeout(parent, RequestTimeout(appConfig))

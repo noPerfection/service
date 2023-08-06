@@ -76,7 +76,7 @@ func (socket *ClientSocket) reconnect() error {
 	if socket.socket != nil {
 		ctx, err := socket.socket.Context()
 		if err != nil {
-			return fmt.Errorf("failed to get orchester from zmq socket: %w", err)
+			return fmt.Errorf("failed to get orchestra from zmq socket: %w", err)
 		} else {
 			socketCtx = ctx
 		}
@@ -132,7 +132,7 @@ func (socket *ClientSocket) inprocReconnect() error {
 	if socket.socket != nil {
 		ctx, err := socket.socket.Context()
 		if err != nil {
-			return fmt.Errorf("failed to get orchester from zmq socket: %w", err)
+			return fmt.Errorf("failed to get orchestra from zmq socket: %w", err)
 		} else {
 			socketCtx = ctx
 		}
@@ -148,7 +148,7 @@ func (socket *ClientSocket) inprocReconnect() error {
 		}
 		socket.socket = nil
 	} else {
-		return fmt.Errorf("failed to create zmq orchester: %s", "inproc_reconnect")
+		return fmt.Errorf("failed to create zmq orchestra: %s", "inproc_reconnect")
 	}
 
 	sock, err := socketCtx.NewSocket(socketType)

@@ -12,7 +12,7 @@ import (
 // The requests are tested in the controllers
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
-// returns the current testing orchester
+// returns the current testing orchestra
 type TestSocketSuite struct {
 	suite.Suite
 }

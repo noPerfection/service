@@ -11,7 +11,7 @@ import (
 
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
-// returns the current testing orchester
+// returns the current testing orchestra
 type TestEnvSuite struct {
 	suite.Suite
 	envPath   string

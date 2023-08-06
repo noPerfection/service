@@ -5,8 +5,8 @@
 //
 // How it works?
 //
-// The orchester is set up. It checks the folder. And if they are not existing, it will create them.
-// >> dev.Run(orchester)
+// The orchestra is set up. It checks the folder. And if they are not existing, it will create them.
+// >> dev.Run(orchestra)
 //
 // then lets work on the extension.
 // User is passing an extension url.
@@ -74,7 +74,7 @@ func preparePath(path string) error {
 	return nil
 }
 
-// New creates a orchester including its directories.
+// New creates a orchestra including its directories.
 func New(config context.Interface) (*Context, error) {
 	if config.GetType() != context.DevContext {
 		return nil, fmt.Errorf("ctx config is not a dev ctx. it's %s", config.GetType())
@@ -102,7 +102,7 @@ func New(config context.Interface) (*Context, error) {
 	return ctx, nil
 }
 
-// prepareEnv writes the .env of the orchester to share between dependencies.
+// prepareEnv writes the .env of the orchestra to share between dependencies.
 // Call it after creating a path.
 func (context *Context) prepareEnv() error {
 	kv, err := key_value.NewFromInterface(context.config)
@@ -118,7 +118,7 @@ func (context *Context) prepareEnv() error {
 	return nil
 }
 
-// Dep returns the dependency from the orchester by its url.
+// Dep returns the dependency from the orchestra by its url.
 // Returns error, if the dependency wasn't found
 func (context *Context) Dep(url string) (*Dep, error) {
 	dep, ok := context.deps[url]
@@ -128,8 +128,8 @@ func (context *Context) Dep(url string) (*Dep, error) {
 	return dep, nil
 }
 
-// New dependency in the orchester. If the dependency already exists, it will return an error.
-// The created dependency will be added to the orchester.
+// New dependency in the orchestra. If the dependency already exists, it will return an error.
+// The created dependency will be added to the orchestra.
 func (context *Context) New(url string) (*Dep, error) {
 	_, ok := context.deps[url]
 	if ok {

@@ -88,12 +88,12 @@ func New(parent *log.Logger) (*Config, error) {
 
 	contextDefault, err := dev.GetDefaultConfigs()
 	if err != nil {
-		return nil, fmt.Errorf("orchester.GetDefaultConfigs: %w", err)
+		return nil, fmt.Errorf("orchestra.GetDefaultConfigs: %w", err)
 	}
 	config.SetDefaults(*contextDefault)
 	devContext, err := dev.New(&config)
 	if err != nil {
-		return nil, fmt.Errorf("orchester.NewDev: %w", err)
+		return nil, fmt.Errorf("orchestra.NewDev: %w", err)
 	}
 	config.Context = devContext
 

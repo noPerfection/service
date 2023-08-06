@@ -1,5 +1,5 @@
-// Package dev in the config package handles the dev orchester data.
-// In the dev orchester, the config files are stored in the local filesystem.
+// Package dev in the config package handles the dev orchestra data.
+// In the dev orchestra, the config files are stored in the local filesystem.
 package dev
 
 import (
@@ -44,7 +44,7 @@ func GetDefaultConfigs() (*config.DefaultConfig, error) {
 	}, nil
 }
 
-// New creates a dev orchester
+// New creates a dev orchestra
 func New(config *config.Config) (*Context, error) {
 	execPath, err := path.GetExecPath()
 	if err != nil {
@@ -189,7 +189,7 @@ func (c *Context) Host() string {
 }
 
 //----------------------------------------------------------
-// below are the specific functions for the dev orchester. other contexts may not have them
+// below are the specific functions for the dev orchestra. other contexts may not have them
 //----------------------------------------------------------
 
 // EnvPath is the shared configurations between dependencies
@@ -197,7 +197,7 @@ func (c *Context) EnvPath() string {
 	return filepath.Join(c.Data, ".env")
 }
 
-// ConfigurationPath returns config url in the orchester's data
+// ConfigurationPath returns config url in the orchestra's data
 func (c *Context) ConfigurationPath(url string) string {
 	fileName := config.UrlToFileName(c.GetUrl())
 	return filepath.Join(c.Data, url, fileName+".yml")
