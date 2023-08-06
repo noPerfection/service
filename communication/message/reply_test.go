@@ -9,7 +9,7 @@ import (
 
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
-// returns the current testing context
+// returns the current testing orchester
 type TestReplySuite struct {
 	suite.Suite
 	fail Reply

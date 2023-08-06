@@ -7,14 +7,14 @@ import (
 
 // UrlToFileName converts the given url to the file name. Simply it replaces the slashes with dots.
 //
-// Url returns the full url to connect to the context.
+// Url returns the full url to connect to the orchester.
 //
-// The context url is defined from the main service's url.
+// The orchester url is defined from the main service's url.
 //
 // For example:
 //
 //	serviceUrl = "github.com/ahmetson/sample-service"
-//	contextUrl = "context.github.com.ahmetson.sample-service"
+//	contextUrl = "orchester.github.com.ahmetson.sample-service"
 //
 // This controllerName is set as the server's name in the configuration.
 // Then the server package will generate an inproc:// url based on the server name.
@@ -29,7 +29,7 @@ func ManagerName(url string) string {
 
 func ContextName(url string) string {
 	fileName := UrlToFileName(url)
-	return "context." + fileName
+	return "orchester." + fileName
 }
 
 func InternalConfiguration(name string) *service.Controller {

@@ -1,5 +1,5 @@
 // Package independent is the primary service.
-// This package is calling out the context. Then within that context sets up
+// This package is calling out the orchester. Then within that orchester sets up
 // - server
 // - proxies
 // - extensions
@@ -17,8 +17,8 @@ import (
 	"github.com/ahmetson/service-lib/configuration/service"
 	"github.com/ahmetson/service-lib/configuration/service/converter"
 	"github.com/ahmetson/service-lib/configuration/service/pipeline"
-	"github.com/ahmetson/service-lib/context/dev"
 	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/service-lib/orchester/dev"
 	"github.com/ahmetson/service-lib/os/network"
 	"github.com/ahmetson/service-lib/os/path"
 	"github.com/ahmetson/service-lib/server"
@@ -32,10 +32,10 @@ type Service struct {
 	Config          *configuration.Config
 	Controllers     key_value.KeyValue
 	pipelines       []*pipeline.Pipeline // Pipeline beginning: url => [Pipes]
-	RequiredProxies []string             // url => context type
+	RequiredProxies []string             // url => orchester type
 	Logger          *log.Logger
 	Context         *dev.Context
-	manager         server.Interface // manage this service from other parts. it should be called before context runs
+	manager         server.Interface // manage this service from other parts. it should be called before orchester runs
 }
 
 // New service with the configuration engine and logger. Logger is used as is.
@@ -231,7 +231,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 	return nil
 }
 
-// onClose closing all the dependencies in the context.
+// onClose closing all the dependencies in the orchester.
 func (independent *Service) onClose(request message.Request, logger *log.Logger, _ ...*client.ClientSocket) message.Reply {
 	logger.Info("service received a signal to close",
 		"service", independent.Config.Service.Url,
@@ -253,17 +253,17 @@ func (independent *Service) onClose(request message.Request, logger *log.Logger,
 		logger.Info("server was closed", "name", name)
 	}
 
-	// remove the context lint
+	// remove the orchester lint
 	independent.Context = nil
 
 	logger.Info("all controllers in the service were closed")
 	return request.Ok(key_value.Empty())
 }
 
-// runManager the context in the background. If it failed to run, then return an error.
-// The url parameter is the main service to which this context belongs too.
+// runManager the orchester in the background. If it failed to run, then return an error.
+// The url parameter is the main service to which this orchester belongs too.
 //
-// The logger is the server logger as it is. The context will create its own logger from it.
+// The logger is the server logger as it is. The orchester will create its own logger from it.
 func (independent *Service) runManager() error {
 	replier, err := server.SyncReplier(independent.Logger.Child("manager"))
 	if err != nil {
@@ -305,7 +305,7 @@ func (independent *Service) Prepare(as service.Type) error {
 	}
 
 	//
-	// prepare the context for dependencies
+	// prepare the orchester for dependencies
 	//---------------------------------------------------
 	independent.Context, err = prepareContext(independent.Config.Context)
 	if err != nil {
@@ -316,7 +316,7 @@ func (independent *Service) Prepare(as service.Type) error {
 
 	err = independent.Context.Run(independent.Logger)
 	if err != nil {
-		return fmt.Errorf("context.Run: %w", err)
+		return fmt.Errorf("orchester.Run: %w", err)
 	}
 
 	//
@@ -421,7 +421,7 @@ func (independent *Service) Prepare(as service.Type) error {
 
 	return nil
 
-	// error happened, close the context
+	// error happened, close the orchester
 closeContext:
 	if err == nil {
 		return fmt.Errorf("error is expected, it doesn't exist though")
@@ -500,13 +500,13 @@ func (independent *Service) Run() {
 errOccurred:
 	if err != nil {
 		if independent.Context != nil {
-			independent.Logger.Warn("context wasn't closed, close it")
+			independent.Logger.Warn("orchester wasn't closed, close it")
 			independent.Logger.Warn("might happen a race condition." +
 				"if the error occurred in the server" +
-				"here we will close the context." +
-				"context will close the service." +
+				"here we will close the orchester." +
+				"orchester will close the service." +
 				"service will again will come to this place, since all controllers will be cleaned out" +
-				"and server empty will come to here, it will try to close context again",
+				"and server empty will come to here, it will try to close orchester again",
 			)
 			closeErr := independent.Context.Close(independent.Logger)
 			if closeErr != nil {

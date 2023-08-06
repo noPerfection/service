@@ -1,5 +1,5 @@
-// Package dev in the configuration package handles the dev context data.
-// In the dev context, the configuration files are stored in the local filesystem.
+// Package dev in the configuration package handles the dev orchester data.
+// In the dev orchester, the configuration files are stored in the local filesystem.
 package dev
 
 import (
@@ -44,7 +44,7 @@ func GetDefaultConfigs() (*configuration.DefaultConfig, error) {
 	}, nil
 }
 
-// New creates a dev context
+// New creates a dev orchester
 func New(config *configuration.Config) (*Context, error) {
 	execPath, err := path.GetExecPath()
 	if err != nil {
@@ -189,7 +189,7 @@ func (c *Context) Host() string {
 }
 
 //----------------------------------------------------------
-// below are the specific functions for the dev context. other contexts may not have them
+// below are the specific functions for the dev orchester. other contexts may not have them
 //----------------------------------------------------------
 
 // EnvPath is the shared configurations between dependencies
@@ -197,7 +197,7 @@ func (c *Context) EnvPath() string {
 	return filepath.Join(c.Data, ".env")
 }
 
-// ConfigurationPath returns configuration url in the context's data
+// ConfigurationPath returns configuration url in the orchester's data
 func (c *Context) ConfigurationPath(url string) string {
 	fileName := configuration.UrlToFileName(c.GetUrl())
 	return filepath.Join(c.Data, url, fileName+".yml")

@@ -94,7 +94,7 @@ func (dep *Dep) SetServiceConfig(config *service.Service) error {
 func (dep *Dep) PrepareConfig(logger *log.Logger) error {
 	exist, err := dep.ConfigurationExist()
 	if err != nil {
-		return fmt.Errorf("failed to check existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check existence of %s in %s orchester: %w", dep.url, dep.context.config.GetType(), err)
 	}
 
 	if exist {
@@ -109,12 +109,12 @@ func (dep *Dep) PrepareConfig(logger *log.Logger) error {
 	// check binary exists
 	binExist, err := dep.BinExist()
 	if err != nil {
-		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check bin existence of %s in %s orchester: %w", dep.url, dep.context.config.GetType(), err)
 	}
 
 	if binExist {
-		logger.Warn("todo: for the file when it's running we need to set the current context as the same context by setting .env")
-		logger.Warn("todo: so that proxies or extensions will share the same context")
+		logger.Warn("todo: for the file when it's running we need to set the current orchester as the same orchester by setting .env")
+		logger.Warn("todo: so that proxies or extensions will share the same orchester")
 		logger.Info("build configuration from the binary")
 
 		err := dep.buildConfiguration(logger)
@@ -135,7 +135,7 @@ func (dep *Dep) PrepareConfig(logger *log.Logger) error {
 func (dep *Dep) Prepare(logger *log.Logger) error {
 	binExist, err := dep.BinExist()
 	if err != nil {
-		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check bin existence of %s in %s orchester: %w", dep.url, dep.context.config.GetType(), err)
 	}
 
 	if binExist {
@@ -151,7 +151,7 @@ func (dep *Dep) Prepare(logger *log.Logger) error {
 	// check for a source exist
 	srcExist, err := dep.SrcExist()
 	if err != nil {
-		return fmt.Errorf("failed to check src existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check src existence of %s in %s orchester: %w", dep.url, dep.context.config.GetType(), err)
 	}
 	if srcExist {
 		logger.Info("src exists, we need to build it")
@@ -187,7 +187,7 @@ func (dep *Dep) Run(port uint64, logger *log.Logger) error {
 	// check binary exists
 	binExist, err := dep.BinExist()
 	if err != nil {
-		return fmt.Errorf("failed to check bin existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check bin existence of %s in %s orchester: %w", dep.url, dep.context.config.GetType(), err)
 	}
 	if !binExist {
 		return fmt.Errorf("bin not found, call dep.Prepare()")
@@ -195,7 +195,7 @@ func (dep *Dep) Run(port uint64, logger *log.Logger) error {
 
 	exist, err := dep.ConfigurationExist()
 	if err != nil {
-		return fmt.Errorf("failed to check existence of %s in %s context: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check existence of %s in %s orchester: %w", dep.url, dep.context.config.GetType(), err)
 	}
 	if !exist {
 		return fmt.Errorf("configuration not found. call dep.PrepareConfiguration")
@@ -279,7 +279,7 @@ func (dep *Dep) onEnd(logger *log.Logger) {
 		dep.cmd = nil
 		err = dep.context.Close(logger)
 		if err != nil {
-			logger.Error("dep.context.Close", "error", err)
+			logger.Error("dep.orchester.Close", "error", err)
 		}
 	}()
 }

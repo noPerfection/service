@@ -50,7 +50,7 @@ func (c *Controller) prepare() error {
 func Bind(sock *zmq.Socket, url string, port uint64) error {
 	if err := sock.Bind(url); err != nil {
 		if port > 0 {
-			// for now, the host name is hardcoded. later we need to get it from the context
+			// for now, the host name is hardcoded. later we need to get it from the orchester
 			if network.IsPortUsed("localhost", port) {
 				pid, err := process.PortToPid(port)
 				if err != nil {
@@ -58,7 +58,7 @@ func Bind(sock *zmq.Socket, url string, port uint64) error {
 				} else {
 					currentPid := process.CurrentPid()
 					if currentPid == pid {
-						err = fmt.Errorf("another dependency is using it within this context")
+						err = fmt.Errorf("another dependency is using it within this orchester")
 					} else {
 						err = fmt.Errorf("operating system uses it for another service. pid=%d", pid)
 					}

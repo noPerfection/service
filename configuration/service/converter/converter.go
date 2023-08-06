@@ -46,7 +46,7 @@ func ServiceToProxy(s *service.Service) (service.Proxy, error) {
 }
 
 // findPipelineBeginning returns the beginning of the pipeline.
-// If the contextType is not a default one, then it will search for the specific context type.
+// If the contextType is not a default one, then it will search for the specific orchester type.
 func findPipelineBeginning(s *service.Service, requiredEnd string) (*service.Proxy, error) {
 	for _, pipeline := range s.Pipelines {
 		beginning := pipeline.Beginning()

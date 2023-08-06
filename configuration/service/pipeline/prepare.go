@@ -218,7 +218,7 @@ func LintToControllers(ctx context.Interface, serviceConfig *service.Service, pi
 	servicePipeline := FindServiceEnd(pipelines)
 	serviceProxyConfig, err := ctx.ReadService(servicePipeline.Beginning())
 	if err != nil {
-		return fmt.Errorf("context.ReadService('%s'): %w", servicePipeline.Beginning(), err)
+		return fmt.Errorf("orchester.ReadService('%s'): %w", servicePipeline.Beginning(), err)
 	}
 	controllerPipelines := FindControllerEnds(pipelines)
 
@@ -322,7 +322,7 @@ func lintLastToService(ctx context.Interface, config *service.Service, pipeline 
 
 	lastConfig, err := ctx.ReadService(lastUrl)
 	if err != nil {
-		return fmt.Errorf("context.GetServiceConfig: %w", err)
+		return fmt.Errorf("orchester.GetServiceConfig: %w", err)
 	}
 
 	updated, err := LintProxyToService(lastConfig, config)
@@ -353,7 +353,7 @@ func lintFront(ctx context.Interface, pipeline *Pipeline) error {
 
 	lastConfig, err := ctx.ReadService(lastUrl)
 	if err != nil {
-		return fmt.Errorf("context.GetServiceConfig: %w", err)
+		return fmt.Errorf("orchester.GetServiceConfig: %w", err)
 	}
 
 	// make sure that they link to each other after linting the last head
