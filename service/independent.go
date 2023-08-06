@@ -584,9 +584,6 @@ func (independent *Service) prepareProxyConfiguration(dep *dev2.Dep) error {
 		if strings.Compare(proxyConfiguration.Url, converted.Url) != 0 {
 			return fmt.Errorf("the proxy urls are not matching. in your config: %s, in the deps: %s", proxyConfiguration.Url, converted.Url)
 		}
-		if proxyConfiguration.Context != converted.Context {
-			return fmt.Errorf("the proxy contexts are not matching. in your config: %s, in the deps: %s", proxyConfiguration.Context, converted.Context)
-		}
 		if proxyConfiguration.Instances[0].Port != converted.Instances[0].Port {
 			independent.Logger.Warn("dependency port not matches to the proxy port. Overwriting the source", "port", proxyConfiguration.Instances[0].Port, "dependency port", converted.Instances[0].Port)
 
