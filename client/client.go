@@ -3,7 +3,7 @@ package client
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/client/parameter"
+	"github.com/ahmetson/service-lib/config/request"
 	"github.com/ahmetson/service-lib/config/service"
 
 	"github.com/ahmetson/common-lib/data_type/key_value"
@@ -102,7 +102,7 @@ func (socket *ClientSocket) reconnect() error {
 		socket.socket = sock
 		err = socket.socket.SetLinger(0)
 		if err != nil {
-			return fmt.Errorf("failed to set up linger parameter for zmq socket: %w", err)
+			return fmt.Errorf("failed to set up linger request for zmq socket: %w", err)
 		}
 	}
 
@@ -158,7 +158,7 @@ func (socket *ClientSocket) inprocReconnect() error {
 		socket.socket = sock
 		err = socket.socket.SetLinger(0)
 		if err != nil {
-			return fmt.Errorf("failed to set up linger parameter for zmq socket: %w", err)
+			return fmt.Errorf("failed to set up linger request for zmq socket: %w", err)
 		}
 	}
 
@@ -190,7 +190,7 @@ func (socket *ClientSocket) Close() error {
 ////
 //// The socket should be the router's socket.
 //func (socket *ClientSocket) RequestRouter(service *service.Service, request *message.Request) (key_value.KeyValue, error) {
-//	requestTimeout := parameter.RequestTimeout(socket.appConfig)
+//	requestTimeout := request.RequestTimeout(socket.appConfig)
 //
 //	if socket.protocol == "inproc" {
 //		err := socket.inprocReconnect()
@@ -210,7 +210,7 @@ func (socket *ClientSocket) Close() error {
 //		return nil, fmt.Errorf("request.String: %w", err)
 //	}
 //
-//	attempt := parameter.Attempt(socket.appConfig)
+//	attempt := request.Attempt(socket.appConfig)
 //
 //	// we attempt requests for an infinite amount of time.
 //	for {
@@ -293,14 +293,14 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 		}
 	}
 
-	requestTimeout := parameter.RequestTimeout(socket.appConfig)
+	requestTimeout := request.RequestTimeout(socket.appConfig)
 
 	requestString, err := request.String()
 	if err != nil {
 		return nil, fmt.Errorf("request.String: %w", err)
 	}
 
-	attempt := parameter.Attempt(socket.appConfig)
+	attempt := request.Attempt(socket.appConfig)
 
 	// we attempt requests for an infinite amount of time.
 	for {
@@ -378,9 +378,9 @@ func (socket *ClientSocket) RequestRawMessage(requestString string) ([]string, e
 		}
 	}
 
-	requestTimeout := parameter.RequestTimeout(socket.appConfig)
+	requestTimeout := request.RequestTimeout(socket.appConfig)
 
-	attempt := parameter.Attempt(socket.appConfig)
+	attempt := request.Attempt(socket.appConfig)
 
 	// we attempt requests for an infinite amount of time.
 	for {
@@ -516,7 +516,7 @@ func NewReq(name string, port uint64, parent *log.Logger) (*ClientSocket, error)
 // InprocRequestSocket creates a client socket with inproc protocol.
 // The created client socket can connect to server.Router or server.Reply.
 //
-// The `url` parameter must start with `inproc://`
+// The `url` request must start with `inproc://`
 func InprocRequestSocket(url string, parent *log.Logger, appConfig *config.Config) (*ClientSocket, error) {
 	if appConfig == nil {
 		return nil, fmt.Errorf("missing app_config")

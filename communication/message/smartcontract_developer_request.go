@@ -22,7 +22,7 @@ import (
 //   - _signature in a hex format. Signature of the digested
 //     hash signed by the private key.
 //     The digested hash is the hash of message hash + prefix.
-//     The message hash is the request parameter except the _signature parameter
+//     The message hash is the request request except the _signature request
 //
 // The Valid Request to convert:
 //
@@ -80,7 +80,7 @@ func (smReq *SmartcontractDeveloperRequest) String() (string, error) {
 }
 
 // Gets the message without a prefix.
-// The message is a JSON representation of the Request but without "signature" parameter.
+// The message is a JSON representation of the Request but without "signature" request.
 // Converted into the hash using Keccak32.
 //
 // The request parameters are ordered in an alphanumerical order.
@@ -124,12 +124,12 @@ func (smReq *SmartcontractDeveloperRequest) validateParameters() error {
 	if len(smReq.Address) < 3 {
 		return fmt.Errorf("atleast 3 characters required for address")
 	} else if smReq.Address[:2] != "0x" && smReq.Address[:2] != "0X" {
-		return fmt.Errorf("'%s' address parameter has no '0x' prefix", smReq.Address)
+		return fmt.Errorf("'%s' address request has no '0x' prefix", smReq.Address)
 	}
 	if len(smReq.Signature) < 3 {
 		return fmt.Errorf("atleast 3 characters required for signature")
 	} else if smReq.Signature[:2] != "0x" && smReq.Signature[:2] != "0X" {
-		return fmt.Errorf("'%s' signature parameter has no '0x' prefix", smReq.Signature)
+		return fmt.Errorf("'%s' signature request has no '0x' prefix", smReq.Signature)
 	}
 	if smReq.NonceTimestamp == 0 {
 		return fmt.Errorf("nonce can not be 0")

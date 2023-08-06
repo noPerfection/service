@@ -101,7 +101,7 @@ func (controller *Controller) setDestinationSocket() error {
 //
 //		0 - bytes request id
 //		1 - ""; empty delimiter
-//		2 - string (app/parameter.Type) service name as a tag of dealer.
+//		2 - string (app/request.Type) service name as a tag of dealer.
 //	     to identify which dealer to use
 //		3 - app/client/message.Request the message that is redirected to the zmq.REP server
 //

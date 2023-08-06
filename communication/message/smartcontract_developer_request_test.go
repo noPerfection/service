@@ -59,7 +59,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 	// deleted after it's been converted into sm developer
 	// request.
 
-	// Missing _address parameter should fail
+	// Missing _address request should fail
 	request := Request{
 		Command: "get_data",
 		Parameters: key_value.Empty().
@@ -71,7 +71,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 	_, err := ToSmartcontractDeveloperRequest(request)
 	suite.Require().Error(err)
 
-	// Empty _address parameter should fail
+	// Empty _address request should fail
 	request = Request{
 		Command: "get_data",
 		Parameters: key_value.Empty().
@@ -119,7 +119,7 @@ func (suite *TestSmRequestSuite) TestParsing() {
 	_, err = ToSmartcontractDeveloperRequest(request)
 	suite.Require().Error(err)
 
-	// 0 _nonce_timestamp parameter should fail
+	// 0 _nonce_timestamp request should fail
 	request = Request{
 		Command: "get_data",
 		Parameters: key_value.Empty().

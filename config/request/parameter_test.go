@@ -1,4 +1,4 @@
-package parameter
+package request
 
 import (
 	"testing"
@@ -20,7 +20,7 @@ type TestBroadcastSuite struct {
 // Make sure that Account is set to five
 // before each test
 func (suite *TestBroadcastSuite) SetupTest() {
-	logger, err := log.New("parameter", true)
+	logger, err := log.New("request", true)
 	suite.Require().NoError(err)
 
 	appConfig, err := config.New(logger)

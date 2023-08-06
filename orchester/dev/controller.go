@@ -66,7 +66,7 @@ func (context *Context) onServiceReady(request message.Request, logger *log.Logg
 }
 
 // Run the orchester in the background. If it failed to run, then return an error.
-// The url parameter is the main service to which this orchester belongs too.
+// The url request is the main service to which this orchester belongs too.
 //
 // The logger is the server logger as it is. The orchester will create its own logger from it.
 func (context *Context) Run(logger *log.Logger) error {

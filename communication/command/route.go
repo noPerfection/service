@@ -12,7 +12,7 @@ import (
 // It accepts at least message.Request and log.Logger then returns message.Reply.
 //
 // Optionally, the server can pass the shared states in the additional parameters.
-// The most use case for optional parameter is to pass the link to the Database.
+// The most use case for optional request is to pass the link to the Database.
 type HandleFunc = func(message.Request, *log.Logger, ...*client.ClientSocket) message.Reply
 
 // Route is the command, handler of the command

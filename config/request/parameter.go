@@ -1,10 +1,10 @@
-// Package parameter is the utility function that keeps the client-server
+// Package request is the utility function that keeps the client-server
 // request parameters.
 //
 // Supported request parameters:
 // - REQUEST_TIMEOUT how long the client waits until the server doesn't reply.
 // - ATTEMPT how many attempts the client makes to send the Request before it returns an error.
-package parameter
+package request
 
 import (
 	"context"
