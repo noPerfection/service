@@ -279,7 +279,7 @@ func (socket *ClientSocket) Close() error {
 // If the client service returned a failure message, it's converted into an error.
 //
 // The socket type should be REQ or PUSH.
-func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_value.KeyValue, error) {
+func (socket *ClientSocket) RequestRemoteService(req *message.Request) (key_value.KeyValue, error) {
 	if socket.protocol == "inproc" {
 		err := socket.inprocReconnect()
 		if err != nil {
@@ -295,7 +295,7 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 
 	requestTimeout := request.RequestTimeout(socket.appConfig)
 
-	requestString, err := request.String()
+	requestString, err := req.String()
 	if err != nil {
 		return nil, fmt.Errorf("request.String: %w", err)
 	}
@@ -306,13 +306,13 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 	for {
 		//  We send a request, then we work to get a reply
 		if _, err := socket.socket.SendMessage(requestString); err != nil {
-			return nil, fmt.Errorf("failed to send the command '%s'. socket error: %w", request.Command, err)
+			return nil, fmt.Errorf("failed to send the command '%s'. socket error: %w", req.Command, err)
 		}
 
 		//  Poll socket for a reply, with timeout
 		sockets, err := socket.poller.Poll(requestTimeout)
 		if err != nil {
-			return nil, fmt.Errorf("failed to to send the command '%s'. poll error: %w", request.Command, err)
+			return nil, fmt.Errorf("failed to to send the command '%s'. poll error: %w", req.Command, err)
 		}
 
 		//  Here we process a server reply and exit our loop if the
@@ -326,24 +326,24 @@ func (socket *ClientSocket) RequestRemoteService(request *message.Request) (key_
 			// Wait for a reply.
 			r, err := socket.socket.RecvMessage(0)
 			if err != nil {
-				return nil, fmt.Errorf("failed to receive the command '%s' message. socket error: %w", request.Command, err)
+				return nil, fmt.Errorf("failed to receive the command '%s' message. socket error: %w", req.Command, err)
 			}
 
 			reply, err := message.ParseReply(r)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse the command '%s': %w", request.Command, err)
+				return nil, fmt.Errorf("failed to parse the command '%s': %w", req.Command, err)
 			}
 
 			// client service will add its own stack.
-			request.SyncTrace(&reply)
+			req.SyncTrace(&reply)
 
 			if !reply.IsOK() {
-				return nil, fmt.Errorf("the command '%s' replied with a failure: %s", request.Command, reply.Message)
+				return nil, fmt.Errorf("the command '%s' replied with a failure: %s", req.Command, reply.Message)
 			}
 
 			return reply.Parameters, nil
 		} else {
-			socket.logger.Warn("timeout", "request_command", request.Command, "attempts_left", attempt)
+			socket.logger.Warn("timeout", "request_command", req.Command, "attempts_left", attempt)
 			if socket.protocol == "inproc" {
 				err := socket.inprocReconnect()
 				if err != nil {
