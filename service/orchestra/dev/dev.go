@@ -105,7 +105,7 @@ func GetDefaultConfigs() (*config.DefaultConfig, error) {
 }
 
 // New creates an orchestra including its directories.
-func New(conf *config.Config, url string) (*Context, error) {
+func New(conf *config.Config) (*Context, error) {
 	execPath, err := path.GetExecPath()
 	if err != nil {
 		return nil, fmt.Errorf("path.GetExecPath: %w", err)
@@ -119,6 +119,7 @@ func New(conf *config.Config, url string) (*Context, error) {
 		Bin:        binPath,
 		Data:       dataPath,
 		deps:       make(map[string]*Dep),
+		url:        conf.Service.Url,
 		controller: nil,
 	}
 

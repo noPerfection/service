@@ -30,7 +30,7 @@ func (dep *Dep) Url() string {
 }
 
 func (dep *Dep) ConfigurationExist() (bool, error) {
-	dataPath := dep.context.config.ConfigurationPath(dep.url)
+	dataPath := dep.context.ConfigurationPath(dep.url)
 	exists, err := path.FileExists(dataPath)
 	if err != nil {
 		return false, fmt.Errorf("path.FileExists('%s'): %w", dataPath, err)
@@ -39,22 +39,22 @@ func (dep *Dep) ConfigurationExist() (bool, error) {
 }
 
 func (dep *Dep) prepareConfigurationPath() error {
-	dir := filepath.Dir(dep.context.config.ConfigurationPath(dep.Url()))
+	dir := filepath.Dir(dep.context.ConfigurationPath(dep.Url()))
 	return preparePath(dir)
 }
 
 func (dep *Dep) prepareBinPath() error {
-	dir := filepath.Dir(dep.context.config.BinPath(dep.Url()))
+	dir := filepath.Dir(dep.context.BinPath(dep.Url()))
 	return preparePath(dir)
 }
 
 func (dep *Dep) prepareSrcPath() error {
-	dir := filepath.Dir(dep.context.config.SrcPath(dep.Url()))
+	dir := filepath.Dir(dep.context.SrcPath(dep.Url()))
 	return preparePath(dir)
 }
 
 func (dep *Dep) BinExist() (bool, error) {
-	dataPath := dep.context.config.BinPath(dep.Url())
+	dataPath := dep.context.BinPath(dep.Url())
 	exists, err := path.FileExists(dataPath)
 	if err != nil {
 		return false, fmt.Errorf("path.FileExists('%s'): %w", dep.Url(), err)
@@ -63,7 +63,7 @@ func (dep *Dep) BinExist() (bool, error) {
 }
 
 func (dep *Dep) SrcExist() (bool, error) {
-	dataPath := dep.context.config.SrcPath(dep.Url())
+	dataPath := dep.context.SrcPath(dep.Url())
 	exists, err := path.FileExists(dataPath)
 	if err != nil {
 		return false, fmt.Errorf("path.FileExists('%s'): %w", dep.Url(), err)
@@ -73,7 +73,7 @@ func (dep *Dep) SrcExist() (bool, error) {
 
 // GetServiceConfig returns the yaml config of the dependency as is
 func (dep *Dep) GetServiceConfig() (*service.Service, error) {
-	serviceConfig, err := dep.context.config.GetConfig(dep.Url())
+	serviceConfig, err := dep.context.GetConfig(dep.Url())
 	if err != nil {
 		return nil, fmt.Errorf("config.GetConfig(%s): %w", dep.Url(), err)
 	}
@@ -85,7 +85,7 @@ func (dep *Dep) GetServiceConfig() (*service.Service, error) {
 //
 // It's needed for linting the dependency's destination server with the service that relies on it.
 func (dep *Dep) SetServiceConfig(config *service.Service) error {
-	return dep.context.config.SetConfig(dep.Url(), config)
+	return dep.context.SetConfig(dep.Url(), config)
 }
 
 // PrepareConfig creates the service.yml of the dependency.
@@ -94,7 +94,7 @@ func (dep *Dep) SetServiceConfig(config *service.Service) error {
 func (dep *Dep) PrepareConfig(logger *log.Logger) error {
 	exist, err := dep.ConfigurationExist()
 	if err != nil {
-		return fmt.Errorf("failed to check existence of %s in %s orchestra: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check existence of %s in %s orchestra: %w", dep.url, dep.context.GetType(), err)
 	}
 
 	if exist {
@@ -109,7 +109,7 @@ func (dep *Dep) PrepareConfig(logger *log.Logger) error {
 	// check binary exists
 	binExist, err := dep.BinExist()
 	if err != nil {
-		return fmt.Errorf("failed to check bin existence of %s in %s orchestra: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check bin existence of %s in %s orchestra: %w", dep.url, dep.context.GetType(), err)
 	}
 
 	if binExist {
@@ -135,7 +135,7 @@ func (dep *Dep) PrepareConfig(logger *log.Logger) error {
 func (dep *Dep) Prepare(logger *log.Logger) error {
 	binExist, err := dep.BinExist()
 	if err != nil {
-		return fmt.Errorf("failed to check bin existence of %s in %s orchestra: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check bin existence of %s in %s orchestra: %w", dep.url, dep.context.GetType(), err)
 	}
 
 	if binExist {
@@ -151,7 +151,7 @@ func (dep *Dep) Prepare(logger *log.Logger) error {
 	// check for a source exist
 	srcExist, err := dep.SrcExist()
 	if err != nil {
-		return fmt.Errorf("failed to check src existence of %s in %s orchestra: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check src existence of %s in %s orchestra: %w", dep.url, dep.context.GetType(), err)
 	}
 	if srcExist {
 		logger.Info("src exists, we need to build it")
@@ -187,7 +187,7 @@ func (dep *Dep) Run(port uint64, logger *log.Logger) error {
 	// check binary exists
 	binExist, err := dep.BinExist()
 	if err != nil {
-		return fmt.Errorf("failed to check bin existence of %s in %s orchestra: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check bin existence of %s in %s orchestra: %w", dep.url, dep.context.GetType(), err)
 	}
 	if !binExist {
 		return fmt.Errorf("bin not found, call dep.Prepare()")
@@ -195,13 +195,13 @@ func (dep *Dep) Run(port uint64, logger *log.Logger) error {
 
 	exist, err := dep.ConfigurationExist()
 	if err != nil {
-		return fmt.Errorf("failed to check existence of %s in %s orchestra: %w", dep.url, dep.context.config.GetType(), err)
+		return fmt.Errorf("failed to check existence of %s in %s orchestra: %w", dep.url, dep.context.GetType(), err)
 	}
 	if !exist {
 		return fmt.Errorf("config not found. call dep.PrepareConfiguration")
 	}
 
-	used := network.IsPortUsed(dep.context.config.Host(), port)
+	used := network.IsPortUsed(dep.context.Host(), port)
 	if used {
 		logger.Info("service is launched already", "url", dep.url, "port", port)
 		return nil
@@ -216,8 +216,8 @@ func (dep *Dep) Run(port uint64, logger *log.Logger) error {
 
 // builds the application
 func (dep *Dep) build(logger *log.Logger) error {
-	srcUrl := dep.context.config.SrcPath(dep.Url())
-	binUrl := dep.context.config.BinPath(dep.Url())
+	srcUrl := dep.context.SrcPath(dep.Url())
+	binUrl := dep.context.BinPath(dep.Url())
 
 	logger.Info("building", "src", srcUrl, "bin", binUrl)
 
@@ -241,8 +241,8 @@ func (dep *Dep) build(logger *log.Logger) error {
 
 // start is run without an attachment
 func (dep *Dep) start(logger *log.Logger) error {
-	binUrl := dep.context.config.BinPath(dep.Url())
-	configFlag := fmt.Sprintf("--config=%s", dep.context.config.ConfigurationPath(dep.Url()))
+	binUrl := dep.context.BinPath(dep.Url())
+	configFlag := fmt.Sprintf("--config=%s", dep.context.ConfigurationPath(dep.Url()))
 
 	args, err := bindEnvs(dep.context, []string{configFlag})
 	if err != nil {
@@ -296,8 +296,8 @@ func (dep *Dep) wait(logger *log.Logger) {
 
 // calls `go mod tidy`
 func (dep *Dep) buildConfiguration(logger *log.Logger) error {
-	binUrl := dep.context.config.BinPath(dep.Url())
-	pathFlag := fmt.Sprintf("--path=%s", dep.context.config.ConfigurationPath(dep.Url()))
+	binUrl := dep.context.BinPath(dep.Url())
+	pathFlag := fmt.Sprintf("--path=%s", dep.context.ConfigurationPath(dep.Url()))
 	urlFlag := fmt.Sprintf("--url=%s", dep.url)
 
 	args, err := bindEnvs(dep.context, []string{"--build-config", pathFlag, urlFlag})
@@ -335,7 +335,7 @@ func (dep *Dep) cloneSrc(logger *log.Logger) error {
 	if err != nil {
 		return fmt.Errorf("convertToGitUrl of %s: %w", dep.url, err)
 	}
-	srcUrl := dep.context.config.SrcPath(dep.Url())
+	srcUrl := dep.context.SrcPath(dep.Url())
 	_, err = git.PlainClone(srcUrl, false, &git.CloneOptions{
 		URL:      gitUrl,
 		Progress: logger,
@@ -363,7 +363,7 @@ func cleanBuild(srcUrl string, logger *log.Logger) error {
 }
 
 func bindEnvs(context *Context, args []string) ([]string, error) {
-	envs := []string{context.config.EnvPath()}
+	envs := []string{context.EnvPath()}
 	loadedEnvs, err := arg.GetEnvPaths()
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to get env paths: %w", err)

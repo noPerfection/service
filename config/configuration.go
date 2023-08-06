@@ -9,10 +9,10 @@ package config
 import (
 	"fmt"
 	"github.com/ahmetson/service-lib/config/arg"
-	"github.com/ahmetson/service-lib/config/context/dev"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/os/path"
 	"github.com/ahmetson/service-lib/service/orchestra"
+	"github.com/ahmetson/service-lib/service/orchestra/dev"
 	"github.com/fsnotify/fsnotify"
 	"path/filepath"
 	"time"

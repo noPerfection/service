@@ -20,7 +20,6 @@ import (
 	"github.com/ahmetson/service-lib/os/network"
 	"github.com/ahmetson/service-lib/os/path"
 	"github.com/ahmetson/service-lib/server"
-	"github.com/ahmetson/service-lib/service/orchestra"
 	dev2 "github.com/ahmetson/service-lib/service/orchestra/dev"
 	"os"
 	"strings"
@@ -307,7 +306,7 @@ func (independent *Service) Prepare(as service.Type) error {
 	//
 	// prepare the orchestra for dependencies
 	//---------------------------------------------------
-	independent.Context, err = prepareContext(independent.Config.Context)
+	independent.Context, err = prepareContext(independent.Config)
 	if err != nil {
 		return fmt.Errorf("service.prepareContext: %w", err)
 	}
@@ -518,7 +517,7 @@ errOccurred:
 	}
 }
 
-func prepareContext(config orchestra.Interface) (*dev2.Context, error) {
+func prepareContext(config *config.Config) (*dev2.Context, error) {
 	// get the extensions
 	devContext, err := dev2.New(config)
 	if err != nil {
