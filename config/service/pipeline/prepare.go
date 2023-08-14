@@ -115,8 +115,8 @@ func rewriteControllers(proxyConfig *config.Service, controllers []*handlerConfi
 	// rewrite the destinations in the dependency
 	for _, serviceController := range controllers {
 		proxyControllers := newProxyControllers(serviceController)
-		for _, config := range proxyControllers {
-			proxyConfig.Controllers[set] = config
+		for _, _config := range proxyControllers {
+			proxyConfig.Controllers[set] = _config
 			set++
 		}
 	}
