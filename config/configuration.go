@@ -8,8 +8,8 @@ package config
 
 import (
 	"fmt"
+	"github.com/ahmetson/os-lib/arg"
 	"github.com/ahmetson/os-lib/path"
-	"github.com/ahmetson/service-lib/config/arg"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/fsnotify/fsnotify"
 	"path/filepath"

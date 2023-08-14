@@ -6,9 +6,9 @@ package dev
 
 import (
 	"fmt"
+	"github.com/ahmetson/os-lib/arg"
 	"github.com/ahmetson/os-lib/net"
 	"github.com/ahmetson/os-lib/path"
-	"github.com/ahmetson/service-lib/config/arg"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/go-git/go-git/v5"

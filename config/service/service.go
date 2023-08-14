@@ -3,7 +3,7 @@ package service
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/config/arg"
+	"github.com/ahmetson/os-lib/arg"
 	"github.com/ahmetson/service-lib/config/service/pipeline"
 	"path"
 )
