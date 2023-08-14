@@ -7,7 +7,7 @@ import (
 
 	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/message"
-	"github.com/ahmetson/config-lib/config"
+	"github.com/ahmetson/config-lib"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 )

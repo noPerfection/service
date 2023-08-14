@@ -88,37 +88,22 @@ func preparePath(path string) error {
 	return nil
 }
 
-func GetDefaultConfigs() (*config.DefaultConfig, error) {
-	exePath, err := path.GetExecPath()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get the executable path: %w", err)
-	}
-
-	return &config.DefaultConfig{
-		Title: "Interface",
-		Parameters: key_value.Empty().
-			Set(SrcKey, path.GetPath(exePath, "./deps/.src")).
-			Set(BinKey, path.GetPath(exePath, "./deps/.bin")).
-			Set(DataKey, path.GetPath(exePath, "./deps/.data")),
-	}, nil
-}
-
 // New creates an orchestra including its directories.
-func New(conf *config.Config) (*Context, error) {
+func New(conf *config.Service) (*Context, error) {
 	execPath, err := path.GetExecPath()
 	if err != nil {
 		return nil, fmt.Errorf("path.GetExecPath: %w", err)
 	}
-	srcPath := path.GetPath(execPath, conf.Engine().GetString(SrcKey))
-	dataPath := path.GetPath(execPath, conf.Engine().GetString(DataKey))
-	binPath := path.GetPath(execPath, conf.Engine().GetString(BinKey))
+	srcPath := path.GetPath(execPath, conf.Parent().Engine().GetString(SrcKey))
+	dataPath := path.GetPath(execPath, conf.Parent().Engine().GetString(DataKey))
+	binPath := path.GetPath(execPath, conf.Parent().Engine().GetString(BinKey))
 
 	ctx := &Context{
 		Src:        srcPath,
 		Bin:        binPath,
 		Data:       dataPath,
 		deps:       make(map[string]*Dep),
-		url:        conf.Service.Url,
+		url:        conf.Url,
 		controller: nil,
 	}
 

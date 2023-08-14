@@ -3,11 +3,12 @@ package config
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/config-lib"
+	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/os-lib/arg"
+	"github.com/ahmetson/os-lib/path"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/config/service/pipeline"
-	"github.com/go-git/go-git/v5/config"
-	"path"
 )
 
 // Service type defined in the config
@@ -24,7 +25,7 @@ type Service struct {
 
 type Services []Service
 
-func NewService(as Type) (*Service, error) {
+func NewService(logger *log.Logger, as Type) (*Service, error) {
 	if !arg.Exist(arg.Url) {
 		return nil, fmt.Errorf("missing --url")
 	}
@@ -34,12 +35,61 @@ func NewService(as Type) (*Service, error) {
 		return nil, fmt.Errorf("arg.Value: %w", err)
 	}
 
-	return &Service{
-		Type:      as,
-		Url:       url,
-		Id:        path.Base(url),
-		Pipelines: make([]*pipeline.Pipeline, 0),
-	}, nil
+	engine, err := config.New(logger)
+	if err != nil {
+		return nil, fmt.Errorf("config.New: %w", err)
+	}
+
+	execPath, err := path.GetExecPath()
+	if err != nil {
+		return nil, fmt.Errorf("path.GetExecPath: %w", err)
+	}
+
+	// Use the service config given from the path
+	if arg.Exist(arg.Configuration) {
+		configurationPath, err := arg.Value(arg.Configuration)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get the config path: %w", err)
+		}
+
+		absPath := path.GetPath(execPath, configurationPath)
+
+		dir, fileName := path.SplitServicePath(absPath)
+		engine.Engine().Set("SERVICE_CONFIG_NAME", fileName)
+		engine.Engine().Set("SERVICE_CONFIG_PATH", dir)
+	} else {
+		engine.Engine().SetDefault("SERVICE_CONFIG_NAME", "service")
+		engine.Engine().SetDefault("SERVICE_CONFIG_PATH", execPath)
+	}
+
+	configName := engine.Engine().GetString("SERVICE_CONFIG_NAME")
+	configPath := engine.Engine().GetString("SERVICE_CONFIG_PATH")
+	// load the service config
+	engine.Engine().SetConfigName(configName)
+	engine.Engine().SetConfigType("yaml")
+	engine.Engine().AddConfigPath(configPath)
+
+	serviceConfig, err := engine.ReadFile()
+	if err != nil {
+		logger.Fatal("config.readFile", "error", err)
+	}
+
+	serv, ok := serviceConfig.(*Service)
+	if !ok {
+		return &Service{
+			Type:      as,
+			Url:       url,
+			Id:        path.FileName(url),
+			Pipelines: make([]*pipeline.Pipeline, 0),
+			engine:    engine,
+		}, nil
+	}
+
+	return serv, nil
+}
+
+func (s *Service) Parent() *config.Config {
+	return s.engine
 }
 
 func (s *Service) PrepareService() error {

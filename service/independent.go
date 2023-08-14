@@ -7,7 +7,7 @@ package service
 
 import (
 	"fmt"
-	client "github.com/ahmetson/client-lib"
+	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/log-lib"
@@ -27,7 +27,7 @@ import (
 
 // Service keeps all necessary parameters of the service.
 type Service struct {
-	Config          *config.Config
+	Config          *config.Service
 	Controllers     key_value.KeyValue
 	pipelines       []*pipeline.Pipeline // Pipeline beginning: url => [Pipes]
 	RequiredProxies []string             // url => orchestra type
@@ -37,7 +37,7 @@ type Service struct {
 }
 
 // New service with the config engine and logger. Logger is used as is.
-func New(config *config.Config, logger *log.Logger) (*Service, error) {
+func New(config *config.Service, logger *log.Logger) (*Service, error) {
 	independent := Service{
 		Config:          config,
 		Logger:          logger,
@@ -105,7 +105,7 @@ func (independent *Service) prepareServiceConfiguration(expectedType config.Type
 }
 
 func (independent *Service) PrepareControllerConfiguration(name string, as service.ControllerType) error {
-	serviceConfig := independent.Config.Service
+	serviceConfig := independent.Config
 
 	// validate the Controllers
 	controllerConfig, err := serviceConfig.GetController(name)
@@ -117,7 +117,7 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 		controllerConfig = service.NewController(as, name)
 
 		serviceConfig.Controllers = append(serviceConfig.Controllers, controllerConfig)
-		independent.Config.Service = serviceConfig
+		independent.Config = serviceConfig
 	}
 
 	err = independent.prepareInstanceConfiguration(controllerConfig)
@@ -129,7 +129,7 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 }
 
 func (independent *Service) prepareInstanceConfiguration(controllerConfig *service.Controller) error {
-	serviceConfig := independent.Config.Service
+	serviceConfig := independent.Config
 
 	if len(controllerConfig.Instances) == 0 {
 		sourceInstance, err := service.NewInstance(controllerConfig.Category)
@@ -138,7 +138,7 @@ func (independent *Service) prepareInstanceConfiguration(controllerConfig *servi
 		}
 		controllerConfig.Instances = append(controllerConfig.Instances, *sourceInstance)
 		serviceConfig.SetController(controllerConfig)
-		independent.Config.Service = serviceConfig
+		independent.Config = serviceConfig
 	} else {
 		if controllerConfig.Instances[0].Port == 0 {
 			return fmt.Errorf("the port should not be 0 in the source")
@@ -151,7 +151,7 @@ func (independent *Service) prepareInstanceConfiguration(controllerConfig *servi
 // prepareConfiguration prepares the configuration.
 func (independent *Service) prepareConfiguration(expectedType config.Type) error {
 	// validate the service itself
-	serviceConfig := independent.Config.Service
+	serviceConfig := independent.Config
 	var err error
 
 	// yaml was given?
@@ -160,12 +160,12 @@ func (independent *Service) prepareConfiguration(expectedType config.Type) error
 			return fmt.Errorf("service type is overwritten. expected '%s', not '%s'", expectedType, serviceConfig.Type)
 		}
 	} else {
-		serviceConfig, err = config.NewService(expectedType)
+		serviceConfig, err = config.NewService(independent.Logger, expectedType)
 		if err != nil {
 			return fmt.Errorf("service.NewService(%s): %w", expectedType, err)
 		}
 
-		independent.Config.Service = serviceConfig
+		independent.Config = serviceConfig
 	}
 
 	// validate the Controllers
@@ -187,15 +187,15 @@ func (independent *Service) preparePipelineConfigurations() error {
 	servicePipeline := pipeline.FindServiceEnd(independent.pipelines)
 
 	if servicePipeline != nil {
-		servicePipeline.End.Url = independent.Config.Service.Url
+		servicePipeline.End.Url = independent.Config.Url
 		independent.Logger.Info("dont forget to update the yaml with the controllerPipeline service end url")
-		err := pipeline.LintToService(independent.Context, independent.Config.Service, servicePipeline)
+		err := pipeline.LintToService(independent.Context, independent.Config, servicePipeline)
 		if err != nil {
 			return fmt.Errorf("pipeline.LintToService: %w", err)
 		}
 	}
 
-	err := pipeline.LintToControllers(independent.Context, independent.Config.Service, independent.pipelines)
+	err := pipeline.LintToControllers(independent.Context, independent.Config, independent.pipelines)
 	if err != nil {
 		return fmt.Errorf("pipeline.LintToControllers: %w", err)
 	}
@@ -206,7 +206,7 @@ func (independent *Service) preparePipelineConfigurations() error {
 // onClose closing all the dependencies in the orchestra.
 func (independent *Service) onClose(request message.Request, logger *log.Logger, _ ...*client.ClientSocket) message.Reply {
 	logger.Info("service received a signal to close",
-		"service", independent.Config.Service.Url,
+		"service", independent.Config.Url,
 		"todo", "close all controllers",
 	)
 
@@ -242,8 +242,8 @@ func (independent *Service) runManager() error {
 		return fmt.Errorf("server.SyncReplierType: %w", err)
 	}
 
-	conf := config.InternalConfiguration(config.ManagerName(independent.Config.Service.Url))
-	replier.AddConfig(conf, independent.Config.Service.Url)
+	conf := config.InternalConfiguration(config.ManagerName(independent.Config.Url))
+	replier.AddConfig(conf, independent.Config.Url)
 
 	closeRoute := command.NewRoute("close", independent.onClose)
 	err = replier.AddRoute(closeRoute)
@@ -351,16 +351,16 @@ func (independent *Service) Prepare(as config.Type) error {
 		var controllerConfig *service.Controller
 		var controllerExtensions []string
 
-		controllerConfig, err = independent.Config.Service.GetController(name)
+		controllerConfig, err = independent.Config.GetController(name)
 		if err != nil {
 			err = fmt.Errorf("c '%s' registered in the service, no config found: %w", name, err)
 			goto closeContext
 		}
 
-		c.AddConfig(controllerConfig, independent.Config.Service.Url)
+		c.AddConfig(controllerConfig, independent.Config.Url)
 		controllerExtensions = c.RequiredExtensions()
 		for _, extensionUrl := range controllerExtensions {
-			requiredExtension := independent.Config.Service.GetExtension(extensionUrl)
+			requiredExtension := independent.Config.GetExtension(extensionUrl)
 			c.AddExtensionConfig(requiredExtension)
 		}
 	}
@@ -424,9 +424,9 @@ func (independent *Service) BuildConfiguration() {
 
 	outputPath := path.GetPath(execPath, relativePath)
 
-	independent.Config.Service.Url = url
+	independent.Config.Url = url
 
-	err = independent.Context.SetConfig(outputPath, independent.Config.Service)
+	err = independent.Context.SetConfig(outputPath, independent.Config)
 	if err != nil {
 		independent.Logger.Fatal("failed to write the proxy into the file", "error", err)
 	}
@@ -490,7 +490,7 @@ errOccurred:
 	}
 }
 
-func prepareContext(config *config.Config) (*dev2.Context, error) {
+func prepareContext(config *config.Service) (*dev2.Context, error) {
 	// get the extensions
 	devContext, err := dev2.New(config)
 	if err != nil {
@@ -504,7 +504,7 @@ func prepareContext(config *config.Config) (*dev2.Context, error) {
 //
 // if dependency doesn't exist, it will be downloaded
 func (independent *Service) prepareProxy(dep *dev2.Dep) error {
-	proxyConfiguration := independent.Config.Service.GetProxy(dep.Url())
+	proxyConfiguration := independent.Config.GetProxy(dep.Url())
 
 	independent.Logger.Info("prepare proxy", "url", proxyConfiguration.Url, "port", proxyConfiguration.Instances[0].Port)
 	err := dep.Run(proxyConfiguration.Instances[0].Port, independent.Logger)
@@ -519,7 +519,7 @@ func (independent *Service) prepareProxy(dep *dev2.Dep) error {
 //
 // if dependency doesn't exist, it will be downloaded
 func (independent *Service) prepareExtension(dep *dev2.Dep) error {
-	extensionConfiguration := independent.Config.Service.GetExtension(dep.Url())
+	extensionConfiguration := independent.Config.GetExtension(dep.Url())
 
 	independent.Logger.Info("prepare extension", "url", extensionConfiguration.Url, "port", extensionConfiguration.Port)
 	err := dep.Run(extensionConfiguration.Port, independent.Logger)
@@ -549,9 +549,9 @@ func (independent *Service) prepareProxyConfiguration(dep *dev2.Dep) error {
 		return fmt.Errorf("config.ServiceToProxy: %w", err)
 	}
 
-	proxyConfiguration := independent.Config.Service.GetProxy(dep.Url())
+	proxyConfiguration := independent.Config.GetProxy(dep.Url())
 	if proxyConfiguration == nil {
-		independent.Config.Service.SetProxy(&converted)
+		independent.Config.SetProxy(&converted)
 	} else {
 		if strings.Compare(proxyConfiguration.Url, converted.Url) != 0 {
 			return fmt.Errorf("the proxy urls are not matching. in your config: %s, in the deps: %s", proxyConfiguration.Url, converted.Url)
@@ -591,9 +591,9 @@ func (independent *Service) prepareExtensionConfiguration(dep *dev2.Dep) error {
 		return fmt.Errorf("config.ServiceToExtension: %w", err)
 	}
 
-	extensionConfiguration := independent.Config.Service.GetExtension(dep.Url())
+	extensionConfiguration := independent.Config.GetExtension(dep.Url())
 	if extensionConfiguration == nil {
-		independent.Config.Service.SetExtension(&converted)
+		independent.Config.SetExtension(&converted)
 	} else {
 		if strings.Compare(extensionConfiguration.Url, converted.Url) != 0 {
 			return fmt.Errorf("the extension url in your '%s' config not matches to '%s' in the dependency", extensionConfiguration.Url, converted.Url)

@@ -30,26 +30,26 @@ func extension() *service2.Extension {
 // registerDestination registers the server instances as the destination.
 // It adds the server config.
 func (proxy *Proxy) registerDestination() {
-	for _, c := range proxy._service.Config.Service.Controllers {
+	for _, c := range proxy._service.Config.Controllers {
 		if c.Category == service2.DestinationName {
-			proxy.Controller.RegisterDestination(c, proxy._service.Config.Service.Url)
+			proxy.Controller.RegisterDestination(c, proxy._service.Config.Url)
 			break
 		}
 	}
 }
 
 // New proxy service along with its server.
-func New(config *config.Config, parent *log.Logger) *Proxy {
+func New(conf *config.Service, parent *log.Logger) *Proxy {
 	logger := parent.Child("service", "service_type", config.ProxyType)
 
-	base, _ := service.New(config, logger)
+	base, _ := service.New(conf, logger)
 
-	service := Proxy{
+	_service := Proxy{
 		_service:   base,
 		Controller: newController(logger.Child("server")),
 	}
 
-	return &service
+	return &_service
 }
 
 func (proxy *Proxy) getSource() server.Interface {

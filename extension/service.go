@@ -21,7 +21,7 @@ type Extension struct {
 }
 
 // New extension service based on the configurations
-func New(config *config.Config, parent *log.Logger) (*Extension, error) {
+func New(config *config.Service, parent *log.Logger) (*Extension, error) {
 	logger := parent.Child("extension")
 
 	base, err := service.New(config, logger)

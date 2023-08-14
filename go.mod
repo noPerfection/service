@@ -15,7 +15,7 @@ replace github.com/ahmetson/config-lib => D:/sds/config-lib
 require (
 	github.com/ahmetson/common-lib v0.0.0-20230717140750-5e95e61d69c2
 	github.com/ahmetson/log-lib v0.0.0-20230814152407-68a090e4a798
-	github.com/ahmetson/os-lib v0.0.0-20230814145625-f740000b86ca
+	github.com/ahmetson/os-lib v0.0.0-20230814151458-0e1874b6df31
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-git/go-git/v5 v5.8.0
 	github.com/spf13/viper v1.15.0
