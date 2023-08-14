@@ -6,11 +6,11 @@ package dev
 
 import (
 	"fmt"
+	"github.com/ahmetson/os-lib/net"
+	"github.com/ahmetson/os-lib/path"
 	"github.com/ahmetson/service-lib/config/arg"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/os/network"
-	"github.com/ahmetson/service-lib/os/path"
 	"github.com/go-git/go-git/v5"
 	"net/url"
 	"os/exec"
@@ -201,7 +201,7 @@ func (dep *Dep) Run(port uint64, logger *log.Logger) error {
 		return fmt.Errorf("config not found. call dep.PrepareConfiguration")
 	}
 
-	used := network.IsPortUsed(dep.context.Host(), port)
+	used := net.IsPortUsed(dep.context.Host(), port)
 	if used {
 		logger.Info("service is launched already", "url", dep.url, "port", port)
 		return nil

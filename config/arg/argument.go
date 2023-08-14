@@ -3,7 +3,7 @@ package arg
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/os/path"
+	"github.com/ahmetson/os-lib/path"
 	"os"
 	"strings"
 )

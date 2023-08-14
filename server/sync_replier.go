@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/os-lib/net"
+	"github.com/ahmetson/os-lib/process"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/os/network"
-	"github.com/ahmetson/service-lib/os/process"
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -51,7 +51,7 @@ func Bind(sock *zmq.Socket, url string, port uint64) error {
 	if err := sock.Bind(url); err != nil {
 		if port > 0 {
 			// for now, the host name is hardcoded. later we need to get it from the orchestra
-			if network.IsPortUsed("localhost", port) {
+			if net.IsPortUsed("localhost", port) {
 				pid, err := process.PortToPid(port)
 				if err != nil {
 					err = fmt.Errorf("config.PortToPid(%d): %w", port, err)

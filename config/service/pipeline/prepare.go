@@ -9,9 +9,9 @@ package pipeline
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/os-lib/net"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/config/service/converter"
-	"github.com/ahmetson/service-lib/os/network"
 	"github.com/ahmetson/service-lib/service/orchestra"
 	"slices"
 )
@@ -60,7 +60,7 @@ func newSourceInstances(config *service.Controller) []service.Instance {
 		instances[i] = service.Instance{
 			ControllerCategory: service.SourceName,
 			Id:                 fmt.Sprintf("%s-source", config.Instances[i].Id),
-			Port:               uint64(network.GetFreePort()),
+			Port:               uint64(net.GetFreePort()),
 		}
 	}
 

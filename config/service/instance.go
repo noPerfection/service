@@ -2,7 +2,7 @@ package service
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/os/network"
+	"github.com/ahmetson/os-lib/net"
 )
 
 type Instance struct {
@@ -12,9 +12,9 @@ type Instance struct {
 }
 
 func NewInstance(cat string) (*Instance, error) {
-	port := network.GetFreePort()
+	port := net.GetFreePort()
 	if port == 0 {
-		return nil, fmt.Errorf("network.GetFreePort: no free port")
+		return nil, fmt.Errorf("net.GetFreePort: no free port")
 	}
 
 	sourceInstance := Instance{

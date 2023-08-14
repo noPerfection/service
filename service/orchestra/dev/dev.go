@@ -39,10 +39,10 @@ package dev
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/os-lib/path"
 	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/config/env"
 	"github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/os/path"
 	"github.com/ahmetson/service-lib/server"
 	"github.com/ahmetson/service-lib/service/orchestra"
 	"gopkg.in/yaml.v3"
