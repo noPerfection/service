@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ahmetson/service-lib/config/env"
+	"github.com/ahmetson/os-lib/env"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/spf13/viper"
 )
