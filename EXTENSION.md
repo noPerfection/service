@@ -70,7 +70,7 @@ package main
 
 import (
 	"github.com/ahmetson/service-lib"
-	"github.com/ahmetson/service-lib/log"
+	log "github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/extension"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/account/my-extension/handler"
@@ -121,7 +121,7 @@ import (
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/service-lib/remote"
-	"github.com/ahmetson/service-lib/log"
+	log "github.com/ahmetson/log-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 )
 

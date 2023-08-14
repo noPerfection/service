@@ -1,13 +1,13 @@
 package command
 
 import (
+	"github.com/ahmetson/log-lib"
 	goLog "log"
 	"testing"
 
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/log"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 )

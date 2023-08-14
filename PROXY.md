@@ -91,7 +91,7 @@ package main
 
 import (
 	"github.com/ahmetson/service-lib"
-	"github.com/ahmetson/service-lib/log"
+	log "github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/configuration"
 	"github.com/ahmetson/service-lib/proxy"
 )

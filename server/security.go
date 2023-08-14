@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/log-lib"
 
 	// todo
 	// move out security/auth dependency

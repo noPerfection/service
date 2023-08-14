@@ -3,11 +3,10 @@ package proxy
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/client"
 	service2 "github.com/ahmetson/service-lib/config/service"
 	zmq "github.com/pebbe/zmq4"
-
-	"github.com/ahmetson/service-lib/log"
 )
 
 // ControllerName is the name of the proxy router that connects source and destination

@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"github.com/ahmetson/service-lib/config/service"
 
-	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/log-lib"
 
 	zmq "github.com/pebbe/zmq4"
 )

@@ -5,8 +5,8 @@ package server
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/log"
 	zmq "github.com/pebbe/zmq4"
 	"runtime"
 )

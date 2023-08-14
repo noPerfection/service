@@ -3,8 +3,8 @@ package client
 import (
 	"testing"
 
+	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/log"
 	"github.com/stretchr/testify/suite"
 )
 

@@ -1,11 +1,11 @@
 package config
 
 import (
+	"github.com/ahmetson/log-lib"
 	"os"
 	"testing"
 
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/log"
 	"github.com/stretchr/testify/suite"
 )
 

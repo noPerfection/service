@@ -1,11 +1,11 @@
 package request
 
 import (
+	"github.com/ahmetson/log-lib"
 	"testing"
 	"time"
 
 	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/log"
 	"github.com/stretchr/testify/suite"
 )
 

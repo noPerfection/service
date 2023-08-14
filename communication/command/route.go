@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/client"
-	"github.com/ahmetson/service-lib/log"
 )
 
 // HandleFunc is the function type that manipulates the commands.

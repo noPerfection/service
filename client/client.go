@@ -3,13 +3,13 @@ package client
 
 import (
 	"fmt"
+	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/config/request"
 	"github.com/ahmetson/service-lib/config/service"
 
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/log"
 
 	// todo
 	// move out dependency from security/auth

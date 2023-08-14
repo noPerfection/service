@@ -8,6 +8,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/os-lib/arg"
 	"github.com/ahmetson/os-lib/path"
 	"github.com/ahmetson/service-lib/config/service"
@@ -16,7 +17,6 @@ import (
 	"time"
 
 	"github.com/ahmetson/os-lib/env"
-	"github.com/ahmetson/service-lib/log"
 	"github.com/spf13/viper"
 )
 

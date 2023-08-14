@@ -3,9 +3,9 @@ package proxy
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
-	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/server"
 )
 

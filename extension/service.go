@@ -4,9 +4,9 @@ package extension
 
 import (
 	"fmt"
+	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/config"
 	service2 "github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/service-lib/server"
 	"github.com/ahmetson/service-lib/service"
 )

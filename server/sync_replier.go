@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/os-lib/net"
 	"github.com/ahmetson/os-lib/process"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/log"
 	zmq "github.com/pebbe/zmq4"
 )
 
