@@ -123,7 +123,7 @@ package handler
 
 import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/communication/message"
+	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/service-lib/controller"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/configuration"

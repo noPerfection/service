@@ -3,9 +3,9 @@ package server
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
-	"github.com/ahmetson/service-lib/communication/message"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/log"
 )

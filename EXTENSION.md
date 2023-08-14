@@ -119,7 +119,7 @@ package handler
 
 import (
 	"github.com/ahmetson/service-lib/communication/command"
-	"github.com/ahmetson/service-lib/communication/message"
+	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/service-lib/remote"
 	"github.com/ahmetson/service-lib/log"
 	"github.com/ahmetson/common-lib/data_type/key_value"

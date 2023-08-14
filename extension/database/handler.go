@@ -4,7 +4,7 @@ package database
 import (
 	"github.com/ahmetson/common-lib/data_type"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/communication/message"
+	"github.com/ahmetson/common-lib/message"
 )
 
 const (
