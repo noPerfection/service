@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/config-lib"
+	handlerConfig "github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/os-lib/arg"
 	"github.com/ahmetson/os-lib/path"
@@ -16,7 +17,7 @@ type Service struct {
 	Type        Type
 	Url         string
 	Id          string
-	Controllers []*service.Controller
+	Controllers []*handlerConfig.Handler
 	Proxies     []*service.Proxy
 	Extensions  []*service.Extension
 	Pipelines   []*pipeline.Pipeline
@@ -168,7 +169,7 @@ func (s *Service) ValidateTypes() error {
 	}
 
 	for _, c := range s.Controllers {
-		if err := service.ValidateControllerType(c.Type); err != nil {
+		if err := handlerConfig.ValidateControllerType(c.Type); err != nil {
 			return fmt.Errorf("handler.ValidateControllerType: %v", err)
 		}
 	}
@@ -178,7 +179,7 @@ func (s *Service) ValidateTypes() error {
 
 // GetController returns the handler config by the handler name.
 // If the handler doesn't exist, then it returns an error.
-func (s *Service) GetController(name string) (*service.Controller, error) {
+func (s *Service) GetController(name string) (*handlerConfig.Handler, error) {
 	for _, c := range s.Controllers {
 		if c.Category == name {
 			return c, nil
@@ -190,8 +191,8 @@ func (s *Service) GetController(name string) (*service.Controller, error) {
 
 // GetControllers returns the multiple controllers of the given name.
 // If the controllers don't exist, then it returns an error
-func (s *Service) GetControllers(name string) ([]*service.Controller, error) {
-	controllers := make([]*service.Controller, 0, len(s.Controllers))
+func (s *Service) GetControllers(name string) ([]*handlerConfig.Handler, error) {
+	controllers := make([]*handlerConfig.Handler, 0, len(s.Controllers))
 	count := 0
 
 	for _, c := range s.Controllers {
@@ -209,7 +210,7 @@ func (s *Service) GetControllers(name string) ([]*service.Controller, error) {
 
 // GetFirstController returns the handler without requiring its name.
 // If the service doesn't have controllers, then it will return an error.
-func (s *Service) GetFirstController() (*service.Controller, error) {
+func (s *Service) GetFirstController() (*handlerConfig.Handler, error) {
 	if len(s.Controllers) == 0 {
 		return nil, fmt.Errorf("service '%s' doesn't have any controllers in yaml file", s.Url)
 	}
@@ -262,7 +263,7 @@ func (s *Service) SetExtension(extension *service.Extension) {
 }
 
 // SetController adds a new handler. If the handler by the same name exists, it will add a new copy.
-func (s *Service) SetController(controller *service.Controller) {
+func (s *Service) SetController(controller *handlerConfig.Handler) {
 	s.Controllers = append(s.Controllers, controller)
 }
 

@@ -3,10 +3,12 @@ package proxy
 
 import (
 	"fmt"
+	clientConfig "github.com/ahmetson/client-lib/config"
+	"github.com/ahmetson/handler-lib"
+	handlerConfig "github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/config"
 	service2 "github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/handler"
 	"github.com/ahmetson/service-lib/service"
 	"sync"
 )
@@ -23,8 +25,13 @@ type Proxy struct {
 // An extension creates the config of the proxy handler.
 // The proxy handler itself is added as the extension to the source controllers,
 // to the request handlers and to the reply handlers.
-func extension() *service2.Extension {
-	return service2.NewInternalExtension(ControllerName)
+func extension() *clientConfig.Client {
+	ext := service2.NewInternalExtension(ControllerName)
+	return &clientConfig.Client{
+		Url:  ext.Url,
+		Id:   ext.Id,
+		Port: ext.Port,
+	}
 }
 
 // registerDestination registers the handler instances as the destination.
@@ -59,7 +66,7 @@ func (proxy *Proxy) getSource() handler.Interface {
 }
 
 func (proxy *Proxy) Prepare() error {
-	if proxy.Controller.requiredDestination == service2.UnknownType {
+	if proxy.Controller.requiredDestination == handlerConfig.UnknownType {
 		return fmt.Errorf("missing the required destination. call proxy.ControllerCategory.RequireDestination")
 	}
 
@@ -79,16 +86,16 @@ func (proxy *Proxy) Prepare() error {
 // SetDefaultSource creates a source handler of the given type.
 //
 // It loads the source name automatically.
-func (proxy *Proxy) SetDefaultSource(controllerType service2.ControllerType) error {
+func (proxy *Proxy) SetDefaultSource(controllerType handlerConfig.HandlerType) error {
 	// todo move the validation to the proxy.ValidateTypes() function
 	var source handler.Interface
-	if controllerType == service2.SyncReplierType {
+	if controllerType == handlerConfig.SyncReplierType {
 		sourceController, err := handler.SyncReplier(proxy._service.Logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a source as handler.NewReplier: %w", err)
 		}
 		source = sourceController
-	} else if controllerType == service2.PusherType {
+	} else if controllerType == handlerConfig.PusherType {
 		sourceController, err := handler.NewPull(proxy._service.Logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a source as handler.NewPull: %w", err)

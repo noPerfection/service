@@ -4,8 +4,8 @@ import (
 	"fmt"
 	client "github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/message"
+	handlerConfig "github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/log-lib"
-	service2 "github.com/ahmetson/service-lib/config/service"
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -22,16 +22,16 @@ const Url = "inproc://" + ControllerName
 // The socket.ControllerType must be zmq.DEALER
 type Destination struct {
 	// Could be Remote or Inproc
-	Configuration *service2.Controller
+	Configuration *handlerConfig.Handler
 	// The client socket
 	socket *zmq.Socket
 }
 
-// Controller is the internal process connecting source and destination.
+// Controller is the internal process connecting a source and destination.
 type Controller struct {
 	destination *Destination
 	// type of the required destination
-	requiredDestination service2.ControllerType
+	requiredDestination handlerConfig.HandlerType
 	logger              *log.Logger
 	serviceUrl          string
 }
@@ -42,12 +42,12 @@ func newController(logger *log.Logger) *Controller {
 	return &Controller{
 		logger:              logger,
 		destination:         nil,
-		requiredDestination: service2.UnknownType,
+		requiredDestination: handlerConfig.UnknownType,
 	}
 }
 
-func (controller *Controller) RequireDestination(controllerType service2.ControllerType) {
-	if controllerType != service2.UnknownType {
+func (controller *Controller) RequireDestination(controllerType handlerConfig.HandlerType) {
+	if controllerType != handlerConfig.UnknownType {
 		controller.requiredDestination = controllerType
 	}
 }
@@ -57,7 +57,7 @@ func (controller *Controller) RequireDestination(controllerType service2.Control
 // is handled on outside. As a result, it doesn't return
 // any error.
 // SDS Core can have unique command handlers.
-func (controller *Controller) RegisterDestination(destinationConfig *service2.Controller, serviceUrl string) {
+func (controller *Controller) RegisterDestination(destinationConfig *handlerConfig.Handler, serviceUrl string) {
 	controller.logger.Info("Adding client sockets that router will redirect", "destinationConfig", *destinationConfig)
 
 	controller.serviceUrl = serviceUrl

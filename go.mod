@@ -12,13 +12,16 @@ replace github.com/ahmetson/client-lib => D:/sds/client-lib
 
 replace github.com/ahmetson/config-lib => D:/sds/config-lib
 
+replace github.com/ahmetson/handler-lib => D:/sds/handler-lib
+
 require (
+	github.com/ahmetson/client-lib v0.0.0-20230814161235-c87ba71fcc40
 	github.com/ahmetson/common-lib v0.0.0-20230717140750-5e95e61d69c2
+	github.com/ahmetson/config-lib v0.0.0-20230814154521-44373928ec1b
+	github.com/ahmetson/handler-lib v0.0.0-20230814162522-8e780da024d7
 	github.com/ahmetson/log-lib v0.0.0-20230814152407-68a090e4a798
 	github.com/ahmetson/os-lib v0.0.0-20230814151458-0e1874b6df31
-	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-git/go-git/v5 v5.8.0
-	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.2
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -27,8 +30,6 @@ require (
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230518184743-7afd39499903 // indirect
 	github.com/acomagu/bufpipe v1.0.4 // indirect
-	github.com/ahmetson/client-lib v0.0.0-20230814161235-c87ba71fcc40 // indirect
-	github.com/ahmetson/config-lib v0.0.0-20230814154521-44373928ec1b // indirect
 	github.com/cakturk/go-netstat v0.0.0-20200220111822-e5b49efee7a5 // indirect
 	github.com/charmbracelet/lipgloss v0.6.0 // indirect
 	github.com/charmbracelet/log v0.1.2 // indirect
@@ -36,6 +37,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/ethereum/go-ethereum v1.10.25 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.4.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
@@ -66,6 +68,7 @@ require (
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/viper v1.15.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect

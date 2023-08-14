@@ -4,9 +4,9 @@ import (
 	"fmt"
 	client "github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/handler-lib"
+	"github.com/ahmetson/handler-lib/command"
 	"github.com/ahmetson/log-lib"
-	"github.com/ahmetson/service-lib/communication/command"
-	"github.com/ahmetson/service-lib/handler"
 )
 
 var anyHandler = func(request message.Request, _ *log.Logger, extensions ...*client.ClientSocket) message.Reply {

@@ -8,17 +8,19 @@ package service
 import (
 	"fmt"
 	"github.com/ahmetson/client-lib"
+	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/handler-lib"
+	"github.com/ahmetson/handler-lib/command"
+	handlerConfig "github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/os-lib/arg"
 	"github.com/ahmetson/os-lib/path"
-	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/config/service/converter"
 	"github.com/ahmetson/service-lib/config/service/pipeline"
-	"github.com/ahmetson/service-lib/handler"
 	dev2 "github.com/ahmetson/service-lib/service/orchestra/dev"
 	"os"
 	"strings"
@@ -33,7 +35,7 @@ type Service struct {
 	RequiredProxies []string             // url => orchestra type
 	Logger          *log.Logger
 	Context         *dev2.Context
-	manager         handler.Interface // manage this service from other parts. it should be called before the orchestra runs
+	manager         *handler.Controller // manage this service from other parts. it should be called before the orchestra runs
 }
 
 // New service with the config engine and logger. Logger is used as is.
@@ -104,7 +106,7 @@ func (independent *Service) prepareServiceConfiguration(expectedType config.Type
 	return nil
 }
 
-func (independent *Service) PrepareControllerConfiguration(name string, as service.ControllerType) error {
+func (independent *Service) PrepareControllerConfiguration(name string, as handlerConfig.HandlerType) error {
 	serviceConfig := independent.Config
 
 	// validate the Controllers
@@ -114,7 +116,7 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 			return fmt.Errorf("handler expected to be of '%s' type, not '%s'", as, controllerConfig.Type)
 		}
 	} else {
-		controllerConfig = service.NewController(as, name)
+		controllerConfig = handlerConfig.NewController(as, name)
 
 		serviceConfig.Controllers = append(serviceConfig.Controllers, controllerConfig)
 		independent.Config = serviceConfig
@@ -128,11 +130,11 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 	return nil
 }
 
-func (independent *Service) prepareInstanceConfiguration(controllerConfig *service.Controller) error {
+func (independent *Service) prepareInstanceConfiguration(controllerConfig *handlerConfig.Handler) error {
 	serviceConfig := independent.Config
 
 	if len(controllerConfig.Instances) == 0 {
-		sourceInstance, err := service.NewInstance(controllerConfig.Category)
+		sourceInstance, err := handlerConfig.NewInstance(controllerConfig.Category)
 		if err != nil {
 			return fmt.Errorf("service.NewInstance: %w", err)
 		}
@@ -348,7 +350,7 @@ func (independent *Service) Prepare(as config.Type) error {
 	//---------------------------------------------------------
 	for name, controllerInterface := range independent.Controllers {
 		c := controllerInterface.(handler.Interface)
-		var controllerConfig *service.Controller
+		var controllerConfig *handlerConfig.Handler
 		var controllerExtensions []string
 
 		controllerConfig, err = independent.Config.GetController(name)
@@ -361,7 +363,12 @@ func (independent *Service) Prepare(as config.Type) error {
 		controllerExtensions = c.RequiredExtensions()
 		for _, extensionUrl := range controllerExtensions {
 			requiredExtension := independent.Config.GetExtension(extensionUrl)
-			c.AddExtensionConfig(requiredExtension)
+			req := &clientConfig.Client{
+				Url:  requiredExtension.Url,
+				Id:   requiredExtension.Id,
+				Port: requiredExtension.Port,
+			}
+			c.AddExtensionConfig(req)
 		}
 	}
 

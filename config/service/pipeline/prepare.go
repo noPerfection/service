@@ -9,6 +9,7 @@ package pipeline
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	handlerConfig "github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/os-lib/net"
 	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/config/service"
@@ -53,12 +54,12 @@ func PrepareAddingPipeline(pipelines []*Pipeline, proxies []string, controllers 
 	return nil
 }
 
-func newSourceInstances(config *service.Controller) []service.Instance {
+func newSourceInstances(config *handlerConfig.Handler) []handlerConfig.Instance {
 	amount := len(config.Instances)
-	instances := make([]service.Instance, 0, amount)
+	instances := make([]handlerConfig.Instance, 0, amount)
 
 	for i := 0; i < amount; i++ {
-		instances[i] = service.Instance{
+		instances[i] = handlerConfig.Instance{
 			ControllerCategory: service.SourceName,
 			Id:                 fmt.Sprintf("%s-source", config.Instances[i].Id),
 			Port:               uint64(net.GetFreePort()),
@@ -68,12 +69,12 @@ func newSourceInstances(config *service.Controller) []service.Instance {
 	return instances
 }
 
-func newDestinationInstances(config *service.Controller) []service.Instance {
+func newDestinationInstances(config *handlerConfig.Handler) []handlerConfig.Instance {
 	amount := len(config.Instances)
-	instances := make([]service.Instance, 0, amount)
+	instances := make([]handlerConfig.Instance, 0, amount)
 
 	for i := 0; i < amount; i++ {
-		instances[i] = service.Instance{
+		instances[i] = handlerConfig.Instance{
 			ControllerCategory: service.DestinationName,
 			Id:                 fmt.Sprintf("%s-destination", config.Instances[i].Id),
 			Port:               config.Instances[i].Port,
@@ -85,9 +86,9 @@ func newDestinationInstances(config *service.Controller) []service.Instance {
 
 // returns generated source and destination controllers.
 // the parameters of the destination handler derived from config.
-func newProxyControllers(config *service.Controller) []*service.Controller {
+func newProxyControllers(config *handlerConfig.Handler) []*handlerConfig.Handler {
 	// set the source
-	return []*service.Controller{
+	return []*handlerConfig.Handler{
 		{
 			Type:      config.Type,
 			Category:  service.SourceName,
@@ -103,12 +104,12 @@ func newProxyControllers(config *service.Controller) []*service.Controller {
 }
 
 // rewriteDestinations removes the destination controllers. Then, set them based on controllers.
-func rewriteControllers(proxyConfig *config.Service, controllers []*service.Controller) error {
+func rewriteControllers(proxyConfig *config.Service, controllers []*handlerConfig.Handler) error {
 	if len(controllers) == 0 {
 		return fmt.Errorf("no destination controllers")
 	}
 	// two times more, source and destinationService for each handler
-	proxyConfig.Controllers = make([]*service.Controller, len(controllers)*2)
+	proxyConfig.Controllers = make([]*handlerConfig.Handler, len(controllers)*2)
 	set := 0
 
 	// rewrite the destinations in the dependency
@@ -125,7 +126,7 @@ func rewriteControllers(proxyConfig *config.Service, controllers []*service.Cont
 
 // LintControllers updates the ports of the destination to match the service controllers.
 // Return bool is true if ports were updated.
-func LintControllers(proxyDestinations []*service.Controller, serviceControllers []*service.Controller) (bool, error) {
+func LintControllers(proxyDestinations []*handlerConfig.Handler, serviceControllers []*handlerConfig.Handler) (bool, error) {
 	updated := false
 
 	// The order of the destinationService should match.
@@ -186,7 +187,7 @@ func LintProxyToProxy(proxyConfig *config.Service, destinationService *config.Se
 	return lintDestinationsToControllers(proxyConfig, sourceControllers)
 }
 
-func lintDestinationsToControllers(proxyConfig *config.Service, controllers []*service.Controller) (bool, error) {
+func lintDestinationsToControllers(proxyConfig *config.Service, controllers []*handlerConfig.Handler) (bool, error) {
 	proxyDestinations, err := proxyConfig.GetControllers(service.DestinationName)
 	if err != nil {
 		return false, fmt.Errorf("proxyConfig.GetControllers('%s'): %w", service.DestinationName, err)

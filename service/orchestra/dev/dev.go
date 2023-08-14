@@ -39,10 +39,10 @@ package dev
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/handler-lib"
 	"github.com/ahmetson/os-lib/env"
 	"github.com/ahmetson/os-lib/path"
 	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/handler"
 	"github.com/ahmetson/service-lib/service/orchestra"
 	"gopkg.in/yaml.v3"
 	"os"
@@ -62,7 +62,7 @@ type Context struct {
 	Bin          string `json:"SERVICE_DEPS_BIN"`
 	Data         string `json:"SERVICE_DEPS_DATA"`
 	url          string
-	controller   handler.Interface
+	controller   *handler.Controller
 	serviceReady bool
 	deps         map[string]*Dep
 }

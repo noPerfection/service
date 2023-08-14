@@ -2,6 +2,7 @@ package converter
 
 import (
 	"fmt"
+	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/config/service"
 )
@@ -24,7 +25,7 @@ func ServiceToProxy(s *config.Service) (service.Proxy, error) {
 		return service.Proxy{}, fmt.Errorf("no source instances")
 	}
 
-	instance := service.Instance{
+	instance := clientConfig.Client{
 		Id: controllerConfig.Category + " instance 01",
 	}
 
@@ -40,7 +41,7 @@ func ServiceToProxy(s *config.Service) (service.Proxy, error) {
 
 	converted := service.Proxy{
 		Url:       s.Url,
-		Instances: []service.Instance{instance},
+		Instances: []*clientConfig.Client{&instance},
 	}
 
 	return converted, nil

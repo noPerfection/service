@@ -12,10 +12,10 @@ import (
 	client "github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/handler-lib"
+	"github.com/ahmetson/handler-lib/command"
 	"github.com/ahmetson/log-lib"
-	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/handler"
 )
 
 // onClose closing all the dependencies in the orchestra.

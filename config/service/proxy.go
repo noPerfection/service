@@ -1,5 +1,7 @@
 package service
 
+import "github.com/ahmetson/client-lib/config"
+
 const (
 	// SourceName of this type should be listed within the controllers in the config
 	SourceName = "source"
@@ -9,5 +11,5 @@ const (
 
 type Proxy struct {
 	Url       string
-	Instances []Instance
+	Instances []*config.Client
 }

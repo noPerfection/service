@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/ahmetson/service-lib/config/service"
+	"github.com/ahmetson/handler-lib/config"
 	"strings"
 )
 
@@ -32,17 +32,17 @@ func ContextName(url string) string {
 	return "orchestra." + fileName
 }
 
-func InternalConfiguration(name string) *service.Controller {
-	instance := service.Instance{
+func InternalConfiguration(name string) *config.Handler {
+	instance := config.Instance{
 		Port:               0, // 0 means it's inproc
 		Id:                 name + "_instance",
 		ControllerCategory: name,
 	}
 
-	return &service.Controller{
-		Type:      service.SyncReplierType,
+	return &config.Handler{
+		Type:      config.SyncReplierType,
 		Category:  name,
-		Instances: []service.Instance{instance},
+		Instances: []config.Instance{instance},
 	}
 }
 

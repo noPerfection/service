@@ -4,10 +4,10 @@ package extension
 
 import (
 	"fmt"
+	"github.com/ahmetson/handler-lib"
+	handlerConfig "github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/config"
-	service2 "github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/handler"
 	"github.com/ahmetson/service-lib/service"
 )
 
@@ -37,24 +37,24 @@ func New(config *config.Service, parent *log.Logger) (*Extension, error) {
 }
 
 // AddController creates a handler of this extension
-func (extension *Extension) AddController(controllerType service2.ControllerType) error {
-	if controllerType == service2.UnknownType {
+func (extension *Extension) AddController(controllerType handlerConfig.HandlerType) error {
+	if controllerType == handlerConfig.UnknownType {
 		return fmt.Errorf("unknown handler type can't be in the extension")
 	}
 
-	if controllerType == service2.SyncReplierType {
+	if controllerType == handlerConfig.SyncReplierType {
 		replier, err := handler.SyncReplier(extension._service.Logger)
 		if err != nil {
 			return fmt.Errorf("handler.NewReplier: %w", err)
 		}
 		extension._service.AddController(defaultControllerName, replier)
-	} else if controllerType == service2.ReplierType {
+	} else if controllerType == handlerConfig.ReplierType {
 		//router, err := handler.NewRouter(controllerLogger)
 		//if err != nil {
 		//	return fmt.Errorf("handler.NewRouter: %w", err)
 		//}
 		//extension.ControllerCategory = router
-	} else if controllerType == service2.PusherType {
+	} else if controllerType == handlerConfig.PusherType {
 		puller, err := handler.NewPull(extension._service.Logger)
 		if err != nil {
 			return fmt.Errorf("handler.NewPuller: %w", err)
