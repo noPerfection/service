@@ -134,17 +134,17 @@ func UnmarshalService(services []interface{}) (*Service, error) {
 // If the child config is used independently, then
 // there is no way to know to which parent it belongs too.
 //
-// In this case, it sets the reference to the server from the server reference.
-// If the server instances are used independently, then other services may know to which service they belong too.
+// In this case, it sets the reference to the handler from the handler reference.
+// If the handler instances are used independently, then other services may know to which service they belong too.
 func (s *Service) Lint() error {
-	// Lint server instances to the controllers
+	// Lint handler instances to the controllers
 	for cI, c := range s.Controllers {
 		for iI, instance := range c.Instances {
 			if len(instance.ControllerCategory) > 0 {
 				if instance.ControllerCategory != c.Category {
-					return fmt.Errorf("invalid name for server instance. "+
-						"In service instance '%s', server '%s', instance '%s'. "+
-						"the '%s' name in the server instance should be '%s'",
+					return fmt.Errorf("invalid name for handler instance. "+
+						"In service instance '%s', handler '%s', instance '%s'. "+
+						"the '%s' name in the handler instance should be '%s'",
 						s.Id, c.Category, instance.Id, instance.ControllerCategory, c.Category)
 				} else {
 					continue
@@ -169,15 +169,15 @@ func (s *Service) ValidateTypes() error {
 
 	for _, c := range s.Controllers {
 		if err := service.ValidateControllerType(c.Type); err != nil {
-			return fmt.Errorf("server.ValidateControllerType: %v", err)
+			return fmt.Errorf("handler.ValidateControllerType: %v", err)
 		}
 	}
 
 	return nil
 }
 
-// GetController returns the server config by the server name.
-// If the server doesn't exist, then it returns an error.
+// GetController returns the handler config by the handler name.
+// If the handler doesn't exist, then it returns an error.
 func (s *Service) GetController(name string) (*service.Controller, error) {
 	for _, c := range s.Controllers {
 		if c.Category == name {
@@ -185,7 +185,7 @@ func (s *Service) GetController(name string) (*service.Controller, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("'%s' server was not found in '%s' service's config", name, s.Url)
+	return nil, fmt.Errorf("'%s' handler was not found in '%s' service's config", name, s.Url)
 }
 
 // GetControllers returns the multiple controllers of the given name.
@@ -207,7 +207,7 @@ func (s *Service) GetControllers(name string) ([]*service.Controller, error) {
 	return controllers, nil
 }
 
-// GetFirstController returns the server without requiring its name.
+// GetFirstController returns the handler without requiring its name.
 // If the service doesn't have controllers, then it will return an error.
 func (s *Service) GetFirstController() (*service.Controller, error) {
 	if len(s.Controllers) == 0 {
@@ -261,7 +261,7 @@ func (s *Service) SetExtension(extension *service.Extension) {
 	}
 }
 
-// SetController adds a new server. If the server by the same name exists, it will add a new copy.
+// SetController adds a new handler. If the handler by the same name exists, it will add a new copy.
 func (s *Service) SetController(controller *service.Controller) {
 	s.Controllers = append(s.Controllers, controller)
 }

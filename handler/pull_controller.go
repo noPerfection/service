@@ -1,7 +1,7 @@
 /*
-Package server defines the data type of the various server sockets.
+Package handler defines the data type of the various handler sockets.
 
-Using the server package, you can turn application to the servers.
+Using the handler package, you can turn application to the servers.
 
 The following types of controllers are supported:
 
@@ -9,7 +9,7 @@ The following types of controllers are supported:
   - Reply creates a replier for the service. Reply executes the messages and replies back to the caller.
   - Router creates a proxy/broker for the service. Router forwards the requests to other Router/Reply or Pull
 */
-package server
+package handler
 
 import (
 	"fmt"
@@ -20,9 +20,9 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// NewPull creates a pull server for the service.
+// NewPull creates a pull handler for the service.
 func NewPull(logger *log.Logger) (*Controller, error) {
-	controllerLogger := logger.Child("server", "type", service.PusherType)
+	controllerLogger := logger.Child("handler", "type", service.PusherType)
 
 	// Socket to talk to clients
 	socket, err := zmq.NewSocket(zmq.PULL)

@@ -6,7 +6,7 @@ import (
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/config"
 	service2 "github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/server"
+	"github.com/ahmetson/service-lib/handler"
 	"github.com/ahmetson/service-lib/service"
 	"sync"
 )
@@ -20,15 +20,15 @@ type Proxy struct {
 	Controller *Controller
 }
 
-// An extension creates the config of the proxy server.
-// The proxy server itself is added as the extension to the source controllers,
+// An extension creates the config of the proxy handler.
+// The proxy handler itself is added as the extension to the source controllers,
 // to the request handlers and to the reply handlers.
 func extension() *service2.Extension {
 	return service2.NewInternalExtension(ControllerName)
 }
 
-// registerDestination registers the server instances as the destination.
-// It adds the server config.
+// registerDestination registers the handler instances as the destination.
+// It adds the handler config.
 func (proxy *Proxy) registerDestination() {
 	for _, c := range proxy._service.Config.Controllers {
 		if c.Category == service2.DestinationName {
@@ -38,7 +38,7 @@ func (proxy *Proxy) registerDestination() {
 	}
 }
 
-// New proxy service along with its server.
+// New proxy service along with its handler.
 func New(conf *config.Service, parent *log.Logger) *Proxy {
 	logger := parent.Child("service", "service_type", config.ProxyType)
 
@@ -46,15 +46,15 @@ func New(conf *config.Service, parent *log.Logger) *Proxy {
 
 	_service := Proxy{
 		_service:   base,
-		Controller: newController(logger.Child("server")),
+		Controller: newController(logger.Child("handler")),
 	}
 
 	return &_service
 }
 
-func (proxy *Proxy) getSource() server.Interface {
+func (proxy *Proxy) getSource() handler.Interface {
 	controllers := proxy._service.Controllers.Map()
-	source := controllers[service2.SourceName].(server.Interface)
+	source := controllers[service2.SourceName].(handler.Interface)
 	return source
 }
 
@@ -76,26 +76,26 @@ func (proxy *Proxy) Prepare() error {
 	return nil
 }
 
-// SetDefaultSource creates a source server of the given type.
+// SetDefaultSource creates a source handler of the given type.
 //
 // It loads the source name automatically.
 func (proxy *Proxy) SetDefaultSource(controllerType service2.ControllerType) error {
 	// todo move the validation to the proxy.ValidateTypes() function
-	var source server.Interface
+	var source handler.Interface
 	if controllerType == service2.SyncReplierType {
-		sourceController, err := server.SyncReplier(proxy._service.Logger)
+		sourceController, err := handler.SyncReplier(proxy._service.Logger)
 		if err != nil {
-			return fmt.Errorf("failed to create a source as server.NewReplier: %w", err)
+			return fmt.Errorf("failed to create a source as handler.NewReplier: %w", err)
 		}
 		source = sourceController
 	} else if controllerType == service2.PusherType {
-		sourceController, err := server.NewPull(proxy._service.Logger)
+		sourceController, err := handler.NewPull(proxy._service.Logger)
 		if err != nil {
-			return fmt.Errorf("failed to create a source as server.NewPull: %w", err)
+			return fmt.Errorf("failed to create a source as handler.NewPull: %w", err)
 		}
 		source = sourceController
 	} else {
-		return fmt.Errorf("the '%s' server type not supported", controllerType)
+		return fmt.Errorf("the '%s' handler type not supported", controllerType)
 	}
 
 	proxy.SetCustomSource(source)
@@ -103,14 +103,14 @@ func (proxy *Proxy) SetDefaultSource(controllerType service2.ControllerType) err
 	return nil
 }
 
-// SetCustomSource sets the source server, and invokes the source server's
-func (proxy *Proxy) SetCustomSource(source server.Interface) {
+// SetCustomSource sets the source handler, and invokes the source handler's
+func (proxy *Proxy) SetCustomSource(source handler.Interface) {
 	proxy._service.AddController(service2.SourceName, source)
 }
 
 // Run the proxy service.
 func (proxy *Proxy) Run() {
-	// call BuildConfiguration explicitly to generate the yaml without proxy server's extension.
+	// call BuildConfiguration explicitly to generate the yaml without proxy handler's extension.
 	proxy._service.BuildConfiguration()
 
 	// we add the proxy extension to the source.
@@ -123,7 +123,7 @@ func (proxy *Proxy) Run() {
 	proxy.getSource().AddExtensionConfig(proxyExtension)
 	go proxy._service.Run()
 
-	// Run the proxy server. Proxy server itself on the other hand
+	// Run the proxy handler. Proxy handler itself on the other hand
 	// will run the destination clients
 	var wg sync.WaitGroup
 	wg.Add(1)

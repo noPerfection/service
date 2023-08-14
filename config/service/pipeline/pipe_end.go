@@ -5,7 +5,7 @@ type PipeEnd struct {
 	Url string
 }
 
-// NewControllerPipeEnd creates a pipe end with the given name as the server
+// NewControllerPipeEnd creates a pipe end with the given name as the handler
 func NewControllerPipeEnd(end string) *PipeEnd {
 	return &PipeEnd{
 		Url: "",

@@ -83,7 +83,7 @@ func (dep *Dep) GetServiceConfig() (*config.Service, error) {
 
 // SetServiceConfig updates the yaml of the proxy.
 //
-// It's needed for linting the dependency's destination server with the service that relies on it.
+// It's needed for linting the dependency's destination handler with the service that relies on it.
 func (dep *Dep) SetServiceConfig(config *config.Service) error {
 	return dep.context.SetConfig(dep.Url(), config)
 }

@@ -1,7 +1,7 @@
 package dev
 
 //
-// The orchestra server has only one command.
+// The orchestra handler has only one command.
 //
 // Close
 // this command has no arguments. And when it's given, it will close all the dependencies it has
@@ -15,7 +15,7 @@ import (
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/server"
+	"github.com/ahmetson/service-lib/handler"
 )
 
 // onClose closing all the dependencies in the orchestra.
@@ -68,11 +68,11 @@ func (context *Context) onServiceReady(request message.Request, logger *log.Logg
 // Run the orchestra in the background. If it failed to run, then return an error.
 // The url request is the main service to which this orchestra belongs too.
 //
-// The logger is the server logger as it is. The orchestra will create its own logger from it.
+// The logger is the handler logger as it is. The orchestra will create its own logger from it.
 func (context *Context) Run(logger *log.Logger) error {
-	replier, err := server.SyncReplier(logger.Child("orchestra"))
+	replier, err := handler.SyncReplier(logger.Child("orchestra"))
 	if err != nil {
-		return fmt.Errorf("server.SyncReplierType: %w", err)
+		return fmt.Errorf("handler.SyncReplierType: %w", err)
 	}
 
 	config := config.InternalConfiguration(config.ContextName(context.GetUrl()))
@@ -92,7 +92,7 @@ func (context *Context) Run(logger *log.Logger) error {
 	context.controller = replier
 	go func() {
 		if err := context.controller.Run(); err != nil {
-			logger.Fatal("orchestra.server.Run: %w", err)
+			logger.Fatal("orchestra.handler.Run: %w", err)
 		}
 	}()
 

@@ -51,12 +51,12 @@ Services:
     Url: url        # Custom name of the service to classify it.
     Instance: unique-id   # Unique id through this config
     Controllers:
-      - Name: source      # Source server
-        Type: Replier     # The type of the server.
+      - Name: source      # Source handler
+        Type: Replier     # The type of the handler.
         Instances:
           - Instance: unique-source
             Port: 8080
-      - Name: destination # Destination server parameters to create a client
+      - Name: destination # Destination handler parameters to create a client
         Type: Replier
         Instances:
           - Instance: unique-destination
@@ -64,7 +64,7 @@ Services:
     Proxies:
       - Url: "" # optional proxies that it depends on
     Pipeline:
-      - "proxy->server" # name of the proxy to bind to the server name
+      - "proxy->handler" # name of the proxy to bind to the handler name
     Extensions:
       - Url: "" # optional extension that it depends on.
                  # the extensions are passed to source, request handler to reply handler.
@@ -108,7 +108,7 @@ func main() {
 	// or
 	// service.SetCustomSource(customController)
 
-	// destinations, handlers are part of the server
+	// destinations, handlers are part of the handler
 	service.Controller.RequireDestination(configuration.ReplierType)
 	service.Controller.SetRequestHandler()
 	service.Controller.SetReplyHandler()

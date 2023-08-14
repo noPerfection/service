@@ -1,4 +1,4 @@
-package server
+package handler
 
 import (
 	"sync"
@@ -26,7 +26,7 @@ type TestReplyControllerSuite struct {
 }
 
 // Todo test in-process and external types of controllers
-// Todo test the business of the server
+// Todo test the business of the handler
 // Make sure that Account is set to five
 // before each test
 func (suite *TestReplyControllerSuite) SetupTest() {

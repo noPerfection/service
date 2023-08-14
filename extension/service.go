@@ -7,7 +7,7 @@ import (
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/config"
 	service2 "github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/server"
+	"github.com/ahmetson/service-lib/handler"
 	"github.com/ahmetson/service-lib/service"
 )
 
@@ -36,28 +36,28 @@ func New(config *config.Service, parent *log.Logger) (*Extension, error) {
 	return &service, nil
 }
 
-// AddController creates a server of this extension
+// AddController creates a handler of this extension
 func (extension *Extension) AddController(controllerType service2.ControllerType) error {
 	if controllerType == service2.UnknownType {
-		return fmt.Errorf("unknown server type can't be in the extension")
+		return fmt.Errorf("unknown handler type can't be in the extension")
 	}
 
 	if controllerType == service2.SyncReplierType {
-		replier, err := server.SyncReplier(extension._service.Logger)
+		replier, err := handler.SyncReplier(extension._service.Logger)
 		if err != nil {
-			return fmt.Errorf("server.NewReplier: %w", err)
+			return fmt.Errorf("handler.NewReplier: %w", err)
 		}
 		extension._service.AddController(defaultControllerName, replier)
 	} else if controllerType == service2.ReplierType {
-		//router, err := server.NewRouter(controllerLogger)
+		//router, err := handler.NewRouter(controllerLogger)
 		//if err != nil {
-		//	return fmt.Errorf("server.NewRouter: %w", err)
+		//	return fmt.Errorf("handler.NewRouter: %w", err)
 		//}
 		//extension.ControllerCategory = router
 	} else if controllerType == service2.PusherType {
-		puller, err := server.NewPull(extension._service.Logger)
+		puller, err := handler.NewPull(extension._service.Logger)
 		if err != nil {
-			return fmt.Errorf("server.NewPuller: %w", err)
+			return fmt.Errorf("handler.NewPuller: %w", err)
 		}
 		extension._service.AddController(defaultControllerName, puller)
 	}
@@ -65,9 +65,9 @@ func (extension *Extension) AddController(controllerType service2.ControllerType
 	return nil
 }
 
-func (extension *Extension) GetController() server.Interface {
+func (extension *Extension) GetController() handler.Interface {
 	controllerInterface, _ := extension._service.Controllers[defaultControllerName]
-	return controllerInterface.(server.Interface)
+	return controllerInterface.(handler.Interface)
 }
 
 func (extension *Extension) GetControllerName() string {
@@ -82,7 +82,7 @@ func (extension *Extension) Prepare() error {
 	}
 
 	if len(extension._service.Controllers) != 1 {
-		return fmt.Errorf("extensions support one server only")
+		return fmt.Errorf("extensions support one handler only")
 	}
 
 	return nil

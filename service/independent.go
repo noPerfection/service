@@ -1,6 +1,6 @@
 // Package service is the primary service.
 // This package is calling out the orchestra. Then within that orchestra sets up
-// - server
+// - handler
 // - proxies
 // - extensions
 package service
@@ -18,7 +18,7 @@ import (
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/config/service/converter"
 	"github.com/ahmetson/service-lib/config/service/pipeline"
-	"github.com/ahmetson/service-lib/server"
+	"github.com/ahmetson/service-lib/handler"
 	dev2 "github.com/ahmetson/service-lib/service/orchestra/dev"
 	"os"
 	"strings"
@@ -33,7 +33,7 @@ type Service struct {
 	RequiredProxies []string             // url => orchestra type
 	Logger          *log.Logger
 	Context         *dev2.Context
-	manager         server.Interface // manage this service from other parts. it should be called before the orchestra runs
+	manager         handler.Interface // manage this service from other parts. it should be called before the orchestra runs
 }
 
 // New service with the config engine and logger. Logger is used as is.
@@ -50,7 +50,7 @@ func New(config *config.Service, logger *log.Logger) (*Service, error) {
 }
 
 // AddController of category
-func (independent *Service) AddController(category string, controller server.Interface) {
+func (independent *Service) AddController(category string, controller handler.Interface) {
 	independent.Controllers.Set(category, controller)
 }
 
@@ -92,7 +92,7 @@ func (independent *Service) Pipeline(pipeEnd *pipeline.PipeEnd, proxyUrls ...str
 func (independent *Service) requiredControllerExtensions() []string {
 	var extensions []string
 	for _, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(server.Interface)
+		c := controllerInterface.(handler.Interface)
 		extensions = append(extensions, c.RequiredExtensions()...)
 	}
 
@@ -111,7 +111,7 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 	controllerConfig, err := serviceConfig.GetController(name)
 	if err == nil {
 		if controllerConfig.Type != as {
-			return fmt.Errorf("server expected to be of '%s' type, not '%s'", as, controllerConfig.Type)
+			return fmt.Errorf("handler expected to be of '%s' type, not '%s'", as, controllerConfig.Type)
 		}
 	} else {
 		controllerConfig = service.NewController(as, name)
@@ -122,7 +122,7 @@ func (independent *Service) PrepareControllerConfiguration(name string, as servi
 
 	err = independent.prepareInstanceConfiguration(controllerConfig)
 	if err != nil {
-		return fmt.Errorf("failed preparing '%s' server instance config: %w", controllerConfig.Category, err)
+		return fmt.Errorf("failed preparing '%s' handler instance config: %w", controllerConfig.Category, err)
 	}
 
 	return nil
@@ -170,11 +170,11 @@ func (independent *Service) prepareConfiguration(expectedType config.Type) error
 
 	// validate the Controllers
 	for category, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(server.Interface)
+		c := controllerInterface.(handler.Interface)
 
 		err := independent.PrepareControllerConfiguration(category, c.ControllerType())
 		if err != nil {
-			return fmt.Errorf("prepare '%s' server config as '%s' type: %w", category, c.ControllerType(), err)
+			return fmt.Errorf("prepare '%s' handler config as '%s' type: %w", category, c.ControllerType(), err)
 		}
 	}
 
@@ -211,7 +211,7 @@ func (independent *Service) onClose(request message.Request, logger *log.Logger,
 	)
 
 	for name, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(server.Interface)
+		c := controllerInterface.(handler.Interface)
 		if c == nil {
 			continue
 		}
@@ -219,10 +219,10 @@ func (independent *Service) onClose(request message.Request, logger *log.Logger,
 		// I expect that the killing process will release its resources as well.
 		err := c.Close()
 		if err != nil {
-			logger.Error("server.Close", "error", err, "server", name)
-			request.Fail(fmt.Sprintf(`server.Close("%s"): %v`, name, err))
+			logger.Error("handler.Close", "error", err, "handler", name)
+			request.Fail(fmt.Sprintf(`handler.Close("%s"): %v`, name, err))
 		}
-		logger.Info("server was closed", "name", name)
+		logger.Info("handler was closed", "name", name)
 	}
 
 	// remove the orchestra lint
@@ -235,11 +235,11 @@ func (independent *Service) onClose(request message.Request, logger *log.Logger,
 // runManager the orchestra in the background. If it failed to run, then return an error.
 // The url request is the main service to which this orchestra belongs too.
 //
-// The logger is the server logger as it is. The orchestra will create its own logger from it.
+// The logger is the handler logger as it is. The orchestra will create its own logger from it.
 func (independent *Service) runManager() error {
-	replier, err := server.SyncReplier(independent.Logger.Child("manager"))
+	replier, err := handler.SyncReplier(independent.Logger.Child("manager"))
 	if err != nil {
-		return fmt.Errorf("server.SyncReplierType: %w", err)
+		return fmt.Errorf("handler.SyncReplierType: %w", err)
 	}
 
 	conf := config.InternalConfiguration(config.ManagerName(independent.Config.Url))
@@ -312,7 +312,7 @@ func (independent *Service) Prepare(as config.Type) error {
 		}
 
 		if len(independent.pipelines) == 0 {
-			err = fmt.Errorf("no pipepline to lint the proxy to the server")
+			err = fmt.Errorf("no pipepline to lint the proxy to the handler")
 			goto closeContext
 		}
 
@@ -347,7 +347,7 @@ func (independent *Service) Prepare(as config.Type) error {
 	// lint extensions, configurations to the controllers
 	//---------------------------------------------------------
 	for name, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(server.Interface)
+		c := controllerInterface.(handler.Interface)
 		var controllerConfig *service.Controller
 		var controllerExtensions []string
 
@@ -448,7 +448,7 @@ func (independent *Service) Run() {
 	}
 
 	for name, controllerInterface := range independent.Controllers {
-		c := controllerInterface.(server.Interface)
+		c := controllerInterface.(handler.Interface)
 		if err = independent.Controllers.Exist(name); err != nil {
 			independent.Logger.Error("service.Controllers.Exist", "config", name, "error", err)
 			break
@@ -474,11 +474,11 @@ errOccurred:
 		if independent.Context != nil {
 			independent.Logger.Warn("orchestra wasn't closed, close it")
 			independent.Logger.Warn("might happen a race condition." +
-				"if the error occurred in the server" +
+				"if the error occurred in the handler" +
 				"here we will close the orchestra." +
 				"orchestra will close the service." +
 				"service will again will come to this place, since all controllers will be cleaned out" +
-				"and server empty will come to here, it will try to close orchestra again",
+				"and handler empty will come to here, it will try to close orchestra again",
 			)
 			closeErr := independent.Context.Close(independent.Logger)
 			if closeErr != nil {

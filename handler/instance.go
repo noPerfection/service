@@ -1,4 +1,4 @@
-package server
+package handler
 
 import (
 	"fmt"
@@ -36,7 +36,7 @@ func (instance *Instance) Run(c *Controller) error {
 	instance.socket = socket
 
 	// if secure and not inproc
-	// then we add the domain name of server to the security layer
+	// then we add the domain name of handler to the security layer
 	//
 	// then any pass-listing users will be sent there.
 	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
@@ -89,7 +89,7 @@ func (instance *Instance) Close() error {
 
 	err := instance.socket.Close()
 	if err != nil {
-		return fmt.Errorf("server.socket.Close: %w", err)
+		return fmt.Errorf("handler.socket.Close: %w", err)
 	}
 
 	return nil

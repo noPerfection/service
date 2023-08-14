@@ -62,7 +62,7 @@ func (suite *TestCommandSuite) TestRun() {
 		suite.NoError(err)
 		request, err := message.ParseRequest(receiveMessage)
 		suite.NoError(err)
-		goLog.Println("received by server", request, receiveMessage)
+		goLog.Println("received by handler", request, receiveMessage)
 
 		reply := message.Reply{
 			Status:     message.OK,

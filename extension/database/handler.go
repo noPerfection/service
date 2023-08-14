@@ -28,32 +28,32 @@ type QueryRequest struct {
 	Arguments []interface{} `json:"arguments,omitempty"` // to pass in where clause
 }
 
-// SelectRowReply keeps the parameters of READ_ROW command reply by server
+// SelectRowReply keeps the parameters of READ_ROW command reply by handler
 type SelectRowReply struct {
 	Outputs key_value.KeyValue `json:"outputs"` // all column parameters returned back to user
 }
 
-// SelectAllReply keeps the parameters of READ_ALL command reply by server
+// SelectAllReply keeps the parameters of READ_ALL command reply by handler
 type SelectAllReply struct {
 	Rows []key_value.KeyValue `json:"rows"` // list of rows returned back to user
 }
 
-// InsertReply keeps the parameters of WRITE command reply by server
+// InsertReply keeps the parameters of WRITE command reply by handler
 type InsertReply struct {
 	Id string `json:"id"`
 }
 
-// ExistReply keeps the parameters of Exist command reply by server
+// ExistReply keeps the parameters of Exist command reply by handler
 type ExistReply struct {
 	Exist bool `json:"exist"` // true or false
 }
 
-// DeleteReply keeps the parameters of Delete command reply by server
+// DeleteReply keeps the parameters of Delete command reply by handler
 type DeleteReply struct {
 	Id string `json:"id"`
 }
 
-// UpdateReply keeps the parameters of Update command reply by server
+// UpdateReply keeps the parameters of Update command reply by handler
 type UpdateReply struct {
 	Id string `json:"id"`
 }

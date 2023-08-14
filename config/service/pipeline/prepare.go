@@ -84,7 +84,7 @@ func newDestinationInstances(config *service.Controller) []service.Instance {
 }
 
 // returns generated source and destination controllers.
-// the parameters of the destination server derived from config.
+// the parameters of the destination handler derived from config.
 func newProxyControllers(config *service.Controller) []*service.Controller {
 	// set the source
 	return []*service.Controller{
@@ -107,7 +107,7 @@ func rewriteControllers(proxyConfig *config.Service, controllers []*service.Cont
 	if len(controllers) == 0 {
 		return fmt.Errorf("no destination controllers")
 	}
-	// two times more, source and destinationService for each server
+	// two times more, source and destinationService for each handler
 	proxyConfig.Controllers = make([]*service.Controller, len(controllers)*2)
 	set := 0
 
@@ -146,7 +146,7 @@ func LintControllers(proxyDestinations []*service.Controller, serviceControllers
 		}
 
 		if dest.Type != controllerConfig.Type {
-			return false, fmt.Errorf("proxy #%d destination type %s mismatches service server: %s", i, dest.Type, controllerConfig.Type)
+			return false, fmt.Errorf("proxy #%d destination type %s mismatches service handler: %s", i, dest.Type, controllerConfig.Type)
 		}
 	}
 
@@ -223,8 +223,8 @@ func LintToControllers(ctx orchestra.Interface, serviceConfig *config.Service, p
 	}
 	controllerPipelines := FindControllerEnds(pipelines)
 
-	// lets lint the server's last head destination to the service server's source or
-	// to the server itself.
+	// lets lint the handler's last head destination to the service handler's source or
+	// to the handler itself.
 	for _, controllerPipeline := range controllerPipelines {
 		if servicePipeline != nil {
 			if err := lintLastToProxy(ctx, serviceProxyConfig, controllerPipeline); err != nil {
@@ -245,8 +245,8 @@ func LintToControllers(ctx orchestra.Interface, serviceConfig *config.Service, p
 }
 
 func lintLastToProxy(ctx orchestra.Interface, serviceConfig *config.Service, pipeline *Pipeline) error {
-	// lets lint the server's last head destination to the service server's source or
-	// to the server itself.
+	// lets lint the handler's last head destination to the service handler's source or
+	// to the handler itself.
 	lastUrl := pipeline.HeadLast()
 
 	lastConfig, err := ctx.GetConfig(lastUrl)
@@ -276,8 +276,8 @@ func lintLastToProxy(ctx orchestra.Interface, serviceConfig *config.Service, pip
 	return nil
 }
 func lintLastToController(ctx orchestra.Interface, serviceConfig *config.Service, pipeline *Pipeline) error {
-	// lets lint the server's last head destination to the service server's source or
-	// to the server itself.
+	// lets lint the handler's last head destination to the service handler's source or
+	// to the handler itself.
 	lastUrl := pipeline.HeadLast()
 
 	lastConfig, err := ctx.GetConfig(lastUrl)
@@ -285,7 +285,7 @@ func lintLastToController(ctx orchestra.Interface, serviceConfig *config.Service
 		return fmt.Errorf("controllerDep.GetServiceConfig: %w", err)
 	}
 
-	// During the addition of the service, it should validate the server
+	// During the addition of the service, it should validate the handler
 	controllerConfigs, _ := serviceConfig.GetControllers(pipeline.End.Id)
 
 	if len(lastConfig.Controllers) != 2 {

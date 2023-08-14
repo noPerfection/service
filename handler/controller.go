@@ -1,4 +1,4 @@
-package server
+package handler
 
 import (
 	"fmt"
@@ -26,26 +26,26 @@ type Controller struct {
 	extensions         client.Clients
 }
 
-// AddConfig adds the parameters of the server from the config.
-// The serviceUrl is the service to which this server belongs too.
+// AddConfig adds the parameters of the handler from the config.
+// The serviceUrl is the service to which this handler belongs too.
 func (c *Controller) AddConfig(controller *service.Controller, serviceUrl string) {
 	c.config = controller
 	c.serviceUrl = serviceUrl
 }
 
-// AddExtensionConfig adds the config of the extension that the server depends on
+// AddExtensionConfig adds the config of the extension that the handler depends on
 func (c *Controller) AddExtensionConfig(extension *service.Extension) {
 	c.extensionConfigs.Set(extension.Url, extension)
 }
 
-// RequireExtension marks the extensions that this server depends on.
+// RequireExtension marks the extensions that this handler depends on.
 // Before running, the required extension should be added from the config.
-// Otherwise, server won't run.
+// Otherwise, handler won't run.
 func (c *Controller) RequireExtension(name string) {
 	c.requiredExtensions = append(c.requiredExtensions, name)
 }
 
-// RequiredExtensions returns the list of extension names required by this server
+// RequiredExtensions returns the list of extension names required by this handler
 func (c *Controller) RequiredExtensions() []string {
 	return c.requiredExtensions
 }
@@ -56,7 +56,7 @@ func (c *Controller) isReply() bool {
 
 // A reply sends to the caller the message.
 //
-// If server doesn't support replying (for example, PULL server),
+// If handler doesn't support replying (for example, PULL handler),
 // then it returns success.
 func (c *Controller) reply(socket *zmq.Socket, message message.Reply) error {
 	if !c.isReply() {
@@ -71,13 +71,13 @@ func (c *Controller) reply(socket *zmq.Socket, message message.Reply) error {
 	return nil
 }
 
-// Calls server.reply() with the error message.
+// Calls handler.reply() with the error message.
 func (c *Controller) replyError(socket *zmq.Socket, err error) error {
 	request := message.Request{}
 	return c.reply(socket, request.Fail(err.Error()))
 }
 
-// AddRoute adds a command along with its handler to this server
+// AddRoute adds a command along with its handler to this handler
 func (c *Controller) AddRoute(route *command.Route) error {
 	if c.routes.Exist(route.Command) {
 		return nil
@@ -91,12 +91,12 @@ func (c *Controller) AddRoute(route *command.Route) error {
 	return nil
 }
 
-// extensionsAdded checks that the required extensions are added into the server.
-// If no extensions are added by calling server.RequireExtension(), then it will return nil.
+// extensionsAdded checks that the required extensions are added into the handler.
+// If no extensions are added by calling handler.RequireExtension(), then it will return nil.
 func (c *Controller) extensionsAdded() error {
 	for _, name := range c.requiredExtensions {
 		if err := c.extensionConfigs.Exist(name); err != nil {
-			return fmt.Errorf("required '%s' extension. but it wasn't added to the server (does it exist in config.yml?)", name)
+			return fmt.Errorf("required '%s' extension. but it wasn't added to the handler (does it exist in config.yml?)", name)
 		}
 	}
 
@@ -107,12 +107,12 @@ func (c *Controller) ControllerType() service.ControllerType {
 	return c.controllerType
 }
 
-// initExtensionClients will set up the extension clients for this server.
+// initExtensionClients will set up the extension clients for this handler.
 // It will be called by c.Run(), automatically.
 //
 // The reason for why we call it by c.Run() is due to the thread-safety.
 //
-// The server is intended to be called as the goroutine. And if the sockets
+// The handler is intended to be called as the goroutine. And if the sockets
 // are not initiated within the same goroutine, then zeromq doesn't guarantee the socket work
 // as it's intended.
 func (c *Controller) initExtensionClients() error {
@@ -135,13 +135,13 @@ func (c *Controller) Close() error {
 
 	err := c.socket.Close()
 	if err != nil {
-		return fmt.Errorf("server.socket.Close: %w", err)
+		return fmt.Errorf("handler.socket.Close: %w", err)
 	}
 
 	return nil
 }
 
-// Url creates url of the server url for binding.
+// Url creates url of the handler url for binding.
 // For clients to connect to this url, call client.ClientUrl()
 func Url(name string, port uint64) string {
 	if port == 0 {

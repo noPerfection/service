@@ -31,15 +31,15 @@ Services:
     Name: my-ext          # Custom name of the service to classify it.
     Instance: unique-id   # Unique id through this config
     Controllers:
-      - Name: Name        # Source server
-        Type: Replier     # The type of the server.
+      - Name: Name        # Source handler
+        Type: Replier     # The type of the handler.
         Instances:
-          - Instance: unique-server
+          - Instance: unique-handler
             Port: 8081
     Proxies:
       - Name: "" # optional proxies that it depends on
     Pipeline:
-      - "proxy->server" # name of the proxy to bind to the server name
+      - "proxy->handler" # name of the proxy to bind to the handler name
     Extensions:
       - Name: "" # optional extension that it depends on.
                  # the extensions are passed to the handlers.
@@ -85,7 +85,7 @@ func main() {
 
 	service.AddController(configuration.ReplierType)
 	
-	// Add the commands and their handlers to the server
+	// Add the commands and their handlers to the handler
 	service.Controller.RequireExtension("github.com/ahmetson/mysql-extension")
 	service.Controller.AddRoute(handler.SetCounter)
 	service.Controller.AddRoute(handler.GetCounter)

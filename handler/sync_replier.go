@@ -1,4 +1,4 @@
-package server
+package handler
 
 import (
 	"fmt"
@@ -23,9 +23,9 @@ func newController(logger *log.Logger) *Controller {
 	}
 }
 
-// SyncReplier creates a new synchronous Reply server.
+// SyncReplier creates a new synchronous Reply handler.
 func SyncReplier(parent *log.Logger) (*Controller, error) {
-	logger := parent.Child("server", "type", service.SyncReplierType)
+	logger := parent.Child("handler", "type", service.SyncReplierType)
 
 	instance := newController(logger)
 	instance.controllerType = service.SyncReplierType
@@ -41,7 +41,7 @@ func (c *Controller) prepare() error {
 		return fmt.Errorf("initExtensionClients: %w", err)
 	}
 	if c.config == nil || len(c.config.Instances) == 0 {
-		return fmt.Errorf("server doesn't have the config or instances are missing")
+		return fmt.Errorf("handler doesn't have the config or instances are missing")
 	}
 
 	return nil
@@ -64,11 +64,11 @@ func Bind(sock *zmq.Socket, url string, port uint64) error {
 					}
 				}
 			} else {
-				err = fmt.Errorf(`server.socket.Bind("tcp://*:%d)": %w`, port, err)
+				err = fmt.Errorf(`handler.socket.Bind("tcp://*:%d)": %w`, port, err)
 			}
 			return err
 		} else {
-			return fmt.Errorf(`server.socket.bind("inproc://%s"): %w`, url, err)
+			return fmt.Errorf(`handler.socket.bind("inproc://%s"): %w`, url, err)
 		}
 	}
 
@@ -125,7 +125,7 @@ func (c *Controller) processMessage(msgRaw []string, metadata map[string]string)
 func (c *Controller) Run() error {
 	var err error
 	if err := c.prepare(); err != nil {
-		return fmt.Errorf("server.prepare: %w", err)
+		return fmt.Errorf("handler.prepare: %w", err)
 	}
 
 	// Socket to talk to clients
@@ -135,7 +135,7 @@ func (c *Controller) Run() error {
 	}
 
 	// if secure and not inproc
-	// then we add the domain name of server to the security layer,
+	// then we add the domain name of handler to the security layer,
 	//
 	// then any pass-listing users will be sent there.
 	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")

@@ -7,8 +7,8 @@ type ControllerType string
 
 // ReplierType or PublisherType or ReplierType
 const (
-	// SyncReplierType controllers are serving one request at a time. It's the server in a
-	// traditional client-server model.
+	// SyncReplierType controllers are serving one request at a time. It's the handler in a
+	// traditional client-handler model.
 	SyncReplierType ControllerType = "SyncReplier"
 	// PusherType controllers are serving the data to the Pullers without checking its delivery.
 	// If multiple instances of Pullers are connected. Then Pusher sends the data to one Puller in a round-robin
@@ -28,5 +28,5 @@ func ValidateControllerType(t ControllerType) error {
 		return nil
 	}
 
-	return fmt.Errorf("'%s' is not valid server type", t)
+	return fmt.Errorf("'%s' is not valid handler type", t)
 }

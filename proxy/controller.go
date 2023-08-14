@@ -12,10 +12,10 @@ import (
 // ControllerName is the name of the proxy router that connects source and destination
 const ControllerName = "proxy_controller"
 
-// Url defines the proxy server path
+// Url defines the proxy handler path
 const Url = "inproc://" + ControllerName
 
-// Destination is the client connected to the server of the client service.
+// Destination is the client connected to the handler of the client service.
 // The Dealer is the Request from Router to the
 // Reply Controller.
 //
@@ -102,9 +102,9 @@ func (controller *Controller) setDestinationSocket() error {
 //		1 - ""; empty delimiter
 //		2 - string (app/request.Type) service name as a tag of dealer.
 //	     to identify which dealer to use
-//		3 - app/client/message.Request the message that is redirected to the zmq.REP server
+//		3 - app/client/message.Request the message that is redirected to the zmq.REP handler
 //
-// The request id is used to identify the client. Once the dealer gets the reply from zmq.REP server
+// The request id is used to identify the client. Once the dealer gets the reply from zmq.REP handler
 // the router will return it back to the client by request id.
 //
 // Example:
@@ -145,7 +145,7 @@ func (controller *Controller) Run() {
 
 	poller.Add(frontend, zmq.POLLIN)
 
-	controller.logger.Info("The proxy server waits for client requestMessages")
+	controller.logger.Info("The proxy handler waits for client requestMessages")
 
 	//  Switch messages between sockets
 	for {

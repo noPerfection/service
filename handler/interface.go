@@ -1,4 +1,4 @@
-package server
+package handler
 
 import (
 	"fmt"
@@ -10,32 +10,32 @@ import (
 	"github.com/ahmetson/service-lib/config/service"
 )
 
-// Interface of the server. All controllers have it
+// Interface of the handler. All controllers have it
 //
 // The interface that it accepts is the *client.ClientSocket from the
 // "github.com/ahmetson/client-lib" package.
 type Interface interface {
-	// AddConfig adds the parameters of the server from the config
+	// AddConfig adds the parameters of the handler from the config
 	AddConfig(controller *service.Controller, serviceUrl string)
 
-	// AddExtensionConfig adds the config of the extension that the server depends on
+	// AddExtensionConfig adds the config of the extension that the handler depends on
 	AddExtensionConfig(extension *service.Extension)
 
-	// RequireExtension marks the extensions that this server depends on.
+	// RequireExtension marks the extensions that this handler depends on.
 	// Before running, the required extension should be added from the config.
-	// Otherwise, server won't run.
+	// Otherwise, handler won't run.
 	RequireExtension(name string)
 
-	// RequiredExtensions returns the list of extension names required by this server
+	// RequiredExtensions returns the list of extension names required by this handler
 	RequiredExtensions() []string
 
-	// AddRoute registers a new command and it's handlers for this server
+	// AddRoute registers a new command and it's handlers for this handler
 	AddRoute(route *command.Route) error
 
-	// ControllerType returns the type of the server
+	// ControllerType returns the type of the handler
 	ControllerType() service.ControllerType
 
-	// Close the server if it's running. If it's not running, then do nothing
+	// Close the handler if it's running. If it's not running, then do nothing
 	Close() error
 
 	Run() error
@@ -50,13 +50,13 @@ var anyHandler = func(request message.Request, _ *log.Logger, _ ...*client.Clien
 	return reply
 }
 
-// AnyRoute makes the given server as the source of the proxy.
+// AnyRoute makes the given handler as the source of the proxy.
 // It means, it will add command.Any to call the proxy.
 func AnyRoute(sourceController Interface) error {
 	route := command.NewRoute(command.Any, anyHandler)
 
 	if err := sourceController.AddRoute(route); err != nil {
-		return fmt.Errorf("failed to add any route into the server: %w", err)
+		return fmt.Errorf("failed to add any route into the handler: %w", err)
 	}
 	return nil
 }

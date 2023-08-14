@@ -16,8 +16,8 @@ import (
 //	serviceUrl = "github.com/ahmetson/sample-service"
 //	contextUrl = "orchestra.github.com.ahmetson.sample-service"
 //
-// This controllerName is set as the server's name in the config.
-// Then the server package will generate an inproc:// url based on the server name.
+// This controllerName is set as the handler's name in the config.
+// Then the handler package will generate an inproc:// url based on the handler name.
 func UrlToFileName(url string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(url, "/", "."), "\\", ".")
 }
@@ -46,7 +46,7 @@ func InternalConfiguration(name string) *service.Controller {
 	}
 }
 
-// ClientUrlParameters return the endpoint to connect to this server from other services
+// ClientUrlParameters return the endpoint to connect to this handler from other services
 func ClientUrlParameters(name string) (string, uint64) {
 	return name, 0
 }

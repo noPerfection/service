@@ -6,7 +6,7 @@ import (
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/service-lib/communication/command"
-	"github.com/ahmetson/service-lib/server"
+	"github.com/ahmetson/service-lib/handler"
 )
 
 var anyHandler = func(request message.Request, _ *log.Logger, extensions ...*client.ClientSocket) message.Reply {
@@ -24,13 +24,13 @@ var anyHandler = func(request message.Request, _ *log.Logger, extensions ...*cli
 	return reply
 }
 
-// SourceHandler makes the given server as the source of the proxy.
+// SourceHandler makes the given handler as the source of the proxy.
 // It means, it will add command.Any to call the proxy.
-func SourceHandler(sourceController server.Interface) error {
+func SourceHandler(sourceController handler.Interface) error {
 	route := command.NewRoute(command.Any, anyHandler, ControllerName)
 
 	if err := sourceController.AddRoute(route); err != nil {
-		return fmt.Errorf("failed to add any route into the server: %w", err)
+		return fmt.Errorf("failed to add any route into the handler: %w", err)
 	}
 	return nil
 }

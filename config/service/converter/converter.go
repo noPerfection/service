@@ -87,7 +87,7 @@ func ServiceToExtension(s *config.Service) (service.Extension, error) {
 	}
 
 	if len(controllerConfig.Instances) == 0 {
-		return service.Extension{}, fmt.Errorf("no server instances")
+		return service.Extension{}, fmt.Errorf("no handler instances")
 	}
 
 	converted := service.Extension{
