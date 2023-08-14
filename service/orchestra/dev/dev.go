@@ -42,7 +42,6 @@ import (
 	"github.com/ahmetson/os-lib/env"
 	"github.com/ahmetson/os-lib/path"
 	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/server"
 	"github.com/ahmetson/service-lib/service/orchestra"
 	"gopkg.in/yaml.v3"
@@ -185,7 +184,7 @@ func (c *Context) GetType() orchestra.Type {
 // GetConfig on the given path.
 // If a path is not obsolete, then it should be relative to the executable.
 // The path should have the .yml extension
-func (c *Context) GetConfig(url string) (*service.Service, error) {
+func (c *Context) GetConfig(url string) (*config.Service, error) {
 	path := c.ConfigurationPath(url)
 
 	if err := validateServicePath(path); err != nil {
@@ -221,7 +220,7 @@ func (c *Context) GetConfig(url string) (*service.Service, error) {
 		return nil, fmt.Errorf("no services in the config")
 	}
 
-	var serviceConfig service.Service
+	var serviceConfig config.Service
 	err = services[0].Interface(&serviceConfig)
 	if err != nil {
 		return nil, fmt.Errorf("convert key value to Service: %w", err)
@@ -237,7 +236,7 @@ func (c *Context) GetConfig(url string) (*service.Service, error) {
 
 // WriteService writes the service as the yaml on the given path.
 // If the path doesn't contain the file extension, it will through an error
-func (c *Context) SetConfig(url string, service *service.Service) error {
+func (c *Context) SetConfig(url string, service *config.Service) error {
 	path := c.ConfigurationPath(url)
 
 	if err := validateServicePath(path); err != nil {
@@ -276,7 +275,7 @@ func validateServicePath(path string) error {
 	return nil
 }
 
-func createYaml(configs ...*service.Service) key_value.KeyValue {
+func createYaml(configs ...*config.Service) key_value.KeyValue {
 	var services = configs
 	kv := key_value.Empty()
 	kv.Set("Services", services)

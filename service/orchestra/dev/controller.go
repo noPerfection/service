@@ -9,10 +9,10 @@ package dev
 
 import (
 	"fmt"
+	client "github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/log-lib"
-	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/server"

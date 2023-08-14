@@ -1,10 +1,12 @@
-package service
+package config
 
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/os-lib/arg"
+	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/config/service/pipeline"
+	"github.com/go-git/go-git/v5/config"
 	"path"
 )
 
@@ -13,10 +15,11 @@ type Service struct {
 	Type        Type
 	Url         string
 	Id          string
-	Controllers []*Controller
-	Proxies     []*Proxy
-	Extensions  []*Extension
+	Controllers []*service.Controller
+	Proxies     []*service.Proxy
+	Extensions  []*service.Extension
 	Pipelines   []*pipeline.Pipeline
+	engine      *config.Config
 }
 
 type Services []Service
@@ -115,7 +118,7 @@ func (s *Service) ValidateTypes() error {
 	}
 
 	for _, c := range s.Controllers {
-		if err := ValidateControllerType(c.Type); err != nil {
+		if err := service.ValidateControllerType(c.Type); err != nil {
 			return fmt.Errorf("server.ValidateControllerType: %v", err)
 		}
 	}
@@ -125,7 +128,7 @@ func (s *Service) ValidateTypes() error {
 
 // GetController returns the server config by the server name.
 // If the server doesn't exist, then it returns an error.
-func (s *Service) GetController(name string) (*Controller, error) {
+func (s *Service) GetController(name string) (*service.Controller, error) {
 	for _, c := range s.Controllers {
 		if c.Category == name {
 			return c, nil
@@ -137,8 +140,8 @@ func (s *Service) GetController(name string) (*Controller, error) {
 
 // GetControllers returns the multiple controllers of the given name.
 // If the controllers don't exist, then it returns an error
-func (s *Service) GetControllers(name string) ([]*Controller, error) {
-	controllers := make([]*Controller, 0, len(s.Controllers))
+func (s *Service) GetControllers(name string) ([]*service.Controller, error) {
+	controllers := make([]*service.Controller, 0, len(s.Controllers))
 	count := 0
 
 	for _, c := range s.Controllers {
@@ -156,7 +159,7 @@ func (s *Service) GetControllers(name string) ([]*Controller, error) {
 
 // GetFirstController returns the server without requiring its name.
 // If the service doesn't have controllers, then it will return an error.
-func (s *Service) GetFirstController() (*Controller, error) {
+func (s *Service) GetFirstController() (*service.Controller, error) {
 	if len(s.Controllers) == 0 {
 		return nil, fmt.Errorf("service '%s' doesn't have any controllers in yaml file", s.Url)
 	}
@@ -167,7 +170,7 @@ func (s *Service) GetFirstController() (*Controller, error) {
 
 // GetExtension returns the extension config by the url.
 // If the extension doesn't exist, then it returns nil
-func (s *Service) GetExtension(url string) *Extension {
+func (s *Service) GetExtension(url string) *service.Extension {
 	for _, e := range s.Extensions {
 		if e.Url == url {
 			return e
@@ -178,7 +181,7 @@ func (s *Service) GetExtension(url string) *Extension {
 }
 
 // GetProxy returns the proxy by its url. If it doesn't exist, returns nil
-func (s *Service) GetProxy(url string) *Proxy {
+func (s *Service) GetProxy(url string) *service.Proxy {
 	for _, p := range s.Proxies {
 		if p.Url == url {
 			return p
@@ -189,7 +192,7 @@ func (s *Service) GetProxy(url string) *Proxy {
 }
 
 // SetProxy will set a new proxy. If it exists, it will overwrite it
-func (s *Service) SetProxy(proxy *Proxy) {
+func (s *Service) SetProxy(proxy *service.Proxy) {
 	existing := s.GetProxy(proxy.Url)
 	if existing == nil {
 		s.Proxies = append(s.Proxies, proxy)
@@ -199,7 +202,7 @@ func (s *Service) SetProxy(proxy *Proxy) {
 }
 
 // SetExtension will set a new extension. If it exists, it will overwrite it
-func (s *Service) SetExtension(extension *Extension) {
+func (s *Service) SetExtension(extension *service.Extension) {
 	existing := s.GetExtension(extension.Url)
 	if existing == nil {
 		s.Extensions = append(s.Extensions, extension)
@@ -209,7 +212,7 @@ func (s *Service) SetExtension(extension *Extension) {
 }
 
 // SetController adds a new server. If the server by the same name exists, it will add a new copy.
-func (s *Service) SetController(controller *Controller) {
+func (s *Service) SetController(controller *service.Controller) {
 	s.Controllers = append(s.Controllers, controller)
 }
 

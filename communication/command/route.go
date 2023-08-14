@@ -2,10 +2,10 @@ package command
 
 import (
 	"fmt"
+	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/log-lib"
-	"github.com/ahmetson/service-lib/client"
 )
 
 // HandleFunc is the function type that manipulates the commands.

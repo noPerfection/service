@@ -2,9 +2,9 @@ package proxy
 
 import (
 	"fmt"
+	client "github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/log-lib"
-	"github.com/ahmetson/service-lib/client"
 	service2 "github.com/ahmetson/service-lib/config/service"
 	zmq "github.com/pebbe/zmq4"
 )

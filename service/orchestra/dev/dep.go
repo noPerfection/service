@@ -10,7 +10,7 @@ import (
 	"github.com/ahmetson/os-lib/arg"
 	"github.com/ahmetson/os-lib/net"
 	"github.com/ahmetson/os-lib/path"
-	"github.com/ahmetson/service-lib/config/service"
+	"github.com/ahmetson/service-lib/config"
 	"github.com/go-git/go-git/v5"
 	"net/url"
 	"os/exec"
@@ -72,7 +72,7 @@ func (dep *Dep) SrcExist() (bool, error) {
 }
 
 // GetServiceConfig returns the yaml config of the dependency as is
-func (dep *Dep) GetServiceConfig() (*service.Service, error) {
+func (dep *Dep) GetServiceConfig() (*config.Service, error) {
 	serviceConfig, err := dep.context.GetConfig(dep.Url())
 	if err != nil {
 		return nil, fmt.Errorf("config.GetConfig(%s): %w", dep.Url(), err)
@@ -84,7 +84,7 @@ func (dep *Dep) GetServiceConfig() (*service.Service, error) {
 // SetServiceConfig updates the yaml of the proxy.
 //
 // It's needed for linting the dependency's destination server with the service that relies on it.
-func (dep *Dep) SetServiceConfig(config *service.Service) error {
+func (dep *Dep) SetServiceConfig(config *config.Service) error {
 	return dep.context.SetConfig(dep.Url(), config)
 }
 

@@ -40,7 +40,7 @@ func (proxy *Proxy) registerDestination() {
 
 // New proxy service along with its server.
 func New(config *config.Config, parent *log.Logger) *Proxy {
-	logger := parent.Child("service", "service_type", service2.ProxyType)
+	logger := parent.Child("service", "service_type", config.ProxyType)
 
 	base, _ := service.New(config, logger)
 
@@ -63,8 +63,8 @@ func (proxy *Proxy) Prepare() error {
 		return fmt.Errorf("missing the required destination. call proxy.ControllerCategory.RequireDestination")
 	}
 
-	if err := proxy._service.Prepare(service2.ProxyType); err != nil {
-		return fmt.Errorf("service.Run as '%s' failed: %w", service2.ProxyType, err)
+	if err := proxy._service.Prepare(config.ProxyType); err != nil {
+		return fmt.Errorf("service.Run as '%s' failed: %w", config.ProxyType, err)
 	}
 
 	if err := proxy._service.PrepareControllerConfiguration(service2.DestinationName, proxy.Controller.requiredDestination); err != nil {

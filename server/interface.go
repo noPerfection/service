@@ -2,10 +2,10 @@ package server
 
 import (
 	"fmt"
+	client "github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/log-lib"
-	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/config/service"
 )
@@ -13,7 +13,7 @@ import (
 // Interface of the server. All controllers have it
 //
 // The interface that it accepts is the *client.ClientSocket from the
-// "github.com/ahmetson/service-lib/client" package.
+// "github.com/ahmetson/client-lib" package.
 type Interface interface {
 	// AddConfig adds the parameters of the server from the config
 	AddConfig(controller *service.Controller, serviceUrl string)

@@ -2,6 +2,7 @@ package converter
 
 import (
 	"fmt"
+	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/config/service"
 )
 
@@ -9,8 +10,8 @@ import (
 // so that it can be used as a proxy by other services.
 //
 // If the service has another proxy, then it will find it.
-func ServiceToProxy(s *service.Service) (service.Proxy, error) {
-	if s.Type != service.ProxyType {
+func ServiceToProxy(s *config.Service) (service.Proxy, error) {
+	if s.Type != config.ProxyType {
 		return service.Proxy{}, fmt.Errorf("only proxy type of service can be converted")
 	}
 
@@ -47,7 +48,7 @@ func ServiceToProxy(s *service.Service) (service.Proxy, error) {
 
 // findPipelineBeginning returns the beginning of the pipeline.
 // If the contextType is not a default one, then it will search for the specific orchestra type.
-func findPipelineBeginning(s *service.Service, requiredEnd string) (*service.Proxy, error) {
+func findPipelineBeginning(s *config.Service, requiredEnd string) (*service.Proxy, error) {
 	for _, pipeline := range s.Pipelines {
 		beginning := pipeline.Beginning()
 		if !pipeline.HasBeginning() {
@@ -75,8 +76,8 @@ func findPipelineBeginning(s *service.Service, requiredEnd string) (*service.Pro
 
 // ServiceToExtension returns the service in the proxy format
 // so that it can be used as a proxy
-func ServiceToExtension(s *service.Service) (service.Extension, error) {
-	if s.Type != service.ExtensionType {
+func ServiceToExtension(s *config.Service) (service.Extension, error) {
+	if s.Type != config.ExtensionType {
 		return service.Extension{}, fmt.Errorf("only proxy type of service can be converted")
 	}
 

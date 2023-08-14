@@ -118,7 +118,7 @@ So let's create `handler.go` in `handler` directory:
 package handler
 
 import (
-	"github.com/ahmetson/service-lib/communication/command"
+	"github.com/ahmetson/client-lib/command"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/service-lib/remote"
 	log "github.com/ahmetson/log-lib"

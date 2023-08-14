@@ -7,12 +7,12 @@ package service
 
 import (
 	"fmt"
+	client "github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/os-lib/arg"
 	"github.com/ahmetson/os-lib/path"
-	"github.com/ahmetson/service-lib/client"
 	"github.com/ahmetson/service-lib/communication/command"
 	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/config/service"
@@ -99,7 +99,7 @@ func (independent *Service) requiredControllerExtensions() []string {
 	return extensions
 }
 
-func (independent *Service) prepareServiceConfiguration(expectedType service.Type) error {
+func (independent *Service) prepareServiceConfiguration(expectedType config.Type) error {
 
 	return nil
 }
@@ -149,7 +149,7 @@ func (independent *Service) prepareInstanceConfiguration(controllerConfig *servi
 }
 
 // prepareConfiguration prepares the configuration.
-func (independent *Service) prepareConfiguration(expectedType service.Type) error {
+func (independent *Service) prepareConfiguration(expectedType config.Type) error {
 	// validate the service itself
 	serviceConfig := independent.Config.Service
 	var err error
@@ -160,7 +160,7 @@ func (independent *Service) prepareConfiguration(expectedType service.Type) erro
 			return fmt.Errorf("service type is overwritten. expected '%s', not '%s'", expectedType, serviceConfig.Type)
 		}
 	} else {
-		serviceConfig, err = service.NewService(expectedType)
+		serviceConfig, err = config.NewService(expectedType)
 		if err != nil {
 			return fmt.Errorf("service.NewService(%s): %w", expectedType, err)
 		}
@@ -262,7 +262,7 @@ func (independent *Service) runManager() error {
 }
 
 // Prepare the services by validating, linting the configurations, as well as setting up the dependencies
-func (independent *Service) Prepare(as service.Type) error {
+func (independent *Service) Prepare(as config.Type) error {
 	if len(independent.Controllers) == 0 {
 		return fmt.Errorf("no Controllers. call service.AddController")
 	}

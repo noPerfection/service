@@ -11,7 +11,6 @@ import (
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/os-lib/arg"
 	"github.com/ahmetson/os-lib/path"
-	"github.com/ahmetson/service-lib/config/service"
 	"github.com/fsnotify/fsnotify"
 	"path/filepath"
 	"time"
@@ -29,8 +28,8 @@ type Config struct {
 	// If it's passed, then authentication is switched off.
 	Secure       bool
 	logger       *log.Logger // debug purpose only
-	Service      *service.Service
-	handleChange func(*service.Service, error)
+	Service      *Service
+	handleChange func(*Service, error)
 }
 
 // New creates a global config for the entire application.
@@ -104,7 +103,7 @@ func New(parent *log.Logger) (*Config, error) {
 // it will unmarshall it into the config.Service.
 //
 // If the file doesn't exist, it will skip it without changing the old service
-func (config *Config) readFile() (*service.Service, error) {
+func (config *Config) readFile() (*Service, error) {
 	err := config.viper.ReadInConfig()
 	notFound := false
 	_, notFound = err.(viper.ConfigFileNotFoundError)
@@ -127,7 +126,7 @@ func (config *Config) readFile() (*service.Service, error) {
 		"todo 4", "make sure that services are all of the same kind but of different instance",
 		"todo 5", "make sure that all controllers have the unique name in the config")
 
-	serviceConfig, err := service.UnmarshalService(services)
+	serviceConfig, err := UnmarshalService(services)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshalling service config failed: %w", err)
 	}
@@ -153,7 +152,7 @@ func (config *Config) Engine() *viper.Viper {
 // Watch could be called only once. If it's already called, then it will skip it without an error.
 //
 // For production, we could call config.viper.WatchRemoteConfig() for example in etcd.
-func (config *Config) Watch(watchHandle func(*service.Service, error)) error {
+func (config *Config) Watch(watchHandle func(*Service, error)) error {
 	if config.handleChange != nil {
 		return nil
 	}

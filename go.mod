@@ -8,6 +8,10 @@ replace github.com/ahmetson/os-lib => D:/sds/os-lib
 
 replace github.com/ahmetson/log-lib => D:/sds/log-lib
 
+replace github.com/ahmetson/client-lib => D:/sds/client-lib
+
+replace github.com/ahmetson/config-lib => D:/sds/config-lib
+
 require (
 	github.com/ahmetson/common-lib v0.0.0-20230717140750-5e95e61d69c2
 	github.com/ahmetson/log-lib v0.0.0-20230814152407-68a090e4a798
@@ -23,6 +27,8 @@ require (
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230518184743-7afd39499903 // indirect
 	github.com/acomagu/bufpipe v1.0.4 // indirect
+	github.com/ahmetson/client-lib v0.0.0-20230814161235-c87ba71fcc40 // indirect
+	github.com/ahmetson/config-lib v0.0.0-20230814154521-44373928ec1b // indirect
 	github.com/cakturk/go-netstat v0.0.0-20200220111822-e5b49efee7a5 // indirect
 	github.com/charmbracelet/lipgloss v0.6.0 // indirect
 	github.com/charmbracelet/log v0.1.2 // indirect

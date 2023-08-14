@@ -5,9 +5,9 @@ import (
 	goLog "log"
 	"testing"
 
+	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/message"
-	"github.com/ahmetson/service-lib/client"
-	"github.com/ahmetson/service-lib/config"
+	"github.com/ahmetson/config-lib/config"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 )

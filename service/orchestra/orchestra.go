@@ -1,6 +1,8 @@
 package orchestra
 
-import "github.com/ahmetson/service-lib/config/service"
+import (
+	"github.com/ahmetson/service-lib/config"
+)
 
 type Type = string
 
@@ -13,8 +15,8 @@ const (
 )
 
 type Interface interface {
-	GetConfig(string) (*service.Service, error) // string arg is the service url
-	SetConfig(string, *service.Service) error   // string arg is service url
+	GetConfig(string) (*config.Service, error) // string arg is the service url
+	SetConfig(string, *config.Service) error   // string arg is service url
 	Paths() []string
 	SetUrl(url string)
 	GetUrl() string
