@@ -43,7 +43,7 @@ import (
 	"github.com/ahmetson/os-lib/env"
 	"github.com/ahmetson/os-lib/path"
 	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/service/orchestra"
+	"github.com/ahmetson/service-lib/orchestra"
 	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"

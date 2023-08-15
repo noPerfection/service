@@ -14,7 +14,7 @@ import (
 	"github.com/ahmetson/service-lib/config"
 	"github.com/ahmetson/service-lib/config/service"
 	"github.com/ahmetson/service-lib/config/service/converter"
-	"github.com/ahmetson/service-lib/service/orchestra"
+	"github.com/ahmetson/service-lib/orchestra"
 	"slices"
 )
 
