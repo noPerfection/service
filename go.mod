@@ -1,31 +1,33 @@
-module github.com/ahmetson/service-lib
+module github.com/noPerfection/service
 
 go 1.19
 
-replace github.com/ahmetson/config-lib => D:/sds/config-lib
+replace github.com/noPerfection/runtime/config => ../runtime/config
 
-replace github.com/ahmetson/handler-lib => D:/sds/handler-lib
+replace github.com/noPerfection/protocol/handler => ../protocol/handler
 
-replace github.com/ahmetson/datatype-lib => D:/sds/datatype-lib
+replace github.com/noPerfection/datatype => ../datatype
 
-replace github.com/ahmetson/client-lib => D:/sds/client-lib
+replace github.com/noPerfection/protocol/client => ../protocol/client
 
-replace github.com/ahmetson/os-lib => D:/sds/os-lib
+replace github.com/noPerfection/os => ../os
 
 require (
-	github.com/ahmetson/client-lib v0.0.0-20230908110757-5f62078bd7bd
-	github.com/ahmetson/config-lib v0.0.0-20230908120313-ee58ff67288b
-	github.com/ahmetson/datatype-lib v0.0.0-20230927201942-0cc58292a7a3
-	github.com/ahmetson/dev-lib v0.0.0-20230908073741-33d7893d546a
-	github.com/ahmetson/handler-lib v0.0.0-20230908055435-ceab4155ee16
-	github.com/ahmetson/log-lib v0.0.0-20230908112453-62afbc558b65
-	github.com/ahmetson/os-lib v0.0.0-20230908110839-83535270d872
+	github.com/noPerfection/protocol/client v0.0.0-20230908110757-5f62078bd7bd
+	github.com/noPerfection/runtime/config v0.0.0-20230908120313-ee58ff67288b
+	github.com/noPerfection/datatype v0.0.0-20230927201942-0cc58292a7a3
+	github.com/noPerfection/runtime v0.0.0-20230908073741-33d7893d546a
+	github.com/noPerfection/protocol/handler v0.0.0-20230908055435-ceab4155ee16
+	github.com/noPerfection/log v0.0.0-20230908112453-62afbc558b65
+	github.com/noPerfection/os v0.0.0-20230908110839-83535270d872
 	github.com/pebbe/zmq4 v1.2.10
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace github.com/ahmetson/dev-lib => D:/sds/dev-lib
+replace github.com/noPerfection/runtime => ../runtime
+
+replace github.com/noPerfection/log => ../log
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect

@@ -7,7 +7,7 @@ The built-in proxies are declared at the independent service.
 Because of the self-orchestration, the destination service will act as a parent.
 The parents are spawning the child services.
 
-Since, proxies are services, they must be managed by the [context](https://github.com/ahmetson/dev-lib).
+Since, proxies are services, they must be managed by the [context](https://github.com/noPerfection/runtime).
 The context of the independent service takes care of the proxy preparation.
 
 ## Set Proxy Chain
@@ -51,7 +51,7 @@ This allows a user to define a simple service or handler id.
 Then, service will list the routes for the service or handler.
 
 The rule is of the `Rule` structure instance.
-This structure is defined in the `service` package of the `config-lib` module.
+This structure is defined in the `service` package of the `github.com/noPerfection/runtime/config` module.
 The `service` package has three methods to define a destination rule.
 
 ### Route destination
@@ -144,7 +144,7 @@ In the `ExcludeByRule` the rule must have the list of commands or list of catego
 In the `independentService.SetProxyChain`, the second argument is the `Proxies`.
 
 It's a list of the `Proxy` structure.
-This structure is defined in the `service` package of the `config-lib` module.
+This structure is defined in the `service` package of the `github.com/noPerfection/runtime/config` module.
 
 The proxy is defined with the `NewProxy(id, url)` function from the `service` package.
 

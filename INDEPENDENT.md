@@ -10,10 +10,10 @@ cd my-service
 go mod init github.com/account/my-service
 ```
 
-Get the `service-lib` module and `common-lib` module:
+Get the `github.com/noPerfection/service` module and `common-lib` module:
 
 ```sh
-go get github.com/ahmetson/service-lib
+go get github.com/noPerfection/service
 go get github.com/ahmetson/common-lib
 ```
 
@@ -72,11 +72,11 @@ Let's create `main.go` with the sample independent service:
 package main
 
 import (
-	"github.com/ahmetson/service-lib"
-	"github.com/ahmetson/service-lib/configuration"
-	log "github.com/ahmetson/log-lib"
-	"github.com/ahmetson/service-lib/independent"
-	"github.com/ahmetson/service-lib/controller"
+	"github.com/noPerfection/service"
+	"github.com/noPerfection/service/configuration"
+	log "github.com/noPerfection/log"
+	"github.com/noPerfection/service/independent"
+	"github.com/noPerfection/service/controller"
 	"github.com/account/my-service/handler"
 )
 
@@ -124,11 +124,11 @@ package handler
 import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
-	"github.com/ahmetson/service-lib/controller"
-	"github.com/ahmetson/service-lib/communication/command"
-	"github.com/ahmetson/service-lib/configuration"
-	log "github.com/ahmetson/log-lib"
-	"github.com/ahmetson/service-lib/remote"
+	"github.com/noPerfection/service/controller"
+	"github.com/noPerfection/service/communication/command"
+	"github.com/noPerfection/service/configuration"
+	log "github.com/noPerfection/log"
+	"github.com/noPerfection/service/remote"
 )
 
 var counter uint64 = 0

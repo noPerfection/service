@@ -10,10 +10,10 @@ cd my-extension
 go mod init github.com/account/my-extension
 ```
 
-Get `service-lib`, `common-lib` modules:
+Get `github.com/noPerfection/service`, `common-lib` modules:
 
 ```sh
-go get github.com/ahmetson/service-lib
+go get github.com/noPerfection/service
 go get github.com/ahmetson/common-lib
 go mod vendor
 ```
@@ -69,10 +69,10 @@ Let's create `main.go`:
 package main
 
 import (
-	"github.com/ahmetson/service-lib"
-	log "github.com/ahmetson/log-lib"
-	"github.com/ahmetson/service-lib/extension"
-	"github.com/ahmetson/service-lib/configuration"
+	"github.com/noPerfection/service"
+	log "github.com/noPerfection/log"
+	"github.com/noPerfection/service/extension"
+	"github.com/noPerfection/service/configuration"
 	"github.com/account/my-extension/handler"
 )
 
@@ -118,10 +118,10 @@ So let's create `handler.go` in `handler` directory:
 package handler
 
 import (
-	"github.com/ahmetson/client-lib/command"
+	"github.com/noPerfection/protocol/client/command"
 	"github.com/ahmetson/common-lib/message"
-	"github.com/ahmetson/service-lib/remote"
-	log "github.com/ahmetson/log-lib"
+	"github.com/noPerfection/service/remote"
+	log "github.com/noPerfection/log"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 )
 
@@ -159,7 +159,7 @@ func GetCounter() command.Route {
 ```
 
 The handler type is defined here:
-`github.com/ahmetson/service-lib/communication/command.HandleFunc`
+`github.com/noPerfection/service/communication/command.HandleFunc`
 
 Handlers are abstracted as much as possible.
 They are intended to focus on the business logic.

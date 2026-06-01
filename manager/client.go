@@ -2,12 +2,12 @@ package manager
 
 import (
 	"fmt"
-	"github.com/ahmetson/client-lib"
-	clientConfig "github.com/ahmetson/client-lib/config"
-	serviceConfig "github.com/ahmetson/config-lib/service"
-	"github.com/ahmetson/datatype-lib/data_type/key_value"
-	"github.com/ahmetson/datatype-lib/message"
-	handlerConfig "github.com/ahmetson/handler-lib/config"
+	"github.com/noPerfection/protocol/client"
+	clientConfig "github.com/noPerfection/protocol/client/config"
+	serviceConfig "github.com/noPerfection/runtime/config/service"
+	"github.com/noPerfection/datatype/data_type/key_value"
+	"github.com/noPerfection/datatype/message"
+	handlerConfig "github.com/noPerfection/protocol/handler/config"
 )
 
 //

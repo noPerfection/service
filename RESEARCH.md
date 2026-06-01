@@ -1,5 +1,5 @@
 # Research
-A links for various parts of the SDS framework.
+A links for various parts of the noPerfection framework.
 
 # Videos
 
@@ -14,16 +14,16 @@ Website: [alexedwards.net](https://lets-go-further.alexedwards.net/)
 
 > **Todo**
 > 
-> Apply the techniques to improve the SDS code.
+> Apply the techniques to improve the noPerfection code.
 
 > **Todo**
 > 
-> Make sure to make easy to create apps with SDS applying the practices from the code.
+> Make sure to make easy to create apps with noPerfection applying the practices from the code.
 
 > **Todo**
 > 
-> Answer to the question, can we use the advanced patterns in the SDS to add automatically?
-> If the answer is yes, design the SDS architecture to include the patterns internally.
+> Answer to the question, can we use the advanced patterns in the noPerfection to add automatically?
+> If the answer is yes, design the noPerfection architecture to include the patterns internally.
 > If the answer is no, then make sure that they are createable using services.
 
 ## Architecture of Open Source Applications
@@ -33,15 +33,15 @@ A four-series research books from the open source project creators.
 
 > **Todo**
 > 
-> Utilize the things to make SDS Framework easier what kind of apps and
+> Utilize the things to make noPerfection Framework easier what kind of apps and
 > What kind of architecture they will have.
 
 > **Todo**
 > 
-> Try to run each example with SDS Framework, it must be faster.
+> Try to run each example with noPerfection Framework, it must be faster.
 
 The volume 3, *The Performance of Open Source Applications* is needed
-during the SDS optimization for production ready use.
+during the noPerfection optimization for production ready use.
 
 ## Software design by Example
 The best way to learn design is by example.
@@ -55,7 +55,7 @@ Website 2: [Software design by Python](https://third-bit.com/sdxpy/)
 
 > **Todo**
 > 
-> Read, to apply the techniques for the optimization of the SDS Framework.
+> Read, to apply the techniques for the optimization of the noPerfection Framework.
 
 ## Build orchestration tools in go from scratch
 Website: [Manning.com](https://livebook.manning.com/book/build-an-orchestrator-in-go/brief-table-of-contents/welcome/)
@@ -155,7 +155,7 @@ Github: [gliderlabs/registrator](https://github.com/gliderlabs/registrator/)
 # Debugging dashboard
 A dashboard that shows the microservice parameters.
 
-Basically, the SDS framework must build the following dashboards automatically:
+Basically, the noPerfection framework must build the following dashboards automatically:
 [Reddit post](https://www.reddit.com/r/softwarearchitecture/comments/170fc6e/how_to_generate_infographics_like_this/).
 
 Plus, animated. Plus exportable.
@@ -164,7 +164,7 @@ Write the sample code with the mocked data. Then export the diagrams to your inv
 
 > **Todo**
 > 
-> Maybe create an SDS hub for dashboards.
+> Maybe create an noPerfection hub for dashboards.
 > So users can share it with others. The dashboard will be **interactive**.
 > The dashboard has a link to the code.
 > Then dashboard can run the tests or allow users to create tests with GUI.
@@ -196,7 +196,7 @@ It teaches Javascript and React framework to build a diagram rich websites.
 * [Youtube: David Chaney. Three go profiling techniques](https://www.youtube.com/watch?v=nok0aYiGiYA)
 
 ## Coverage
-For testing the SDS framework itself.
+For testing the noPerfection framework itself.
 [testing/coverage](https://go.dev/testing/coverage/)
 
 > **Todo**

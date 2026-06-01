@@ -2,11 +2,11 @@ package service
 
 import (
 	"fmt"
-	clientConfig "github.com/ahmetson/client-lib/config"
-	"github.com/ahmetson/datatype-lib/data_type/key_value"
-	"github.com/ahmetson/os-lib/arg"
-	"github.com/ahmetson/service-lib/flag"
-	"github.com/ahmetson/service-lib/manager"
+	clientConfig "github.com/noPerfection/protocol/client/config"
+	"github.com/noPerfection/datatype/data_type/key_value"
+	"github.com/noPerfection/os/arg"
+	"github.com/noPerfection/service/flag"
+	"github.com/noPerfection/service/manager"
 )
 
 type Auxiliary struct {

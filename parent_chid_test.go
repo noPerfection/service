@@ -2,22 +2,22 @@ package service
 
 import (
 	"fmt"
-	"github.com/ahmetson/client-lib"
-	clientConfig "github.com/ahmetson/client-lib/config"
-	serviceConfig "github.com/ahmetson/config-lib/service"
-	"github.com/ahmetson/datatype-lib/data_type/key_value"
-	"github.com/ahmetson/datatype-lib/message"
-	"github.com/ahmetson/handler-lib/base"
-	handlerConfig "github.com/ahmetson/handler-lib/config"
-	"github.com/ahmetson/handler-lib/route"
-	"github.com/ahmetson/handler-lib/sync_replier"
-	"github.com/ahmetson/log-lib"
-	"github.com/ahmetson/os-lib/arg"
-	"github.com/ahmetson/os-lib/net"
-	"github.com/ahmetson/os-lib/path"
-	"github.com/ahmetson/os-lib/process"
-	"github.com/ahmetson/service-lib/flag"
-	"github.com/ahmetson/service-lib/manager"
+	"github.com/noPerfection/protocol/client"
+	clientConfig "github.com/noPerfection/protocol/client/config"
+	serviceConfig "github.com/noPerfection/runtime/config/service"
+	"github.com/noPerfection/datatype/data_type/key_value"
+	"github.com/noPerfection/datatype/message"
+	"github.com/noPerfection/protocol/handler/base"
+	handlerConfig "github.com/noPerfection/protocol/handler/config"
+	"github.com/noPerfection/protocol/handler/route"
+	"github.com/noPerfection/protocol/handler/sync_replier"
+	"github.com/noPerfection/log"
+	"github.com/noPerfection/os/arg"
+	"github.com/noPerfection/os/net"
+	"github.com/noPerfection/os/path"
+	"github.com/noPerfection/os/process"
+	"github.com/noPerfection/service/flag"
+	"github.com/noPerfection/service/manager"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
 	win "os"
@@ -87,7 +87,7 @@ func (test *TestParentChildSuite) SetupTest() {
 	test.currentDir = currentDir
 
 	// A valid source code that we want to download
-	test.url = "github.com/ahmetson/service-lib"
+	test.url = "github.com/noPerfection/service"
 	test.id = "service_1"
 	test.idChain = "service_chained"
 
@@ -207,7 +207,7 @@ func resetProcess(port int) error {
 func (test *TestParentChildSuite) Test_10_Start() {
 	s := test.Require
 
-	proxyUrl := "github.com/ahmetson/service-lib/_test_services/proxy_1"
+	proxyUrl := "github.com/noPerfection/service/_test_services/proxy_1"
 	proxyId := "proxy_1"
 	proxyBinPath := path.BinPath(filepath.Join(".", "_test_services/proxy_1/bin"), "test6")
 	proxyPort := 57397 // taken from ./_test_services/proxy_1/bin/app.yml
@@ -285,8 +285,8 @@ func (test *TestParentChildSuite) Test_10_Start() {
 func (test *TestParentChildSuite) Test_11_StartChain() {
 	s := test.Require
 
-	proxyUrl := "github.com/ahmetson/service-lib/_test_services/proxy_1"
-	proxyUrl2 := "github.com/ahmetson/service-lib/_test_services/proxy_2"
+	proxyUrl := "github.com/noPerfection/service/_test_services/proxy_1"
+	proxyUrl2 := "github.com/noPerfection/service/_test_services/proxy_2"
 	proxyId := "proxy_1"
 	proxyId2 := "proxy_2"
 	proxyBinPath := path.BinPath(filepath.Join(".", "_test_services/proxy_1/bin"), "test6")

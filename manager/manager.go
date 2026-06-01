@@ -3,15 +3,15 @@ package manager
 
 import (
 	"fmt"
-	clientConfig "github.com/ahmetson/client-lib/config"
-	serviceConfig "github.com/ahmetson/config-lib/service"
-	"github.com/ahmetson/datatype-lib/data_type/key_value"
-	"github.com/ahmetson/datatype-lib/message"
-	context "github.com/ahmetson/dev-lib"
-	"github.com/ahmetson/handler-lib/base"
-	handlerConfig "github.com/ahmetson/handler-lib/config"
-	"github.com/ahmetson/handler-lib/manager_client"
-	syncReplier "github.com/ahmetson/handler-lib/sync_replier"
+	clientConfig "github.com/noPerfection/protocol/client/config"
+	serviceConfig "github.com/noPerfection/runtime/config/service"
+	"github.com/noPerfection/datatype/data_type/key_value"
+	"github.com/noPerfection/datatype/message"
+	context "github.com/noPerfection/runtime"
+	"github.com/noPerfection/protocol/handler/base"
+	handlerConfig "github.com/noPerfection/protocol/handler/config"
+	"github.com/noPerfection/protocol/handler/manager_client"
+	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
 	"sync"
 )
 
