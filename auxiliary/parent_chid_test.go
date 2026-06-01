@@ -1,7 +1,6 @@
 package auxiliary
 
 import (
-	"fmt"
 	"github.com/noPerfection/datatype/data_type/key_value"
 	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/log"
@@ -38,7 +37,6 @@ type TestParentChildSuite struct {
 	url        string              // dependency source code
 	id         string              // the id of the parent
 	idChain    string              // the id of the service
-	envPath    string
 	handler    base.Interface
 	logger     *log.Logger
 
@@ -92,15 +90,6 @@ func (test *TestParentChildSuite) SetupTest() {
 	test.id = "service_1"
 	test.idChain = "service_chained"
 
-	test.envPath = filepath.Join(currentDir, ".test.env")
-
-	file, err := win.Create(test.envPath)
-	s().NoError(err)
-	_, err = file.WriteString(fmt.Sprintf("%s=%s\n%s=%s\n", flag.IdEnv, test.id, flag.UrlEnv, test.url))
-	s().NoError(err, "failed to write the data into: "+test.envPath)
-	err = file.Close()
-	s().NoError(err, "delete the dump file: "+test.envPath)
-
 	// handler
 	syncReplier := sync_replier.New()
 	test.defaultHandleFunc = func(req message.RequestInterface) message.ReplyInterface {
@@ -133,13 +122,6 @@ func (test *TestParentChildSuite) closeService() {
 	}
 
 	test.deleteYaml(test.currentDir, "app")
-}
-
-func (test *TestParentChildSuite) TearDownTest() {
-	s := test.Suite.Require
-
-	err := win.Remove(test.envPath)
-	s().NoError(err, "delete the dump file: "+test.envPath)
 }
 
 func (test *TestParentChildSuite) newService() {
