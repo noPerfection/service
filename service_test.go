@@ -2,20 +2,20 @@ package service
 
 import (
 	"fmt"
-	"github.com/ahmetson/client-lib"
-	clientConfig "github.com/ahmetson/client-lib/config"
-	serviceConfig "github.com/ahmetson/config-lib/service"
-	"github.com/ahmetson/datatype-lib/data_type/key_value"
-	"github.com/ahmetson/datatype-lib/message"
-	"github.com/ahmetson/handler-lib/base"
-	handlerConfig "github.com/ahmetson/handler-lib/config"
-	"github.com/ahmetson/handler-lib/manager_client"
-	"github.com/ahmetson/handler-lib/route"
-	"github.com/ahmetson/handler-lib/sync_replier"
-	"github.com/ahmetson/log-lib"
-	"github.com/ahmetson/os-lib/arg"
-	"github.com/ahmetson/os-lib/path"
-	"github.com/ahmetson/service-lib/flag"
+	"github.com/noPerfection/protocol/client"
+	clientConfig "github.com/noPerfection/protocol/client/config"
+	serviceConfig "github.com/noPerfection/runtime/config/service"
+	"github.com/noPerfection/datatype/data_type/key_value"
+	"github.com/noPerfection/datatype/message"
+	"github.com/noPerfection/protocol/handler/base"
+	handlerConfig "github.com/noPerfection/protocol/handler/config"
+	"github.com/noPerfection/protocol/handler/manager_client"
+	"github.com/noPerfection/protocol/handler/route"
+	"github.com/noPerfection/protocol/handler/sync_replier"
+	"github.com/noPerfection/log"
+	"github.com/noPerfection/os/arg"
+	"github.com/noPerfection/os/path"
+	"github.com/noPerfection/service/flag"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
 	win "os"
@@ -84,7 +84,7 @@ func (test *TestServiceSuite) SetupTest() {
 	test.currentDir = currentDir
 
 	// A valid source code that we want to download
-	test.url = "github.com/ahmetson/service-lib"
+	test.url = "github.com/noPerfection/service"
 	test.id = "service_1"
 
 	test.envPath = filepath.Join(currentDir, ".test.env")

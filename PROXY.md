@@ -82,7 +82,7 @@ The multiple destinations are of the same level.
 ## Implementation
 
 ### Definition
-The declaration of the proxy parameters is defined in the `config-lib/service` package.
+The declaration of the proxy parameters is defined in the `github.com/noPerfection/runtime/config/service` package.
 
 The `service.NewProxy(id: string, url: string)` returns the pointer to `service.Proxy`.
 
@@ -96,7 +96,7 @@ type Proxy = {
 }
 ```
 
-The destination structure defined as `service.Rule` in the `config-lib` module:
+The destination structure defined as `service.Rule` in the `github.com/noPerfection/runtime/config` module:
 
 ```typescript
 type Rule ={
@@ -109,7 +109,7 @@ type Rule ={
 
 The sources are defined as a list of strings: `string[]`.
 
-The proxy chains are defined as `service.ProxyChain` in the `config-lib` module.
+The proxy chains are defined as `service.ProxyChain` in the `github.com/noPerfection/runtime/config` module.
 
 ```typescript
 type ProxyChain = {
@@ -128,7 +128,7 @@ type ProxyChain = {
 ---
 
 ## Execution
-The above code described the proxy definition in the `config-lib`.
+The above code described the proxy definition in the `github.com/noPerfection/runtime/config`.
 Now, it's the time to define the proxy within the `proxy-lib` itself.
 
 # Handlers
@@ -151,7 +151,7 @@ A developer can over-write three parts of the handlers.
 The first part is the handler's frontend.
 This allows supporting any kind of protocol; that's different from zeromq.
 
-> SDS uses zeromq for internal communication.
+> noPerfection uses zeromq for internal communication.
 >
 > But the application may want to enable the HTTP, WebSocket or other kinds of protocols for the users.
 
@@ -162,14 +162,14 @@ The over-writing the frontend is done via `proxy.PairExternal(pair.Interface)`
 The second part is the message format.
 This allows supporting any kind of messages; that's different from `message.DefaultMessage()`
 
-> SDS uses the messages defined as `message.Request` and `message.Reply`.
+> noPerfection uses the messages defined as `message.Request` and `message.Reply`.
 > These messages are sent in the serialized JSON format.
 >
 > But the application may accept a plain text, or BSON, or a custom format.
 
 It's done via `proxy.SetMessageOperations(*message.Operations)`
 The over-written message types are accepted only by the proxy itself.
-When a proxy forwards the message, it will convert it to the SDS default message format.
+When a proxy forwards the message, it will convert it to the noPerfection default message format.
 
 If the destination handler must reply a message, then proxy must reply as well.
 In this scenario,

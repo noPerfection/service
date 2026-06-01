@@ -47,8 +47,8 @@ github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 h1:kkhsdkhsCv
 github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371/go.mod h1:EjAoLdwvbIOoOQr3ihjnSoLZRtE8azugULFRteWMNc0=
 github.com/acomagu/bufpipe v1.0.4 h1:e3H4WUzM3npvo5uv95QuJM3cQspFNtFBzvJ2oNjKIDQ=
 github.com/acomagu/bufpipe v1.0.4/go.mod h1:mxdxdup/WdsKVreO5GpW4+M/1CE2sMG4jeGJ2sYmHc4=
-github.com/ahmetson/log-lib v0.0.0-20230908112453-62afbc558b65 h1:2UAputzujw/CHz3AViBZdVSQa5mhuFiydmMy8w7o0gg=
-github.com/ahmetson/log-lib v0.0.0-20230908112453-62afbc558b65/go.mod h1:fHSVU/auy46UUI1xWBLqKOQOUWk42LhUDnkqaLlAr20=
+github.com/noPerfection/log v0.0.0-20230908112453-62afbc558b65 h1:2UAputzujw/CHz3AViBZdVSQa5mhuFiydmMy8w7o0gg=
+github.com/noPerfection/log v0.0.0-20230908112453-62afbc558b65/go.mod h1:fHSVU/auy46UUI1xWBLqKOQOUWk42LhUDnkqaLlAr20=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=

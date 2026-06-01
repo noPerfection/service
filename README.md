@@ -8,7 +8,7 @@ The *service* library allows creating of independent micro**services**.
 **The independent services are minimal stand-alone applications.**
 A developer defines the list of API routes and a function that's executed.
 
-The API routes are grouped into the [handlers](https://github.com/ahmetson/handler-lib).
+The API routes are grouped into the [handlers](https://github.com/noPerfection/protocol/handler).
 *The handler defines how the API is served to the external users.*
 
 The independent services are isolated from each other.
@@ -26,9 +26,9 @@ There are auxiliary services.
 The proxies that operate on a request before it's passed to a service.
 And extensions extending service possibility or do some side works.
 
-**One of the aims of SDS framework is to write self-orchestrating applications.**
+**One of the aims of noPerfection framework is to write self-orchestrating applications.**
 
-In the SDS framework, the services are organized in a parent-child relationship.
+In the noPerfection framework, the services are organized in a parent-child relationship.
 The independent service acts as a root node. 
 The auxiliary services counted as the child nodes.
 
@@ -90,18 +90,18 @@ s.RunDepManager()
 s.Run() // sets up
 ```
 
-# Service Lib
+# noPerfection Service
 
-*Service Lib* is a library to create services on **SDS**. 
+*noPerfection Service* is a library to create services on **noPerfection**. 
 
-**SDS** is the protocol, libraries, and an account system.
+**noPerfection** is the protocol, libraries, and an account system.
 The aim of it to create meaningful services and also useful for other developers.
 
 The *account system* consists of the API service authentication and payment system.
 
 ## Contents
 
-* [SDS](#service-lib)
+* [noPerfection Service](#noperfection-service)
 * [Contents](#contents)
 * [Components](#components)
 * * [Service](#service)
@@ -135,8 +135,8 @@ will be considered as a distributed system.
 
 
 
-The services are created using **Service Lib**. 
-The goal of **Service Lib** is to write re-usable solutions that will be
+The services are created using **noPerfection Service**. 
+The goal of **noPerfection Service** is to write re-usable solutions that will be
 useful to another project with a minimal setup. Hence, why the services are
 standalone applications .
 

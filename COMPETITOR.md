@@ -48,7 +48,7 @@ GitHub: [pulumi](https://github.com/pulumi/pulumi/)
 > **Todo**
 > 
 > Answer to the question can we use to save our time?
-> Is it compatible with SDS framework? If not then get some useful ideas.
+> Is it compatible with noPerfection framework? If not then get some useful ideas.
 
 ### Migration hub
 Migrate from existing orchestration tools into Pulumi:
@@ -67,6 +67,6 @@ Github: [pulumi-ai](https://github.com/pulumi/pulumi-ai)
 
 > **Todo**
 > 
-> Answer, can we use it to generate SDS code by a linter or meta.
+> Answer, can we use it to generate noPerfection code by a linter or meta.
 > **If we use the pulumi in the background, then this one must be used**.
 
