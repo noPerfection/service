@@ -1,20 +1,19 @@
 package service
 
 import (
-	"fmt"
-	"github.com/noPerfection/protocol/client"
-	clientConfig "github.com/noPerfection/protocol/client/config"
-	serviceConfig "github.com/noPerfection/runtime/config/service"
 	"github.com/noPerfection/datatype/data_type/key_value"
 	"github.com/noPerfection/datatype/message"
+	"github.com/noPerfection/log"
+	"github.com/noPerfection/os/arg"
+	"github.com/noPerfection/os/path"
+	"github.com/noPerfection/protocol/client"
+	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/manager_client"
 	"github.com/noPerfection/protocol/handler/route"
 	"github.com/noPerfection/protocol/handler/sync_replier"
-	"github.com/noPerfection/log"
-	"github.com/noPerfection/os/arg"
-	"github.com/noPerfection/os/path"
+	serviceConfig "github.com/noPerfection/runtime/config/service"
 	"github.com/noPerfection/service/flag"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
@@ -34,7 +33,6 @@ type TestServiceSuite struct {
 	currentDir string   // executable to store the binaries and source codes
 	url        string   // dependency source code
 	id         string   // the id of the dependency
-	envPath    string
 	handler    base.Interface
 	logger     *log.Logger
 
@@ -87,15 +85,6 @@ func (test *TestServiceSuite) SetupTest() {
 	test.url = "github.com/noPerfection/service"
 	test.id = "service_1"
 
-	test.envPath = filepath.Join(currentDir, ".test.env")
-
-	file, err := win.Create(test.envPath)
-	s().NoError(err)
-	_, err = file.WriteString(fmt.Sprintf("%s=%s\n%s=%s\n", flag.IdEnv, test.id, flag.UrlEnv, test.url))
-	s().NoError(err, "failed to write the data into: "+test.envPath)
-	err = file.Close()
-	s().NoError(err, "delete the dump file: "+test.envPath)
-
 	// handler
 	syncReplier := sync_replier.New()
 	test.defaultHandleFunc = func(req message.RequestInterface) message.ReplyInterface {
@@ -128,13 +117,6 @@ func (test *TestServiceSuite) closeService() {
 	}
 
 	test.deleteYaml(test.currentDir, "app")
-}
-
-func (test *TestServiceSuite) TearDownTest() {
-	s := test.Suite.Require
-
-	err := win.Remove(test.envPath)
-	s().NoError(err, "delete the dump file: "+test.envPath)
 }
 
 func (test *TestServiceSuite) newService() {
@@ -179,12 +161,12 @@ func (test *TestServiceSuite) managerClient() *client.Socket {
 	return managerClient
 }
 
-// Test_10_New new service by flag or environment variable
+// Test_10_New creates a new service from flags.
 func (test *TestServiceSuite) Test_10_New() {
 	s := test.Suite.Require
 
 	// creating a new service must fail since
-	// no flag or environment variable to identify service
+	// no flag identifies the service
 	_, err := New()
 	s().Error(err)
 
@@ -208,23 +190,6 @@ func (test *TestServiceSuite) Test_10_New() {
 	// wait a bit for closing context threads
 	time.Sleep(time.Millisecond * 500)
 
-	// try to load from the environment variable parameters
-	win.Args = append(win.Args, test.envPath)
-
-	independent, err = New()
-	s().NoError(err)
-
-	// Wait a bit for context initialization
-	time.Sleep(time.Millisecond * 100)
-
-	// remove the environment variable from arguments
-	win.Args = win.Args[:len(win.Args)-1]
-
-	// remove the created service, and try from environment variable
-	s().NoError(independent.ctx.Close())
-
-	// Wait a bit for closing context threads
-	time.Sleep(time.Millisecond * 100)
 }
 
 // Test_11_generateConfig creates a configuration and sets it in the service

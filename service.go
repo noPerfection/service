@@ -9,6 +9,9 @@ package service
 
 import (
 	"fmt"
+	"slices"
+	"sync"
+
 	"github.com/noPerfection/datatype/data_type/key_value"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/os/arg"
@@ -19,8 +22,6 @@ import (
 	serviceConfig "github.com/noPerfection/runtime/config/service"
 	"github.com/noPerfection/service/flag"
 	"github.com/noPerfection/service/manager"
-	"slices"
-	"sync"
 )
 
 // Service keeps all necessary parameters of the service.
@@ -32,13 +33,14 @@ type Service struct {
 	Type               serviceConfig.Type
 	id                 string
 	url                string
-	blocker            *sync.WaitGroup
-	manager            *manager.Manager // manage this service from other parts
+	// The blocker is a shutdown latch:
+	// it keeps the process alive after Start() returns, and it unblocks when the service is fully closed.
+	blocker *sync.WaitGroup
+	manager *manager.Manager // manage this service from other parts
 }
 
 // New service.
 // The url and id could be passed as flag.IdFlag, flag.UrlFlag.
-// Or url and id could be passed as environment variable flag.IdEnv, flag.UrlEnv.
 //
 // It will also create the context internally and start it.
 func New() (*Service, error) {
@@ -84,37 +86,14 @@ func New() (*Service, error) {
 	independent.Logger = logger
 
 	if len(id) == 0 {
-		configClient := ctx.Config()
-		id, err = configClient.String(flag.IdEnv)
-		if err != nil {
-			err = fmt.Errorf("configClient.String('%s'): %w", flag.IdEnv, err)
-			if closeErr := ctx.Close(); closeErr != nil {
-				return nil, fmt.Errorf("%v: ctx.Close: %w", err, closeErr)
-			}
-			return nil, err
-		}
-	}
-	if len(url) == 0 {
-		configClient := ctx.Config()
-		url, err = configClient.String(flag.UrlEnv)
-		if err != nil {
-			err = fmt.Errorf("configClient.String('%s'): %w", flag.UrlEnv, err)
-			if closeErr := ctx.Close(); closeErr != nil {
-				return nil, fmt.Errorf("%v: ctx.Close: %w", err, closeErr)
-			}
-			return nil, err
-		}
-	}
-
-	if len(id) == 0 {
-		err = fmt.Errorf("service can not identify itself. Either use %s flag or %s environment variable", flag.IdFlag, flag.IdEnv)
+		err = fmt.Errorf("service can not identify itself. Use %s flag", flag.IdFlag)
 		if closeErr := ctx.Close(); closeErr != nil {
 			return nil, fmt.Errorf("%v: ctx.Close: %w", err, closeErr)
 		}
 		return nil, err
 	}
 	if len(url) == 0 {
-		err = fmt.Errorf("service can not identify it's class. Either use %s flag or %s environment variable", flag.UrlFlag, flag.UrlEnv)
+		err = fmt.Errorf("service can not identify it's class. Use %s flag", flag.UrlFlag)
 		if closeErr := ctx.Close(); closeErr != nil {
 			return nil, fmt.Errorf("%v: ctx.Close: %w", err, closeErr)
 		}
