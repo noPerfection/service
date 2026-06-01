@@ -1,22 +1,23 @@
-package service
+package auxiliary
 
 import (
 	"fmt"
-	"github.com/noPerfection/protocol/client"
-	clientConfig "github.com/noPerfection/protocol/client/config"
-	"github.com/noPerfection/runtime/config/app"
-	"github.com/noPerfection/runtime/config/service"
 	"github.com/noPerfection/datatype/data_type/key_value"
 	"github.com/noPerfection/datatype/message"
+	"github.com/noPerfection/log"
+	"github.com/noPerfection/os/arg"
+	"github.com/noPerfection/os/path"
+	"github.com/noPerfection/protocol/client"
+	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/manager_client"
 	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/protocol/handler/route"
 	"github.com/noPerfection/protocol/handler/sync_replier"
-	"github.com/noPerfection/log"
-	"github.com/noPerfection/os/arg"
-	"github.com/noPerfection/os/path"
+	"github.com/noPerfection/runtime/config/app"
+	"github.com/noPerfection/runtime/config/service"
+	serviceLib "github.com/noPerfection/service"
 	"github.com/noPerfection/service/flag"
 	"github.com/noPerfection/service/manager"
 	"github.com/pebbe/zmq4"
@@ -34,9 +35,9 @@ import (
 type TestProxySuite struct {
 	suite.Suite
 
-	parent            *Service // the manager to test
-	parentUrl         string   // dependency source code
-	parentId          string   // the parentId of the dependency
+	parent            *serviceLib.Service // the manager to test
+	parentUrl         string              // dependency source code
+	parentId          string              // the parentId of the dependency
 	parentLocalBin    string
 	parentConfig      *app.App
 	parentProxyChains []*service.ProxyChain
@@ -386,7 +387,7 @@ func (test *TestProxySuite) Test_10_NewProxy() {
 
 	// Clean out
 	DeleteLastFlags(3)
-	s().NoError(proxy.ctx.Close())
+	s().NoError(proxy.Context().Close())
 	time.Sleep(time.Millisecond * 100)
 }
 
@@ -416,7 +417,7 @@ func (test *TestProxySuite) Test_11_Proxy_SetHandler() {
 
 	// Clean out
 	DeleteLastFlags(3)
-	s().NoError(proxy.ctx.Close())
+	s().NoError(proxy.Context().Close())
 	time.Sleep(time.Millisecond * 100)
 }
 
@@ -477,20 +478,20 @@ func (test *TestProxySuite) Test_12_Proxy_lintProxyChain() {
 	s().NoError(err)
 	DeleteLastFlags(3)
 
-	parentProxyChains, err := proxy.ParentManager.ProxyChainsByLastProxy(proxy.id)
+	parentProxyChains, err := proxy.ParentManager.ProxyChainsByLastProxy(proxy.Id())
 	s().NoError(err)
 	s().Len(parentProxyChains, 1)
 
 	// linting a proxy chain requires dep manager and proxy handler in the context
-	proxy.ctx.SetService(test.id, test.url)
-	err = proxy.ctx.StartDepManager()
+	proxy.Context().SetService(test.id, test.url)
+	err = proxy.Context().StartDepManager()
 	s().NoError(err)
-	err = proxy.ctx.StartProxyHandler()
+	err = proxy.Context().StartProxyHandler()
 	s().NoError(err)
 
 	// before linting with parent,
 	// the Proxy must not have any proxies
-	proxyClient := proxy.ctx.ProxyClient()
+	proxyClient := proxy.Context().ProxyClient()
 	proxyChains, err := proxyClient.ProxyChains()
 	s().NoError(err)
 	s().Len(proxyChains, 0)
@@ -513,7 +514,7 @@ func (test *TestProxySuite) Test_12_Proxy_lintProxyChain() {
 
 	// Clean-out.
 	// Test as the proxy is the first
-	err = proxy.ctx.Close()
+	err = proxy.Context().Close()
 	s().NoError(err)
 
 	// Wait a bit for close of the threads
@@ -530,10 +531,10 @@ func (test *TestProxySuite) Test_12_Proxy_lintProxyChain() {
 	s().NoError(err)
 	DeleteLastFlags(3)
 
-	proxy.ctx.SetService(test.id, test.url)
-	err = proxy.ctx.StartDepManager()
+	proxy.Context().SetService(test.id, test.url)
+	err = proxy.Context().StartDepManager()
 	s().NoError(err)
-	err = proxy.ctx.StartProxyHandler()
+	err = proxy.Context().StartProxyHandler()
 	s().NoError(err)
 
 	// Parent must have a proxy with one data
@@ -543,7 +544,7 @@ func (test *TestProxySuite) Test_12_Proxy_lintProxyChain() {
 	test.parentProxyChains = []*service.ProxyChain{proxyChain}
 
 	// Lint as this proxy is the first
-	proxyClient = proxy.ctx.ProxyClient()
+	proxyClient = proxy.Context().ProxyClient()
 	proxyChains, err = proxyClient.ProxyChains()
 	s().NoError(err)
 	s().Len(proxyChains, 0)
@@ -567,7 +568,7 @@ func (test *TestProxySuite) Test_12_Proxy_lintProxyChain() {
 	err = mockedManagerClient.Close()
 	s().NoError(err)
 
-	err = proxy.ctx.Close()
+	err = proxy.Context().Close()
 	s().NoError(err)
 
 	// Wait a bit for close of the threads
@@ -622,7 +623,7 @@ func (test *TestProxySuite) Test_13_Proxy_lintHandlers() {
 	DeleteLastFlags(3)
 
 	//// init the config
-	//proxy.ctx.SetService(test.id, test.url)
+	//proxy.Context().SetService(test.id, test.url)
 
 	// No handlers
 	s().Len(proxy.Handlers, 0)
@@ -652,7 +653,7 @@ func (test *TestProxySuite) Test_13_Proxy_lintHandlers() {
 	s().NoError(err)
 	err = mockedManager.Start()
 	s().NoError(err)
-	err = proxy.ctx.Close()
+	err = proxy.Context().Close()
 	s().NoError(err)
 
 	time.Sleep(time.Millisecond * 100) // Wait a bit for parent initiation
@@ -696,7 +697,7 @@ func (test *TestProxySuite) Test_13_Proxy_lintHandlers() {
 	s().NoError(err)
 	err = mockedManager.Start()
 	s().NoError(err)
-	err = proxy.ctx.Close()
+	err = proxy.Context().Close()
 	s().NoError(err)
 
 	time.Sleep(time.Millisecond * 100) // Wait a bit for parent initiation
@@ -768,7 +769,7 @@ func (test *TestProxySuite) Test_13_Proxy_lintHandlers() {
 	err = mockedManagerClient.Close()
 	s().NoError(err)
 
-	err = proxy.ctx.Close()
+	err = proxy.Context().Close()
 	s().NoError(err)
 
 	// Wait a bit for close of the threads
@@ -817,10 +818,10 @@ func (test *TestProxySuite) Test_14_Proxy_setProxyUnits() {
 	DeleteLastFlags(3)
 
 	//// init the config
-	proxy.ctx.SetService(test.id, test.url)
-	err = proxy.ctx.StartDepManager()
+	proxy.Context().SetService(test.id, test.url)
+	err = proxy.Context().StartDepManager()
 	s().NoError(err)
-	err = proxy.ctx.StartProxyHandler()
+	err = proxy.Context().StartProxyHandler()
 	s().NoError(err)
 
 	// wait a bit for initialization
@@ -843,7 +844,7 @@ func (test *TestProxySuite) Test_14_Proxy_setProxyUnits() {
 	err = mockedManagerClient.Close()
 	s().NoError(err)
 
-	err = proxy.ctx.Close()
+	err = proxy.Context().Close()
 	s().NoError(err)
 
 	test.units = []*service.Unit{}
@@ -1172,7 +1173,7 @@ func (test *TestProxySuite) Test_16_Proxy_routeWrapper() {
 	err = helloWrapper.destClient.Close()
 	s().NoError(err)
 
-	err = proxy.ctx.Close()
+	err = proxy.Context().Close()
 	s().NoError(err)
 
 	// Wait a bit for close of the threads
@@ -1266,10 +1267,10 @@ func (test *TestProxySuite) Test_17_Proxy_routeHandlers() {
 	DeleteLastFlags(3)
 
 	//// init the config
-	proxy.ctx.SetService(test.id, test.url)
-	err = proxy.ctx.StartDepManager()
+	proxy.Context().SetService(test.id, test.url)
+	err = proxy.Context().StartDepManager()
 	s().NoError(err)
-	err = proxy.ctx.StartProxyHandler()
+	err = proxy.Context().StartProxyHandler()
 	s().NoError(err)
 
 	// wait a bit for initialization
@@ -1442,7 +1443,7 @@ func (test *TestProxySuite) Test_17_Proxy_routeHandlers() {
 	err = mockedManagerClient.Close()
 	s().NoError(err)
 
-	err = proxy.ctx.Close()
+	err = proxy.Context().Close()
 	s().NoError(err)
 
 	parent0Client, err := manager_client.New(test.handlerConfigs[0])

@@ -1,17 +1,18 @@
-package service
+package auxiliary
 
 import (
 	"fmt"
-	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/datatype/data_type/key_value"
 	"github.com/noPerfection/datatype/message"
+	"github.com/noPerfection/log"
+	"github.com/noPerfection/os/arg"
+	"github.com/noPerfection/os/path"
+	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/route"
 	"github.com/noPerfection/protocol/handler/sync_replier"
-	"github.com/noPerfection/log"
-	"github.com/noPerfection/os/arg"
-	"github.com/noPerfection/os/path"
+	serviceLib "github.com/noPerfection/service"
 	"github.com/noPerfection/service/flag"
 	"github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
@@ -26,10 +27,10 @@ import (
 type TestAuxiliarySuite struct {
 	suite.Suite
 
-	parent     *Service // the manager to test
-	currentDir string   // executable to store the binaries and source codes
-	url        string   // dependency source code
-	id         string   // the id of the dependency
+	parent     *serviceLib.Service // the manager to test
+	currentDir string              // executable to store the binaries and source codes
+	url        string              // dependency source code
+	id         string              // the id of the dependency
 	envPath    string
 	handler    base.Interface
 	logger     *log.Logger
@@ -114,7 +115,7 @@ func (test *TestAuxiliarySuite) Test_10_NewAuxiliary() {
 
 	DeleteLastFlags(3)
 
-	s().NoError(auxiliary.ctx.Close())
+	s().NoError(auxiliary.Context().Close())
 }
 
 func TestAuxiliary(t *testing.T) {

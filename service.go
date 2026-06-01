@@ -9,14 +9,14 @@ package service
 
 import (
 	"fmt"
-	clientConfig "github.com/noPerfection/protocol/client/config"
-	serviceConfig "github.com/noPerfection/runtime/config/service"
 	"github.com/noPerfection/datatype/data_type/key_value"
-	context "github.com/noPerfection/runtime"
-	"github.com/noPerfection/protocol/handler/base"
-	"github.com/noPerfection/protocol/handler/manager_client"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/os/arg"
+	clientConfig "github.com/noPerfection/protocol/client/config"
+	"github.com/noPerfection/protocol/handler/base"
+	"github.com/noPerfection/protocol/handler/manager_client"
+	context "github.com/noPerfection/runtime"
+	serviceConfig "github.com/noPerfection/runtime/config/service"
 	"github.com/noPerfection/service/flag"
 	"github.com/noPerfection/service/manager"
 	"slices"
@@ -136,9 +136,24 @@ func (independent *Service) Url() string {
 	return independent.url
 }
 
+// Context returns the runtime context owned by the service.
+func (independent *Service) Context() context.Interface {
+	return independent.ctx
+}
+
 // Id returns the unique id of the service
 func (independent *Service) Id() string {
 	return independent.id
+}
+
+// SetConfig prepares and stores the generated service configuration.
+func (independent *Service) SetConfig() error {
+	return independent.setConfig()
+}
+
+// SetProxyUnitsBy stores proxy units for the given destination rule.
+func (independent *Service) SetProxyUnitsBy(dest *serviceConfig.Rule) error {
+	return independent.setProxyUnitsBy(dest)
 }
 
 // SetProxyChain adds a proxy chain to the list of proxy chains to set.

@@ -1,21 +1,22 @@
-package service
+package auxiliary
 
 import (
 	"fmt"
-	"github.com/noPerfection/protocol/client"
-	clientConfig "github.com/noPerfection/protocol/client/config"
-	serviceConfig "github.com/noPerfection/runtime/config/service"
 	"github.com/noPerfection/datatype/data_type/key_value"
 	"github.com/noPerfection/datatype/message"
-	"github.com/noPerfection/protocol/handler/base"
-	handlerConfig "github.com/noPerfection/protocol/handler/config"
-	"github.com/noPerfection/protocol/handler/route"
-	"github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/os/arg"
 	"github.com/noPerfection/os/net"
 	"github.com/noPerfection/os/path"
 	"github.com/noPerfection/os/process"
+	"github.com/noPerfection/protocol/client"
+	clientConfig "github.com/noPerfection/protocol/client/config"
+	"github.com/noPerfection/protocol/handler/base"
+	handlerConfig "github.com/noPerfection/protocol/handler/config"
+	"github.com/noPerfection/protocol/handler/route"
+	"github.com/noPerfection/protocol/handler/sync_replier"
+	serviceConfig "github.com/noPerfection/runtime/config/service"
+	serviceLib "github.com/noPerfection/service"
 	"github.com/noPerfection/service/flag"
 	"github.com/noPerfection/service/manager"
 	"github.com/stretchr/testify/suite"
@@ -32,11 +33,11 @@ import (
 type TestParentChildSuite struct {
 	suite.Suite
 
-	service    *Service // the manager to test
-	currentDir string   // executable to store the binaries and source codes
-	url        string   // dependency source code
-	id         string   // the id of the parent
-	idChain    string   // the id of the service
+	service    *serviceLib.Service // the manager to test
+	currentDir string              // executable to store the binaries and source codes
+	url        string              // dependency source code
+	id         string              // the id of the parent
+	idChain    string              // the id of the service
 	envPath    string
 	handler    base.Interface
 	logger     *log.Logger
@@ -121,7 +122,7 @@ func (test *TestParentChildSuite) SetupTest() {
 func (test *TestParentChildSuite) closeService() {
 	s := test.Suite.Require
 	if test.service != nil {
-		s().NoError(test.service.ctx.Close())
+		s().NoError(test.service.Context().Close())
 
 		test.service = nil
 
@@ -146,7 +147,7 @@ func (test *TestParentChildSuite) newService() {
 
 	win.Args = append(win.Args, arg.NewFlag(flag.IdFlag, test.id), arg.NewFlag(flag.UrlFlag, test.url))
 
-	created, err := New()
+	created, err := serviceLib.New()
 	s().NoError(err)
 
 	test.service = created
@@ -162,7 +163,7 @@ func (test *TestParentChildSuite) externalClient(hConfig *handlerConfig.Handler)
 
 	// let's test that handler runs
 	targetZmqType := handlerConfig.SocketType(hConfig.Type)
-	externalConfig := clientConfig.New(test.service.url, hConfig.Id, hConfig.Port, targetZmqType)
+	externalConfig := clientConfig.New(test.service.Url(), hConfig.Id, hConfig.Port, targetZmqType)
 	externalConfig.UrlFunc(clientConfig.Url)
 	externalClient, err := client.New(externalConfig)
 	s().NoError(err)
@@ -173,7 +174,7 @@ func (test *TestParentChildSuite) externalClient(hConfig *handlerConfig.Handler)
 func (test *TestParentChildSuite) managerClient(id string) *manager.Client {
 	s := test.Suite.Require
 
-	createdConfig, err := test.service.ctx.Config().Service(id)
+	createdConfig, err := test.service.Context().Config().Service(id)
 	s().NoError(err)
 	managerConfig := createdConfig.Manager
 	managerConfig.UrlFunc(clientConfig.Url)
@@ -229,15 +230,15 @@ func (test *TestParentChildSuite) Test_10_Start() {
 
 	win.Args = append(win.Args, arg.NewFlag(flag.IdFlag, test.id), arg.NewFlag(flag.UrlFlag, test.url))
 
-	created, err := New()
+	created, err := serviceLib.New()
 	s().NoError(err)
 	DeleteLastFlags(2)
 
 	test.service = created
 	test.service.SetHandler(test.handlerCategory, test.handler)
 
-	test.service.ctx.SetService(test.service.id, test.service.url)
-	err = test.service.ctx.StartDepManager()
+	test.service.Context().SetService(test.service.Id(), test.service.Url())
+	err = test.service.Context().StartDepManager()
 	s().NoError(err)
 
 	proxyConf := &serviceConfig.Proxy{
@@ -253,7 +254,7 @@ func (test *TestParentChildSuite) Test_10_Start() {
 	s().NoError(err)
 
 	// No sources
-	serviceConf, err := test.service.ctx.Config().Service(test.id)
+	serviceConf, err := test.service.Context().Config().Service(test.id)
 	s().Error(err) // no service yet
 
 	_, err = test.service.Start()
@@ -266,7 +267,7 @@ func (test *TestParentChildSuite) Test_10_Start() {
 	s().True(used)
 
 	// Test that sources exist
-	serviceConf, err = test.service.ctx.Config().Service(test.id)
+	serviceConf, err = test.service.Context().Config().Service(test.id)
 	s().NoError(err)
 	s().NotEmpty(serviceConf.Sources)
 
@@ -300,15 +301,15 @@ func (test *TestParentChildSuite) Test_11_StartChain() {
 
 	win.Args = append(win.Args, arg.NewFlag(flag.IdFlag, test.idChain), arg.NewFlag(flag.UrlFlag, test.url))
 
-	created, err := New()
+	created, err := serviceLib.New()
 	s().NoError(err)
 	DeleteLastFlags(2)
 
 	test.service = created
 	test.service.SetHandler(test.handlerCategory, test.handler)
 
-	test.service.ctx.SetService(test.service.id, test.service.url)
-	err = test.service.ctx.StartDepManager()
+	test.service.Context().SetService(test.service.Id(), test.service.Url())
+	err = test.service.Context().StartDepManager()
 	s().NoError(err)
 
 	proxyConf := &serviceConfig.Proxy{
@@ -332,7 +333,7 @@ func (test *TestParentChildSuite) Test_11_StartChain() {
 	s().NoError(err)
 
 	// No sources
-	serviceConf, err := test.service.ctx.Config().Service(test.idChain)
+	serviceConf, err := test.service.Context().Config().Service(test.idChain)
 	s().Error(err) // no service yet
 
 	_, err = test.service.Start()
@@ -347,7 +348,7 @@ func (test *TestParentChildSuite) Test_11_StartChain() {
 	s().True(used)
 
 	// Test that sources exist
-	serviceConf, err = test.service.ctx.Config().Service(test.idChain)
+	serviceConf, err = test.service.Context().Config().Service(test.idChain)
 	s().NoError(err)
 	s().NotEmpty(serviceConf.Sources)
 
