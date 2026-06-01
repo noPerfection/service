@@ -1,13 +1,14 @@
-package service
+package auxiliary
 
 import (
-	"github.com/noPerfection/protocol/client"
-	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/datatype/data_type/key_value"
-	"github.com/noPerfection/protocol/handler/base"
-	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/os/arg"
 	"github.com/noPerfection/os/path"
+	"github.com/noPerfection/protocol/client"
+	clientConfig "github.com/noPerfection/protocol/client/config"
+	"github.com/noPerfection/protocol/handler/base"
+	handlerConfig "github.com/noPerfection/protocol/handler/config"
+	serviceLib "github.com/noPerfection/service"
 	"github.com/noPerfection/service/flag"
 	"github.com/pebbe/zmq4"
 	"gopkg.in/yaml.v3"
@@ -32,10 +33,10 @@ func DeleteLastFlags(amount int) {
 }
 
 func NewParent(id, url, category string,
-	handler base.Interface) (*Service, error) {
+	handler base.Interface) (*serviceLib.Service, error) {
 	win.Args = append(win.Args, arg.NewFlag(flag.IdFlag, id), arg.NewFlag(flag.UrlFlag, url))
 
-	created, err := New()
+	created, err := serviceLib.New()
 	if err != nil {
 		return nil, err
 	}
@@ -48,8 +49,8 @@ func NewParent(id, url, category string,
 }
 
 // CloseParent dir could be a currentDir
-func CloseParent(parent *Service, dir string) error {
-	if err := parent.ctx.Close(); err != nil {
+func CloseParent(parent *serviceLib.Service, dir string) error {
+	if err := parent.Context().Close(); err != nil {
 		return err
 	}
 
@@ -97,7 +98,7 @@ func DeleteYaml(dir, name string) error {
 	return win.Remove(filePath)
 }
 
-func MainHandler(s *Service) base.Interface {
+func MainHandler(s *serviceLib.Service) base.Interface {
 	return s.Handlers["main"].(base.Interface)
 }
 
@@ -110,8 +111,8 @@ func ExternalClient(url string, hConfig *handlerConfig.Handler) (*client.Socket,
 	return externalClient, err
 }
 
-func ManagerClient(s *Service) (*client.Socket, error) {
-	createdConfig, err := s.ctx.Config().Service(s.id)
+func ManagerClient(s *serviceLib.Service) (*client.Socket, error) {
+	createdConfig, err := s.Context().Config().Service(s.Id())
 	if err != nil {
 		return nil, err
 	}

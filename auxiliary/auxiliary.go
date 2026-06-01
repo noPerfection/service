@@ -1,16 +1,17 @@
-package service
+package auxiliary
 
 import (
 	"fmt"
-	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/datatype/data_type/key_value"
 	"github.com/noPerfection/os/arg"
+	clientConfig "github.com/noPerfection/protocol/client/config"
+	serviceLib "github.com/noPerfection/service"
 	"github.com/noPerfection/service/flag"
 	"github.com/noPerfection/service/manager"
 )
 
 type Auxiliary struct {
-	*Service
+	*serviceLib.Service
 	ParentManager *manager.Client // parent to work with
 	ParentConfig  *clientConfig.Client
 }
@@ -52,7 +53,7 @@ func NewAuxiliary() (*Auxiliary, error) {
 		return nil, fmt.Errorf("manager.NewClient('parentConfig'): %w", err)
 	}
 
-	independent, err := New()
+	independent, err := serviceLib.New()
 	if err != nil {
 		return nil, fmt.Errorf("new independent parent: %w", err)
 	}
