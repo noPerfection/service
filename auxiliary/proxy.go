@@ -356,7 +356,7 @@ func (proxy *Proxy) lintHandlers() error {
 // Proxy can start without the parent.
 // And when a parent starts, it will fetch the parameters.
 // Todo make sure that proxy chain update in a live mode affects the Service.
-func (proxy *Proxy) Start() (*sync.WaitGroup, error) {
+func (proxy *Proxy) Start() error {
 	proxy.Context().SetService(proxy.Name(), proxy.Name())
 	if !proxy.Context().IsDepManagerRunning() {
 		if err := proxy.Context().StartDepManager(); err != nil {
@@ -380,31 +380,30 @@ func (proxy *Proxy) Start() (*sync.WaitGroup, error) {
 
 	err := proxy.lintProxyChain()
 	if err != nil {
-		return nil, fmt.Errorf("proxy.lintProxyChain: %w", err)
+		return fmt.Errorf("proxy.lintProxyChain: %w", err)
 	}
 
 	// get the list of the handlers if there is no given in the handler list
 	err = proxy.lintHandlers()
 	if err != nil {
-		return nil, fmt.Errorf("proxy.lintHandlers: %w", err)
+		return fmt.Errorf("proxy.lintHandlers: %w", err)
 	}
 	if err = proxy.SetConfig(); err != nil {
-		return nil, fmt.Errorf("proxy.SetConfig: %w", err)
+		return fmt.Errorf("proxy.SetConfig: %w", err)
 	}
 
 	// get the proxies from the proxy chain for this serviceConfig.
 	// must be called before starting handlers, as routing of the handlers maybe set by proxy units.
 	if err = proxy.setProxyUnits(); err != nil {
-		return nil, fmt.Errorf("proxy.setProxyUnits: %w", err)
+		return fmt.Errorf("proxy.setProxyUnits: %w", err)
 	}
 
 	// todo call the setConfig first then invoke the ParentManager.SetProxyChain
 	// then start the auxiliary.
 	// Because auxiliary will start the proxies as well.
 	// We don't want to block until the proxies are set to indicate the parent.
-	wg, err := proxy.Auxiliary.Start()
-	if err != nil {
-		return nil, fmt.Errorf("proxy.Auxiliary.Start: %w", err)
+	if err := proxy.Auxiliary.Start(); err != nil {
+		return fmt.Errorf("proxy.Auxiliary.Start: %w", err)
 	}
 
 	// send to the parent info that it was set.
@@ -412,7 +411,7 @@ func (proxy *Proxy) Start() (*sync.WaitGroup, error) {
 	if rule != nil {
 		serviceConf, err := proxy.Context().Config().Service(proxy.Name())
 		if err != nil {
-			return wg, fmt.Errorf("proxy.Context().Config().Service(id='%s'): %w", proxy.Name(), err)
+			return fmt.Errorf("proxy.Context().Config().Service(id='%s'): %w", proxy.Name(), err)
 		}
 
 		source := &serviceConfig.SourceService{
@@ -429,10 +428,10 @@ func (proxy *Proxy) Start() (*sync.WaitGroup, error) {
 		}
 		err = proxy.ParentManager.ProxyConfigSet(rule, source)
 		if err != nil {
-			return wg, fmt.Errorf("proxy.ParentManager.ProxyConfigSet(rule='%v', source='%v'): %w",
+			return fmt.Errorf("proxy.ParentManager.ProxyConfigSet(rule='%v', source='%v'): %w",
 				*rule, *source, err)
 		}
 	}
 
-	return wg, nil
+	return nil
 }

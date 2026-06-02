@@ -281,7 +281,7 @@ func (test *TestServiceSuite) Test_17_Start() {
 
 	test.newService()
 
-	_, err := test.service.Start()
+	err := test.service.Start()
 	s().NoError(err)
 
 	// wait a bit for thread initialization
@@ -314,7 +314,7 @@ func (test *TestServiceSuite) Test_17_Start() {
 	// we don't close the handler here by calling mainHandler.Close.
 	//
 	// the service manager must close all handlers.
-	s().NoError(test.service.manager.Close())
+	s().NoError(test.service.manager.StopService(test.service.Name()))
 
 	// since we closed by manager, the cleaning-out by test suite not necessary.
 	test.service = nil
@@ -328,7 +328,7 @@ func (test *TestServiceSuite) Test_22_Start_Close() {
 
 	test.newService()
 
-	_, err := test.service.Start()
+	err := test.service.Start()
 	s().NoError(err)
 
 	// wait a bit for thread initialization
@@ -361,7 +361,7 @@ func (test *TestServiceSuite) Test_22_Start_Close() {
 	// we don't close the handler here by calling mainHandler.Close.
 	//
 	// the service manager must close all handlers.
-	s().NoError(test.service.manager.Close())
+	s().NoError(test.service.manager.StopService(test.service.Name()))
 	time.Sleep(time.Millisecond * 100)
 
 	// since we closed by manager, the cleaning-out by test suite not necessary.
@@ -372,7 +372,7 @@ func (test *TestServiceSuite) Test_22_Start_Close() {
 	//
 
 	test.newService()
-	_, err = test.service.Start()
+	err = test.service.Start()
 	s().NoError(err)
 
 	// wait a bit for thread initialization
@@ -405,7 +405,7 @@ func (test *TestServiceSuite) Test_22_Start_Close() {
 	// we don't close the handler here by calling mainHandler.Close.
 	//
 	// the service manager must close all handlers.
-	s().NoError(test.service.manager.Close())
+	s().NoError(test.service.manager.StopService(test.service.Name()))
 
 	// since we closed by manager, the cleaning-out by test suite not necessary.
 	test.service = nil

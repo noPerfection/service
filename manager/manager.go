@@ -3,134 +3,102 @@ package manager
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/noPerfection/datatype"
-	clientConfig "github.com/noPerfection/protocol/client/config"
+	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
-	"github.com/noPerfection/protocol/handler/manager_client"
 	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/topology"
-	serviceConfig "github.com/noPerfection/topology/config/service"
 )
 
 const (
-	Heartbeat           = "heartbeat"
-	Close               = "close"
-	ProxyChainsByLastId = "proxy-chains-by-last-id"
-	Units               = "units"
-	Handlers            = "handlers"             // returns handler configurations
-	HandlersByCategory  = "handlers-by-category" // returns the handler configurations by their category
-	HandlersByRule      = "handlers-by-rule"     // returns the handler configurations filtered by serviceConfig.Rule
-	ProxyConfigSet      = "proxy-config-set"     // proxy calls this route when there configuration was set
+	IsServiceRunning = topology.IsServiceRunning
+	StartService     = topology.StartService
+	StopService      = topology.StopService
 )
+
+var _ topology.NodeInterface = (*Manager)(nil)
 
 // The Manager keeps all necessary parameters of the service.
 // Manage this service from other parts.
 type Manager struct {
 	base.Interface
-	serviceUrl      string
 	serviceName     string
-	handlerManagers []manager_client.Interface
-	deps            []*clientConfig.Client
-	ctx             topology.Interface
-	blocker         **sync.WaitGroup // block the service
+	handlerControls []*clientSyncReplier.BaseControl
+	topologyClient  *topology.Client
+	blocker         **sync.WaitGroup
 	running         bool
-	config          *clientConfig.Client
 }
 
 // New service with the parameters.
-// Parameter order: id, url, context type
-func New(ctx topology.Interface, serviceName string, blocker **sync.WaitGroup) (*Manager, error) {
-	configClient := ctx.Config()
-	returnedConfig, err := configClient.Service(serviceName)
+func New(serviceName string, managerEndpoint message.Endpoint) (*Manager, error) {
+	topologyClient, err := topology.NewClient()
 	if err != nil {
-		return nil, fmt.Errorf("ctx.Config().Service('%s'): %w", serviceName, err)
-	}
-	if returnedConfig.Manager == nil {
-		return nil, fmt.Errorf("ctx.Config().Service('%s'): Manager field is nil", serviceName)
+		return nil, fmt.Errorf("topology.NewClient: %w", err)
 	}
 
 	handler := syncReplier.New()
 
 	h := &Manager{
 		Interface:       handler,
-		ctx:             ctx,
-		serviceUrl:      returnedConfig.Url,
+		handlerControls: make([]*clientSyncReplier.BaseControl, 0),
+		topologyClient:  topologyClient,
 		serviceName:     serviceName,
-		handlerManagers: make([]manager_client.Interface, 0),
-		deps:            make([]*clientConfig.Client, 0),
-		blocker:         blocker,
-		config:          returnedConfig.Manager,
 	}
 
-	managerConfig := HandlerConfig(returnedConfig.Manager)
+	managerConfig := HandlerConfig(serviceName)
 	handler.SetConfig(managerConfig)
 
 	return h, nil
 }
 
-// Close the service.
-//
-// It closes all running handlers.
-//
-// It closes the dependencies.
-//
-// It closes the context.
-//
-// It closes this manager.
-//
-// It closes all proxies.
-func (m *Manager) Close() error {
-	serviceConf, err := m.ctx.Config().Service(m.serviceName)
-	if err != nil {
-		return fmt.Errorf("m.ctx.Config().Service(name='%s'): %w", m.serviceName, err)
+func (m *Manager) SetSharedBlocker(blocker **sync.WaitGroup) {
+	m.blocker = blocker
+}
+
+func (m *Manager) StartService(serviceName string, optionalParent ...*topology.ParentClient) (string, error) {
+	if serviceName == "" || serviceName == m.serviceName {
+		return strconv.Itoa(os.Getpid()), nil
 	}
-	depManager := m.ctx.DepClient()
-	for ruleIndex := range serviceConf.Sources {
-		for i := range serviceConf.Sources[ruleIndex].Proxies {
-			proxy := serviceConf.Sources[ruleIndex].Proxies[i]
-			proxy.Manager.UrlFunc(clientConfig.Url)
-			err := depManager.CloseDep(proxy.Manager)
-			if err != nil {
-				return fmt.Errorf("depManager.CloseDep(serviceConf.Sources[%d].Proxies[%d] = %v): %w",
-					ruleIndex, i, *proxy, err)
-			}
+
+	return "", fmt.Errorf("service name is not empty and not equal to the service name")
+}
+
+func (m *Manager) IsServiceRunning(serviceName string) (bool, error) {
+	if serviceName == "" || serviceName == m.serviceName {
+		return m.running, nil
+	}
+
+	return false, fmt.Errorf("service name is not empty and not equal to the service name")
+}
+
+func (m *Manager) StopService(serviceName string) error {
+	if serviceName != "" && serviceName != m.serviceName {
+		return fmt.Errorf("service name is not empty and not equal to the service name")
+	}
+
+	if m.topologyClient != nil {
+		if err := m.topologyClient.Close(); err != nil {
+			return fmt.Errorf("topologyClient.Close: %w", err)
 		}
 	}
-
-	// closing all handlers
-	for _, h := range m.handlerManagers {
-		err := h.Close()
-		if err != nil {
-			return fmt.Errorf("handlerManagers('%s').Close: %v", h.Id(), err)
+	for _, control := range m.handlerControls {
+		if err := control.HandlerClose(); err != nil {
+			return fmt.Errorf("handlerControl.HandlerClose: %w", err)
 		}
 	}
-	m.handlerManagers = make([]manager_client.Interface, 0)
+	m.handlerControls = make([]*clientSyncReplier.BaseControl, 0)
 
-	err = m.ctx.Close()
-	if err != nil {
-		return fmt.Errorf("ctx.Close: %w", err)
-	}
-
-	managerConfig := HandlerConfig(m.config)
-	handlerManager, err := manager_client.New(managerConfig)
-	if err != nil {
-		return fmt.Errorf("manager_client.New: %w", err)
-	}
-	err = handlerManager.Close()
-	if err != nil {
-		return fmt.Errorf("handler.Close: %w", err)
-	}
-
+	wasRunning := m.running
 	m.running = false
-	if m.blocker != nil && *m.blocker != nil {
-		fmt.Printf("blocker done!\n")
+	if wasRunning && m.blocker != nil && *m.blocker != nil {
 		(*m.blocker).Done()
-	} else {
-		fmt.Printf("blocker is nil\n")
 	}
 
 	return nil
@@ -140,261 +108,107 @@ func (m *Manager) Running() bool {
 	return m.running
 }
 
-// onClose received a close signal for this service
-func (m *Manager) onClose(req message.RequestInterface) message.ReplyInterface {
-	err := m.Close()
+func (m *Manager) onIsServiceRunning(req message.RequestInterface) message.ReplyInterface {
+	serviceName, err := req.RouteParameters().StringValue("service")
 	if err != nil {
-		return req.Fail(fmt.Sprintf("manager.Close: %v", err))
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('service'): %v", err))
 	}
+
+	running, err := m.IsServiceRunning(serviceName)
+	if err != nil {
+		return req.Fail(fmt.Sprintf("manager.IsServiceRunning('%s'): %v", serviceName, err))
+	}
+
+	return req.Ok(datatype.New().Set("running", running))
+}
+
+func (m *Manager) onStartService(req message.RequestInterface) message.ReplyInterface {
+	serviceName, err := req.RouteParameters().StringValue("service")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('service'): %v", err))
+	}
+
+	var optionalParent []*topology.ParentClient
+	if kv, err := req.RouteParameters().NestedValue("parent"); err == nil {
+		var parent topology.ParentClient
+		if err := kv.Interface(&parent); err != nil {
+			return req.Fail(fmt.Sprintf("kv.Interface('parent'): %v", err))
+		}
+		optionalParent = append(optionalParent, &parent)
+	}
+
+	id, err := m.StartService(serviceName, optionalParent...)
+	if err != nil {
+		return req.Fail(fmt.Sprintf("manager.StartService('%s'): %v", serviceName, err))
+	}
+
+	return req.Ok(datatype.New().Set("id", id))
+}
+
+func (m *Manager) onStopService(req message.RequestInterface) message.ReplyInterface {
+	serviceName, err := req.RouteParameters().StringValue("service")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('service'): %v", err))
+	}
+
+	go m.stopAfterReply(serviceName)
 
 	return req.Ok(datatype.New())
 }
 
-// onHeartbeat simple handler to check that service is alive
-func (m *Manager) onHeartbeat(req message.RequestInterface) message.ReplyInterface {
-	return req.Ok(datatype.New())
+func (m *Manager) stopAfterReply(serviceName string) {
+	time.Sleep(100 * time.Millisecond)
+	_ = m.StopService(serviceName)
 }
 
-// onProxyChainsByLastProxy returns a list of proxy chains by the id of the last proxy
-func (m *Manager) onProxyChainsByLastProxy(req message.RequestInterface) message.ReplyInterface {
-	id, err := req.RouteParameters().StringValue("id")
-	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('id'): %v", err))
-	}
-	proxyClient := m.ctx.ProxyClient()
-	proxyChains, err := proxyClient.ProxyChainsByLastId(id)
-	if err != nil {
-		return req.Fail(fmt.Sprintf("proxyClient.ProxyChainsByLastId('%s'): %v", id, err))
-	}
-
-	params := datatype.New().Set("proxy_chains", proxyChains)
-	return req.Ok(params)
+// HandlerConfig returns the manager handler configuration.
+func HandlerConfig(serviceName string, managerEndpoint message.Endpoint) *handlerConfig.Handler {
+	return handlerConfig.New(
+		handlerConfig.SyncReplierType,
+		managerEndpoint.Id,
+		topology.ServiceManagerCategory,
+		managerEndpoint.Port,
+	)
 }
 
-// onUnits returns a list of destination units by a rule
-func (m *Manager) onUnits(req message.RequestInterface) message.ReplyInterface {
-	raw, err := req.RouteParameters().NestedValue("rule")
+func (m *Manager) setHandlerControls() error {
+	service, err := m.topologyClient.Service(m.serviceName)
 	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('rule'): %v", err))
+		return fmt.Errorf("topologyClient.Service('%s'): %w", m.serviceName, err)
 	}
 
-	var rule serviceConfig.Rule
-	err = raw.Interface(&rule)
-	if err != nil {
-		return req.Fail(fmt.Sprintf("datatype.New('proxy_chain').Interface(): %v", err))
-	}
-
-	if !rule.IsValid() {
-		return req.Fail("the 'rule' parameter is not valid")
-	}
-
-	proxyClient := m.ctx.ProxyClient()
-	units, err := proxyClient.Units(&rule)
-	if err != nil {
-		return req.Fail(fmt.Sprintf("proxyClient.Units: %v", err))
-	}
-
-	params := datatype.New().Set("units", units)
-	return req.Ok(params)
-}
-
-// onProxyConfigSet sets the proxy information for a rule as the proxy is set the configuration
-func (m *Manager) onProxyConfigSet(req message.RequestInterface) message.ReplyInterface {
-	raw, err := req.RouteParameters().NestedValue("rule")
-	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('rule'): %v", err))
-	}
-	rawSource, err := req.RouteParameters().NestedValue("source_service")
-	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('source_service'): %v", err))
-	}
-
-	var rule serviceConfig.Rule
-	err = raw.Interface(&rule)
-	if err != nil {
-		return req.Fail(fmt.Sprintf("datatype.New('rule').Interface(): %v", err))
-	}
-
-	if !rule.IsValid() {
-		return req.Fail("the 'rule' parameter is not valid")
-	}
-
-	var sourceService serviceConfig.SourceService
-	err = rawSource.Interface(&sourceService)
-	if err != nil {
-		return req.Fail(fmt.Sprintf("datatype.New('source_service').Interface(): %v", err))
-	}
-
-	proxyId := sourceService.Id
-
-	proxyClient := m.ctx.ProxyClient()
-	proxyChains, err := proxyClient.ProxyChainsByLastId(proxyId)
-	if err != nil {
-		return req.Fail(fmt.Sprintf("proxyClient.ProxyChainsByLastId('%s'): %v", proxyId, err))
-	}
-
-	proxyChain := serviceConfig.ProxyChainByRule(proxyChains, &rule)
-	if proxyChain == nil {
-		return req.Fail("the proxy and rule are mismatching")
-	}
-
-	configClient := m.ctx.Config()
-	c, err := configClient.Service(m.serviceName)
-	if err != nil {
-		return req.Fail(fmt.Sprintf("configClient.Service('%s'): %v", m.serviceName, err))
-	}
-
-	serviceUpdated := c.SetServiceSource(&rule, &sourceService)
-	if serviceUpdated {
-		err = configClient.SetService(c)
-		if err != nil {
-			req.Fail(fmt.Sprintf("configClient.SetService: %v", err))
-		}
-	}
-
-	params := datatype.New()
-	return req.Ok(params)
-}
-
-// The handlers return the handler configurations
-func (m *Manager) handlers() ([]*handlerConfig.Handler, error) {
-	handlerConfigs := make([]*handlerConfig.Handler, len(m.handlerManagers))
-
-	for i := range m.handlerManagers {
-		handlerManager := m.handlerManagers[i]
-		c, err := handlerManager.Config()
-		if err != nil {
-			return nil, fmt.Errorf("m.handlerManagers[%d]: %w", i, err)
+	m.handlerControls = make([]*clientSyncReplier.BaseControl, 0, len(service.Handlers))
+	for _, handler := range service.Handlers {
+		if handler.Category == topology.ServiceManagerCategory {
+			continue
 		}
 
-		handlerConfigs[i] = c
+		control, err := clientSyncReplier.NewBaseControl(handler.Endpoint.Id+"_control", 0)
+		if err != nil {
+			return fmt.Errorf("sync_replier.NewBaseControl('%s_control'): %w", handler.Endpoint.Id, err)
+		}
+		m.handlerControls = append(m.handlerControls, control)
 	}
 
-	return handlerConfigs, nil
-}
-
-// onHandlers returns configuration of the handlers in this service.
-//
-// If this service is a destination, then the proxy will call this function.
-//
-// todo, over-write the auxiliary service, so that it will return from the destination.
-// todo, auxiliary service must keep the handlers in itself.
-func (m *Manager) onHandlers(req message.RequestInterface) message.ReplyInterface {
-	handlerConfigs, err := m.handlers()
-	if err != nil {
-		return req.Fail(fmt.Sprintf("m.handlers: %v", err))
-	}
-
-	params := datatype.New().Set("handler_configs", handlerConfigs)
-	return req.Ok(params)
-}
-
-// onHandlersByCategory returns configuration of the handlers in this service.
-//
-// If this service is a destination, then the proxy will call this function.
-//
-// Todo, over-write the auxiliary service, so that it will return from the destination.
-// Todo, auxiliary service must keep the handlers in itself.
-func (m *Manager) onHandlersByCategory(req message.RequestInterface) message.ReplyInterface {
-	category, err := req.RouteParameters().StringValue("category")
-	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('category'): %v", err))
-	}
-
-	handlerConfigs, err := m.handlers()
-	if err != nil {
-		return req.Fail(fmt.Sprintf("m.handlers: %v", err))
-	}
-
-	filteredConfigs := handlerConfig.ByCategory(handlerConfigs, category)
-
-	params := datatype.New().Set("handler_configs", filteredConfigs)
-	return req.Ok(params)
-}
-
-// onHandlersByRule returns a list of handler configurations filtered by the serviceConfig.Rule.
-func (m *Manager) onHandlersByRule(req message.RequestInterface) message.ReplyInterface {
-	raw, err := req.RouteParameters().NestedValue("rule")
-	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('proxy_chain'): %v", err))
-	}
-
-	var rule serviceConfig.Rule
-	err = raw.Interface(&rule)
-	if err != nil {
-		return req.Fail(fmt.Sprintf("datatype.New('proxy_chain').Interface(): %v", err))
-	}
-
-	if !rule.IsValid() {
-		return req.Fail("the 'rule' parameter is not valid")
-	}
-
-	handlerConfigs, err := m.handlers()
-	if err != nil {
-		return req.Fail(fmt.Sprintf("m.handlers: %v", err))
-	}
-
-	if rule.IsService() {
-		params := datatype.New().Set("handler_configs", handlerConfigs)
-		return req.Ok(params)
-	}
-
-	filteredConfigs := make([]*handlerConfig.Handler, 0, len(handlerConfigs))
-	for i := range rule.Categories {
-		category := rule.Categories[i]
-		filteredConfigs = append(filteredConfigs, handlerConfig.ByCategory(handlerConfigs, category)...)
-	}
-
-	params := datatype.New().Set("handler_configs", filteredConfigs)
-	return req.Ok(params)
-}
-
-// HandlerConfig converts the client into the handler configuration
-func HandlerConfig(client *clientConfig.Client) *handlerConfig.Handler {
-	return &handlerConfig.Handler{
-		Type:           handlerConfig.SyncReplierType,
-		Category:       serviceConfig.ManagerCategory,
-		InstanceAmount: 1,
-		Port:           client.Port,
-		Id:             client.Id,
-	}
-}
-
-func (m *Manager) SetHandlerManagers(clients []manager_client.Interface) {
-	m.handlerManagers = append(m.handlerManagers, clients...)
-}
-
-func (m *Manager) SetDeps(configs []*clientConfig.Client) {
-	m.deps = configs
+	return nil
 }
 
 // Start the orchestra in the background.
 // If it failed to run, then return an error.
 // The url request is the main service to which this orchestra belongs too.
 func (m *Manager) Start() error {
-	if err := m.Route(Close, m.onClose); err != nil {
-		return fmt.Errorf(`handler.Route("%s"): %w`, Close, err)
+	if err := m.Interface.Route(IsServiceRunning, m.onIsServiceRunning); err != nil {
+		return fmt.Errorf(`handler.Route("%s"): %w`, IsServiceRunning, err)
 	}
-	if err := m.Route(Heartbeat, m.onHeartbeat); err != nil {
-		return fmt.Errorf(`handler.Route("%s"): %w`, Heartbeat, err)
+	if err := m.Interface.Route(StartService, m.onStartService); err != nil {
+		return fmt.Errorf(`handler.Route("%s"): %w`, StartService, err)
 	}
-	if err := m.Route(ProxyChainsByLastId, m.onProxyChainsByLastProxy); err != nil {
-		return fmt.Errorf(`handler.Route("%s"): %w`, ProxyChainsByLastId, err)
+	if err := m.Interface.Route(StopService, m.onStopService); err != nil {
+		return fmt.Errorf(`handler.Route("%s"): %w`, StopService, err)
 	}
-	if err := m.Route(Units, m.onUnits); err != nil {
-		return fmt.Errorf(`handler.Route("%s"): %w`, Units, err)
-	}
-	if err := m.Route(Handlers, m.onHandlers); err != nil {
-		return fmt.Errorf(`handler.Route("%s"): %w`, Handlers, err)
-	}
-	if err := m.Route(HandlersByCategory, m.onHandlersByCategory); err != nil {
-		return fmt.Errorf(`handler.Route("%s"): %w`, HandlersByCategory, err)
-	}
-	if err := m.Route(HandlersByRule, m.onHandlersByRule); err != nil {
-		return fmt.Errorf(`handler.Route("%s"): %w`, HandlersByRule, err)
-	}
-	if err := m.Route(ProxyConfigSet, m.onProxyConfigSet); err != nil {
-		return fmt.Errorf(`handler.Route("%s"): %w`, ProxyConfigSet, err)
+
+	if err := m.setHandlerControls(); err != nil {
+		return fmt.Errorf("setHandlerControls: %w", err)
 	}
 
 	if err := m.Interface.Start(); err != nil {

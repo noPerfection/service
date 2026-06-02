@@ -873,7 +873,7 @@ func (test *TestProxySuite) Test_15_Proxy_Start() {
 
 	// Starting must initialize the handlers too
 	s().Zero(len(proxy.Handlers))
-	_, err = proxy.Start()
+	err = proxy.Start()
 	s().NoError(err)
 
 	// Wait a bit for initialization...
@@ -884,7 +884,7 @@ func (test *TestProxySuite) Test_15_Proxy_Start() {
 	err = mockedManagerClient.Close()
 	s().NoError(err)
 
-	err = proxy.manager.Close()
+	err = proxy.manager.StopService(proxy.Name())
 	s().NoError(err)
 
 	test.units = []*service.Unit{}

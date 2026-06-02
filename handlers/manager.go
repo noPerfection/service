@@ -93,6 +93,8 @@ exitStartHandler:
 }
 
 // Close closes all registered handlers.
+// Used only by service codes during the start-ups.
+// After the service is started, the handlers are closed by the service/manager
 func (manager *Manager) Close() error {
 	handlers := make([]base.Interface, 0, len(manager.handlers))
 	for category, raw := range manager.handlers {

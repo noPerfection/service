@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/noPerfection/log"
+	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/topology"
@@ -21,15 +22,15 @@ import (
 const DefaultName = "main"
 const DefaultConfigPath = "noPerfection.json"
 
+var DefaultServiceManagerEndpoint = message.NewEndpoint(topology.ServiceManagerCategory, 0)
+
 // Independent keeps all necessary parameters of the independent service.
 type Independent struct {
 	*handlers.Manager
 	topologyHandler *topology.Handler // topology handles the configuration and dependencies
 	name            string
-	// The blocker is a shutdown latch:
-	// it keeps the process alive after Start() returns, and it unblocks when the service is fully closed.
-	blocker *sync.WaitGroup
-	manager *manager.Manager // manage this service from other parts
+	blocker         *sync.WaitGroup
+	manager         *manager.Manager // manage this service from other parts
 }
 
 // Return instance of an independent service.
@@ -37,6 +38,7 @@ type Independent struct {
 func New(params ...interface{}) (*Independent, error) {
 	name := DefaultName
 	configPath := DefaultConfigPath
+	managerEndpoint := DefaultServiceManagerEndpoint
 
 	if len(params) > 2 {
 		return nil, fmt.Errorf("too many arguments, expected name and config path")
@@ -59,6 +61,13 @@ func New(params ...interface{}) (*Independent, error) {
 			configPath = configPathArg
 		}
 	}
+	if len(params) > 2 && params[2] != nil {
+		managerEndpointArg, ok := params[2].(message.Endpoint)
+		if !ok {
+			return nil, fmt.Errorf("manager endpoint argument must be message.Endpoint")
+		}
+		managerEndpoint = managerEndpointArg
+	}
 
 	// Start the topology handler.
 	topologyHandler, err := topology.NewHandler(configPath)
@@ -66,7 +75,7 @@ func New(params ...interface{}) (*Independent, error) {
 		return nil, fmt.Errorf("topology.NewHandler: %w", err)
 	}
 
-	m, err := manager.New(topologyHandler, name, nil)
+	m, err := manager.New(name, managerEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("manager.New: %w", err)
 	}
@@ -76,7 +85,6 @@ func New(params ...interface{}) (*Independent, error) {
 		topologyHandler: topologyHandler,
 		name:            name,
 		manager:         m,
-		blocker:         nil,
 	}
 
 	return independent, nil
@@ -121,7 +129,7 @@ func (independent *Independent) Type() config.Type {
 // Start the service.
 //
 // Requires at least one handler.
-func (independent *Independent) Start() (*sync.WaitGroup, error) {
+func (independent *Independent) Start() error {
 	var err error
 
 	if err = independent.topologyHandler.Start(); err != nil {
@@ -137,6 +145,10 @@ func (independent *Independent) Start() (*sync.WaitGroup, error) {
 	// todo prepare the extensions by calling them in the context.
 	// todo prepare the extensions by setting them into the independent.manager.
 
+	independent.blocker = &sync.WaitGroup{}
+	independent.blocker.Add(1)
+	independent.manager.SetSharedBlocker(&independent.blocker)
+
 	if err = independent.manager.Start(); err != nil {
 		err = fmt.Errorf("service.manager.Start: %w", err)
 		goto errOccurred
@@ -145,17 +157,23 @@ func (independent *Independent) Start() (*sync.WaitGroup, error) {
 errOccurred:
 	if err != nil {
 		if independent.manager != nil && independent.manager.Running() {
-			closeErr := independent.manager.Close()
+			closeErr := independent.manager.StopService(independent.name)
 			if closeErr != nil {
-				err = fmt.Errorf("%v: manager.Close: %w", err, closeErr)
+				err = fmt.Errorf("%v: manager.StopService: %w", err, closeErr)
 			}
 		}
 	}
 
-	if err == nil {
-		independent.blocker = &sync.WaitGroup{}
-		independent.blocker.Add(1)
-	}
+	return err
+}
 
-	return independent.blocker, err
+func (independent *Independent) Stop() error {
+	return independent.manager.StopService(independent.name)
+}
+
+func (independent *Independent) Wait() {
+	if independent.blocker == nil {
+		return
+	}
+	independent.blocker.Wait()
 }
