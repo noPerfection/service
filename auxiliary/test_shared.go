@@ -2,14 +2,12 @@ package auxiliary
 
 import (
 	"github.com/noPerfection/datatype/data_type/key_value"
-	"github.com/noPerfection/os/arg"
 	"github.com/noPerfection/os/path"
 	"github.com/noPerfection/protocol/client"
 	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	serviceLib "github.com/noPerfection/service"
-	"github.com/noPerfection/service/flag"
 	"github.com/pebbe/zmq4"
 	"gopkg.in/yaml.v3"
 	win "os"
@@ -32,18 +30,14 @@ func DeleteLastFlags(amount int) {
 	win.Args = win.Args[:len(win.Args)-amount]
 }
 
-func NewParent(id, url, category string,
+func NewParent(name, url, category string,
 	handler base.Interface) (*serviceLib.Service, error) {
-	win.Args = append(win.Args, arg.NewFlag(flag.IdFlag, id), arg.NewFlag(flag.UrlFlag, url))
-
-	created, err := serviceLib.New()
+	created, err := serviceLib.New(name)
 	if err != nil {
 		return nil, err
 	}
 
 	created.SetHandler(category, handler)
-
-	win.Args = win.Args[:len(win.Args)-2]
 
 	return created, nil
 }
@@ -112,7 +106,7 @@ func ExternalClient(url string, hConfig *handlerConfig.Handler) (*client.Socket,
 }
 
 func ManagerClient(s *serviceLib.Service) (*client.Socket, error) {
-	createdConfig, err := s.Context().Config().Service(s.Id())
+	createdConfig, err := s.Context().Config().Service(s.Name())
 	if err != nil {
 		return nil, err
 	}

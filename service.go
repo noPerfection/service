@@ -14,15 +14,15 @@ import (
 
 	"github.com/noPerfection/datatype/data_type/key_value"
 	"github.com/noPerfection/log"
-	"github.com/noPerfection/os/arg"
 	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/handler/manager_client"
 	context "github.com/noPerfection/runtime"
 	serviceConfig "github.com/noPerfection/runtime/config/service"
-	"github.com/noPerfection/service/flag"
 	"github.com/noPerfection/service/manager"
 )
+
+const DefaultName = "main"
 
 // Service keeps all necessary parameters of the service.
 type Service struct {
@@ -31,8 +31,7 @@ type Service struct {
 	RequiredExtensions key_value.KeyValue
 	Logger             *log.Logger
 	Type               serviceConfig.Type
-	id                 string
-	url                string
+	name               string
 	// The blocker is a shutdown latch:
 	// it keeps the process alive after Start() returns, and it unblocks when the service is fully closed.
 	blocker *sync.WaitGroup
@@ -40,18 +39,13 @@ type Service struct {
 }
 
 // New service.
-// The url and id could be passed as flag.IdFlag, flag.UrlFlag.
+// The service name can be passed as an optional parameter.
 //
 // It will also create the context internally and start it.
-func New() (*Service, error) {
-	var id, url string
-
-	// let's validate the parameters of the service
-	if arg.FlagExist(flag.IdFlag) {
-		id = arg.FlagValue(flag.IdFlag)
-	}
-	if arg.FlagExist(flag.UrlFlag) {
-		url = arg.FlagValue(flag.UrlFlag)
+func New(names ...string) (*Service, error) {
+	name := DefaultName
+	if len(names) > 0 && len(names[0]) > 0 {
+		name = names[0]
 	}
 
 	// Start the context
@@ -67,15 +61,14 @@ func New() (*Service, error) {
 	independent := &Service{
 		ctx:      ctx,
 		Handlers: key_value.New(),
-		url:      url,
-		id:       id,
+		name:     name,
 		Type:     serviceConfig.IndependentType,
 		blocker:  nil,
 	}
 
-	logger, err := log.New(id, true)
+	logger, err := log.New(name, true)
 	if err != nil {
-		err = fmt.Errorf("log.New(%s): %w", id, err)
+		err = fmt.Errorf("log.New(%s): %w", name, err)
 
 		if closeErr := ctx.Close(); closeErr != nil {
 			return nil, fmt.Errorf("%v: ctx.Close: %w", err, closeErr)
@@ -84,21 +77,6 @@ func New() (*Service, error) {
 		return nil, err
 	}
 	independent.Logger = logger
-
-	if len(id) == 0 {
-		err = fmt.Errorf("service can not identify itself. Use %s flag", flag.IdFlag)
-		if closeErr := ctx.Close(); closeErr != nil {
-			return nil, fmt.Errorf("%v: ctx.Close: %w", err, closeErr)
-		}
-		return nil, err
-	}
-	if len(url) == 0 {
-		err = fmt.Errorf("service can not identify it's class. Use %s flag", flag.UrlFlag)
-		if closeErr := ctx.Close(); closeErr != nil {
-			return nil, fmt.Errorf("%v: ctx.Close: %w", err, closeErr)
-		}
-		return nil, err
-	}
 
 	return independent, nil
 }
@@ -110,19 +88,14 @@ func (independent *Service) SetHandler(category string, controller base.Interfac
 	independent.Handlers.Set(category, controller)
 }
 
-// Url returns the url of the service source code
-func (independent *Service) Url() string {
-	return independent.url
-}
-
 // Context returns the runtime context owned by the service.
 func (independent *Service) Context() context.Interface {
 	return independent.ctx
 }
 
-// Id returns the unique id of the service
-func (independent *Service) Id() string {
-	return independent.id
+// Name returns the unique name of the service
+func (independent *Service) Name() string {
+	return independent.name
 }
 
 // SetConfig prepares and stores the generated service configuration.
@@ -148,7 +121,7 @@ func (independent *Service) SetProxyChain(params ...interface{}) error {
 		return fmt.Errorf("context or config engine is not running")
 	}
 
-	independent.ctx.SetService(independent.id, independent.url)
+	independent.ctx.SetService(independent.name, independent.name)
 
 	if !independent.ctx.IsDepManagerRunning() {
 		err := independent.ctx.StartDepManager()
@@ -174,7 +147,7 @@ func (independent *Service) SetProxyChain(params ...interface{}) error {
 			return fmt.Errorf("given a one parameter it must be of *parent.ProxyChain type")
 		}
 		if len(proxyChain.Destination.Urls) == 0 {
-			proxyChain.Destination.Urls = []string{independent.url}
+			proxyChain.Destination.Urls = []string{independent.name}
 		}
 		if !proxyChain.IsValid() {
 			return fmt.Errorf("given a one parameter, the proxy chain is not valid")
@@ -186,7 +159,7 @@ func (independent *Service) SetProxyChain(params ...interface{}) error {
 			return fmt.Errorf("serviceConfig.NewProxyChain: %w", err)
 		}
 		if len(proxyChain.Destination.Urls) == 0 {
-			proxyChain.Destination.Urls = []string{independent.url}
+			proxyChain.Destination.Urls = []string{independent.name}
 		}
 		if !proxyChain.IsValid() {
 			return fmt.Errorf("given proxy chain fields, the proxy chain is not valid")
@@ -226,9 +199,9 @@ func (independent *Service) requiredControllerExtensions() []string {
 func (independent *Service) generateConfig() (*serviceConfig.Service, error) {
 	configClient := independent.ctx.Config()
 
-	generatedConfig, err := configClient.GenerateService(independent.id, independent.url, independent.Type)
+	generatedConfig, err := configClient.GenerateService(independent.name, independent.name, independent.Type)
 	if err != nil {
-		return nil, fmt.Errorf("configClient.GenerateService('%s', '%s', '%s'): %w", independent.id, independent.url, independent.Type, err)
+		return nil, fmt.Errorf("configClient.GenerateService('%s', '%s', '%s'): %w", independent.name, independent.name, independent.Type, err)
 	}
 	generatedConfig.Manager.UrlFunc(clientConfig.Url)
 
@@ -258,15 +231,12 @@ func (independent *Service) generateConfig() (*serviceConfig.Service, error) {
 func (independent *Service) lintConfig() error {
 	configClient := independent.ctx.Config()
 
-	returnedService, err := configClient.Service(independent.id)
+	returnedService, err := configClient.Service(independent.name)
 	if err != nil {
-		return fmt.Errorf("configClient.Service('%s', '%s', '%s'): %w", independent.id, independent.url, independent.Type, err)
+		return fmt.Errorf("configClient.Service('%s', '%s'): %w", independent.name, independent.Type, err)
 	}
 	returnedService.Manager.UrlFunc(clientConfig.Url)
 
-	if returnedService.Url != independent.url {
-		independent.url = returnedService.Url
-	}
 	if returnedService.Type != independent.Type {
 		independent.Type = returnedService.Type
 	}
@@ -304,9 +274,9 @@ func (independent *Service) setConfig() error {
 	configClient := independent.ctx.Config()
 
 	// prepare the configuration
-	exist, err := configClient.ServiceExist(independent.id)
+	exist, err := configClient.ServiceExist(independent.name)
 	if err != nil {
-		return fmt.Errorf("configClient.ServiceExist('%s'): %w", independent.id, err)
+		return fmt.Errorf("configClient.ServiceExist('%s'): %w", independent.name, err)
 	}
 
 	if !exist {
@@ -395,7 +365,7 @@ func (independent *Service) unitsByRouteRule(rule *serviceConfig.Rule) []*servic
 			}
 
 			unit := &serviceConfig.Unit{
-				ServiceId: independent.id,
+				ServiceId: independent.name,
 				HandlerId: hConfig.Id,
 				Command:   command,
 			}
@@ -427,7 +397,7 @@ func (independent *Service) unitsByHandlerRule(rule *serviceConfig.Rule) []*serv
 			}
 
 			unit := &serviceConfig.Unit{
-				ServiceId: independent.id,
+				ServiceId: independent.name,
 				HandlerId: hConfig.Id,
 				Command:   command,
 			}
@@ -455,7 +425,7 @@ func (independent *Service) unitsByServiceRule(rule *serviceConfig.Rule) []*serv
 			}
 
 			unit := &serviceConfig.Unit{
-				ServiceId: independent.id,
+				ServiceId: independent.name,
 				HandlerId: hConfig.Id,
 				Command:   command,
 			}
@@ -475,7 +445,7 @@ func (independent *Service) unitsByServiceRule(rule *serviceConfig.Rule) []*serv
 //
 // This function lints manager.Manager with ctx.
 func (independent *Service) newManager() error {
-	m, err := manager.New(independent.ctx, independent.id, &independent.blocker)
+	m, err := manager.New(independent.ctx, independent.name, &independent.blocker)
 	if err != nil {
 		return fmt.Errorf("manager.New: %w", err)
 	}
@@ -589,7 +559,7 @@ func (independent *Service) Start() (*sync.WaitGroup, error) {
 		goto errOccurred
 	}
 
-	independent.ctx.SetService(independent.id, independent.url)
+	independent.ctx.SetService(independent.name, independent.name)
 	if !independent.ctx.IsDepManagerRunning() {
 		if err = independent.ctx.StartDepManager(); err != nil {
 			err = fmt.Errorf("ctx.StartDepManager: %w", err)

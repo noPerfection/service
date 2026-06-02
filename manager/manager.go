@@ -3,15 +3,15 @@ package manager
 
 import (
 	"fmt"
-	clientConfig "github.com/noPerfection/protocol/client/config"
-	serviceConfig "github.com/noPerfection/runtime/config/service"
 	"github.com/noPerfection/datatype/data_type/key_value"
 	"github.com/noPerfection/datatype/message"
-	context "github.com/noPerfection/runtime"
+	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/manager_client"
 	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
+	context "github.com/noPerfection/runtime"
+	serviceConfig "github.com/noPerfection/runtime/config/service"
 	"sync"
 )
 
@@ -31,7 +31,7 @@ const (
 type Manager struct {
 	base.Interface
 	serviceUrl      string
-	serviceId       string
+	serviceName     string
 	handlerManagers []manager_client.Interface
 	deps            []*clientConfig.Client
 	ctx             context.Interface
@@ -42,14 +42,14 @@ type Manager struct {
 
 // New service with the parameters.
 // Parameter order: id, url, context type
-func New(ctx context.Interface, serviceId string, blocker **sync.WaitGroup) (*Manager, error) {
+func New(ctx context.Interface, serviceName string, blocker **sync.WaitGroup) (*Manager, error) {
 	configClient := ctx.Config()
-	returnedConfig, err := configClient.Service(serviceId)
+	returnedConfig, err := configClient.Service(serviceName)
 	if err != nil {
-		return nil, fmt.Errorf("ctx.Config().Service('%s'): %w", serviceId, err)
+		return nil, fmt.Errorf("ctx.Config().Service('%s'): %w", serviceName, err)
 	}
 	if returnedConfig.Manager == nil {
-		return nil, fmt.Errorf("ctx.Config().Service('%s'): Manager field is nil", serviceId)
+		return nil, fmt.Errorf("ctx.Config().Service('%s'): Manager field is nil", serviceName)
 	}
 
 	handler := syncReplier.New()
@@ -58,7 +58,7 @@ func New(ctx context.Interface, serviceId string, blocker **sync.WaitGroup) (*Ma
 		Interface:       handler,
 		ctx:             ctx,
 		serviceUrl:      returnedConfig.Url,
-		serviceId:       serviceId,
+		serviceName:     serviceName,
 		handlerManagers: make([]manager_client.Interface, 0),
 		deps:            make([]*clientConfig.Client, 0),
 		blocker:         blocker,
@@ -83,9 +83,9 @@ func New(ctx context.Interface, serviceId string, blocker **sync.WaitGroup) (*Ma
 //
 // It closes all proxies.
 func (m *Manager) Close() error {
-	serviceConf, err := m.ctx.Config().Service(m.serviceId)
+	serviceConf, err := m.ctx.Config().Service(m.serviceName)
 	if err != nil {
-		return fmt.Errorf("m.ctx.Config().Service(id='%s'): %w", m.serviceId, err)
+		return fmt.Errorf("m.ctx.Config().Service(name='%s'): %w", m.serviceName, err)
 	}
 	depManager := m.ctx.DepClient()
 	for ruleIndex := range serviceConf.Sources {
@@ -238,9 +238,9 @@ func (m *Manager) onProxyConfigSet(req message.RequestInterface) message.ReplyIn
 	}
 
 	configClient := m.ctx.Config()
-	c, err := configClient.Service(m.serviceId)
+	c, err := configClient.Service(m.serviceName)
 	if err != nil {
-		return req.Fail(fmt.Sprintf("configClient.Service('%s'): %v", m.serviceId, err))
+		return req.Fail(fmt.Sprintf("configClient.Service('%s'): %v", m.serviceName, err))
 	}
 
 	serviceUpdated := c.SetServiceSource(&rule, &sourceService)

@@ -18,7 +18,7 @@ type Auxiliary struct {
 
 // NewAuxiliary creates a parent with the parent.
 // It requires a parent flag
-func NewAuxiliary() (*Auxiliary, error) {
+func NewAuxiliary(name ...string) (*Auxiliary, error) {
 	if !arg.FlagExist(flag.ParentFlag) {
 		return nil, fmt.Errorf("missing %s flag", arg.NewFlag(flag.ParentFlag))
 	}
@@ -53,7 +53,7 @@ func NewAuxiliary() (*Auxiliary, error) {
 		return nil, fmt.Errorf("manager.NewClient('parentConfig'): %w", err)
 	}
 
-	independent, err := serviceLib.New()
+	independent, err := serviceLib.New(name...)
 	if err != nil {
 		return nil, fmt.Errorf("new independent parent: %w", err)
 	}
