@@ -18,7 +18,6 @@ import (
 	"github.com/noPerfection/runtime/config/app"
 	"github.com/noPerfection/runtime/config/service"
 	serviceLib "github.com/noPerfection/service"
-	"github.com/noPerfection/service/flag"
 	"github.com/noPerfection/service/manager"
 	"github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
@@ -376,7 +375,7 @@ func (test *TestProxySuite) Test_10_NewProxy() {
 	_, parentStr, err := ParentConfig(test.parentUrl, test.parentId, uint64(6000))
 	s().NoError(err)
 
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentStr))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentStr))
 
 	proxy, err := NewProxy(test.name)
 	s().NoError(err)
@@ -395,7 +394,7 @@ func (test *TestProxySuite) Test_11_Proxy_SetHandler() {
 	_, parentStr, err := ParentConfig(test.parentUrl, test.parentId, uint64(6000))
 	s().NoError(err)
 
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentStr))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentStr))
 
 	proxy, err := NewProxy(test.name)
 	s().NoError(err)
@@ -459,7 +458,7 @@ func (test *TestProxySuite) Test_12_Proxy_lintProxyChain() {
 	mockedManagerClient, err := manager_client.New(mockedConfig)
 	s().NoError(err)
 
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentKv.String()))
 
 	// let's create our proxy
 	proxy, err := NewProxy(test.name)
@@ -508,7 +507,7 @@ func (test *TestProxySuite) Test_12_Proxy_lintProxyChain() {
 	// Wait a bit for close of the threads
 	time.Sleep(time.Millisecond * 100)
 
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentKv.String()))
 
 	// let's create our proxy
 	proxy, err = NewProxy(test.name)
@@ -595,7 +594,7 @@ func (test *TestProxySuite) Test_13_Proxy_lintHandlers() {
 	// wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
 
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentKv.String()))
 
 	// let's create our proxy
 	proxy, err := NewProxy(test.name)
@@ -638,7 +637,7 @@ func (test *TestProxySuite) Test_13_Proxy_lintHandlers() {
 
 	time.Sleep(time.Millisecond * 100) // Wait a bit for parent initiation
 
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentKv.String()))
 	proxy, err = NewProxy(test.name) // restarting so that parent manager is a new client
 	s().NoError(err)
 	DeleteLastFlags(1)
@@ -678,7 +677,7 @@ func (test *TestProxySuite) Test_13_Proxy_lintHandlers() {
 
 	time.Sleep(time.Millisecond * 100) // Wait a bit for parent initiation
 
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentKv.String()))
 	proxy, err = NewProxy(test.name) // restarting so that parent manager is a new client
 	s().NoError(err)
 	DeleteLastFlags(1)
@@ -778,7 +777,7 @@ func (test *TestProxySuite) Test_14_Proxy_setProxyUnits() {
 	// wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
 
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentKv.String()))
 
 	// let's create our proxy
 	proxy, err := NewProxy(test.name)
@@ -864,7 +863,7 @@ func (test *TestProxySuite) Test_15_Proxy_Start() {
 	mockedManagerClient, err := manager_client.New(mockedConfig)
 	s().NoError(err)
 
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentKv.String()))
 
 	// let's create our proxy
 	proxy, err := NewProxy(test.name)
@@ -913,7 +912,7 @@ func (test *TestProxySuite) Test_16_Proxy_routeWrapper() {
 	//mockedManager, mockedConfig, err := test.newMockedServiceManager(parentManager)
 	//s().NoError(err)
 
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentKv.String()))
 
 	// let's create our proxy
 	proxy, err := NewProxy(test.name)
@@ -1215,7 +1214,7 @@ func (test *TestProxySuite) Test_17_Proxy_routeHandlers() {
 	// wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
 
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentKv.String()))
 
 	// let's create our proxy
 	proxy, err := NewProxy(test.name)

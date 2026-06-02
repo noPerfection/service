@@ -11,7 +11,6 @@ import (
 	"github.com/noPerfection/protocol/handler/route"
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	serviceLib "github.com/noPerfection/service"
-	"github.com/noPerfection/service/flag"
 	"github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 	win "os"
@@ -70,7 +69,7 @@ func (test *TestAuxiliarySuite) Test_10_NewAuxiliary() {
 	s().Error(err)
 
 	// Creating an auxiliary must fail since parent is not a valid config
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, "parent"))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, "parent"))
 	_, err = NewAuxiliary()
 	s().Error(err)
 	DeleteLastFlags(1)
@@ -80,7 +79,7 @@ func (test *TestAuxiliarySuite) Test_10_NewAuxiliary() {
 	parentKv, err := key_value.NewFromInterface(parentClient)
 	s().NoError(err)
 	parentStr := parentKv.String()
-	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentStr))
+	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentStr))
 
 	auxiliary, err := NewAuxiliary(test.name)
 	s().NoError(err)
