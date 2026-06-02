@@ -5,8 +5,11 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
+	protocolClient "github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/pair"
@@ -14,6 +17,7 @@ import (
 	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/handler/worker"
+	"github.com/noPerfection/protocol/message"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,7 +53,7 @@ func testEndpointID(t *testing.T, category string) string {
 	return fmt.Sprintf("%s_%s_%d", strings.ReplaceAll(t.Name(), "/", "_"), category, seq)
 }
 
-func registerInprocHandler(t *testing.T, manager *Manager, handlerType config.HandlerType, category string) base.Interface {
+func registerInprocHandler(t *testing.T, manager *Handlers, handlerType config.HandlerType, category string) base.Interface {
 	t.Helper()
 
 	handler := newProtocolHandler(t, handlerType)
@@ -59,7 +63,7 @@ func registerInprocHandler(t *testing.T, manager *Manager, handlerType config.Ha
 }
 
 func TestNewManager(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 
 	require.NotNil(t, manager)
 	require.NotNil(t, manager.handlers)
@@ -67,7 +71,7 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestSetHandlerRegistersProtocolHandler(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 	handler := registerInprocHandler(t, manager, config.SyncReplierType, "sync")
 
 	require.Same(t, handler, manager.handlers["sync"])
@@ -75,7 +79,7 @@ func TestSetHandlerRegistersProtocolHandler(t *testing.T) {
 }
 
 func TestSetHandlerDuplicateCategoryOverwritesWithoutError(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 	first := registerInprocHandler(t, manager, config.SyncReplierType, "api")
 	second := registerInprocHandler(t, manager, config.ReplierType, "api")
 
@@ -87,7 +91,7 @@ func TestSetHandlerDuplicateCategoryOverwritesWithoutError(t *testing.T) {
 }
 
 func TestSetHandlerStopsRunningDuplicateCategoryBeforeReplacing(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 	first := registerInprocHandler(t, manager, config.SyncReplierType, "api")
 	require.NoError(t, manager.Start())
 	require.False(t, first.Closed())
@@ -104,7 +108,7 @@ func TestSetHandlerStopsRunningDuplicateCategoryBeforeReplacing(t *testing.T) {
 }
 
 func TestManagerRegistryCapacity(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 
 	cases := []struct {
 		handlerType config.HandlerType
@@ -130,7 +134,7 @@ func TestManagerRegistryCapacity(t *testing.T) {
 }
 
 func TestSetLogger(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 	registerInprocHandler(t, manager, config.SyncReplierType, "sync")
 
 	logger, err := log.New("test", true)
@@ -141,7 +145,7 @@ func TestSetLogger(t *testing.T) {
 }
 
 func TestSetLoggerNilDisablesLogger(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 	registerInprocHandler(t, manager, config.SyncReplierType, "sync")
 
 	logger, err := log.New("test", true)
@@ -153,7 +157,7 @@ func TestSetLoggerNilDisablesLogger(t *testing.T) {
 }
 
 func TestSetLoggerRejectsInvalidRegistryEntry(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 	manager.handlers.Set("bad", "not a handler")
 
 	logger, err := log.New("test", true)
@@ -162,14 +166,82 @@ func TestSetLoggerRejectsInvalidRegistryEntry(t *testing.T) {
 	require.EqualError(t, manager.SetLogger(logger), "handler of bad category is not a base.Interface")
 }
 
+func TestRouteUsesDefaultHandlerCategory(t *testing.T) {
+	manager := NewHandlers()
+
+	require.NoError(t, manager.Route("hello", func(req message.RequestInterface) message.ReplyInterface {
+		return req.Ok(datatype.New())
+	}))
+
+	require.Contains(t, manager.routes, DefaultHandlerCategory)
+	require.Contains(t, manager.routes[DefaultHandlerCategory], "hello")
+}
+
+func TestStartRejectsRouteForMissingCategory(t *testing.T) {
+	manager := NewHandlers()
+	registerInprocHandler(t, manager, config.SyncReplierType, DefaultHandlerCategory)
+	require.NoError(t, manager.Route("hello", func(req message.RequestInterface) message.ReplyInterface {
+		return req.Ok(datatype.New())
+	}, "missing"))
+
+	require.EqualError(t, manager.Start(), "routed to a category that not exist: 'missing'")
+}
+
+func TestRouteRejectsAfterStart(t *testing.T) {
+	manager := NewHandlers()
+	registerInprocHandler(t, manager, config.SyncReplierType, DefaultHandlerCategory)
+	require.NoError(t, manager.Start())
+	t.Cleanup(func() {
+		require.NoError(t, manager.Close())
+	})
+
+	err := manager.Route("hello", func(req message.RequestInterface) message.ReplyInterface {
+		return req.Ok(datatype.New())
+	})
+	require.EqualError(t, err, "I cant route when its already started. Please stop the handler first or the best way to route before starting the handler")
+}
+
+func TestRouteIsUsedByStartedHandler(t *testing.T) {
+	manager := NewHandlers()
+	handler := registerInprocHandler(t, manager, config.SyncReplierType, DefaultHandlerCategory)
+	require.NoError(t, manager.Route("hello", func(req message.RequestInterface) message.ReplyInterface {
+		name, err := req.RouteParameters().StringValue("name")
+		if err != nil {
+			return req.Fail(err.Error())
+		}
+		return req.Ok(datatype.New().Set("reply", "hello "+name))
+	}))
+
+	require.NoError(t, manager.Start())
+	t.Cleanup(func() {
+		require.NoError(t, manager.Close())
+	})
+
+	client, err := protocolClient.New(handler.Config().Id, handler.Config().Port, protocolClient.SyncReplierType)
+	require.NoError(t, err)
+	client.Timeout(time.Second)
+	client.Attempt(1)
+	defer client.Close()
+
+	reply, err := client.Request(&message.Request{
+		Command:    "hello",
+		Parameters: datatype.New().Set("name", "route"),
+	})
+	require.NoError(t, err)
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	replyText, err := reply.ReplyParameters().StringValue("reply")
+	require.NoError(t, err)
+	require.Equal(t, "hello route", replyText)
+}
+
 func TestStartNoHandlers(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 
 	require.EqualError(t, manager.Start(), "no handlers")
 }
 
 func TestStartRequiresHandlerConfig(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 	handler := sync_replier.New()
 	require.NoError(t, manager.SetHandler("sync", handler))
 
@@ -177,7 +249,7 @@ func TestStartRequiresHandlerConfig(t *testing.T) {
 }
 
 func TestStartReturnsHandlerStartError(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 	handler := sync_replier.New()
 	handler.SetConfig(config.New(config.ReplierType, testEndpointID(t, "sync"), "sync", 0))
 	require.NoError(t, manager.SetHandler("sync", handler))
@@ -189,7 +261,7 @@ func TestStartReturnsHandlerStartError(t *testing.T) {
 }
 
 func TestStartWithMultipleProtocolHandlers(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 
 	registerInprocHandler(t, manager, config.SyncReplierType, "sync")
 	registerInprocHandler(t, manager, config.ReplierType, "async")
@@ -208,20 +280,20 @@ func TestStartWithMultipleProtocolHandlers(t *testing.T) {
 }
 
 func TestCloseNoHandlers(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 
 	require.NoError(t, manager.Close())
 }
 
 func TestCloseRejectsInvalidRegistryEntry(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 	manager.handlers.Set("bad", "not a handler")
 
 	require.EqualError(t, manager.Close(), "handler of bad category is not a base.Interface")
 }
 
 func TestCloseMarksHandlersClosed(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 	handler := registerInprocHandler(t, manager, config.SyncReplierType, "sync")
 
 	require.NoError(t, manager.Start())
@@ -230,7 +302,7 @@ func TestCloseMarksHandlersClosed(t *testing.T) {
 }
 
 func TestCloseHandlersClosesStartedHandlers(t *testing.T) {
-	manager := NewManager()
+	manager := NewHandlers()
 	first := registerInprocHandler(t, manager, config.SyncReplierType, "first")
 	second := registerInprocHandler(t, manager, config.ReplierType, "second")
 
