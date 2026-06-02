@@ -228,7 +228,7 @@ func (test *TestParentChildSuite) Test_10_Start() {
 	serviceConf, err := test.service.Context().Config().Service(test.name)
 	s().Error(err) // no service yet
 
-	_, err = test.service.Start()
+	err = test.service.Start()
 	s().NoError(err)
 
 	// wait a bit for thread initialization
@@ -304,7 +304,7 @@ func (test *TestParentChildSuite) Test_11_StartChain() {
 	serviceConf, err := test.service.Context().Config().Service(test.nameChain)
 	s().Error(err) // no service yet
 
-	_, err = test.service.Start()
+	err = test.service.Start()
 	s().NoError(err)
 
 	// wait a bit for thread initialization
