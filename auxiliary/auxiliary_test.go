@@ -23,9 +23,9 @@ import (
 type TestAuxiliarySuite struct {
 	suite.Suite
 
-	parent  *serviceLib.Service // the manager to test
-	url     string              // dependency source code
-	name    string              // the name of the dependency
+	parent  *serviceLib.Independent // the manager to test
+	url     string                  // dependency source code
+	name    string                  // the name of the dependency
 	handler base.Interface
 	logger  *log.Logger
 

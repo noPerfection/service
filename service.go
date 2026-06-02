@@ -24,13 +24,12 @@ import (
 
 const DefaultName = "main"
 
-// Service keeps all necessary parameters of the service.
-type Service struct {
+// Independent keeps all necessary parameters of the independent service.
+type Independent struct {
 	ctx                context.Interface // context handles the configuration and dependencies
 	Handlers           key_value.KeyValue
 	RequiredExtensions key_value.KeyValue
 	Logger             *log.Logger
-	Type               serviceConfig.Type
 	name               string
 	// The blocker is a shutdown latch:
 	// it keeps the process alive after Start() returns, and it unblocks when the service is fully closed.
@@ -42,7 +41,7 @@ type Service struct {
 // The service name can be passed as an optional parameter.
 //
 // It will also create the context internally and start it.
-func New(names ...string) (*Service, error) {
+func New(names ...string) (*Independent, error) {
 	name := DefaultName
 	if len(names) > 0 && len(names[0]) > 0 {
 		name = names[0]
@@ -58,11 +57,10 @@ func New(names ...string) (*Service, error) {
 		return nil, fmt.Errorf("ctx('%s').StartConfig: %w", ctx.Type(), err)
 	}
 
-	independent := &Service{
+	independent := &Independent{
 		ctx:      ctx,
 		Handlers: key_value.New(),
 		name:     name,
-		Type:     serviceConfig.IndependentType,
 		blocker:  nil,
 	}
 
@@ -84,27 +82,32 @@ func New(names ...string) (*Service, error) {
 // SetHandler of category
 //
 // Todo change to keep the handlers by their id.
-func (independent *Service) SetHandler(category string, controller base.Interface) {
+func (independent *Independent) SetHandler(category string, controller base.Interface) {
 	independent.Handlers.Set(category, controller)
 }
 
 // Context returns the runtime context owned by the service.
-func (independent *Service) Context() context.Interface {
+func (independent *Independent) Context() context.Interface {
 	return independent.ctx
 }
 
 // Name returns the unique name of the service
-func (independent *Service) Name() string {
+func (independent *Independent) Name() string {
 	return independent.name
 }
 
+// Type returns the configuration type for an independent service.
+func (independent *Independent) Type() serviceConfig.Type {
+	return serviceConfig.IndependentType
+}
+
 // SetConfig prepares and stores the generated service configuration.
-func (independent *Service) SetConfig() error {
+func (independent *Independent) SetConfig() error {
 	return independent.setConfig()
 }
 
 // SetProxyUnitsBy stores proxy units for the given destination rule.
-func (independent *Service) SetProxyUnitsBy(dest *serviceConfig.Rule) error {
+func (independent *Independent) SetProxyUnitsBy(dest *serviceConfig.Rule) error {
 	return independent.setProxyUnitsBy(dest)
 }
 
@@ -113,7 +116,7 @@ func (independent *Service) SetProxyUnitsBy(dest *serviceConfig.Rule) error {
 // The proxies are managed by the proxy handler in the context.
 // This method creates a serviceConfig.ProxyChain.
 // Then send it to the proxy handler.
-func (independent *Service) SetProxyChain(params ...interface{}) error {
+func (independent *Independent) SetProxyChain(params ...interface{}) error {
 	if len(params) < 1 || len(params) > 3 {
 		return fmt.Errorf("argument amount is invalid, either one or three arguments must be set")
 	}
@@ -175,13 +178,13 @@ func (independent *Service) SetProxyChain(params ...interface{}) error {
 }
 
 // RequireExtension lints the id to the extension url
-func (independent *Service) RequireExtension(id string, url string) {
+func (independent *Independent) RequireExtension(id string, url string) {
 	if independent.RequiredExtensions.Exist(id) {
 		independent.RequiredExtensions.Set(id, url)
 	}
 }
 
-func (independent *Service) requiredControllerExtensions() []string {
+func (independent *Independent) requiredControllerExtensions() []string {
 	var extensions []string
 	for _, controllerInterface := range independent.Handlers {
 		c := controllerInterface.(base.Interface)
@@ -196,12 +199,13 @@ func (independent *Service) requiredControllerExtensions() []string {
 // Then a request to generate a handler configurations.
 //
 // The generated configuration returned back.
-func (independent *Service) generateConfig() (*serviceConfig.Service, error) {
+func (independent *Independent) generateConfig() (*serviceConfig.Service, error) {
 	configClient := independent.ctx.Config()
 
-	generatedConfig, err := configClient.GenerateService(independent.name, independent.name, independent.Type)
+	serviceType := independent.Type()
+	generatedConfig, err := configClient.GenerateService(independent.name, independent.name, serviceType)
 	if err != nil {
-		return nil, fmt.Errorf("configClient.GenerateService('%s', '%s', '%s'): %w", independent.name, independent.name, independent.Type, err)
+		return nil, fmt.Errorf("configClient.GenerateService('%s', '%s', '%s'): %w", independent.name, independent.name, serviceType, err)
 	}
 	generatedConfig.Manager.UrlFunc(clientConfig.Url)
 
@@ -228,17 +232,17 @@ func (independent *Service) generateConfig() (*serviceConfig.Service, error) {
 }
 
 // lintConfig gets the configuration from the context and sets them in the service and handler.
-func (independent *Service) lintConfig() error {
+func (independent *Independent) lintConfig() error {
 	configClient := independent.ctx.Config()
 
 	returnedService, err := configClient.Service(independent.name)
 	if err != nil {
-		return fmt.Errorf("configClient.Service('%s', '%s'): %w", independent.name, independent.Type, err)
+		return fmt.Errorf("configClient.Service('%s', '%s'): %w", independent.name, independent.Type(), err)
 	}
 	returnedService.Manager.UrlFunc(clientConfig.Url)
 
-	if returnedService.Type != independent.Type {
-		independent.Type = returnedService.Type
+	if returnedService.Type != independent.Type() {
+		return fmt.Errorf("configClient.Service('%s') returned type '%s', expected '%s'", independent.name, returnedService.Type, independent.Type())
 	}
 
 	for category, raw := range independent.Handlers {
@@ -270,7 +274,7 @@ func (independent *Service) lintConfig() error {
 // The returned configuration from the context is linted into service and handler.
 //
 // Important node. This method doesn't set the proxies or extensions.
-func (independent *Service) setConfig() error {
+func (independent *Independent) setConfig() error {
 	configClient := independent.ctx.Config()
 
 	// prepare the configuration
@@ -295,7 +299,7 @@ func (independent *Service) setConfig() error {
 	return nil
 }
 
-func (independent *Service) setProxyUnitsBy(dest *serviceConfig.Rule) error {
+func (independent *Independent) setProxyUnitsBy(dest *serviceConfig.Rule) error {
 	proxyClient := independent.ctx.ProxyClient()
 
 	if dest.IsRoute() {
@@ -321,7 +325,7 @@ func (independent *Service) setProxyUnitsBy(dest *serviceConfig.Rule) error {
 // The setProxyUnits gets the list of proxy chains for this service.
 // Then, it creates a proxy units.
 // Todo if the extension is sending a ready command, then update the command list.
-func (independent *Service) setProxyUnits() error {
+func (independent *Independent) setProxyUnits() error {
 	proxyClient := independent.ctx.ProxyClient()
 	proxyChains, err := proxyClient.ProxyChains()
 	if err != nil {
@@ -340,7 +344,7 @@ func (independent *Service) setProxyUnits() error {
 }
 
 // unitsByRouteRule returns the list of units for the route rule
-func (independent *Service) unitsByRouteRule(rule *serviceConfig.Rule) []*serviceConfig.Unit {
+func (independent *Independent) unitsByRouteRule(rule *serviceConfig.Rule) []*serviceConfig.Unit {
 	units := make([]*serviceConfig.Unit, 0, len(rule.Commands)*len(rule.Categories))
 
 	if len(independent.Handlers) == 0 {
@@ -378,7 +382,7 @@ func (independent *Service) unitsByRouteRule(rule *serviceConfig.Rule) []*servic
 }
 
 // unitsByHandlerRule returns the list of units for the handler rule
-func (independent *Service) unitsByHandlerRule(rule *serviceConfig.Rule) []*serviceConfig.Unit {
+func (independent *Independent) unitsByHandlerRule(rule *serviceConfig.Rule) []*serviceConfig.Unit {
 	units := make([]*serviceConfig.Unit, 0, len(rule.Categories))
 
 	for _, raw := range independent.Handlers {
@@ -410,7 +414,7 @@ func (independent *Service) unitsByHandlerRule(rule *serviceConfig.Rule) []*serv
 }
 
 // unitsByServiceRule returns the list of units for the service rule
-func (independent *Service) unitsByServiceRule(rule *serviceConfig.Rule) []*serviceConfig.Unit {
+func (independent *Independent) unitsByServiceRule(rule *serviceConfig.Rule) []*serviceConfig.Unit {
 	units := make([]*serviceConfig.Unit, 0, len(rule.Categories))
 
 	for _, raw := range independent.Handlers {
@@ -444,7 +448,7 @@ func (independent *Service) unitsByServiceRule(rule *serviceConfig.Rule) []*serv
 // The manager.Manager depends on Logger, set automatically.
 //
 // This function lints manager.Manager with ctx.
-func (independent *Service) newManager() error {
+func (independent *Independent) newManager() error {
 	m, err := manager.New(independent.ctx, independent.name, &independent.blocker)
 	if err != nil {
 		return fmt.Errorf("manager.New: %w", err)
@@ -459,7 +463,7 @@ func (independent *Service) newManager() error {
 }
 
 // setHandlerClient creates a handler manager clients and sets them into the service manager.
-func (independent *Service) setHandlerClient(c base.Interface) error {
+func (independent *Independent) setHandlerClient(c base.Interface) error {
 	handlerClient, err := manager_client.New(c.Config())
 	if err != nil {
 		return fmt.Errorf("manager_client.New('%s'): %w", c.Config().Category, err)
@@ -471,7 +475,7 @@ func (independent *Service) setHandlerClient(c base.Interface) error {
 
 // startHandler sets the log into the handler which is prepared already.
 // Then, starts it.
-func (independent *Service) startHandler(handler base.Interface) error {
+func (independent *Independent) startHandler(handler base.Interface) error {
 	if err := handler.SetLogger(independent.Logger); err != nil {
 		return fmt.Errorf("handler(id: '%s').SetLogger: %w", handler.Config().Id, err)
 	}
@@ -483,7 +487,7 @@ func (independent *Service) startHandler(handler base.Interface) error {
 	return nil
 }
 
-func (independent *Service) startHandlers() error {
+func (independent *Independent) startHandlers() error {
 	var err error
 	startedAmount := 0
 
@@ -515,7 +519,7 @@ exitStartHandler:
 	return independent.closeHandlers(startedAmount)
 }
 
-func (independent *Service) closeHandlers(startedAmount int) error {
+func (independent *Independent) closeHandlers(startedAmount int) error {
 	var err error
 
 	if startedAmount == 0 {
@@ -546,7 +550,7 @@ func (independent *Service) closeHandlers(startedAmount int) error {
 // Start the service.
 //
 // Requires at least one handler.
-func (independent *Service) Start() (*sync.WaitGroup, error) {
+func (independent *Independent) Start() (*sync.WaitGroup, error) {
 	var err error
 
 	if len(independent.Handlers) == 0 {
@@ -633,7 +637,7 @@ errOccurred:
 	return independent.blocker, err
 }
 
-//func (independent *Service) prepareExtensionConfiguration(dep *dev.Dep) error {
+//func (independent *Independent) prepareExtensionConfiguration(dep *dev.Dep) error {
 //	err := dep.Prepare(independent.Logger)
 //	if err != nil {
 //		return fmt.Errorf("dev.Prepare(%s): %w", dep.Url(), err)

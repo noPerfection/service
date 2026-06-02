@@ -34,9 +34,9 @@ import (
 type TestProxySuite struct {
 	suite.Suite
 
-	parent            *serviceLib.Service // the manager to test
-	parentUrl         string              // dependency source code
-	parentId          string              // the parentId of the dependency
+	parent            *serviceLib.Independent // the manager to test
+	parentUrl         string                  // dependency source code
+	parentId          string                  // the parentId of the dependency
 	parentLocalBin    string
 	parentConfig      *app.App
 	parentProxyChains []*service.ProxyChain

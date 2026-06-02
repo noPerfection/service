@@ -27,9 +27,9 @@ import (
 type TestServiceSuite struct {
 	suite.Suite
 
-	service    *Service // the manager to test
-	currentDir string   // executable to store the binaries and source codes
-	name       string   // the name of the service
+	service    *Independent // the manager to test
+	currentDir string       // executable to store the binaries and source codes
+	name       string       // the name of the service
 	handler    base.Interface
 	logger     *log.Logger
 

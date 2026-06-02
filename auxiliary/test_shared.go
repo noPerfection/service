@@ -31,7 +31,7 @@ func DeleteLastFlags(amount int) {
 }
 
 func NewParent(name, url, category string,
-	handler base.Interface) (*serviceLib.Service, error) {
+	handler base.Interface) (*serviceLib.Independent, error) {
 	created, err := serviceLib.New(name)
 	if err != nil {
 		return nil, err
@@ -43,7 +43,7 @@ func NewParent(name, url, category string,
 }
 
 // CloseParent dir could be a currentDir
-func CloseParent(parent *serviceLib.Service, dir string) error {
+func CloseParent(parent *serviceLib.Independent, dir string) error {
 	if err := parent.Context().Close(); err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func DeleteYaml(dir, name string) error {
 	return win.Remove(filePath)
 }
 
-func MainHandler(s *serviceLib.Service) base.Interface {
+func MainHandler(s *serviceLib.Independent) base.Interface {
 	return s.Handlers["main"].(base.Interface)
 }
 
@@ -105,7 +105,7 @@ func ExternalClient(url string, hConfig *handlerConfig.Handler) (*client.Socket,
 	return externalClient, err
 }
 
-func ManagerClient(s *serviceLib.Service) (*client.Socket, error) {
+func ManagerClient(s *serviceLib.Independent) (*client.Socket, error) {
 	createdConfig, err := s.Context().Config().Service(s.Name())
 	if err != nil {
 		return nil, err
