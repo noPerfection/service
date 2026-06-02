@@ -109,11 +109,6 @@ func (independent *Independent) SetHandler(category string, controller base.Inte
 	independent.Handlers.Set(category, controller)
 }
 
-// Context returns the runtime context owned by the service.
-func (independent *Independent) Context() *topology.Handler {
-	return independent.topologyHandler
-}
-
 // Name returns the unique name of the service
 func (independent *Independent) Name() string {
 	return independent.name
