@@ -15,7 +15,6 @@ import (
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/handler/manager_client"
-	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
@@ -24,15 +23,12 @@ import (
 const DefaultName = "main"
 const DefaultConfigPath = "noPerfection.json"
 
-var DefaultServiceManagerEndpoint = message.NewEndpoint(topology.ServiceManagerCategory, 0)
-
 // Independent keeps all necessary parameters of the independent service.
 type Independent struct {
-	topologyHandler    *topology.Handler // topology handles the configuration and dependencies
-	Handlers           datatype.KeyValue
-	RequiredExtensions datatype.KeyValue
-	Logger             *log.Logger
-	name               string
+	topologyHandler *topology.Handler // topology handles the configuration and dependencies
+	Handlers        datatype.KeyValue
+	Logger          *log.Logger
+	name            string
 	// The blocker is a shutdown latch:
 	// it keeps the process alive after Start() returns, and it unblocks when the service is fully closed.
 	blocker *sync.WaitGroup
@@ -40,14 +36,13 @@ type Independent struct {
 }
 
 // Return instance of an independent service.
-// Optional parameters are name, topology config path, and service manager endpoint.
+// Optional parameters are name and topology config path.
 func New(params ...interface{}) (*Independent, error) {
 	name := DefaultName
 	configPath := DefaultConfigPath
-	managerEndpoint := DefaultServiceManagerEndpoint
 
-	if len(params) > 3 {
-		return nil, fmt.Errorf("too many arguments, expected name, config path, and topology endpoint")
+	if len(params) > 2 {
+		return nil, fmt.Errorf("too many arguments, expected name and config path")
 	}
 	if len(params) > 0 && params[0] != nil {
 		nameArg, ok := params[0].(string)
@@ -66,13 +61,6 @@ func New(params ...interface{}) (*Independent, error) {
 		if len(configPathArg) > 0 {
 			configPath = configPathArg
 		}
-	}
-	if len(params) > 2 && params[2] != nil {
-		endpointArg, ok := params[2].(message.Endpoint)
-		if !ok {
-			return nil, fmt.Errorf("topology endpoint argument must be message.Endpoint")
-		}
-		managerEndpoint = endpointArg
 	}
 
 	// Start the topology handler.
@@ -134,13 +122,6 @@ func (independent *Independent) Name() string {
 // Type returns the configuration type for an independent service.
 func (independent *Independent) Type() config.Type {
 	return config.IndependentType
-}
-
-// RequireExtension lints the id to the extension url
-func (independent *Independent) RequireExtension(id string, url string) {
-	if independent.RequiredExtensions.Exist(id) {
-		independent.RequiredExtensions.Set(id, url)
-	}
 }
 
 // setHandlerClient creates a handler manager clients and sets them into the service manager.
