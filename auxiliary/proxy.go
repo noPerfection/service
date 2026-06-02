@@ -13,7 +13,7 @@ import (
 	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/message"
-	serviceConfig "github.com/noPerfection/runtime/config/service"
+	serviceConfig "github.com/noPerfection/topology/config/service"
 )
 
 type RequestHandleFunc = func(handlerId string, req message.RequestInterface) (message.RequestInterface, error)

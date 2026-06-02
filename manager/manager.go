@@ -12,8 +12,8 @@ import (
 	"github.com/noPerfection/protocol/handler/manager_client"
 	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/message"
-	context "github.com/noPerfection/runtime"
-	serviceConfig "github.com/noPerfection/runtime/config/service"
+	"github.com/noPerfection/topology"
+	serviceConfig "github.com/noPerfection/topology/config/service"
 )
 
 const (
@@ -35,7 +35,7 @@ type Manager struct {
 	serviceName     string
 	handlerManagers []manager_client.Interface
 	deps            []*clientConfig.Client
-	ctx             context.Interface
+	ctx             topology.Interface
 	blocker         **sync.WaitGroup // block the service
 	running         bool
 	config          *clientConfig.Client
@@ -43,7 +43,7 @@ type Manager struct {
 
 // New service with the parameters.
 // Parameter order: id, url, context type
-func New(ctx context.Interface, serviceName string, blocker **sync.WaitGroup) (*Manager, error) {
+func New(ctx topology.Interface, serviceName string, blocker **sync.WaitGroup) (*Manager, error) {
 	configClient := ctx.Config()
 	returnedConfig, err := configClient.Service(serviceName)
 	if err != nil {

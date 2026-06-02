@@ -21,10 +21,10 @@ import (
 	"github.com/noPerfection/protocol/handler/route"
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/message"
-	"github.com/noPerfection/runtime/config/app"
-	"github.com/noPerfection/runtime/config/service"
 	serviceLib "github.com/noPerfection/service"
 	"github.com/noPerfection/service/manager"
+	"github.com/noPerfection/topology/config/app"
+	"github.com/noPerfection/topology/config/service"
 	"github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 )
