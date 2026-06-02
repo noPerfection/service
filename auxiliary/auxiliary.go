@@ -2,7 +2,8 @@ package auxiliary
 
 import (
 	"fmt"
-	"github.com/noPerfection/datatype/data_type/key_value"
+
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/os/arg"
 	clientConfig "github.com/noPerfection/protocol/client/config"
 	serviceLib "github.com/noPerfection/service"
@@ -28,9 +29,9 @@ func NewAuxiliary(name ...string) (*Auxiliary, error) {
 	// Parent config in a raw string format
 	//
 	parentStr := arg.FlagValue(ParentFlag)
-	parentKv, err := key_value.NewFromString(parentStr)
+	parentKv, err := datatype.NewFromString(parentStr)
 	if err != nil {
-		return nil, fmt.Errorf("key_value.NewFromString('%s'): %w", ParentFlag, err)
+		return nil, fmt.Errorf("datatype.NewFromString('%s'): %w", ParentFlag, err)
 	}
 
 	//

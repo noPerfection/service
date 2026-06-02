@@ -2,12 +2,13 @@ package manager
 
 import (
 	"fmt"
+
+	"github.com/noPerfection/datatype"
+	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/protocol/client"
 	clientConfig "github.com/noPerfection/protocol/client/config"
-	serviceConfig "github.com/noPerfection/runtime/config/service"
-	"github.com/noPerfection/datatype/data_type/key_value"
-	"github.com/noPerfection/datatype/message"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
+	serviceConfig "github.com/noPerfection/runtime/config/service"
 )
 
 //
@@ -32,7 +33,7 @@ func NewClient(c *clientConfig.Client) (*Client, error) {
 func (c *Client) Heartbeat() error {
 	req := &message.Request{
 		Command:    Heartbeat,
-		Parameters: key_value.New(),
+		Parameters: datatype.New(),
 	}
 
 	reply, err := c.Request(req)
@@ -50,7 +51,7 @@ func (c *Client) Heartbeat() error {
 func (c *Client) Close() error {
 	req := &message.Request{
 		Command:    Close,
-		Parameters: key_value.New(),
+		Parameters: datatype.New(),
 	}
 
 	err := c.Submit(req)
@@ -64,7 +65,7 @@ func (c *Client) Close() error {
 func (c *Client) ProxyChainsByLastProxy(proxyId string) ([]*serviceConfig.ProxyChain, error) {
 	req := &message.Request{
 		Command:    ProxyChainsByLastId,
-		Parameters: key_value.New().Set("id", proxyId),
+		Parameters: datatype.New().Set("id", proxyId),
 	}
 	reply, err := c.Request(req)
 	if err != nil {
@@ -96,7 +97,7 @@ func (c *Client) ProxyChainsByLastProxy(proxyId string) ([]*serviceConfig.ProxyC
 func (c *Client) Units(rule *serviceConfig.Rule) ([]*serviceConfig.Unit, error) {
 	req := &message.Request{
 		Command:    Units,
-		Parameters: key_value.New().Set("rule", rule),
+		Parameters: datatype.New().Set("rule", rule),
 	}
 	reply, err := c.Request(req)
 	if err != nil {
@@ -133,7 +134,7 @@ func (c *Client) HandlersByCategory(category string) ([]*handlerConfig.Handler, 
 
 	req := &message.Request{
 		Command:    HandlersByCategory,
-		Parameters: key_value.New().Set("category", category),
+		Parameters: datatype.New().Set("category", category),
 	}
 	reply, err := c.Request(req)
 	if err != nil {
@@ -166,7 +167,7 @@ func (c *Client) HandlersByCategory(category string) ([]*handlerConfig.Handler, 
 func (c *Client) HandlersByRule(rule *serviceConfig.Rule) ([]*handlerConfig.Handler, error) {
 	req := &message.Request{
 		Command:    HandlersByRule,
-		Parameters: key_value.New().Set("rule", rule),
+		Parameters: datatype.New().Set("rule", rule),
 	}
 	reply, err := c.Request(req)
 	if err != nil {
@@ -199,7 +200,7 @@ func (c *Client) HandlersByRule(rule *serviceConfig.Rule) ([]*handlerConfig.Hand
 func (c *Client) ProxyConfigSet(rule *serviceConfig.Rule, serviceSource *serviceConfig.SourceService) error {
 	req := &message.Request{
 		Command:    ProxyConfigSet,
-		Parameters: key_value.New().Set("rule", rule).Set("source_service", serviceSource),
+		Parameters: datatype.New().Set("rule", rule).Set("source_service", serviceSource),
 	}
 	reply, err := c.Request(req)
 	if err != nil {

@@ -122,7 +122,7 @@ import (
 	"github.com/ahmetson/common-lib/message"
 	"github.com/noPerfection/service/remote"
 	log "github.com/noPerfection/log"
-	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/noPerfection/datatype"
 )
 
 // counter is set in the memory for development purpose.
@@ -135,18 +135,18 @@ var OnSetCounter = func(request message.Request, _ *log.Logger, _ ...*remote.Cli
 	return message.Reply{
 		Status:     message.OK,
 		Message:    "",
-		Parameters: key_value.Empty(),
+		Parameters: datatype.New(),
 	}
 }
 
 var OnGetCounter = func(_ message.Request, _ *log.Logger, _ ...*remote.Clients) message.Reply {
-	parameters := key_value.Empty()
+	parameters := datatype.New()
 	parameters.Set("counter", counter)
 
 	return message.Reply{
 		Status:     message.OK,
 		Message:    "",
-		Parameters: key_value.Empty(),
+		Parameters: datatype.New(),
 	}
 }
 

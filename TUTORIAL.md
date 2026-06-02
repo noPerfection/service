@@ -7,7 +7,7 @@ package service
 
 import (
 	"github.com/noPerfection/protocol/client"
-	"github.com/noPerfection/datatype/data_type/key_value"
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/runtime/base/config"
 	"github.com/noPerfection/protocol/handler/replier"
@@ -15,7 +15,7 @@ import (
 )
 
 func onHello(req message.Request) message.Reply {
-	repl := key_value.Empty().
+	repl := datatype.New().
 		Set("message", "hello world")
 
 	return req.Ok(repl)

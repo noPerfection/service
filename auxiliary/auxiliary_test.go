@@ -1,7 +1,10 @@
 package auxiliary
 
 import (
-	"github.com/noPerfection/datatype/data_type/key_value"
+	win "os"
+	"testing"
+
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/os/arg"
@@ -13,8 +16,6 @@ import (
 	serviceLib "github.com/noPerfection/service"
 	"github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
-	win "os"
-	"testing"
 )
 
 // Define the suite, and absorb the built-in basic suite
@@ -44,7 +45,7 @@ func (test *TestAuxiliarySuite) SetupTest() {
 	// handler
 	syncReplier := sync_replier.New()
 	test.defaultHandleFunc = func(req message.RequestInterface) message.ReplyInterface {
-		return req.Ok(key_value.New())
+		return req.Ok(datatype.New())
 	}
 	test.cmd1 = "hello"
 	s().NoError(syncReplier.Route(test.cmd1, test.defaultHandleFunc))
@@ -76,7 +77,7 @@ func (test *TestAuxiliarySuite) Test_10_NewAuxiliary() {
 
 	// Creating an auxiliary with the valid flags must succeed
 	parentClient := clientConfig.New(test.url+"_parent", test.name+"_parent", 6000, zmq4.REP)
-	parentKv, err := key_value.NewFromInterface(parentClient)
+	parentKv, err := datatype.NewFromInterface(parentClient)
 	s().NoError(err)
 	parentStr := parentKv.String()
 	win.Args = append(win.Args, arg.NewFlag(ParentFlag, parentStr))

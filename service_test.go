@@ -1,7 +1,12 @@
 package service
 
 import (
-	"github.com/noPerfection/datatype/data_type/key_value"
+	win "os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/os/path"
@@ -15,10 +20,6 @@ import (
 	serviceConfig "github.com/noPerfection/runtime/config/service"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
-	win "os"
-	"path/filepath"
-	"testing"
-	"time"
 )
 
 // Define the suite, and absorb the built-in basic suite
@@ -41,7 +42,7 @@ type TestServiceSuite struct {
 func (test *TestServiceSuite) createYaml(dir string, name string) {
 	s := test.Require
 
-	kv := key_value.New().Set("services", []interface{}{})
+	kv := datatype.New().Set("services", []interface{}{})
 
 	marshalledConfig, err := yaml.Marshal(kv.Map())
 	s().NoError(err)
@@ -83,7 +84,7 @@ func (test *TestServiceSuite) SetupTest() {
 	// handler
 	syncReplier := sync_replier.New()
 	test.defaultHandleFunc = func(req message.RequestInterface) message.ReplyInterface {
-		return req.Ok(key_value.New())
+		return req.Ok(datatype.New())
 	}
 	test.cmd1 = "hello"
 	s().NoError(syncReplier.Route(test.cmd1, test.defaultHandleFunc))
@@ -252,7 +253,7 @@ func (test *TestServiceSuite) Test_15_handler() {
 	// request the handler
 	req := message.Request{
 		Command:    "hello",
-		Parameters: key_value.New(),
+		Parameters: datatype.New(),
 	}
 	reply, err := externalClient.Request(&req)
 	s().NoError(err)
@@ -298,7 +299,7 @@ func (test *TestServiceSuite) Test_16_managerRequest() {
 
 	req := message.Request{
 		Command:    "close",
-		Parameters: key_value.New(),
+		Parameters: datatype.New(),
 	}
 	err = externalClient.Submit(&req)
 	s().NoError(err)
@@ -335,7 +336,7 @@ func (test *TestServiceSuite) Test_17_Start() {
 	// Make sure that handlers are running
 	req := message.Request{
 		Command:    "hello",
-		Parameters: key_value.New(),
+		Parameters: datatype.New(),
 	}
 	reply, err := externalClient.Request(&req)
 	s().NoError(err)
@@ -345,7 +346,7 @@ func (test *TestServiceSuite) Test_17_Start() {
 	managerClient := test.managerClient()
 	req = message.Request{
 		Command:    "heartbeat",
-		Parameters: key_value.New(),
+		Parameters: datatype.New(),
 	}
 	reply, err = managerClient.Request(&req)
 	s().NoError(err)
@@ -536,7 +537,7 @@ func (test *TestServiceSuite) Test_22_Start_Close() {
 	// Make sure that handlers are running
 	req := message.Request{
 		Command:    "hello",
-		Parameters: key_value.New(),
+		Parameters: datatype.New(),
 	}
 	reply, err := externalClient.Request(&req)
 	s().NoError(err)
@@ -546,7 +547,7 @@ func (test *TestServiceSuite) Test_22_Start_Close() {
 	managerClient := test.managerClient()
 	req = message.Request{
 		Command:    "heartbeat",
-		Parameters: key_value.New(),
+		Parameters: datatype.New(),
 	}
 	reply, err = managerClient.Request(&req)
 	s().NoError(err)
@@ -580,7 +581,7 @@ func (test *TestServiceSuite) Test_22_Start_Close() {
 	// Make sure that handlers are running
 	req = message.Request{
 		Command:    "hello",
-		Parameters: key_value.New(),
+		Parameters: datatype.New(),
 	}
 	reply, err = externalClient.Request(&req)
 	s().NoError(err)
@@ -590,7 +591,7 @@ func (test *TestServiceSuite) Test_22_Start_Close() {
 	managerClient = test.managerClient()
 	req = message.Request{
 		Command:    "heartbeat",
-		Parameters: key_value.New(),
+		Parameters: datatype.New(),
 	}
 	reply, err = managerClient.Request(&req)
 	s().NoError(err)

@@ -2,7 +2,10 @@ package auxiliary
 
 import (
 	"fmt"
-	"github.com/noPerfection/datatype/data_type/key_value"
+	"slices"
+	"sync"
+
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/protocol/client"
 	clientConfig "github.com/noPerfection/protocol/client/config"
@@ -11,8 +14,6 @@ import (
 	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	serviceConfig "github.com/noPerfection/runtime/config/service"
-	"slices"
-	"sync"
 )
 
 type RequestHandleFunc = func(handlerId string, req message.RequestInterface) (message.RequestInterface, error)
@@ -85,7 +86,7 @@ func (proxy *Proxy) routeWrapper(handlerId string, req message.RequestInterface)
 		if err != nil {
 			return nextReq.Fail(fmt.Sprintf("handler %s not replieable, submit failed as for req %v: %v", handlerId, nextReq, err))
 		}
-		return nextReq.Ok(key_value.New())
+		return nextReq.Ok(datatype.New())
 	}
 	reply, err := handlerWrapper.destClient.Request(nextReq)
 	if err != nil {
