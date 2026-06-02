@@ -6,9 +6,10 @@ import (
 	"github.com/noPerfection/os/arg"
 	clientConfig "github.com/noPerfection/protocol/client/config"
 	serviceLib "github.com/noPerfection/service"
-	"github.com/noPerfection/service/flag"
 	"github.com/noPerfection/service/manager"
 )
+
+const ParentFlag = "parent"
 
 type Auxiliary struct {
 	*serviceLib.Service
@@ -19,17 +20,17 @@ type Auxiliary struct {
 // NewAuxiliary creates a parent with the parent.
 // It requires a parent flag
 func NewAuxiliary(name ...string) (*Auxiliary, error) {
-	if !arg.FlagExist(flag.ParentFlag) {
-		return nil, fmt.Errorf("missing %s flag", arg.NewFlag(flag.ParentFlag))
+	if !arg.FlagExist(ParentFlag) {
+		return nil, fmt.Errorf("missing %s flag", arg.NewFlag(ParentFlag))
 	}
 
 	//
 	// Parent config in a raw string format
 	//
-	parentStr := arg.FlagValue(flag.ParentFlag)
+	parentStr := arg.FlagValue(ParentFlag)
 	parentKv, err := key_value.NewFromString(parentStr)
 	if err != nil {
-		return nil, fmt.Errorf("key_value.NewFromString('%s'): %w", flag.ParentFlag, err)
+		return nil, fmt.Errorf("key_value.NewFromString('%s'): %w", ParentFlag, err)
 	}
 
 	//
