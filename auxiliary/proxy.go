@@ -41,8 +41,6 @@ func NewProxy(name ...string) (*Proxy, error) {
 		return nil, fmt.Errorf("parent.NewAuxiliary: %w", err)
 	}
 
-	auxiliary.Type = serviceConfig.ProxyType
-
 	handlers := make(map[handlerConfig.HandlerType]func() base.Interface, 0)
 	handlers[handlerConfig.SyncReplierType] = func() base.Interface {
 		return sync_replier.New()

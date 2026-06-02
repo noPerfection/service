@@ -12,7 +12,7 @@ import (
 const ParentFlag = "parent"
 
 type Auxiliary struct {
-	*serviceLib.Service
+	*serviceLib.Independent
 	ParentManager *manager.Client // parent to work with
 	ParentConfig  *clientConfig.Client
 }
@@ -59,5 +59,5 @@ func NewAuxiliary(name ...string) (*Auxiliary, error) {
 		return nil, fmt.Errorf("new independent parent: %w", err)
 	}
 
-	return &Auxiliary{Service: independent, ParentManager: parent, ParentConfig: &parentConfig}, nil
+	return &Auxiliary{Independent: independent, ParentManager: parent, ParentConfig: &parentConfig}, nil
 }

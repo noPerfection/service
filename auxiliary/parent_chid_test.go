@@ -30,10 +30,10 @@ import (
 type TestParentChildSuite struct {
 	suite.Suite
 
-	service    *serviceLib.Service // the manager to test
-	currentDir string              // executable to store the binaries and source codes
-	name       string              // the name of the service
-	nameChain  string              // the name of the chained service
+	service    *serviceLib.Independent // the manager to test
+	currentDir string                  // executable to store the binaries and source codes
+	name       string                  // the name of the service
+	nameChain  string                  // the name of the chained service
 	handler    base.Interface
 	logger     *log.Logger
 
