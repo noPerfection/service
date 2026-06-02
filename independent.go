@@ -18,12 +18,13 @@ import (
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/topology"
-	serviceConfig "github.com/noPerfection/topology/config/service"
+	"github.com/noPerfection/topology/config"
 )
 
 const DefaultName = "main"
-const DefaultRuntimeEndpoint = message.NewEndpoint("main_runtime", 0)
 const DefaultConfigPath = "noPerfection.json"
+
+var DefaultServiceManagerEndpoint = message.NewEndpoint(topology.ServiceManagerCategory, 0)
 
 // Independent keeps all necessary parameters of the independent service.
 type Independent struct {
@@ -38,14 +39,12 @@ type Independent struct {
 	manager *manager.Manager // manage this service from other parts
 }
 
-// New service.
-// Optional parameters are name, topology config path, and topology endpoint.
-//
-// It will also create the context internally and start it.
+// Return instance of an independent service.
+// Optional parameters are name, topology config path, and service manager endpoint.
 func New(params ...interface{}) (*Independent, error) {
 	name := DefaultName
 	configPath := DefaultConfigPath
-	topologyEndpoint := DefaultRuntimeEndpoint
+	managerEndpoint := DefaultServiceManagerEndpoint
 
 	if len(params) > 3 {
 		return nil, fmt.Errorf("too many arguments, expected name, config path, and topology endpoint")
@@ -73,31 +72,51 @@ func New(params ...interface{}) (*Independent, error) {
 		if !ok {
 			return nil, fmt.Errorf("topology endpoint argument must be message.Endpoint")
 		}
-		topologyEndpoint = endpointArg
+		managerEndpoint = endpointArg
 	}
 
 	// Start the topology handler.
-	topologyHandler, err := topology.NewHandler(configPath, topologyEndpoint)
+	topologyHandler, err := topology.NewHandler(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewHandler: %w", err)
+	}
+
+	m, err := manager.New(topologyHandler, name, nil)
+	if err != nil {
+		return nil, fmt.Errorf("manager.New: %w", err)
 	}
 
 	independent := &Independent{
 		topologyHandler: topologyHandler,
 		Handlers:        datatype.New(),
 		name:            name,
+		manager:         m,
 		blocker:         nil,
 	}
 
-	logger, err := log.New(name, true)
-	if err != nil {
-		err = fmt.Errorf("log.New(%s): %w", name, err)
+	return independent, nil
+}
 
-		return nil, err
+// EnableLogger toggles the optional service logger.
+func (independent *Independent) EnableLogger(enable bool) error {
+	if !enable {
+		independent.Logger = nil
+		return nil
+	}
+
+	logger, err := log.New(independent.name, true)
+	if err != nil {
+		return fmt.Errorf("log.New(%s): %w", independent.name, err)
 	}
 	independent.Logger = logger
 
-	return independent, nil
+	if independent.manager != nil {
+		if err := independent.manager.SetLogger(logger); err != nil {
+			return fmt.Errorf("manager.SetLogger: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // SetHandler of category
@@ -113,8 +132,8 @@ func (independent *Independent) Name() string {
 }
 
 // Type returns the configuration type for an independent service.
-func (independent *Independent) Type() serviceConfig.Type {
-	return serviceConfig.IndependentType
+func (independent *Independent) Type() config.Type {
+	return config.IndependentType
 }
 
 // RequireExtension lints the id to the extension url
@@ -122,37 +141,6 @@ func (independent *Independent) RequireExtension(id string, url string) {
 	if independent.RequiredExtensions.Exist(id) {
 		independent.RequiredExtensions.Set(id, url)
 	}
-}
-
-func (independent *Independent) requiredControllerExtensions() []string {
-	var extensions []string
-	for _, controllerInterface := range independent.Handlers {
-		c := controllerInterface.(base.Interface)
-		extensions = append(extensions, c.DepIds()...)
-	}
-
-	return extensions
-}
-
-// newManager creates a manager.Manager and assigns it to manager, otherwise manager is nil.
-//
-// Service configuration is defined in topology/config.
-//
-// The manager.Manager depends on Logger, set automatically.
-//
-// This function lints manager.Manager with the topology handler.
-func (independent *Independent) newManager() error {
-	m, err := manager.New(independent.topologyHandler, independent.name, &independent.blocker)
-	if err != nil {
-		return fmt.Errorf("manager.New: %w", err)
-	}
-	err = m.SetLogger(independent.Logger)
-	if err != nil {
-		return fmt.Errorf("manager.SetLogger: %w", err)
-	}
-	independent.manager = m
-
-	return nil
 }
 
 // setHandlerClient creates a handler manager clients and sets them into the service manager.
@@ -169,8 +157,10 @@ func (independent *Independent) setHandlerClient(c base.Interface) error {
 // startHandler sets the log into the handler which is prepared already.
 // Then, starts it.
 func (independent *Independent) startHandler(handler base.Interface) error {
-	if err := handler.SetLogger(independent.Logger); err != nil {
-		return fmt.Errorf("handler(id: '%s').SetLogger: %w", handler.Config().Id, err)
+	if independent.Logger != nil {
+		if err := handler.SetLogger(independent.Logger); err != nil {
+			return fmt.Errorf("handler(id: '%s').SetLogger: %w", handler.Config().Category, err)
+		}
 	}
 
 	if err := handler.Start(); err != nil {
@@ -251,21 +241,8 @@ func (independent *Independent) Start() (*sync.WaitGroup, error) {
 		goto errOccurred
 	}
 
-	if !independent.topologyHandler.IsDepManagerRunning() {
-		if err = independent.topologyHandler.StartDepManager(); err != nil {
-			err = fmt.Errorf("topologyHandler.StartDepManager: %w", err)
-			goto errOccurred
-		}
-	}
-	if !independent.topologyHandler.IsProxyHandlerRunning() {
-		if err = independent.topologyHandler.StartProxyHandler(); err != nil {
-			err = fmt.Errorf("topologyHandler.StartProxyHandler: %w", err)
-			goto errOccurred
-		}
-	}
-
-	if err = independent.newManager(); err != nil {
-		err = fmt.Errorf("newManager: %w", err)
+	if err = independent.topologyHandler.Start(); err != nil {
+		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
 	}
 
@@ -289,11 +266,6 @@ func (independent *Independent) Start() (*sync.WaitGroup, error) {
 
 errOccurred:
 	if err != nil {
-		closeErr := independent.topologyHandler.Close()
-		if closeErr != nil {
-			err = fmt.Errorf("%v: topologyHandler.Close: %w", err, closeErr)
-		}
-
 		if independent.manager != nil && independent.manager.Running() {
 			closeErr := independent.manager.Close()
 			if closeErr != nil {
