@@ -12,6 +12,8 @@ import (
 	"sync"
 
 	"github.com/noPerfection/log"
+	handlerConfig "github.com/noPerfection/protocol/handler/config"
+	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
@@ -21,12 +23,13 @@ import (
 
 const DefaultName = "main"
 const DefaultConfigPath = "noPerfection.json"
+const DefaultModuleUrl = "github.com/noPerfection/service"
 
 var DefaultServiceManagerEndpoint = message.NewEndpoint(topology.ServiceManagerCategory, 0)
 
 // Independent keeps all necessary parameters of the independent service.
 type Independent struct {
-	*handlers.Manager
+	*handlers.Handlers
 	topologyHandler *topology.Handler // topology handles the configuration and dependencies
 	name            string
 	blocker         *sync.WaitGroup
@@ -40,8 +43,8 @@ func New(params ...interface{}) (*Independent, error) {
 	configPath := DefaultConfigPath
 	managerEndpoint := DefaultServiceManagerEndpoint
 
-	if len(params) > 2 {
-		return nil, fmt.Errorf("too many arguments, expected name and config path")
+	if len(params) > 3 {
+		return nil, fmt.Errorf("too many arguments, expected name, config path, and manager endpoint")
 	}
 	if len(params) > 0 && params[0] != nil {
 		nameArg, ok := params[0].(string)
@@ -81,7 +84,7 @@ func New(params ...interface{}) (*Independent, error) {
 	}
 
 	independent := &Independent{
-		Manager:         handlers.NewManager(),
+		Handlers:        handlers.NewHandlers(),
 		topologyHandler: topologyHandler,
 		name:            name,
 		manager:         m,
@@ -93,7 +96,7 @@ func New(params ...interface{}) (*Independent, error) {
 // EnableLogger toggles the optional service logger.
 func (independent *Independent) EnableLogger(enable bool) error {
 	if !enable {
-		if err := independent.Manager.SetLogger(nil); err != nil {
+		if err := independent.Handlers.SetLogger(nil); err != nil {
 			return fmt.Errorf("handlers.SetLogger: %w", err)
 		}
 		return nil
@@ -103,7 +106,7 @@ func (independent *Independent) EnableLogger(enable bool) error {
 	if err != nil {
 		return fmt.Errorf("log.New(%s): %w", independent.name, err)
 	}
-	if err := independent.Manager.SetLogger(logger); err != nil {
+	if err := independent.Handlers.SetLogger(logger); err != nil {
 		return fmt.Errorf("handlers.SetLogger: %w", err)
 	}
 
@@ -126,18 +129,99 @@ func (independent *Independent) Type() config.Type {
 	return config.IndependentType
 }
 
+// Lint default topology registeres the default service (main) and
+// the default handler (also main category and replier).
+func (independent *Independent) lintDefaultTopology() error {
+	serviceConfig, err := independent.topologyHandler.Service(independent.name)
+	// Error indicates no service config
+	if err != nil {
+		serviceConfig = *config.New(independent.name, config.IndependentType)
+		serviceConfig.ModuleUrl = DefaultModuleUrl
+	}
+
+	defaultHandler, err := serviceConfig.HandlerByCategory(handlers.DefaultHandlerCategory)
+	// No error indicates the default handler already exists
+	if err == nil {
+		return nil
+	}
+	defaultHandler.Category = handlers.DefaultHandlerCategory
+	defaultHandler.Endpoint = handlers.DefaultHandlerEndpoint
+	defaultHandler.Type = config.ReplierType
+	serviceConfig.Handlers = []config.Handler{defaultHandler}
+	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
+		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.name, err)
+	}
+
+	// Handler can not have the default category handler.
+	if independent.Handlers.IsHandlerExist(handlers.DefaultHandlerCategory) {
+		return fmt.Errorf("handler(category: '%s') already exists", handlers.DefaultHandlerCategory)
+	}
+
+	// Set the default handler.
+	handler := replier.New()
+	handler.SetConfig(handlerConfig.New(
+		handlerConfig.HandlerType(defaultHandler.Type),
+		defaultHandler.Endpoint.Id,
+		defaultHandler.Category,
+		defaultHandler.Endpoint.Port,
+	))
+	if err := independent.Handlers.SetHandler(handlers.DefaultHandlerCategory, handler); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Service Manager is added to the topology only if it is not the default endpoint.
+func (independent *Independent) lintManagerTopology() error {
+	// Service manager's config in the handler config format.
+	managerConfig := independent.manager.Config()
+	if managerConfig.Endpoint == DefaultServiceManagerEndpoint {
+		return nil
+	}
+
+	// Converting from the handler config format to the topology's config format.
+	managerTopologyConfig := config.Handler{
+		Type:     config.HandlerType(managerConfig.Type),
+		Category: managerConfig.Category,
+		Endpoint: managerConfig.Endpoint,
+	}
+
+	// Our service's config in the topology.
+	serviceConfig, err := independent.topologyHandler.Service(independent.name)
+	if err != nil {
+		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.name, err)
+	}
+
+	serviceConfig.SetHandler(managerTopologyConfig, true)
+	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
+		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.name, err)
+	}
+
+	return nil
+}
+
 // Start the service.
 //
 // Requires at least one handler.
 func (independent *Independent) Start() error {
 	var err error
 
+	if err = independent.lintDefaultTopology(); err != nil {
+		err = fmt.Errorf("lintDefaultTopology: %w", err)
+		goto errOccurred
+	}
+	if err = independent.lintManagerTopology(); err != nil {
+		err = fmt.Errorf("lintManagerTopology: %w", err)
+		goto errOccurred
+	}
+
 	if err = independent.topologyHandler.Start(); err != nil {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
 	}
 
-	if err = independent.Manager.Start(); err != nil {
+	if err = independent.Handlers.Start(); err != nil {
 		err = fmt.Errorf("handlers.Start: %w", err)
 		goto errOccurred
 	}
