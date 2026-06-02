@@ -42,7 +42,7 @@ type TestProxySuite struct {
 	parentConfig      *app.App
 	parentProxyChains []*service.ProxyChain
 	url               string
-	id                string
+	name              string
 	handler           base.Interface
 	logger            *log.Logger
 
@@ -74,7 +74,7 @@ func (test *TestProxySuite) SetupTest() {
 	test.parentLocalBin = path.BinPath(filepath.Join("./_test_services/proxy_parent/backend/bin"), "test")
 	test.parentConfig = app.New()
 	test.url = "github.com/ahmetson/proxy-lib"
-	test.id = "proxy_1"
+	test.name = "proxy_1"
 
 	// load the parent configuration
 	parentConfigPath := filepath.Join("./_test_services/proxy_parent/backend/bin/app.yml")
@@ -112,7 +112,7 @@ func (test *TestProxySuite) mockedProxyChainsByLastProxy(req message.RequestInte
 	}
 	proxyChains := make([]key_value.KeyValue, 0, 1)
 
-	if test.id != id || len(test.parentProxyChains) == 0 {
+	if test.name != id || len(test.parentProxyChains) == 0 {
 		return req.Ok(key_value.New().Set("proxy_chains", proxyChains))
 	}
 
@@ -376,17 +376,13 @@ func (test *TestProxySuite) Test_10_NewProxy() {
 	_, parentStr, err := ParentConfig(test.parentUrl, test.parentId, uint64(6000))
 	s().NoError(err)
 
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentStr),
-	)
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentStr))
 
-	proxy, err := NewProxy()
+	proxy, err := NewProxy(test.name)
 	s().NoError(err)
 
 	// Clean out
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 	s().NoError(proxy.Context().Close())
 	time.Sleep(time.Millisecond * 100)
 }
@@ -399,13 +395,9 @@ func (test *TestProxySuite) Test_11_Proxy_SetHandler() {
 	_, parentStr, err := ParentConfig(test.parentUrl, test.parentId, uint64(6000))
 	s().NoError(err)
 
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentStr),
-	)
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentStr))
 
-	proxy, err := NewProxy()
+	proxy, err := NewProxy(test.name)
 	s().NoError(err)
 
 	// No handlers were given
@@ -416,7 +408,7 @@ func (test *TestProxySuite) Test_11_Proxy_SetHandler() {
 	s().Len(proxy.Handlers, 0)
 
 	// Clean out
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 	s().NoError(proxy.Context().Close())
 	time.Sleep(time.Millisecond * 100)
 }
@@ -450,7 +442,7 @@ func (test *TestProxySuite) Test_12_Proxy_lintProxyChain() {
 	}
 	thisProxy := &service.Proxy{
 		Local:    &service.Local{},
-		Id:       test.id,
+		Id:       test.name,
 		Url:      test.url,
 		Category: "test-proxy",
 	}
@@ -467,23 +459,19 @@ func (test *TestProxySuite) Test_12_Proxy_lintProxyChain() {
 	mockedManagerClient, err := manager_client.New(mockedConfig)
 	s().NoError(err)
 
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentKv.String()),
-	)
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
 
 	// let's create our proxy
-	proxy, err := NewProxy()
+	proxy, err := NewProxy(test.name)
 	s().NoError(err)
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 
-	parentProxyChains, err := proxy.ParentManager.ProxyChainsByLastProxy(proxy.Id())
+	parentProxyChains, err := proxy.ParentManager.ProxyChainsByLastProxy(proxy.Name())
 	s().NoError(err)
 	s().Len(parentProxyChains, 1)
 
 	// linting a proxy chain requires dep manager and proxy handler in the context
-	proxy.Context().SetService(test.id, test.url)
+	proxy.Context().SetService(test.name, test.name)
 	err = proxy.Context().StartDepManager()
 	s().NoError(err)
 	err = proxy.Context().StartProxyHandler()
@@ -520,18 +508,14 @@ func (test *TestProxySuite) Test_12_Proxy_lintProxyChain() {
 	// Wait a bit for close of the threads
 	time.Sleep(time.Millisecond * 100)
 
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentKv.String()),
-	)
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
 
 	// let's create our proxy
-	proxy, err = NewProxy()
+	proxy, err = NewProxy(test.name)
 	s().NoError(err)
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 
-	proxy.Context().SetService(test.id, test.url)
+	proxy.Context().SetService(test.name, test.name)
 	err = proxy.Context().StartDepManager()
 	s().NoError(err)
 	err = proxy.Context().StartProxyHandler()
@@ -611,19 +595,15 @@ func (test *TestProxySuite) Test_13_Proxy_lintHandlers() {
 	// wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
 
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentKv.String()),
-	)
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
 
 	// let's create our proxy
-	proxy, err := NewProxy()
+	proxy, err := NewProxy(test.name)
 	s().NoError(err)
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 
 	//// init the config
-	//proxy.Context().SetService(test.id, test.url)
+	//proxy.Context().SetService(test.name, test.name)
 
 	// No handlers
 	s().Len(proxy.Handlers, 0)
@@ -658,14 +638,10 @@ func (test *TestProxySuite) Test_13_Proxy_lintHandlers() {
 
 	time.Sleep(time.Millisecond * 100) // Wait a bit for parent initiation
 
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentKv.String()),
-	)
-	proxy, err = NewProxy() // restarting so that parent manager is a new client
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
+	proxy, err = NewProxy(test.name) // restarting so that parent manager is a new client
 	s().NoError(err)
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 	proxy.rule = rule // available in the proxy as proxy.destination()
 
 	time.Sleep(time.Millisecond * 100) // Wait a bit for parent initiation
@@ -702,14 +678,10 @@ func (test *TestProxySuite) Test_13_Proxy_lintHandlers() {
 
 	time.Sleep(time.Millisecond * 100) // Wait a bit for parent initiation
 
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentKv.String()),
-	)
-	proxy, err = NewProxy() // restarting so that parent manager is a new client
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
+	proxy, err = NewProxy(test.name) // restarting so that parent manager is a new client
 	s().NoError(err)
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 
 	time.Sleep(time.Millisecond * 100) // Wait a bit for parent initiation
 
@@ -806,19 +778,15 @@ func (test *TestProxySuite) Test_14_Proxy_setProxyUnits() {
 	// wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
 
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentKv.String()),
-	)
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
 
 	// let's create our proxy
-	proxy, err := NewProxy()
+	proxy, err := NewProxy(test.name)
 	s().NoError(err)
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 
 	//// init the config
-	proxy.Context().SetService(test.id, test.url)
+	proxy.Context().SetService(test.name, test.name)
 	err = proxy.Context().StartDepManager()
 	s().NoError(err)
 	err = proxy.Context().StartProxyHandler()
@@ -872,7 +840,7 @@ func (test *TestProxySuite) Test_15_Proxy_Start() {
 	// not exists, but we don't care since its upper level and parent won't manage it.
 	thisProxy := &service.Proxy{
 		Local:    &service.Local{},
-		Id:       test.id,
+		Id:       test.name,
 		Url:      test.url,
 		Category: "test-proxy",
 	}
@@ -896,16 +864,12 @@ func (test *TestProxySuite) Test_15_Proxy_Start() {
 	mockedManagerClient, err := manager_client.New(mockedConfig)
 	s().NoError(err)
 
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentKv.String()),
-	)
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
 
 	// let's create our proxy
-	proxy, err := NewProxy()
+	proxy, err := NewProxy(test.name)
 	s().NoError(err)
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 
 	// Starting must initialize the handlers too
 	s().Zero(len(proxy.Handlers))
@@ -949,16 +913,12 @@ func (test *TestProxySuite) Test_16_Proxy_routeWrapper() {
 	//mockedManager, mockedConfig, err := test.newMockedServiceManager(parentManager)
 	//s().NoError(err)
 
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentKv.String()),
-	)
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
 
 	// let's create our proxy
-	proxy, err := NewProxy()
+	proxy, err := NewProxy(test.name)
 	s().NoError(err)
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 
 	// fail as proxy.handleWrappers == empty
 	reply := proxy.routeWrapper(helloId, &message.Request{})
@@ -1255,19 +1215,15 @@ func (test *TestProxySuite) Test_17_Proxy_routeHandlers() {
 	// wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
 
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentKv.String()),
-	)
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentKv.String()))
 
 	// let's create our proxy
-	proxy, err := NewProxy()
+	proxy, err := NewProxy(test.name)
 	s().NoError(err)
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 
 	//// init the config
-	proxy.Context().SetService(test.id, test.url)
+	proxy.Context().SetService(test.name, test.name)
 	err = proxy.Context().StartDepManager()
 	s().NoError(err)
 	err = proxy.Context().StartProxyHandler()
@@ -1311,7 +1267,7 @@ func (test *TestProxySuite) Test_17_Proxy_routeHandlers() {
 
 	s().NotEmpty(proxy.Handlers)
 	s().NotEmpty(proxy.handlerWrappers)
-	raw, ok := proxy.Handlers[test.id+test.categories[0]]
+	raw, ok := proxy.Handlers[test.name+test.categories[0]]
 	s().True(ok)
 	handler := raw.(base.Interface)
 	s().NotEmpty(handler.RouteCommands())
@@ -1329,7 +1285,7 @@ func (test *TestProxySuite) Test_17_Proxy_routeHandlers() {
 	err = proxy.startHandlers()
 	s().NoError(err)
 
-	raw, ok = proxy.Handlers[test.id+test.categories[0]]
+	raw, ok = proxy.Handlers[test.name+test.categories[0]]
 	s().True(ok)
 	handler = raw.(base.Interface)
 	s().NotEmpty(handler.RouteCommands())
@@ -1341,7 +1297,7 @@ func (test *TestProxySuite) Test_17_Proxy_routeHandlers() {
 	client1, err := client.New(clientConf1)
 	s().NoError(err)
 
-	raw, ok = proxy.Handlers[test.id+test.categories[1]]
+	raw, ok = proxy.Handlers[test.name+test.categories[1]]
 	s().True(ok)
 	handler = raw.(base.Interface)
 	s().NotEmpty(handler.RouteCommands())
@@ -1352,7 +1308,7 @@ func (test *TestProxySuite) Test_17_Proxy_routeHandlers() {
 	//req to router doesn't work, test it
 	s().NoError(err)
 
-	raw, ok = proxy.Handlers[test.id+test.categories[2]]
+	raw, ok = proxy.Handlers[test.name+test.categories[2]]
 	s().True(ok)
 	handler = raw.(base.Interface)
 	s().NotEmpty(handler.RouteCommands())

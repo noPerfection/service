@@ -35,8 +35,8 @@ type HandlerWrapper struct {
 }
 
 // NewProxy proxy parent returned
-func NewProxy() (*Proxy, error) {
-	auxiliary, err := NewAuxiliary()
+func NewProxy(name ...string) (*Proxy, error) {
+	auxiliary, err := NewAuxiliary(name...)
 	if err != nil {
 		return nil, fmt.Errorf("parent.NewAuxiliary: %w", err)
 	}
@@ -148,7 +148,7 @@ func (proxy *Proxy) routeHandlers(units []*serviceConfig.Unit) error {
 				"handlers", proxy.Handlers)
 			continue
 		}
-		category := proxy.Id() + handlerWrapper.destConfig.Category
+		category := proxy.Name() + handlerWrapper.destConfig.Category
 		handler, ok := proxy.Handlers[category].(base.Interface)
 		if !ok {
 			return fmt.Errorf(fmt.Sprintf("unit handler by category not found, category=%s, wrappers amount=%d, handler id='%s'",
@@ -187,7 +187,7 @@ func (proxy *Proxy) setProxyUnits() error {
 		rule := proxyChain.Destination
 
 		// For proxy chains set specifically for this proxy, then simply get the proxies
-		if slices.Contains(rule.Urls, proxy.Url()) {
+		if slices.Contains(rule.Urls, proxy.Name()) {
 			err := proxy.SetProxyUnitsBy(rule)
 			if err != nil {
 				return fmt.Errorf("proxy.SetProxyUnitsBy(rule='%v'): %w", rule, err)
@@ -234,12 +234,12 @@ func (proxy *Proxy) setProxyUnits() error {
 // Todo, make sure to listen for the proxy parameters from the parent by a loop.
 func (proxy *Proxy) lintProxyChain() error {
 	// first, get the proxy chain parameter for this proxy chain
-	proxyChains, err := proxy.ParentManager.ProxyChainsByLastProxy(proxy.Id())
+	proxyChains, err := proxy.ParentManager.ProxyChainsByLastProxy(proxy.Name())
 	if err != nil {
-		return fmt.Errorf("parentManager.ProxyChainsByLastProxy(id='%s'): %w", proxy.Id(), err)
+		return fmt.Errorf("parentManager.ProxyChainsByLastProxy(id='%s'): %w", proxy.Name(), err)
 	}
 	if len(proxyChains) == 0 {
-		return fmt.Errorf("parentManager.ProxyChainsByLastProxy(id='%s'): empty proxy chains", proxy.Id())
+		return fmt.Errorf("parentManager.ProxyChainsByLastProxy(id='%s'): empty proxy chains", proxy.Name())
 	}
 	proxyChain := proxyChains[0]
 	if proxyChain.Sources == nil {
@@ -247,7 +247,7 @@ func (proxy *Proxy) lintProxyChain() error {
 	}
 
 	if !proxyChain.IsValid() {
-		return fmt.Errorf("parentManager.ProxyChainsByLastProxy(id='%s'): proxy chain is not valid", proxy.Id())
+		return fmt.Errorf("parentManager.ProxyChainsByLastProxy(id='%s'): proxy chain is not valid", proxy.Name())
 	}
 
 	preLast := len(proxyChain.Proxies) - 1
@@ -269,7 +269,7 @@ func (proxy *Proxy) lintProxyChain() error {
 	// When the proxy will start the base service, the proxy handler will fetch it.
 	err = proxy.SetProxyChain(proxyChain)
 	if err != nil {
-		return fmt.Errorf("proxy.SetProxyChain(rule='%v', id='%s'): %w", proxyChain.Destination, proxy.Id(), err)
+		return fmt.Errorf("proxy.SetProxyChain(rule='%v', id='%s'): %w", proxyChain.Destination, proxy.Name(), err)
 	}
 
 	return nil
@@ -310,10 +310,10 @@ func (proxy *Proxy) lintHandlers() error {
 
 	handlerConfigs, err := proxy.ParentManager.HandlersByRule(destination)
 	if err != nil {
-		return fmt.Errorf("proxy.ParentManager.HandlersByRule(rule='%v', parentId='%s'): %w", destination, proxy.Id(), err)
+		return fmt.Errorf("proxy.ParentManager.HandlersByRule(rule='%v', parentId='%s'): %w", destination, proxy.Name(), err)
 	}
 	if len(handlerConfigs) == 0 {
-		return fmt.Errorf("proxy.ParentManager.HandlersByRule(rule='%v', parentId='%s'): no handler configs", destination, proxy.Id())
+		return fmt.Errorf("proxy.ParentManager.HandlersByRule(rule='%v', parentId='%s'): no handler configs", destination, proxy.Name())
 	}
 	slices.CompactFunc(handlerConfigs, func(x, y *handlerConfig.Handler) bool {
 		return x.Id == y.Id
@@ -331,7 +331,7 @@ func (proxy *Proxy) lintHandlers() error {
 		h := definer()
 		// todo use the proxy category; when generating a proxy parentId,
 		// it needs to over-write the generateConfig method of the parent to set a new parentId.
-		proxy.Auxiliary.SetHandler(proxy.Id()+handlerConfigs[i].Category, h)
+		proxy.Auxiliary.SetHandler(proxy.Name()+handlerConfigs[i].Category, h)
 
 		// could lead to unexpected behavior if there are multiple urls
 		parentZmqType := handlerConfig.SocketType(handlerConfigs[i].Type)
@@ -358,7 +358,7 @@ func (proxy *Proxy) lintHandlers() error {
 // And when a parent starts, it will fetch the parameters.
 // Todo make sure that proxy chain update in a live mode affects the Service.
 func (proxy *Proxy) Start() (*sync.WaitGroup, error) {
-	proxy.Context().SetService(proxy.Id(), proxy.Url())
+	proxy.Context().SetService(proxy.Name(), proxy.Name())
 	if !proxy.Context().IsDepManagerRunning() {
 		if err := proxy.Context().StartDepManager(); err != nil {
 			err = fmt.Errorf("ctx.StartDepManager: %w", err)
@@ -411,9 +411,9 @@ func (proxy *Proxy) Start() (*sync.WaitGroup, error) {
 	// send to the parent info that it was set.
 	rule, _ := proxy.destination()
 	if rule != nil {
-		serviceConf, err := proxy.Context().Config().Service(proxy.Id())
+		serviceConf, err := proxy.Context().Config().Service(proxy.Name())
 		if err != nil {
-			return wg, fmt.Errorf("proxy.Context().Config().Service(id='%s'): %w", proxy.Id(), err)
+			return wg, fmt.Errorf("proxy.Context().Config().Service(id='%s'): %w", proxy.Name(), err)
 		}
 
 		source := &serviceConfig.SourceService{
@@ -424,7 +424,7 @@ func (proxy *Proxy) Start() (*sync.WaitGroup, error) {
 		for i := range serviceConf.Handlers {
 			handlerConf := serviceConf.Handlers[i]
 			handlerZmqType := handlerConfig.SocketType(handlerConf.Type)
-			clientConf := clientConfig.New(proxy.Url(), handlerConf.Id, handlerConf.Port, handlerZmqType)
+			clientConf := clientConfig.New(proxy.Name(), handlerConf.Id, handlerConf.Port, handlerZmqType)
 
 			source.Clients[i] = clientConf
 		}

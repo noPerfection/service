@@ -26,7 +26,7 @@ type TestAuxiliarySuite struct {
 
 	parent  *serviceLib.Service // the manager to test
 	url     string              // dependency source code
-	id      string              // the id of the dependency
+	name    string              // the name of the dependency
 	handler base.Interface
 	logger  *log.Logger
 
@@ -40,7 +40,7 @@ func (test *TestAuxiliarySuite) SetupTest() {
 
 	// A valid source code that we want to download
 	test.url = "github.com/ahmetson/parent-lib"
-	test.id = "service_1"
+	test.name = "service_1"
 
 	// handler
 	syncReplier := sync_replier.New()
@@ -76,20 +76,16 @@ func (test *TestAuxiliarySuite) Test_10_NewAuxiliary() {
 	DeleteLastFlags(1)
 
 	// Creating an auxiliary with the valid flags must succeed
-	parentClient := clientConfig.New(test.url+"_parent", test.id+"_parent", 6000, zmq4.REP)
+	parentClient := clientConfig.New(test.url+"_parent", test.name+"_parent", 6000, zmq4.REP)
 	parentKv, err := key_value.NewFromInterface(parentClient)
 	s().NoError(err)
 	parentStr := parentKv.String()
-	win.Args = append(win.Args,
-		arg.NewFlag(flag.IdFlag, test.id),
-		arg.NewFlag(flag.UrlFlag, test.url),
-		arg.NewFlag(flag.ParentFlag, parentStr),
-	)
+	win.Args = append(win.Args, arg.NewFlag(flag.ParentFlag, parentStr))
 
-	auxiliary, err := NewAuxiliary()
+	auxiliary, err := NewAuxiliary(test.name)
 	s().NoError(err)
 
-	DeleteLastFlags(3)
+	DeleteLastFlags(1)
 
 	s().NoError(auxiliary.Context().Close())
 }

@@ -4,7 +4,6 @@ import (
 	"github.com/noPerfection/datatype/data_type/key_value"
 	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/log"
-	"github.com/noPerfection/os/arg"
 	"github.com/noPerfection/os/path"
 	"github.com/noPerfection/protocol/client"
 	clientConfig "github.com/noPerfection/protocol/client/config"
@@ -14,7 +13,6 @@ import (
 	"github.com/noPerfection/protocol/handler/route"
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	serviceConfig "github.com/noPerfection/runtime/config/service"
-	"github.com/noPerfection/service/flag"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
 	win "os"
@@ -31,8 +29,7 @@ type TestServiceSuite struct {
 
 	service    *Service // the manager to test
 	currentDir string   // executable to store the binaries and source codes
-	url        string   // dependency source code
-	id         string   // the id of the dependency
+	name       string   // the name of the service
 	handler    base.Interface
 	logger     *log.Logger
 
@@ -81,9 +78,7 @@ func (test *TestServiceSuite) SetupTest() {
 	s().NoError(err)
 	test.currentDir = currentDir
 
-	// A valid source code that we want to download
-	test.url = "github.com/noPerfection/service"
-	test.id = "service_1"
+	test.name = "service_1"
 
 	// handler
 	syncReplier := sync_replier.New()
@@ -110,8 +105,6 @@ func (test *TestServiceSuite) closeService() {
 
 		test.service = nil
 
-		win.Args = win.Args[:len(win.Args)-2]
-
 		// Wait a bit for closing the threads
 		time.Sleep(time.Second)
 	}
@@ -122,9 +115,7 @@ func (test *TestServiceSuite) closeService() {
 func (test *TestServiceSuite) newService() {
 	s := test.Suite.Require
 
-	win.Args = append(win.Args, arg.NewFlag(flag.IdFlag, test.id), arg.NewFlag(flag.UrlFlag, test.url))
-
-	created, err := New()
+	created, err := New(test.name)
 	s().NoError(err)
 
 	test.service = created
@@ -140,7 +131,7 @@ func (test *TestServiceSuite) externalClient(hConfig *handlerConfig.Handler) *cl
 
 	// let's test that handler runs
 	targetZmqType := handlerConfig.SocketType(hConfig.Type)
-	externalConfig := clientConfig.New(test.service.url, hConfig.Id, hConfig.Port, targetZmqType)
+	externalConfig := clientConfig.New(test.service.Name(), hConfig.Id, hConfig.Port, targetZmqType)
 	externalConfig.UrlFunc(clientConfig.Url)
 	externalClient, err := client.New(externalConfig)
 	s().NoError(err)
@@ -151,7 +142,7 @@ func (test *TestServiceSuite) externalClient(hConfig *handlerConfig.Handler) *cl
 func (test *TestServiceSuite) managerClient() *client.Socket {
 	s := test.Suite.Require
 
-	createdConfig, err := test.service.ctx.Config().Service(test.id)
+	createdConfig, err := test.service.ctx.Config().Service(test.name)
 	s().NoError(err)
 	managerConfig := createdConfig.Manager
 	managerConfig.UrlFunc(clientConfig.Url)
@@ -161,28 +152,22 @@ func (test *TestServiceSuite) managerClient() *client.Socket {
 	return managerClient
 }
 
-// Test_10_New creates a new service from flags.
+// Test_10_New creates a new service from an optional name.
 func (test *TestServiceSuite) Test_10_New() {
 	s := test.Suite.Require
 
-	// creating a new service must fail since
-	// no flag identifies the service
-	_, err := New()
-	s().Error(err)
+	// Creating a service without a name uses the default name.
+	independent, err := New()
+	s().NoError(err)
+	s().Equal(DefaultName, independent.Name())
+	s().NoError(independent.ctx.Close())
 
 	// Wait a bit for closing context threads
 	time.Sleep(time.Millisecond * 100)
 
-	// Pass a flag
-	idFlag := arg.NewFlag(flag.IdFlag, test.id)
-	urlFlag := arg.NewFlag(flag.UrlFlag, test.url)
-	win.Args = append(win.Args, idFlag, urlFlag)
-
-	independent, err := New()
+	independent, err = New(test.name)
 	s().NoError(err)
-
-	// Clean out the os args
-	win.Args = win.Args[:len(win.Args)-2]
+	s().Equal(test.name, independent.Name())
 
 	// remove the created service.
 	// to re-create the service, we must close the context.
@@ -304,7 +289,7 @@ func (test *TestServiceSuite) Test_16_managerRequest() {
 	s().True(test.service.manager.Running())
 
 	// test sending a command to the manager
-	createdConfig, err := test.service.ctx.Config().Service(test.id)
+	createdConfig, err := test.service.ctx.Config().Service(test.name)
 	s().NoError(err)
 	externalConfig := createdConfig.Manager
 	externalConfig.UrlFunc(clientConfig.Url)
@@ -327,7 +312,6 @@ func (test *TestServiceSuite) Test_16_managerRequest() {
 
 	// clean out
 	test.service = nil
-	win.Args = win.Args[:len(win.Args)-2]
 }
 
 // Test_17_Start test service start.
@@ -375,7 +359,6 @@ func (test *TestServiceSuite) Test_17_Start() {
 
 	// since we closed by manager, the cleaning-out by test suite not necessary.
 	test.service = nil
-	win.Args = win.Args[:len(win.Args)-2]
 }
 
 // Test_18_Service_unitsByRouteRule tests the counting units by route rule
@@ -387,7 +370,7 @@ func (test *TestServiceSuite) Test_18_Service_unitsByRouteRule() {
 
 	// the SetupTest adds "main" category handler with "hello" command
 	test.newService()
-	rule := serviceConfig.NewDestination(test.service.url, test.handlerCategory, test.cmd1)
+	rule := serviceConfig.NewDestination(test.service.Name(), test.handlerCategory, test.cmd1)
 	units := test.service.unitsByRouteRule(rule)
 	s().Len(units, 1)
 
@@ -429,7 +412,7 @@ func (test *TestServiceSuite) Test_19_Service_unitsByHandlerRule() {
 
 	// the SetupTest adds "main" category handler with "hello" command
 	test.newService()
-	rule := serviceConfig.NewDestination(test.service.url, test.handlerCategory, test.cmd1)
+	rule := serviceConfig.NewDestination(test.service.Name(), test.handlerCategory, test.cmd1)
 	units := test.service.unitsByHandlerRule(rule)
 	s().Len(units, 1)
 
@@ -439,7 +422,7 @@ func (test *TestServiceSuite) Test_19_Service_unitsByHandlerRule() {
 	s().Len(units, 1)
 
 	// The above code is identical too Handler Rule
-	rule = serviceConfig.NewHandlerDestination(test.service.url, test.handlerCategory)
+	rule = serviceConfig.NewHandlerDestination(test.service.Name(), test.handlerCategory)
 	units = test.service.unitsByHandlerRule(rule)
 	s().Len(units, 1)
 
@@ -459,7 +442,7 @@ func (test *TestServiceSuite) Test_19_Service_unitsByHandlerRule() {
 	s().NoError(syncReplier.SetLogger(test.logger))
 	test.service.SetHandler(category2, syncReplier)
 
-	rule = serviceConfig.NewHandlerDestination(test.service.url, []string{test.handlerCategory, category2})
+	rule = serviceConfig.NewHandlerDestination(test.service.Name(), []string{test.handlerCategory, category2})
 
 	units = test.service.unitsByHandlerRule(rule)
 	s().Len(units, 3)
@@ -486,7 +469,7 @@ func (test *TestServiceSuite) Test_20_Service_unitsByServiceRule() {
 
 	// the SetupTest adds "main" category handler with "hello" command
 	test.newService()
-	rule := serviceConfig.NewServiceDestination(test.service.url)
+	rule := serviceConfig.NewServiceDestination(test.service.Name())
 	units := test.service.unitsByServiceRule(rule)
 	s().Len(units, 1)
 
@@ -519,7 +502,7 @@ func (test *TestServiceSuite) Test_21_Service_SetProxyChain() {
 
 	// the SetupTest adds "main" category handler with "hello" command
 	test.newService()
-	rule := serviceConfig.NewServiceDestination(test.service.url)
+	rule := serviceConfig.NewServiceDestination(test.service.Name())
 	local1 := &serviceConfig.Local{}
 	local2 := &serviceConfig.Local{}
 	proxy1 := &serviceConfig.Proxy{Local: local1, Id: "proxy_1", Category: "proxy_cat_1", Url: "github.com/ahmetson/proxy-1"}
@@ -578,7 +561,6 @@ func (test *TestServiceSuite) Test_22_Start_Close() {
 
 	// since we closed by manager, the cleaning-out by test suite not necessary.
 	test.service = nil
-	win.Args = win.Args[:len(win.Args)-2]
 
 	//
 	// Repeat starting the service again
@@ -622,7 +604,6 @@ func (test *TestServiceSuite) Test_22_Start_Close() {
 
 	// since we closed by manager, the cleaning-out by test suite not necessary.
 	test.service = nil
-	win.Args = win.Args[:len(win.Args)-2]
 	time.Sleep(time.Millisecond * 100)
 }
 

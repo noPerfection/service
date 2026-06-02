@@ -4,7 +4,6 @@ import (
 	"github.com/noPerfection/datatype/data_type/key_value"
 	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/log"
-	"github.com/noPerfection/os/arg"
 	"github.com/noPerfection/os/net"
 	"github.com/noPerfection/os/path"
 	"github.com/noPerfection/os/process"
@@ -16,7 +15,6 @@ import (
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	serviceConfig "github.com/noPerfection/runtime/config/service"
 	serviceLib "github.com/noPerfection/service"
-	"github.com/noPerfection/service/flag"
 	"github.com/noPerfection/service/manager"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
@@ -34,9 +32,8 @@ type TestParentChildSuite struct {
 
 	service    *serviceLib.Service // the manager to test
 	currentDir string              // executable to store the binaries and source codes
-	url        string              // dependency source code
-	id         string              // the id of the parent
-	idChain    string              // the id of the service
+	name       string              // the name of the service
+	nameChain  string              // the name of the chained service
 	handler    base.Interface
 	logger     *log.Logger
 
@@ -85,10 +82,8 @@ func (test *TestParentChildSuite) SetupTest() {
 	s().NoError(err)
 	test.currentDir = currentDir
 
-	// A valid source code that we want to download
-	test.url = "github.com/noPerfection/service"
-	test.id = "service_1"
-	test.idChain = "service_chained"
+	test.name = "service_1"
+	test.nameChain = "service_chained"
 
 	// handler
 	syncReplier := sync_replier.New()
@@ -115,8 +110,6 @@ func (test *TestParentChildSuite) closeService() {
 
 		test.service = nil
 
-		win.Args = win.Args[:len(win.Args)-2]
-
 		// Wait a bit for closing the threads
 		time.Sleep(time.Second)
 	}
@@ -127,9 +120,7 @@ func (test *TestParentChildSuite) closeService() {
 func (test *TestParentChildSuite) newService() {
 	s := test.Suite.Require
 
-	win.Args = append(win.Args, arg.NewFlag(flag.IdFlag, test.id), arg.NewFlag(flag.UrlFlag, test.url))
-
-	created, err := serviceLib.New()
+	created, err := serviceLib.New(test.name)
 	s().NoError(err)
 
 	test.service = created
@@ -145,7 +136,7 @@ func (test *TestParentChildSuite) externalClient(hConfig *handlerConfig.Handler)
 
 	// let's test that handler runs
 	targetZmqType := handlerConfig.SocketType(hConfig.Type)
-	externalConfig := clientConfig.New(test.service.Url(), hConfig.Id, hConfig.Port, targetZmqType)
+	externalConfig := clientConfig.New(test.service.Name(), hConfig.Id, hConfig.Port, targetZmqType)
 	externalConfig.UrlFunc(clientConfig.Url)
 	externalClient, err := client.New(externalConfig)
 	s().NoError(err)
@@ -210,16 +201,13 @@ func (test *TestParentChildSuite) Test_10_Start() {
 		s().NoError(err)
 	}
 
-	win.Args = append(win.Args, arg.NewFlag(flag.IdFlag, test.id), arg.NewFlag(flag.UrlFlag, test.url))
-
-	created, err := serviceLib.New()
+	created, err := serviceLib.New(test.name)
 	s().NoError(err)
-	DeleteLastFlags(2)
 
 	test.service = created
 	test.service.SetHandler(test.handlerCategory, test.handler)
 
-	test.service.Context().SetService(test.service.Id(), test.service.Url())
+	test.service.Context().SetService(test.service.Name(), test.service.Name())
 	err = test.service.Context().StartDepManager()
 	s().NoError(err)
 
@@ -236,7 +224,7 @@ func (test *TestParentChildSuite) Test_10_Start() {
 	s().NoError(err)
 
 	// No sources
-	serviceConf, err := test.service.Context().Config().Service(test.id)
+	serviceConf, err := test.service.Context().Config().Service(test.name)
 	s().Error(err) // no service yet
 
 	_, err = test.service.Start()
@@ -249,12 +237,12 @@ func (test *TestParentChildSuite) Test_10_Start() {
 	s().True(used)
 
 	// Test that sources exist
-	serviceConf, err = test.service.Context().Config().Service(test.id)
+	serviceConf, err = test.service.Context().Config().Service(test.name)
 	s().NoError(err)
 	s().NotEmpty(serviceConf.Sources)
 
 	// Make sure that manager is running
-	managerClient := test.managerClient(test.id)
+	managerClient := test.managerClient(test.name)
 	err = managerClient.Close()
 	s().NoError(err)
 
@@ -281,16 +269,13 @@ func (test *TestParentChildSuite) Test_11_StartChain() {
 	err = resetProcess(proxyPort2)
 	s().NoError(err)
 
-	win.Args = append(win.Args, arg.NewFlag(flag.IdFlag, test.idChain), arg.NewFlag(flag.UrlFlag, test.url))
-
-	created, err := serviceLib.New()
+	created, err := serviceLib.New(test.nameChain)
 	s().NoError(err)
-	DeleteLastFlags(2)
 
 	test.service = created
 	test.service.SetHandler(test.handlerCategory, test.handler)
 
-	test.service.Context().SetService(test.service.Id(), test.service.Url())
+	test.service.Context().SetService(test.service.Name(), test.service.Name())
 	err = test.service.Context().StartDepManager()
 	s().NoError(err)
 
@@ -315,7 +300,7 @@ func (test *TestParentChildSuite) Test_11_StartChain() {
 	s().NoError(err)
 
 	// No sources
-	serviceConf, err := test.service.Context().Config().Service(test.idChain)
+	serviceConf, err := test.service.Context().Config().Service(test.nameChain)
 	s().Error(err) // no service yet
 
 	_, err = test.service.Start()
@@ -330,12 +315,12 @@ func (test *TestParentChildSuite) Test_11_StartChain() {
 	s().True(used)
 
 	// Test that sources exist
-	serviceConf, err = test.service.Context().Config().Service(test.idChain)
+	serviceConf, err = test.service.Context().Config().Service(test.nameChain)
 	s().NoError(err)
 	s().NotEmpty(serviceConf.Sources)
 
 	// Make sure that manager is running
-	managerClient := test.managerClient(test.idChain)
+	managerClient := test.managerClient(test.nameChain)
 	err = managerClient.Close()
 	s().NoError(err)
 
