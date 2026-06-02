@@ -14,7 +14,6 @@ import (
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
-	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/handler/manager_client"
 	"github.com/noPerfection/protocol/message"
@@ -41,7 +40,7 @@ type Independent struct {
 }
 
 // New service.
-// Optional parameters are name, config path, and topology endpoint.
+// Optional parameters are name, topology config path, and topology endpoint.
 //
 // It will also create the context internally and start it.
 func New(params ...interface{}) (*Independent, error) {
@@ -119,11 +118,6 @@ func (independent *Independent) Type() serviceConfig.Type {
 	return serviceConfig.IndependentType
 }
 
-// SetConfig prepares and stores the generated service configuration.
-func (independent *Independent) SetConfig() error {
-	return independent.setConfig()
-}
-
 // SetProxyUnitsBy stores proxy units for the given destination rule.
 func (independent *Independent) SetProxyUnitsBy(dest *serviceConfig.Rule) error {
 	return independent.setProxyUnitsBy(dest)
@@ -141,8 +135,6 @@ func (independent *Independent) SetProxyChain(params ...interface{}) error {
 	if independent.topologyHandler == nil || !independent.topologyHandler.IsConfigRunning() {
 		return fmt.Errorf("context or config engine is not running")
 	}
-
-	independent.topologyHandler.SetService(independent.name, independent.name)
 
 	if !independent.topologyHandler.IsDepManagerRunning() {
 		err := independent.topologyHandler.StartDepManager()
@@ -210,111 +202,6 @@ func (independent *Independent) requiredControllerExtensions() []string {
 	}
 
 	return extensions
-}
-
-// The generateConfig sends a signal to the context to generate a new configuration for this service.
-// The method requests multiple commands. One command to generate a service configuration.
-// Then a request to generate a handler configurations.
-//
-// The generated configuration returned back.
-func (independent *Independent) generateConfig() (*serviceConfig.Service, error) {
-	configClient := independent.topologyHandler.Config()
-
-	serviceType := independent.Type()
-	generatedConfig, err := configClient.GenerateService(independent.name, independent.name, serviceType)
-	if err != nil {
-		return nil, fmt.Errorf("configClient.GenerateService('%s', '%s', '%s'): %w", independent.name, independent.name, serviceType, err)
-	}
-	generatedConfig.Manager.UrlFunc(clientConfig.Url)
-
-	// Get all handlers and add them into the service
-	for category, raw := range independent.Handlers {
-		handler := raw.(base.Interface)
-		generatedHandler, err := configClient.GenerateHandler(handler.Type(), category, false)
-		if err != nil {
-			return nil, fmt.Errorf("configClient.GenerateHandler('%s', '%s', internal: false): %w", handler.Type(), category, err)
-		}
-
-		handler.SetConfig(generatedHandler)
-
-		generatedConfig.SetHandler(generatedHandler)
-	}
-
-	// Some handlers were generated and added into generated service config.
-	// Notify the config engine to update the service.
-	if err := configClient.SetService(generatedConfig); err != nil {
-		return nil, fmt.Errorf("configClient.SetService('generated'): %w", err)
-	}
-
-	return generatedConfig, nil
-}
-
-// lintConfig gets the configuration from the context and sets them in the service and handler.
-func (independent *Independent) lintConfig() error {
-	configClient := independent.topologyHandler.Config()
-
-	returnedService, err := configClient.Service(independent.name)
-	if err != nil {
-		return fmt.Errorf("configClient.Service('%s', '%s'): %w", independent.name, independent.Type(), err)
-	}
-	returnedService.Manager.UrlFunc(clientConfig.Url)
-
-	if returnedService.Type != independent.Type() {
-		return fmt.Errorf("configClient.Service('%s') returned type '%s', expected '%s'", independent.name, returnedService.Type, independent.Type())
-	}
-
-	for category, raw := range independent.Handlers {
-		handler := raw.(base.Interface)
-
-		returnedHandler, err := returnedService.HandlerByCategory(category)
-		if err != nil {
-			generatedHandler, err := configClient.GenerateHandler(handler.Type(), category, false)
-			if err != nil {
-				return fmt.Errorf("configClient.GenerateHandler('%s', '%s', internal: false): %w", handler.Type(), category, err)
-			}
-
-			handler.SetConfig(generatedHandler)
-
-			returnedService.SetHandler(generatedHandler)
-			if err := configClient.SetService(returnedService); err != nil {
-				return fmt.Errorf("configClient.SetService('returned'): %w", err)
-			}
-		} else {
-			handler.SetConfig(returnedHandler)
-		}
-	}
-
-	return nil
-}
-
-// The setConfig sets the configuration of this service and handlers.
-// If the configuration doesn't exist, generates the service and handler.
-// The returned configuration from the context is linted into service and handler.
-//
-// Important node. This method doesn't set the proxies or extensions.
-func (independent *Independent) setConfig() error {
-	configClient := independent.topologyHandler.Config()
-
-	// prepare the configuration
-	exist, err := configClient.ServiceExist(independent.name)
-	if err != nil {
-		return fmt.Errorf("configClient.ServiceExist('%s'): %w", independent.name, err)
-	}
-
-	if !exist {
-		_, err := independent.generateConfig()
-		if err != nil {
-			return fmt.Errorf("generateConfig: %w", err)
-		}
-
-		return nil
-	}
-
-	if err = independent.lintConfig(); err != nil {
-		return fmt.Errorf("lintConfig: %w", err)
-	}
-
-	return nil
 }
 
 func (independent *Independent) setProxyUnitsBy(dest *serviceConfig.Rule) error {
@@ -461,11 +348,11 @@ func (independent *Independent) unitsByServiceRule(rule *serviceConfig.Rule) []*
 
 // newManager creates a manager.Manager and assigns it to manager, otherwise manager is nil.
 //
-// The manager.Manager depends on config set by setConfig.
+// Service configuration is defined in topology/config.
 //
 // The manager.Manager depends on Logger, set automatically.
 //
-// This function lints manager.Manager with runtime handler.
+// This function lints manager.Manager with the topology handler.
 func (independent *Independent) newManager() error {
 	m, err := manager.New(independent.topologyHandler, independent.name, &independent.blocker)
 	if err != nil {
@@ -512,7 +399,7 @@ func (independent *Independent) startHandlers() error {
 	for category, raw := range independent.Handlers {
 		handler := raw.(base.Interface)
 		if handler.Config() == nil {
-			return fmt.Errorf("handler of %s category not set, please call SetConfig of handler", category)
+			return fmt.Errorf("handler of %s category has no config", category)
 		}
 		if err = independent.setHandlerClient(handler); err != nil {
 			err = fmt.Errorf("setHandlerClient('%s'): %w", category, err)
@@ -576,12 +463,6 @@ func (independent *Independent) Start() (*sync.WaitGroup, error) {
 		goto errOccurred
 	}
 
-	if err = independent.setConfig(); err != nil {
-		err = fmt.Errorf("setConfig: %w", err)
-		goto errOccurred
-	}
-
-	independent.topologyHandler.SetService(independent.name, independent.name)
 	if !independent.topologyHandler.IsDepManagerRunning() {
 		if err = independent.topologyHandler.StartDepManager(); err != nil {
 			err = fmt.Errorf("topologyHandler.StartDepManager: %w", err)
