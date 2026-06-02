@@ -8,7 +8,7 @@ package service
 import (
 	"github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/datatype/message"
+	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/runtime/base/config"
 	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/service"
@@ -57,7 +57,7 @@ package service
 import (
 	"fmt"
 	"github.com/noPerfection/protocol/client"
-	"github.com/noPerfection/datatype/message"
+	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/runtime/base/config"
 	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/service"

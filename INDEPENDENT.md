@@ -14,7 +14,6 @@ Get the `github.com/noPerfection/service` module and `common-lib` module:
 
 ```sh
 go get github.com/noPerfection/service
-go get github.com/ahmetson/common-lib
 ```
 
 ## Internal process

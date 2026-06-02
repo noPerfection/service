@@ -17,16 +17,19 @@ import (
 	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/handler/manager_client"
-	context "github.com/noPerfection/runtime"
+	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/runtime"
 	serviceConfig "github.com/noPerfection/runtime/config/service"
 	"github.com/noPerfection/service/manager"
 )
 
 const DefaultName = "main"
+const DefaultRuntimeEndpoint = message.NewEndpoint("main_runtime", 0)
+const DefaultConfigPath = "noPerfection.json"
 
 // Independent keeps all necessary parameters of the independent service.
 type Independent struct {
-	ctx                context.Interface // context handles the configuration and dependencies
+	runtimeHandler     *runtime.Handler // runtime handles the configuration and dependencies
 	Handlers           datatype.KeyValue
 	RequiredExtensions datatype.KeyValue
 	Logger             *log.Logger
@@ -38,39 +41,59 @@ type Independent struct {
 }
 
 // New service.
-// The service name can be passed as an optional parameter.
+// Optional parameters are name, config path, and runtime endpoint.
 //
 // It will also create the context internally and start it.
-func New(names ...string) (*Independent, error) {
+func New(params ...interface{}) (*Independent, error) {
 	name := DefaultName
-	if len(names) > 0 && len(names[0]) > 0 {
-		name = names[0]
+	configPath := DefaultConfigPath
+	runtimeEndpoint := DefaultRuntimeEndpoint
+
+	if len(params) > 3 {
+		return nil, fmt.Errorf("too many arguments, expected name, config path, and runtime endpoint")
+	}
+	if len(params) > 0 && params[0] != nil {
+		nameArg, ok := params[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("name argument must be string")
+		}
+		if len(nameArg) > 0 {
+			name = nameArg
+		}
+	}
+	if len(params) > 1 && params[1] != nil {
+		configPathArg, ok := params[1].(string)
+		if !ok {
+			return nil, fmt.Errorf("config path argument must be string")
+		}
+		if len(configPathArg) > 0 {
+			configPath = configPathArg
+		}
+	}
+	if len(params) > 2 && params[2] != nil {
+		endpointArg, ok := params[2].(message.Endpoint)
+		if !ok {
+			return nil, fmt.Errorf("runtime endpoint argument must be message.Endpoint")
+		}
+		runtimeEndpoint = endpointArg
 	}
 
-	// Start the context
-	ctx, err := context.New()
+	// Start the runtime
+	runtimeHandler, err := runtime.NewHandler(configPath, runtimeEndpoint)
 	if err != nil {
-		return nil, fmt.Errorf("context.New: %w", err)
-	}
-	err = ctx.StartConfig()
-	if err != nil {
-		return nil, fmt.Errorf("ctx('%s').StartConfig: %w", ctx.Type(), err)
+		return nil, fmt.Errorf("runtime.NewHandler: %w", err)
 	}
 
 	independent := &Independent{
-		ctx:      ctx,
-		Handlers: datatype.New(),
-		name:     name,
-		blocker:  nil,
+		runtimeHandler: runtimeHandler,
+		Handlers:       datatype.New(),
+		name:           name,
+		blocker:        nil,
 	}
 
 	logger, err := log.New(name, true)
 	if err != nil {
 		err = fmt.Errorf("log.New(%s): %w", name, err)
-
-		if closeErr := ctx.Close(); closeErr != nil {
-			return nil, fmt.Errorf("%v: ctx.Close: %w", err, closeErr)
-		}
 
 		return nil, err
 	}
@@ -87,8 +110,8 @@ func (independent *Independent) SetHandler(category string, controller base.Inte
 }
 
 // Context returns the runtime context owned by the service.
-func (independent *Independent) Context() context.Interface {
-	return independent.ctx
+func (independent *Independent) Context() *runtime.Handler {
+	return independent.runtimeHandler
 }
 
 // Name returns the unique name of the service
@@ -120,24 +143,24 @@ func (independent *Independent) SetProxyChain(params ...interface{}) error {
 	if len(params) < 1 || len(params) > 3 {
 		return fmt.Errorf("argument amount is invalid, either one or three arguments must be set")
 	}
-	if independent.ctx == nil || !independent.ctx.IsConfigRunning() {
+	if independent.runtimeHandler == nil || !independent.runtimeHandler.IsConfigRunning() {
 		return fmt.Errorf("context or config engine is not running")
 	}
 
-	independent.ctx.SetService(independent.name, independent.name)
+	independent.runtimeHandler.SetService(independent.name, independent.name)
 
-	if !independent.ctx.IsDepManagerRunning() {
-		err := independent.ctx.StartDepManager()
+	if !independent.runtimeHandler.IsDepManagerRunning() {
+		err := independent.runtimeHandler.StartDepManager()
 		if err != nil {
-			return fmt.Errorf("ctx.StartDepManager: %w", err)
+			return fmt.Errorf("runtimeHandler.StartDepManager: %w", err)
 		}
 
 	}
 
-	if !independent.ctx.IsProxyHandlerRunning() {
-		err := independent.ctx.StartProxyHandler()
+	if !independent.runtimeHandler.IsProxyHandlerRunning() {
+		err := independent.runtimeHandler.StartProxyHandler()
 		if err != nil {
-			return fmt.Errorf("ctx.StartProxyHandler: %w", err)
+			return fmt.Errorf("runtimeHandler.StartProxyHandler: %w", err)
 		}
 	}
 
@@ -169,9 +192,9 @@ func (independent *Independent) SetProxyChain(params ...interface{}) error {
 		}
 	}
 
-	proxyClient := independent.ctx.ProxyClient()
+	proxyClient := independent.runtimeHandler.ProxyClient()
 	if err := proxyClient.Set(proxyChain); err != nil {
-		return fmt.Errorf("independent.ctx.Set('proxyChain'): %w", err)
+		return fmt.Errorf("independent.runtimeHandler.Set('proxyChain'): %w", err)
 	}
 
 	return nil
@@ -200,7 +223,7 @@ func (independent *Independent) requiredControllerExtensions() []string {
 //
 // The generated configuration returned back.
 func (independent *Independent) generateConfig() (*serviceConfig.Service, error) {
-	configClient := independent.ctx.Config()
+	configClient := independent.runtimeHandler.Config()
 
 	serviceType := independent.Type()
 	generatedConfig, err := configClient.GenerateService(independent.name, independent.name, serviceType)
@@ -233,7 +256,7 @@ func (independent *Independent) generateConfig() (*serviceConfig.Service, error)
 
 // lintConfig gets the configuration from the context and sets them in the service and handler.
 func (independent *Independent) lintConfig() error {
-	configClient := independent.ctx.Config()
+	configClient := independent.runtimeHandler.Config()
 
 	returnedService, err := configClient.Service(independent.name)
 	if err != nil {
@@ -275,7 +298,7 @@ func (independent *Independent) lintConfig() error {
 //
 // Important node. This method doesn't set the proxies or extensions.
 func (independent *Independent) setConfig() error {
-	configClient := independent.ctx.Config()
+	configClient := independent.runtimeHandler.Config()
 
 	// prepare the configuration
 	exist, err := configClient.ServiceExist(independent.name)
@@ -300,7 +323,7 @@ func (independent *Independent) setConfig() error {
 }
 
 func (independent *Independent) setProxyUnitsBy(dest *serviceConfig.Rule) error {
-	proxyClient := independent.ctx.ProxyClient()
+	proxyClient := independent.runtimeHandler.ProxyClient()
 
 	if dest.IsRoute() {
 		units := independent.unitsByRouteRule(dest)
@@ -326,7 +349,7 @@ func (independent *Independent) setProxyUnitsBy(dest *serviceConfig.Rule) error 
 // Then, it creates a proxy units.
 // Todo if the extension is sending a ready command, then update the command list.
 func (independent *Independent) setProxyUnits() error {
-	proxyClient := independent.ctx.ProxyClient()
+	proxyClient := independent.runtimeHandler.ProxyClient()
 	proxyChains, err := proxyClient.ProxyChains()
 	if err != nil {
 		return fmt.Errorf("proxyClient.ProxyChainsByRuleUrl: %w", err)
@@ -447,9 +470,9 @@ func (independent *Independent) unitsByServiceRule(rule *serviceConfig.Rule) []*
 //
 // The manager.Manager depends on Logger, set automatically.
 //
-// This function lints manager.Manager with ctx.
+// This function lints manager.Manager with runtime handler.
 func (independent *Independent) newManager() error {
-	m, err := manager.New(independent.ctx, independent.name, &independent.blocker)
+	m, err := manager.New(independent.runtimeHandler, independent.name, &independent.blocker)
 	if err != nil {
 		return fmt.Errorf("manager.New: %w", err)
 	}
@@ -563,16 +586,16 @@ func (independent *Independent) Start() (*sync.WaitGroup, error) {
 		goto errOccurred
 	}
 
-	independent.ctx.SetService(independent.name, independent.name)
-	if !independent.ctx.IsDepManagerRunning() {
-		if err = independent.ctx.StartDepManager(); err != nil {
-			err = fmt.Errorf("ctx.StartDepManager: %w", err)
+	independent.runtimeHandler.SetService(independent.name, independent.name)
+	if !independent.runtimeHandler.IsDepManagerRunning() {
+		if err = independent.runtimeHandler.StartDepManager(); err != nil {
+			err = fmt.Errorf("runtimeHandler.StartDepManager: %w", err)
 			goto errOccurred
 		}
 	}
-	if !independent.ctx.IsProxyHandlerRunning() {
-		if err = independent.ctx.StartProxyHandler(); err != nil {
-			err = fmt.Errorf("ctx.StartProxyHandler: %w", err)
+	if !independent.runtimeHandler.IsProxyHandlerRunning() {
+		if err = independent.runtimeHandler.StartProxyHandler(); err != nil {
+			err = fmt.Errorf("runtimeHandler.StartProxyHandler: %w", err)
 			goto errOccurred
 		}
 	}
@@ -604,8 +627,8 @@ func (independent *Independent) Start() (*sync.WaitGroup, error) {
 
 	// todo add a manager command that reads the client configuration status GENERATED
 	// todo upon reading it sets it into the independent.Config.Sources
-	if err = independent.ctx.ProxyClient().StartLastProxies(); err != nil {
-		err = fmt.Errorf("ctx.ProxyClient.StartLastProxies: %w", err)
+	if err = independent.runtimeHandler.ProxyClient().StartLastProxies(); err != nil {
+		err = fmt.Errorf("runtimeHandler.ProxyClient.StartLastProxies: %w", err)
 		goto errOccurred
 	}
 
@@ -616,9 +639,9 @@ func (independent *Independent) Start() (*sync.WaitGroup, error) {
 
 errOccurred:
 	if err != nil {
-		closeErr := independent.ctx.Close()
+		closeErr := independent.runtimeHandler.Close()
 		if closeErr != nil {
-			err = fmt.Errorf("%v: ctx.Close: %w", err, closeErr)
+			err = fmt.Errorf("%v: runtimeHandler.Close: %w", err, closeErr)
 		}
 
 		if independent.manager != nil && independent.manager.Running() {

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/os/arg"
 	clientConfig "github.com/noPerfection/protocol/client/config"
@@ -13,6 +12,7 @@ import (
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/route"
 	"github.com/noPerfection/protocol/handler/sync_replier"
+	"github.com/noPerfection/protocol/message"
 	serviceLib "github.com/noPerfection/service"
 	"github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"

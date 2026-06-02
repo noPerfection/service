@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/os/path"
 	"github.com/noPerfection/protocol/client"
@@ -17,6 +16,7 @@ import (
 	"github.com/noPerfection/protocol/handler/manager_client"
 	"github.com/noPerfection/protocol/handler/route"
 	"github.com/noPerfection/protocol/handler/sync_replier"
+	"github.com/noPerfection/protocol/message"
 	serviceConfig "github.com/noPerfection/runtime/config/service"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
@@ -102,7 +102,7 @@ func (test *TestServiceSuite) SetupTest() {
 func (test *TestServiceSuite) closeService() {
 	s := test.Suite.Require
 	if test.service != nil {
-		s().NoError(test.service.ctx.Close())
+		s().NoError(test.service.runtimeHandler.Close())
 
 		test.service = nil
 
@@ -143,7 +143,7 @@ func (test *TestServiceSuite) externalClient(hConfig *handlerConfig.Handler) *cl
 func (test *TestServiceSuite) managerClient() *client.Socket {
 	s := test.Suite.Require
 
-	createdConfig, err := test.service.ctx.Config().Service(test.name)
+	createdConfig, err := test.service.runtimeHandler.Config().Service(test.name)
 	s().NoError(err)
 	managerConfig := createdConfig.Manager
 	managerConfig.UrlFunc(clientConfig.Url)
@@ -161,7 +161,7 @@ func (test *TestServiceSuite) Test_10_New() {
 	independent, err := New()
 	s().NoError(err)
 	s().Equal(DefaultName, independent.Name())
-	s().NoError(independent.ctx.Close())
+	s().NoError(independent.runtimeHandler.Close())
 
 	// Wait a bit for closing context threads
 	time.Sleep(time.Millisecond * 100)
@@ -172,7 +172,7 @@ func (test *TestServiceSuite) Test_10_New() {
 
 	// remove the created service.
 	// to re-create the service, we must close the context.
-	s().NoError(independent.ctx.Close())
+	s().NoError(independent.runtimeHandler.Close())
 	// wait a bit for closing context threads
 	time.Sleep(time.Millisecond * 500)
 
@@ -290,7 +290,7 @@ func (test *TestServiceSuite) Test_16_managerRequest() {
 	s().True(test.service.manager.Running())
 
 	// test sending a command to the manager
-	createdConfig, err := test.service.ctx.Config().Service(test.name)
+	createdConfig, err := test.service.runtimeHandler.Config().Service(test.name)
 	s().NoError(err)
 	externalConfig := createdConfig.Manager
 	externalConfig.UrlFunc(clientConfig.Url)
@@ -308,7 +308,7 @@ func (test *TestServiceSuite) Test_16_managerRequest() {
 	time.Sleep(time.Millisecond * 100)
 
 	// make sure that context is not running
-	s().False(test.service.ctx.IsRunning())
+	s().False(test.service.runtimeHandler.IsRunning())
 	s().False(test.service.manager.Running())
 
 	// clean out
