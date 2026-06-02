@@ -178,50 +178,11 @@ func (test *TestServiceSuite) Test_10_New() {
 
 }
 
-// Test_11_generateConfig creates a configuration and sets it in the service
-func (test *TestServiceSuite) Test_11_generateConfig() {
-	s := test.Suite.Require
-
-	test.newService()
-
-	_, err := test.service.generateConfig()
-	s().NoError(err)
-
-	test.closeService()
-}
-
-// Test_12_lintConfig loads the configuration of the service and sets it
-func (test *TestServiceSuite) Test_12_lintConfig() {
-	s := test.Suite.Require
-
-	test.newService()
-
-	_, err := test.service.generateConfig()
-	s().NoError(err)
-
-	s().NoError(test.service.lintConfig())
-
-	test.closeService()
-}
-
-// Test_13_prepareConfig is calling a lint flag since the configuration exists in the context.
-func (test *TestServiceSuite) Test_13_prepareConfig() {
-	s := test.Suite.Require
-
-	test.newService()
-
-	// It should call the test.service.lintConfig
-	s().NoError(test.service.setConfig())
-
-	test.closeService()
-}
-
 // Test_14_manager tests the creation of the manager and linting it with the handler.
 func (test *TestServiceSuite) Test_14_manager() {
 	s := test.Suite.Require
 
 	test.newService()
-	s().NoError(test.service.setConfig())
 
 	s().NoError(test.service.newManager())
 
@@ -237,7 +198,6 @@ func (test *TestServiceSuite) Test_15_handler() {
 	s := test.Suite.Require
 
 	test.newService()
-	s().NoError(test.service.setConfig())
 
 	s().NoError(test.service.newManager())
 
@@ -273,7 +233,6 @@ func (test *TestServiceSuite) Test_16_managerRequest() {
 	s := test.Suite.Require
 
 	test.newService()
-	s().NoError(test.service.setConfig())
 
 	s().NoError(test.service.newManager())
 
