@@ -2,7 +2,7 @@ module github.com/noPerfection/service
 
 go 1.19
 
-replace github.com/noPerfection/runtime/config => ../runtime/config
+replace github.com/noPerfection/topology/config => ../topology/config
 
 replace github.com/noPerfection/protocol/handler => ../protocol/handler
 
@@ -18,14 +18,14 @@ require (
 	github.com/noPerfection/os v0.0.0
 	github.com/noPerfection/protocol/client v0.0.0
 	github.com/noPerfection/protocol/handler v0.0.0
-	github.com/noPerfection/runtime v0.0.0-20230908073741-33d7893d546a
-	github.com/noPerfection/runtime/config v0.0.0
+	github.com/noPerfection/topology v0.0.0-20230908073741-33d7893d546a
+	github.com/noPerfection/topology/config v0.0.0
 	github.com/pebbe/zmq4 v1.2.10
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace github.com/noPerfection/runtime => ../runtime
+replace github.com/noPerfection/topology => ../topology
 
 replace github.com/noPerfection/log => ../log
 

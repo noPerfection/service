@@ -9,7 +9,7 @@ import (
 	"github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/message"
-	"github.com/noPerfection/runtime/base/config"
+	"github.com/noPerfection/topology/base/config"
 	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/service"
 )
@@ -58,7 +58,7 @@ import (
 	"fmt"
 	"github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/protocol/message"
-	"github.com/noPerfection/runtime/base/config"
+	"github.com/noPerfection/topology/base/config"
 	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/service"
 )

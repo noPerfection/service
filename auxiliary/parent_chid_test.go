@@ -18,9 +18,9 @@ import (
 	"github.com/noPerfection/protocol/handler/route"
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/message"
-	serviceConfig "github.com/noPerfection/runtime/config/service"
 	serviceLib "github.com/noPerfection/service"
 	"github.com/noPerfection/service/manager"
+	serviceConfig "github.com/noPerfection/topology/config/service"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
 )

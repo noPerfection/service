@@ -82,7 +82,7 @@ The multiple destinations are of the same level.
 ## Implementation
 
 ### Definition
-The declaration of the proxy parameters is defined in the `github.com/noPerfection/runtime/config/service` package.
+The declaration of the proxy parameters is defined in the `github.com/noPerfection/topology/config/service` package.
 
 The `service.NewProxy(id: string, url: string)` returns the pointer to `service.Proxy`.
 
@@ -96,7 +96,7 @@ type Proxy = {
 }
 ```
 
-The destination structure defined as `service.Rule` in the `github.com/noPerfection/runtime/config` module:
+The destination structure defined as `service.Rule` in the `github.com/noPerfection/topology/config` module:
 
 ```typescript
 type Rule ={
@@ -109,7 +109,7 @@ type Rule ={
 
 The sources are defined as a list of strings: `string[]`.
 
-The proxy chains are defined as `service.ProxyChain` in the `github.com/noPerfection/runtime/config` module.
+The proxy chains are defined as `service.ProxyChain` in the `github.com/noPerfection/topology/config` module.
 
 ```typescript
 type ProxyChain = {
@@ -128,7 +128,7 @@ type ProxyChain = {
 ---
 
 ## Execution
-The above code described the proxy definition in the `github.com/noPerfection/runtime/config`.
+The above code described the proxy definition in the `github.com/noPerfection/topology/config`.
 Now, it's the time to define the proxy within the `proxy-lib` itself.
 
 # Handlers

@@ -8,7 +8,7 @@ import (
 	clientConfig "github.com/noPerfection/protocol/client/config"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/message"
-	serviceConfig "github.com/noPerfection/runtime/config/service"
+	serviceConfig "github.com/noPerfection/topology/config/service"
 )
 
 //
