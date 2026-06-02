@@ -6,12 +6,12 @@ import (
 	"sync"
 
 	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/datatype/message"
 	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/manager_client"
 	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
+	"github.com/noPerfection/protocol/message"
 	context "github.com/noPerfection/runtime"
 	serviceConfig "github.com/noPerfection/runtime/config/service"
 )

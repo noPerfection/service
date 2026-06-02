@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/protocol/client"
 	clientConfig "github.com/noPerfection/protocol/client/config"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
+	"github.com/noPerfection/protocol/message"
 	serviceConfig "github.com/noPerfection/runtime/config/service"
 )
 

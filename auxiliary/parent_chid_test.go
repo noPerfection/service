@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/os/net"
 	"github.com/noPerfection/os/path"
@@ -18,6 +17,7 @@ import (
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/route"
 	"github.com/noPerfection/protocol/handler/sync_replier"
+	"github.com/noPerfection/protocol/message"
 	serviceConfig "github.com/noPerfection/runtime/config/service"
 	serviceLib "github.com/noPerfection/service"
 	"github.com/noPerfection/service/manager"

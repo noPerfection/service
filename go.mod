@@ -13,13 +13,13 @@ replace github.com/noPerfection/protocol/client => ../protocol/client
 replace github.com/noPerfection/os => ../os
 
 require (
-	github.com/noPerfection/protocol/client v0.0.0-20230908110757-5f62078bd7bd
-	github.com/noPerfection/runtime/config v0.0.0-20230908120313-ee58ff67288b
-	github.com/noPerfection/datatype v0.0.0-20230927201942-0cc58292a7a3
+	github.com/noPerfection/datatype v0.0.0
+	github.com/noPerfection/log v0.0.0
+	github.com/noPerfection/os v0.0.0
+	github.com/noPerfection/protocol/client v0.0.0
+	github.com/noPerfection/protocol/handler v0.0.0
 	github.com/noPerfection/runtime v0.0.0-20230908073741-33d7893d546a
-	github.com/noPerfection/protocol/handler v0.0.0-20230908055435-ceab4155ee16
-	github.com/noPerfection/log v0.0.0-20230908112453-62afbc558b65
-	github.com/noPerfection/os v0.0.0-20230908110839-83535270d872
+	github.com/noPerfection/runtime/config v0.0.0
 	github.com/pebbe/zmq4 v1.2.10
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1

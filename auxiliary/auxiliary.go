@@ -55,7 +55,12 @@ func NewAuxiliary(name ...string) (*Auxiliary, error) {
 		return nil, fmt.Errorf("manager.NewClient('parentConfig'): %w", err)
 	}
 
-	independent, err := serviceLib.New(name...)
+	params := make([]interface{}, len(name))
+	for i, value := range name {
+		params[i] = value
+	}
+
+	independent, err := serviceLib.New(params...)
 	if err != nil {
 		return nil, fmt.Errorf("new independent parent: %w", err)
 	}
