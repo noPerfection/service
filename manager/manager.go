@@ -52,7 +52,7 @@ func New(serviceName string, managerEndpoint message.Endpoint) (*Manager, error)
 		serviceName:     serviceName,
 	}
 
-	managerConfig := HandlerConfig(serviceName)
+	managerConfig := HandlerConfig(serviceName, managerEndpoint)
 	handler.SetConfig(managerConfig)
 
 	return h, nil
@@ -87,10 +87,14 @@ func (m *Manager) StopService(serviceName string) error {
 		if err := m.topologyClient.Close(); err != nil {
 			return fmt.Errorf("topologyClient.Close: %w", err)
 		}
+		m.topologyClient = nil
 	}
 	for _, control := range m.handlerControls {
 		if err := control.HandlerClose(); err != nil {
 			return fmt.Errorf("handlerControl.HandlerClose: %w", err)
+		}
+		if err := control.Close(); err != nil {
+			return fmt.Errorf("handlerControl.Close: %w", err)
 		}
 	}
 	m.handlerControls = make([]*clientSyncReplier.BaseControl, 0)
@@ -99,6 +103,26 @@ func (m *Manager) StopService(serviceName string) error {
 	m.running = false
 	if wasRunning && m.blocker != nil && *m.blocker != nil {
 		(*m.blocker).Done()
+	}
+
+	return nil
+}
+
+func (m *Manager) Close() error {
+	if m == nil {
+		return fmt.Errorf("manager is nil")
+	}
+
+	if err := m.StopService(m.serviceName); err != nil {
+		return err
+	}
+	if err := closeHandler(m.Interface); err != nil {
+		return fmt.Errorf("manager handler close: %w", err)
+	}
+	if handler, ok := m.Interface.(*syncReplier.SyncReplier); ok {
+		if err := closeHandler(handler.Control); err != nil {
+			return fmt.Errorf("manager control close: %w", err)
+		}
 	}
 
 	return nil
@@ -172,6 +196,10 @@ func HandlerConfig(serviceName string, managerEndpoint message.Endpoint) *handle
 }
 
 func (m *Manager) setHandlerControls() error {
+	if m.topologyClient == nil {
+		return fmt.Errorf("topologyClient is nil")
+	}
+
 	service, err := m.topologyClient.Service(m.serviceName)
 	if err != nil {
 		return fmt.Errorf("topologyClient.Service('%s'): %w", m.serviceName, err)
@@ -188,6 +216,22 @@ func (m *Manager) setHandlerControls() error {
 			return fmt.Errorf("sync_replier.NewBaseControl('%s_control'): %w", handler.Endpoint.Id, err)
 		}
 		m.handlerControls = append(m.handlerControls, control)
+	}
+
+	return nil
+}
+
+func closeHandler(handler base.Interface) error {
+	if handler == nil {
+		return nil
+	}
+
+	handler.SetClose(true)
+	if socket := handler.Socket(); socket != nil {
+		if err := socket.Close(); err != nil {
+			return fmt.Errorf("handler(category: '%s').Socket.Close: %w", topology.ServiceManagerCategory, err)
+		}
+		handler.SetSocketNil()
 	}
 
 	return nil

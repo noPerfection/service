@@ -22,8 +22,21 @@ func NewManager() *Manager {
 }
 
 // SetHandler adds or replaces a handler by category.
-func (manager *Manager) SetHandler(category string, handler base.Interface) {
+func (manager *Manager) SetHandler(category string, handler base.Interface) error {
+	if raw, exists := manager.handlers[category]; exists {
+		registered, ok := raw.(base.Interface)
+		if !ok {
+			return fmt.Errorf("handler of %s category is not a base.Interface", category)
+		}
+		if !registered.Closed() {
+			if err := closeHandlers([]base.Interface{registered}); err != nil {
+				return fmt.Errorf("close existing handler(category: '%s'): %w", category, err)
+			}
+		}
+	}
 	manager.handlers.Set(category, handler)
+
+	return nil
 }
 
 // SetLogger sets the optional logger for this manager and all registered handlers.
