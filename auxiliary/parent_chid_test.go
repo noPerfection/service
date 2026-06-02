@@ -1,7 +1,12 @@
 package auxiliary
 
 import (
-	"github.com/noPerfection/datatype/data_type/key_value"
+	win "os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/datatype/message"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/os/net"
@@ -18,10 +23,6 @@ import (
 	"github.com/noPerfection/service/manager"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v3"
-	win "os"
-	"path/filepath"
-	"testing"
-	"time"
 )
 
 // Define the suite, and absorb the built-in basic suite
@@ -45,7 +46,7 @@ type TestParentChildSuite struct {
 func (test *TestParentChildSuite) createYaml(dir string, name string) {
 	s := test.Require
 
-	kv := key_value.New().Set("services", []interface{}{})
+	kv := datatype.New().Set("services", []interface{}{})
 
 	marshalledConfig, err := yaml.Marshal(kv.Map())
 	s().NoError(err)
@@ -88,7 +89,7 @@ func (test *TestParentChildSuite) SetupTest() {
 	// handler
 	syncReplier := sync_replier.New()
 	test.defaultHandleFunc = func(req message.RequestInterface) message.ReplyInterface {
-		return req.Ok(key_value.New())
+		return req.Ok(datatype.New())
 	}
 	test.cmd1 = "hello"
 	s().NoError(syncReplier.Route(test.cmd1, test.defaultHandleFunc))

@@ -1,7 +1,10 @@
 package auxiliary
 
 import (
-	"github.com/noPerfection/datatype/data_type/key_value"
+	win "os"
+	"path/filepath"
+
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/os/path"
 	"github.com/noPerfection/protocol/client"
 	clientConfig "github.com/noPerfection/protocol/client/config"
@@ -10,15 +13,13 @@ import (
 	serviceLib "github.com/noPerfection/service"
 	"github.com/pebbe/zmq4"
 	"gopkg.in/yaml.v3"
-	win "os"
-	"path/filepath"
 )
 
 // ParentConfig returns parent config as a struct and string
 func ParentConfig(parentId string, parentUrl string, port uint64) (*clientConfig.Client, string, error) {
 	// Creating a proxy with the valid flags must succeed
 	parentClient := clientConfig.New(parentUrl, parentId, port, zmq4.REP)
-	parentKv, err := key_value.NewFromInterface(parentClient)
+	parentKv, err := datatype.NewFromInterface(parentClient)
 	if err != nil {
 		return nil, "", err
 	}
@@ -52,7 +53,7 @@ func CloseParent(parent *serviceLib.Independent, dir string) error {
 }
 
 func CreateYaml(dir, name string) error {
-	kv := key_value.New().Set("services", []interface{}{})
+	kv := datatype.New().Set("services", []interface{}{})
 
 	marshalledConfig, err := yaml.Marshal(kv.Map())
 	if err != nil {

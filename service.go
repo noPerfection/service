@@ -12,7 +12,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/noPerfection/datatype/data_type/key_value"
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
 	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/protocol/handler/base"
@@ -27,8 +27,8 @@ const DefaultName = "main"
 // Independent keeps all necessary parameters of the independent service.
 type Independent struct {
 	ctx                context.Interface // context handles the configuration and dependencies
-	Handlers           key_value.KeyValue
-	RequiredExtensions key_value.KeyValue
+	Handlers           datatype.KeyValue
+	RequiredExtensions datatype.KeyValue
 	Logger             *log.Logger
 	name               string
 	// The blocker is a shutdown latch:
@@ -59,7 +59,7 @@ func New(names ...string) (*Independent, error) {
 
 	independent := &Independent{
 		ctx:      ctx,
-		Handlers: key_value.New(),
+		Handlers: datatype.New(),
 		name:     name,
 		blocker:  nil,
 	}

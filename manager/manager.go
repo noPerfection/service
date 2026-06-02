@@ -3,7 +3,9 @@ package manager
 
 import (
 	"fmt"
-	"github.com/noPerfection/datatype/data_type/key_value"
+	"sync"
+
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/datatype/message"
 	clientConfig "github.com/noPerfection/protocol/client/config"
 	"github.com/noPerfection/protocol/handler/base"
@@ -12,7 +14,6 @@ import (
 	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
 	context "github.com/noPerfection/runtime"
 	serviceConfig "github.com/noPerfection/runtime/config/service"
-	"sync"
 )
 
 const (
@@ -146,12 +147,12 @@ func (m *Manager) onClose(req message.RequestInterface) message.ReplyInterface {
 		return req.Fail(fmt.Sprintf("manager.Close: %v", err))
 	}
 
-	return req.Ok(key_value.New())
+	return req.Ok(datatype.New())
 }
 
 // onHeartbeat simple handler to check that service is alive
 func (m *Manager) onHeartbeat(req message.RequestInterface) message.ReplyInterface {
-	return req.Ok(key_value.New())
+	return req.Ok(datatype.New())
 }
 
 // onProxyChainsByLastProxy returns a list of proxy chains by the id of the last proxy
@@ -166,7 +167,7 @@ func (m *Manager) onProxyChainsByLastProxy(req message.RequestInterface) message
 		return req.Fail(fmt.Sprintf("proxyClient.ProxyChainsByLastId('%s'): %v", id, err))
 	}
 
-	params := key_value.New().Set("proxy_chains", proxyChains)
+	params := datatype.New().Set("proxy_chains", proxyChains)
 	return req.Ok(params)
 }
 
@@ -180,7 +181,7 @@ func (m *Manager) onUnits(req message.RequestInterface) message.ReplyInterface {
 	var rule serviceConfig.Rule
 	err = raw.Interface(&rule)
 	if err != nil {
-		return req.Fail(fmt.Sprintf("key_value.KeyValue('proxy_chain').Interface(): %v", err))
+		return req.Fail(fmt.Sprintf("datatype.New('proxy_chain').Interface(): %v", err))
 	}
 
 	if !rule.IsValid() {
@@ -193,7 +194,7 @@ func (m *Manager) onUnits(req message.RequestInterface) message.ReplyInterface {
 		return req.Fail(fmt.Sprintf("proxyClient.Units: %v", err))
 	}
 
-	params := key_value.New().Set("units", units)
+	params := datatype.New().Set("units", units)
 	return req.Ok(params)
 }
 
@@ -211,7 +212,7 @@ func (m *Manager) onProxyConfigSet(req message.RequestInterface) message.ReplyIn
 	var rule serviceConfig.Rule
 	err = raw.Interface(&rule)
 	if err != nil {
-		return req.Fail(fmt.Sprintf("key_value.KeyValue('rule').Interface(): %v", err))
+		return req.Fail(fmt.Sprintf("datatype.New('rule').Interface(): %v", err))
 	}
 
 	if !rule.IsValid() {
@@ -221,7 +222,7 @@ func (m *Manager) onProxyConfigSet(req message.RequestInterface) message.ReplyIn
 	var sourceService serviceConfig.SourceService
 	err = rawSource.Interface(&sourceService)
 	if err != nil {
-		return req.Fail(fmt.Sprintf("key_value.KeyValue('source_service').Interface(): %v", err))
+		return req.Fail(fmt.Sprintf("datatype.New('source_service').Interface(): %v", err))
 	}
 
 	proxyId := sourceService.Id
@@ -251,7 +252,7 @@ func (m *Manager) onProxyConfigSet(req message.RequestInterface) message.ReplyIn
 		}
 	}
 
-	params := key_value.New()
+	params := datatype.New()
 	return req.Ok(params)
 }
 
@@ -284,7 +285,7 @@ func (m *Manager) onHandlers(req message.RequestInterface) message.ReplyInterfac
 		return req.Fail(fmt.Sprintf("m.handlers: %v", err))
 	}
 
-	params := key_value.New().Set("handler_configs", handlerConfigs)
+	params := datatype.New().Set("handler_configs", handlerConfigs)
 	return req.Ok(params)
 }
 
@@ -307,7 +308,7 @@ func (m *Manager) onHandlersByCategory(req message.RequestInterface) message.Rep
 
 	filteredConfigs := handlerConfig.ByCategory(handlerConfigs, category)
 
-	params := key_value.New().Set("handler_configs", filteredConfigs)
+	params := datatype.New().Set("handler_configs", filteredConfigs)
 	return req.Ok(params)
 }
 
@@ -321,7 +322,7 @@ func (m *Manager) onHandlersByRule(req message.RequestInterface) message.ReplyIn
 	var rule serviceConfig.Rule
 	err = raw.Interface(&rule)
 	if err != nil {
-		return req.Fail(fmt.Sprintf("key_value.KeyValue('proxy_chain').Interface(): %v", err))
+		return req.Fail(fmt.Sprintf("datatype.New('proxy_chain').Interface(): %v", err))
 	}
 
 	if !rule.IsValid() {
@@ -334,7 +335,7 @@ func (m *Manager) onHandlersByRule(req message.RequestInterface) message.ReplyIn
 	}
 
 	if rule.IsService() {
-		params := key_value.New().Set("handler_configs", handlerConfigs)
+		params := datatype.New().Set("handler_configs", handlerConfigs)
 		return req.Ok(params)
 	}
 
@@ -344,7 +345,7 @@ func (m *Manager) onHandlersByRule(req message.RequestInterface) message.ReplyIn
 		filteredConfigs = append(filteredConfigs, handlerConfig.ByCategory(handlerConfigs, category)...)
 	}
 
-	params := key_value.New().Set("handler_configs", filteredConfigs)
+	params := datatype.New().Set("handler_configs", filteredConfigs)
 	return req.Ok(params)
 }
 

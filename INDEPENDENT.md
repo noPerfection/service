@@ -122,7 +122,7 @@ Let's create it on `handler/handler.go`:
 package handler
 
 import (
-	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/noPerfection/datatype"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/noPerfection/service/controller"
 	"github.com/noPerfection/service/communication/command"
@@ -141,12 +141,12 @@ func onSetCounter(_ message.Request, _ *log.Logger, _ ...*remote.ClientSocket) m
 	return message.Reply{
 		Status:     message.OK,
 		Message:    "",
-		Parameters: key_value.Empty,
+		Parameters: datatype.New(),
 	}
 }
 
 func onGetCounter(message.Request, _ * log.Logger, _ ...*remote.ClientSocket) message.Reply{
-    parameters := key_value.Empty()
+    parameters := datatype.New()
 	parameters.Set("counter", counter)
 	return message.Reply{
 		Status: message.OK,
