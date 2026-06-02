@@ -18,7 +18,7 @@ require (
 	github.com/noPerfection/os v0.0.0
 	github.com/noPerfection/protocol/client v0.0.0
 	github.com/noPerfection/protocol/handler v0.0.0
-	github.com/noPerfection/topology v0.0.0-20230908073741-33d7893d546a
+	github.com/noPerfection/topology v0.0.0-20260602170203-c8fa84f22f77
 	github.com/noPerfection/topology/config v0.0.0
 	github.com/pebbe/zmq4 v1.2.10
 	github.com/stretchr/testify v1.8.4
