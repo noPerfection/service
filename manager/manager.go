@@ -108,6 +108,7 @@ func (m *Manager) StopService(serviceName string) error {
 	return nil
 }
 
+// Close closes the manager, and service as well.
 func (m *Manager) Close() error {
 	if m == nil {
 		return fmt.Errorf("manager is nil")

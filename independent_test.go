@@ -1,419 +1,182 @@
 package service
 
 import (
-	win "os"
+	"fmt"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/log"
-	"github.com/noPerfection/os/path"
-	"github.com/noPerfection/protocol/client"
-	clientConfig "github.com/noPerfection/protocol/client/config"
-	"github.com/noPerfection/protocol/handler/base"
-	handlerConfig "github.com/noPerfection/protocol/handler/config"
-	"github.com/noPerfection/protocol/handler/manager_client"
-	"github.com/noPerfection/protocol/handler/route"
-	"github.com/noPerfection/protocol/handler/sync_replier"
+	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
+	"github.com/noPerfection/protocol/handler/control"
 	"github.com/noPerfection/protocol/message"
-	"github.com/stretchr/testify/suite"
-	"gopkg.in/yaml.v3"
+	"github.com/noPerfection/service/handlers"
+	"github.com/noPerfection/topology"
+	topologyConfig "github.com/noPerfection/topology/config"
+	"github.com/stretchr/testify/require"
 )
 
-// Define the suite, and absorb the built-in basic suite
-// functionality from testify - including a T() method which
-// returns the current testing orchestra
-type TestServiceSuite struct {
-	suite.Suite
+var testEndpointSeq atomic.Uint64
 
-	service    *Independent // the manager to test
-	currentDir string       // executable to store the binaries and source codes
-	name       string       // the name of the service
-	handler    base.Interface
-	logger     *log.Logger
-
-	defaultHandleFunc route.HandleFunc0
-	cmd1              string
-	handlerCategory   string
+func testEndpointID(t *testing.T, name string) string {
+	t.Helper()
+	seq := testEndpointSeq.Add(1)
+	return fmt.Sprintf("%s_%s_%d", strings.ReplaceAll(t.Name(), "/", "_"), name, seq)
 }
 
-func (test *TestServiceSuite) createYaml(dir string, name string) {
-	s := test.Require
-
-	kv := datatype.New().Set("services", []interface{}{})
-
-	marshalledConfig, err := yaml.Marshal(kv.Map())
-	s().NoError(err)
-
-	filePath := filepath.Join(dir, name+".yml")
-
-	f, err := win.OpenFile(filePath, win.O_RDWR|win.O_CREATE|win.O_TRUNC, 0644)
-	s().NoError(err)
-	_, err = f.Write(marshalledConfig)
-	s().NoError(err)
-
-	s().NoError(f.Close())
+func testConfigPath(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(t.TempDir(), "noPerfection.json")
 }
 
-func (test *TestServiceSuite) deleteYaml(dir string, name string) {
-	s := test.Require
+func closeTopologyHandler(t *testing.T) {
+	t.Helper()
 
-	filePath := filepath.Join(dir, name+".yml")
-
-	exist, err := path.FileExist(filePath)
-	s().NoError(err)
-
-	if !exist {
-		return
+	controlConfig := control.CreateInternalConfig(topology.HandlerConfig())
+	controlClient, err := clientSyncReplier.NewClient(controlConfig.Id, controlConfig.Port)
+	if err == nil {
+		_, _ = controlClient.Request(&message.Request{
+			Command:    control.HandlerClose,
+			Parameters: datatype.New(),
+		})
+		_ = controlClient.Close()
 	}
-
-	s().NoError(win.Remove(filePath))
+	time.Sleep(100 * time.Millisecond)
 }
 
-func (test *TestServiceSuite) SetupTest() {
-	s := test.Suite.Require
+func requireServiceHandler(t *testing.T, service topologyConfig.Service, category string) topologyConfig.Handler {
+	t.Helper()
 
-	currentDir, err := path.CurrentDir()
-	s().NoError(err)
-	test.currentDir = currentDir
+	handler, err := service.HandlerByCategory(category)
+	require.NoError(t, err)
+	return handler
+}
 
-	test.name = "service_1"
+func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) {
+	independent, err := New(nil, testConfigPath(t))
+	require.NoError(t, err)
+	require.Equal(t, DefaultName, independent.Name())
 
-	// handler
-	syncReplier := sync_replier.New()
-	test.defaultHandleFunc = func(req message.RequestInterface) message.ReplyInterface {
-		return req.Ok(datatype.New())
+	require.NoError(t, independent.lintDefaultTopology())
+
+	serviceConfig, err := independent.topologyHandler.Service(DefaultName)
+	require.NoError(t, err)
+	require.Equal(t, topologyConfig.IndependentType, serviceConfig.Type)
+	require.Len(t, serviceConfig.Handlers, 1)
+
+	defaultHandler := serviceConfig.Handlers[0]
+	require.Equal(t, topologyConfig.ReplierType, defaultHandler.Type)
+	require.Equal(t, handlers.DefaultHandlerCategory, defaultHandler.Category)
+	require.Equal(t, handlers.DefaultHandlerEndpoint, defaultHandler.Endpoint)
+
+	require.True(t, independent.Handlers.IsHandlerExist(handlers.DefaultHandlerCategory))
+}
+
+func TestLintManagerTopologyOverwritesExistingManagerConfig(t *testing.T) {
+	configPath := testConfigPath(t)
+	existingManager := topologyConfig.Handler{
+		Type:     topologyConfig.SyncReplierType,
+		Category: topology.ServiceManagerCategory,
+		Endpoint: DefaultServiceManagerEndpoint,
 	}
-	test.cmd1 = "hello"
-	s().NoError(syncReplier.Route(test.cmd1, test.defaultHandleFunc))
-	test.handler = syncReplier
-
-	test.logger, err = log.New("test", true)
-	s().NoError(err)
-
-	test.handlerCategory = "main"
-	inprocConfig := handlerConfig.NewInternalHandler(handlerConfig.SyncReplierType, test.handlerCategory)
-	test.handler.SetConfig(inprocConfig)
-	s().NoError(test.handler.SetLogger(test.logger))
-}
-
-func (test *TestServiceSuite) closeService() {
-	s := test.Suite.Require
-	if test.service != nil {
-		s().NoError(test.service.topologyHandler.Close())
-
-		test.service = nil
-
-		// Wait a bit for closing the threads
-		time.Sleep(time.Second)
+	existingService := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "custom-service",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers: []topologyConfig.Handler{
+			{
+				Type:     topologyConfig.ReplierType,
+				Category: handlers.DefaultHandlerCategory,
+				Endpoint: handlers.DefaultHandlerEndpoint,
+			},
+			existingManager,
+		},
 	}
+	appConfig, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	require.NoError(t, appConfig.SetService(existingService))
+	require.NoError(t, appConfig.Save())
 
-	test.deleteYaml(test.currentDir, "app")
+	managerEndpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
+	independent, err := New("custom-service", configPath, managerEndpoint)
+	require.NoError(t, err)
+
+	require.NoError(t, independent.lintManagerTopology())
+
+	serviceConfig, err := independent.topologyHandler.Service("custom-service")
+	require.NoError(t, err)
+	managerHandler := requireServiceHandler(t, serviceConfig, topology.ServiceManagerCategory)
+	require.Equal(t, topologyConfig.SyncReplierType, managerHandler.Type)
+	require.Equal(t, managerEndpoint, managerHandler.Endpoint)
 }
 
-func (test *TestServiceSuite) newService() {
-	s := test.Suite.Require
-
-	created, err := New(test.name)
-	s().NoError(err)
-
-	test.service = created
-	test.service.SetHandler(test.handlerCategory, test.handler)
-}
-
-func (test *TestServiceSuite) mainHandler() base.Interface {
-	return test.service.Handlers["main"].(base.Interface)
-}
-
-func (test *TestServiceSuite) externalClient(hConfig *handlerConfig.Handler) *client.Socket {
-	s := test.Suite.Require
-
-	// let's test that handler runs
-	targetZmqType := handlerConfig.SocketType(hConfig.Type)
-	externalConfig := clientConfig.New(test.service.Name(), hConfig.Id, hConfig.Port, targetZmqType)
-	externalConfig.UrlFunc(clientConfig.Url)
-	externalClient, err := client.New(externalConfig)
-	s().NoError(err)
-
-	return externalClient
-}
-
-func (test *TestServiceSuite) managerClient() *client.Socket {
-	s := test.Suite.Require
-
-	createdConfig, err := test.service.topologyHandler.Config().Service(test.name)
-	s().NoError(err)
-	managerConfig := createdConfig.Manager
-	managerConfig.UrlFunc(clientConfig.Url)
-	managerClient, err := client.New(managerConfig)
-	s().NoError(err)
-
-	return managerClient
-}
-
-// Test_10_New creates a new service from an optional name.
-func (test *TestServiceSuite) Test_10_New() {
-	s := test.Suite.Require
-
-	// Creating a service without a name uses the default name.
-	independent, err := New()
-	s().NoError(err)
-	s().Equal(DefaultName, independent.Name())
-	s().NoError(independent.topologyHandler.Close())
-
-	// Wait a bit for closing context threads
-	time.Sleep(time.Millisecond * 100)
-
-	independent, err = New(test.name)
-	s().NoError(err)
-	s().Equal(test.name, independent.Name())
-
-	// remove the created service.
-	// to re-create the service, we must close the context.
-	s().NoError(independent.topologyHandler.Close())
-	// wait a bit for closing context threads
-	time.Sleep(time.Millisecond * 500)
-
-}
-
-// Test_14_manager tests the creation of the manager and linting it with the handler.
-func (test *TestServiceSuite) Test_14_manager() {
-	s := test.Suite.Require
-
-	test.newService()
-
-	s().NoError(test.service.newManager())
-
-	handler := test.service.Handlers["main"].(base.Interface)
-	err := test.service.setHandlerClient(handler)
-	s().NoError(err)
-
-	test.closeService()
-}
-
-// Test_15_handler tests setup and start of the handler
-func (test *TestServiceSuite) Test_15_handler() {
-	s := test.Suite.Require
-
-	test.newService()
-
-	s().NoError(test.service.newManager())
-
-	handler := test.mainHandler()
-	s().NoError(test.service.startHandler(handler))
-
-	// wait a bit until the handler is initialized
-	time.Sleep(time.Millisecond * 100)
-
-	// let's test that handler runs
-	externalClient := test.externalClient(handler.Config())
-
-	// request the handler
-	req := message.Request{
-		Command:    "hello",
-		Parameters: datatype.New(),
+func TestLintDefaultTopologyKeepsExistingDefaultHandlerConfig(t *testing.T) {
+	configPath := testConfigPath(t)
+	existingMain := topologyConfig.Handler{
+		Type:     topologyConfig.SyncReplierType,
+		Category: handlers.DefaultHandlerCategory,
+		Endpoint: message.NewEndpoint(testEndpointID(t, "existing-main"), 0),
 	}
-	reply, err := externalClient.Request(&req)
-	s().NoError(err)
-	s().True(reply.IsOK())
+	existingService := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "custom-service",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers:  []topologyConfig.Handler{existingMain},
+	}
+	appConfig, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	require.NoError(t, appConfig.SetService(existingService))
+	require.NoError(t, appConfig.Save())
 
-	// close the handler
-	handlerManager, err := manager_client.New(handler.Config())
-	s().NoError(err)
-	s().NoError(handlerManager.Close())
-	s().NoError(externalClient.Close())
+	independent, err := New("custom-service", configPath, message.NewEndpoint(testEndpointID(t, "manager"), 0))
+	require.NoError(t, err)
 
-	test.closeService()
+	require.NoError(t, independent.lintDefaultTopology())
+
+	serviceConfig, err := independent.topologyHandler.Service("custom-service")
+	require.NoError(t, err)
+	mainHandler := requireServiceHandler(t, serviceConfig, handlers.DefaultHandlerCategory)
+	require.Equal(t, existingMain.Endpoint, mainHandler.Endpoint)
 }
 
-// Test_16_managerRequest tests the start of the manager and closing it by a command
-func (test *TestServiceSuite) Test_16_managerRequest() {
-	s := test.Suite.Require
+func TestStartCreatesDefaultHandlerAndStartsManager(t *testing.T) {
+	independent, err := New(
+		"custom-service",
+		testConfigPath(t),
+		message.NewEndpoint(testEndpointID(t, "manager"), 0),
+	)
+	require.NoError(t, err)
 
-	test.newService()
+	require.NoError(t, independent.Start())
+	t.Cleanup(func() {
+		_ = independent.Stop()
+		closeTopologyHandler(t)
+	})
 
-	s().NoError(test.service.newManager())
+	require.True(t, independent.manager.Running())
 
-	handler := test.service.Handlers["main"].(base.Interface)
-	err := test.service.setHandlerClient(handler)
-	s().NoError(err)
+	topologyClient, err := topology.NewClient()
+	require.NoError(t, err)
+	defer topologyClient.Close()
 
-	s().NoError(test.service.startHandler(handler))
-
-	s().NoError(test.service.manager.Start())
-
-	// wait a bit until the handler and manager are initialized
-	time.Sleep(time.Millisecond * 100)
-	s().True(test.service.manager.Running())
-
-	// test sending a command to the manager
-	createdConfig, err := test.service.topologyHandler.Config().Service(test.name)
-	s().NoError(err)
-	externalConfig := createdConfig.Manager
-	externalConfig.UrlFunc(clientConfig.Url)
-	externalClient, err := client.New(externalConfig)
-	s().NoError(err)
-
-	req := message.Request{
-		Command:    "close",
-		Parameters: datatype.New(),
-	}
-	err = externalClient.Submit(&req)
-	s().NoError(err)
-
-	// Wait a bit for closing service threads
-	time.Sleep(time.Millisecond * 100)
-
-	// make sure that context is not running
-	s().False(test.service.topologyHandler.IsRunning())
-	s().False(test.service.manager.Running())
-
-	// clean out
-	test.service = nil
+	serviceConfig, err := topologyClient.Service("custom-service")
+	require.NoError(t, err)
+	mainHandler := requireServiceHandler(t, serviceConfig, handlers.DefaultHandlerCategory)
+	require.Equal(t, handlers.DefaultHandlerEndpoint, mainHandler.Endpoint)
 }
 
-// Test_17_Start test service start.
-// It's the collection of all previous tested functions together
-// The started service will make the handler and managers available
-func (test *TestServiceSuite) Test_17_Start() {
-	s := test.Require
+func TestNewRejectsInvalidParams(t *testing.T) {
+	_, err := New("service", testConfigPath(t), message.NewEndpoint("manager", 0), "extra")
+	require.EqualError(t, err, "too many arguments, expected name, config path, and manager endpoint")
 
-	test.newService()
+	_, err = New(10)
+	require.EqualError(t, err, "name argument must be string")
 
-	err := test.service.Start()
-	s().NoError(err)
+	_, err = New("service", 10)
+	require.EqualError(t, err, "config path argument must be string")
 
-	// wait a bit for thread initialization
-	time.Sleep(time.Millisecond * 100)
-
-	// let's test that handler runs
-	mainHandler := test.mainHandler()
-	externalClient := test.externalClient(mainHandler.Config())
-
-	// Make sure that handlers are running
-	req := message.Request{
-		Command:    "hello",
-		Parameters: datatype.New(),
-	}
-	reply, err := externalClient.Request(&req)
-	s().NoError(err)
-	s().True(reply.IsOK())
-
-	// Make sure that manager is running
-	managerClient := test.managerClient()
-	req = message.Request{
-		Command:    "heartbeat",
-		Parameters: datatype.New(),
-	}
-	reply, err = managerClient.Request(&req)
-	s().NoError(err)
-	s().True(reply.IsOK())
-
-	// clean out
-	// we don't close the handler here by calling mainHandler.Close.
-	//
-	// the service manager must close all handlers.
-	s().NoError(test.service.manager.StopService(test.service.Name()))
-
-	// since we closed by manager, the cleaning-out by test suite not necessary.
-	test.service = nil
-}
-
-// Test_22_Start_Close test service start then close in repeat.
-// It's the collection of all previous tested functions together
-// The started service will make the handler and managers available
-func (test *TestServiceSuite) Test_22_Start_Close() {
-	s := test.Require
-
-	test.newService()
-
-	err := test.service.Start()
-	s().NoError(err)
-
-	// wait a bit for thread initialization
-	time.Sleep(time.Millisecond * 100)
-
-	// let's test that handler runs
-	mainHandler := test.mainHandler()
-	externalClient := test.externalClient(mainHandler.Config())
-
-	// Make sure that handlers are running
-	req := message.Request{
-		Command:    "hello",
-		Parameters: datatype.New(),
-	}
-	reply, err := externalClient.Request(&req)
-	s().NoError(err)
-	s().True(reply.IsOK())
-
-	// Make sure that manager is running
-	managerClient := test.managerClient()
-	req = message.Request{
-		Command:    "heartbeat",
-		Parameters: datatype.New(),
-	}
-	reply, err = managerClient.Request(&req)
-	s().NoError(err)
-	s().True(reply.IsOK())
-
-	// clean out
-	// we don't close the handler here by calling mainHandler.Close.
-	//
-	// the service manager must close all handlers.
-	s().NoError(test.service.manager.StopService(test.service.Name()))
-	time.Sleep(time.Millisecond * 100)
-
-	// since we closed by manager, the cleaning-out by test suite not necessary.
-	test.service = nil
-
-	//
-	// Repeat starting the service again
-	//
-
-	test.newService()
-	err = test.service.Start()
-	s().NoError(err)
-
-	// wait a bit for thread initialization
-	time.Sleep(time.Millisecond * 100)
-
-	// let's test that handler runs
-	mainHandler = test.mainHandler()
-	externalClient = test.externalClient(mainHandler.Config())
-
-	// Make sure that handlers are running
-	req = message.Request{
-		Command:    "hello",
-		Parameters: datatype.New(),
-	}
-	reply, err = externalClient.Request(&req)
-	s().NoError(err)
-	s().True(reply.IsOK())
-
-	// Make sure that manager is running
-	managerClient = test.managerClient()
-	req = message.Request{
-		Command:    "heartbeat",
-		Parameters: datatype.New(),
-	}
-	reply, err = managerClient.Request(&req)
-	s().NoError(err)
-	s().True(reply.IsOK())
-
-	// clean out
-	// we don't close the handler here by calling mainHandler.Close.
-	//
-	// the service manager must close all handlers.
-	s().NoError(test.service.manager.StopService(test.service.Name()))
-
-	// since we closed by manager, the cleaning-out by test suite not necessary.
-	test.service = nil
-	time.Sleep(time.Millisecond * 100)
-}
-
-// In order for 'go test' to run this suite, we need to create
-// a normal test function and pass our suite to suite.Run
-func TestService(t *testing.T) {
-	suite.Run(t, new(TestServiceSuite))
+	_, err = New("service", testConfigPath(t), "manager")
+	require.EqualError(t, err, "manager endpoint argument must be message.Endpoint")
 }
