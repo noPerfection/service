@@ -9,7 +9,6 @@ package service
 
 import (
 	"fmt"
-	"slices"
 	"sync"
 
 	"github.com/noPerfection/datatype"
@@ -118,75 +117,6 @@ func (independent *Independent) Type() serviceConfig.Type {
 	return serviceConfig.IndependentType
 }
 
-// SetProxyUnitsBy stores proxy units for the given destination rule.
-func (independent *Independent) SetProxyUnitsBy(dest *serviceConfig.Rule) error {
-	return independent.setProxyUnitsBy(dest)
-}
-
-// SetProxyChain adds a proxy chain to the list of proxy chains to set.
-//
-// The proxies are managed by the proxy handler in the context.
-// This method creates a serviceConfig.ProxyChain.
-// Then send it to the proxy handler.
-func (independent *Independent) SetProxyChain(params ...interface{}) error {
-	if len(params) < 1 || len(params) > 3 {
-		return fmt.Errorf("argument amount is invalid, either one or three arguments must be set")
-	}
-	if independent.topologyHandler == nil || !independent.topologyHandler.IsConfigRunning() {
-		return fmt.Errorf("context or config engine is not running")
-	}
-
-	if !independent.topologyHandler.IsDepManagerRunning() {
-		err := independent.topologyHandler.StartDepManager()
-		if err != nil {
-			return fmt.Errorf("topologyHandler.StartDepManager: %w", err)
-		}
-
-	}
-
-	if !independent.topologyHandler.IsProxyHandlerRunning() {
-		err := independent.topologyHandler.StartProxyHandler()
-		if err != nil {
-			return fmt.Errorf("topologyHandler.StartProxyHandler: %w", err)
-		}
-	}
-
-	var proxyChain *serviceConfig.ProxyChain
-	var ok bool
-
-	if len(params) == 1 {
-		proxyChain, ok = params[0].(*serviceConfig.ProxyChain)
-		if !ok {
-			return fmt.Errorf("given a one parameter it must be of *parent.ProxyChain type")
-		}
-		if len(proxyChain.Destination.Urls) == 0 {
-			proxyChain.Destination.Urls = []string{independent.name}
-		}
-		if !proxyChain.IsValid() {
-			return fmt.Errorf("given a one parameter, the proxy chain is not valid")
-		}
-	} else {
-		var err error
-		proxyChain, err = serviceConfig.NewProxyChain(params...)
-		if err != nil {
-			return fmt.Errorf("serviceConfig.NewProxyChain: %w", err)
-		}
-		if len(proxyChain.Destination.Urls) == 0 {
-			proxyChain.Destination.Urls = []string{independent.name}
-		}
-		if !proxyChain.IsValid() {
-			return fmt.Errorf("given proxy chain fields, the proxy chain is not valid")
-		}
-	}
-
-	proxyClient := independent.topologyHandler.ProxyClient()
-	if err := proxyClient.Set(proxyChain); err != nil {
-		return fmt.Errorf("independent.topologyHandler.Set('proxyChain'): %w", err)
-	}
-
-	return nil
-}
-
 // RequireExtension lints the id to the extension url
 func (independent *Independent) RequireExtension(id string, url string) {
 	if independent.RequiredExtensions.Exist(id) {
@@ -202,148 +132,6 @@ func (independent *Independent) requiredControllerExtensions() []string {
 	}
 
 	return extensions
-}
-
-func (independent *Independent) setProxyUnitsBy(dest *serviceConfig.Rule) error {
-	proxyClient := independent.topologyHandler.ProxyClient()
-
-	if dest.IsRoute() {
-		units := independent.unitsByRouteRule(dest)
-		if err := proxyClient.SetUnits(dest, units); err != nil {
-			return fmt.Errorf("proxyClient.SetUnits: %w", err)
-		}
-	} else if dest.IsHandler() {
-		units := independent.unitsByHandlerRule(dest)
-		if err := proxyClient.SetUnits(dest, units); err != nil {
-			return fmt.Errorf("proxyClient.SetUnits: %w", err)
-		}
-	} else if dest.IsService() {
-		units := independent.unitsByServiceRule(dest)
-		if err := proxyClient.SetUnits(dest, units); err != nil {
-			return fmt.Errorf("proxyClient.SetUnits: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// The setProxyUnits gets the list of proxy chains for this service.
-// Then, it creates a proxy units.
-// Todo if the extension is sending a ready command, then update the command list.
-func (independent *Independent) setProxyUnits() error {
-	proxyClient := independent.topologyHandler.ProxyClient()
-	proxyChains, err := proxyClient.ProxyChains()
-	if err != nil {
-		return fmt.Errorf("proxyClient.ProxyChainsByRuleUrl: %w", err)
-	}
-
-	// set the proxy destination units for each rule
-	for _, proxyChain := range proxyChains {
-		dest := proxyChain.Destination
-		if err := independent.setProxyUnitsBy(dest); err != nil {
-			return fmt.Errorf("independent.setProxyUnitsBy(rule='%v'): %w", dest, err)
-		}
-	}
-
-	return nil
-}
-
-// unitsByRouteRule returns the list of units for the route rule
-func (independent *Independent) unitsByRouteRule(rule *serviceConfig.Rule) []*serviceConfig.Unit {
-	units := make([]*serviceConfig.Unit, 0, len(rule.Commands)*len(rule.Categories))
-
-	if len(independent.Handlers) == 0 {
-		return units
-	}
-
-	for _, raw := range independent.Handlers {
-		handlerInterface := raw.(base.Interface)
-		hConfig := handlerInterface.Config()
-
-		if !slices.Contains(rule.Categories, hConfig.Category) {
-			continue
-		}
-
-		for _, command := range rule.Commands {
-			if slices.Contains(rule.ExcludedCommands, command) {
-				continue
-			}
-
-			if !handlerInterface.IsRouteExist(command) {
-				continue
-			}
-
-			unit := &serviceConfig.Unit{
-				ServiceId: independent.name,
-				HandlerId: hConfig.Id,
-				Command:   command,
-			}
-
-			units = append(units, unit)
-		}
-	}
-
-	return units
-}
-
-// unitsByHandlerRule returns the list of units for the handler rule
-func (independent *Independent) unitsByHandlerRule(rule *serviceConfig.Rule) []*serviceConfig.Unit {
-	units := make([]*serviceConfig.Unit, 0, len(rule.Categories))
-
-	for _, raw := range independent.Handlers {
-		handlerInterface := raw.(base.Interface)
-		hConfig := handlerInterface.Config()
-
-		if !slices.Contains(rule.Categories, hConfig.Category) {
-			continue
-		}
-
-		commands := handlerInterface.RouteCommands()
-
-		for _, command := range commands {
-			if slices.Contains(rule.ExcludedCommands, command) {
-				continue
-			}
-
-			unit := &serviceConfig.Unit{
-				ServiceId: independent.name,
-				HandlerId: hConfig.Id,
-				Command:   command,
-			}
-
-			units = append(units, unit)
-		}
-	}
-
-	return units
-}
-
-// unitsByServiceRule returns the list of units for the service rule
-func (independent *Independent) unitsByServiceRule(rule *serviceConfig.Rule) []*serviceConfig.Unit {
-	units := make([]*serviceConfig.Unit, 0, len(rule.Categories))
-
-	for _, raw := range independent.Handlers {
-		handlerInterface := raw.(base.Interface)
-		hConfig := handlerInterface.Config()
-
-		commands := handlerInterface.RouteCommands()
-
-		for _, command := range commands {
-			if slices.Contains(rule.ExcludedCommands, command) {
-				continue
-			}
-
-			unit := &serviceConfig.Unit{
-				ServiceId: independent.name,
-				HandlerId: hConfig.Id,
-				Command:   command,
-			}
-
-			units = append(units, unit)
-		}
-	}
-
-	return units
 }
 
 // newManager creates a manager.Manager and assigns it to manager, otherwise manager is nil.
@@ -481,13 +269,6 @@ func (independent *Independent) Start() (*sync.WaitGroup, error) {
 		goto errOccurred
 	}
 
-	// get the proxies from the proxy chain for this service.
-	// must be called before starting handlers, as routing of the handlers maybe set by proxy units.
-	if err = independent.setProxyUnits(); err != nil {
-		err = fmt.Errorf("independent.setProxyUnits: %w", err)
-		goto errOccurred
-	}
-
 	err = independent.startHandlers()
 	if err != nil {
 		goto errOccurred
@@ -498,13 +279,6 @@ func (independent *Independent) Start() (*sync.WaitGroup, error) {
 
 	if err = independent.manager.Start(); err != nil {
 		err = fmt.Errorf("service.manager.Start: %w", err)
-		goto errOccurred
-	}
-
-	// todo add a manager command that reads the client configuration status GENERATED
-	// todo upon reading it sets it into the independent.Config.Sources
-	if err = independent.topologyHandler.ProxyClient().StartLastProxies(); err != nil {
-		err = fmt.Errorf("topologyHandler.ProxyClient.StartLastProxies: %w", err)
 		goto errOccurred
 	}
 
@@ -535,45 +309,3 @@ errOccurred:
 
 	return independent.blocker, err
 }
-
-//func (independent *Independent) prepareExtensionConfiguration(dep *dev.Dep) error {
-//	err := dep.Prepare(independent.Logger)
-//	if err != nil {
-//		return fmt.Errorf("dev.Prepare(%s): %w", dep.Url(), err)
-//	}
-//
-//	err = dep.PrepareConfig(independent.Logger)
-//	if err != nil {
-//		return fmt.Errorf("dev.PrepareConfig on %s: %w", dep.Url(), err)
-//	}
-//
-//	//depConfig, err := dep.GetServiceConfig()
-//	//converted, err := converter.ServiceToExtension(depConfig)
-//	//if err != nil {
-//	//	return fmt.Errorf("config.ServiceToExtension: %w", err)
-//	//}
-//	//
-//	//extensionConfiguration := independent.config.GetExtension(dep.Url())
-//	//if extensionConfiguration == nil {
-//	//	independent.config.SetExtension(&converted)
-//	//} else {
-//	//	if strings.Compare(extensionConfiguration.Url, converted.Url) != 0 {
-//	//		return fmt.Errorf("the extension url in your '%s' config not matches to '%s' in the dependency", extensionConfiguration.Url, converted.Url)
-//	//	}
-//	//	if extensionConfiguration.Port != converted.Port {
-//	//		independent.Logger.Warn("dependency port not matches to the extension port. Overwriting the source", "port", extensionConfiguration.Port, "dependency port", converted.Port)
-//	//
-//	//		main, _ := depConfig.GetFirstController()
-//	//		main.Instances[0].Port = extensionConfiguration.Port
-//	//
-//	//depConfig.SetController(main)
-//	//
-//	//err = dep.SetServiceConfig(depConfig)
-//	//if err != nil {
-//	//	return fmt.Errorf("failed to update port in dependency extension: '%s': %w", dep.Url(), err)
-//	//}
-//	//}
-//	//}
-//
-//	return nil
-//}
