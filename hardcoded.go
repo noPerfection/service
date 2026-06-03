@@ -9,6 +9,7 @@ import (
 // WithHardcodedTopology keeps handler topology configs set from code.
 type WithHardcodedTopology struct {
 	name           string
+	serviceConfigs map[string]config.Service
 	handlerConfigs map[string][]config.Handler
 }
 
@@ -20,8 +21,25 @@ func NewHardcodedTopologies(serviceName string) *WithHardcodedTopology {
 
 	return &WithHardcodedTopology{
 		name:           serviceName,
+		serviceConfigs: make(map[string]config.Service),
 		handlerConfigs: make(map[string][]config.Handler),
 	}
+}
+
+// SetServiceConfig stores a service config to be written into topology.
+func (topologies *WithHardcodedTopology) SetServiceConfig(service config.Service) error {
+	if topologies == nil {
+		return fmt.Errorf("hardcoded topologies is nil")
+	}
+	if service.Name == "" {
+		service.Name = topologies.name
+	}
+	if service.Name == "" {
+		service.Name = DefaultName
+	}
+
+	topologies.serviceConfigs[service.Name] = service
+	return nil
 }
 
 // SetHandlerConfig stores a handler config by category for the given service.
@@ -67,6 +85,20 @@ func (topologies *WithHardcodedTopology) HasHardcodedHandlers(serviceName ...str
 		name = serviceName[0]
 	}
 	return len(topologies.handlerConfigs[name]) > 0
+}
+
+func (independent *Independent) addHardcodedServicesToTopology() error {
+	if independent == nil || independent.WithHardcodedTopology == nil {
+		return fmt.Errorf("service or WithHardcodedTopology is nil")
+	}
+
+	for serviceName, serviceConfig := range independent.serviceConfigs {
+		if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
+			return fmt.Errorf("topologyHandler.SetService('%s'): %w", serviceName, err)
+		}
+	}
+
+	return nil
 }
 
 func (independent *Independent) addHardcodedHandlersToTopology() error {

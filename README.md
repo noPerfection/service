@@ -364,6 +364,30 @@ Because the handler type changed, the client should connect as a sync replier:
 c, err := client.New("localhost", 3000, client.SyncReplierType)
 ```
 
+---
+
+Just like handlers, you can define service configs from code too. This lets you
+create a service config before startup, or overwrite parameters that would
+otherwise come from `noPerfection.json`.
+
+```go
+if err := app.SetServiceConfig(topologyConfig.Service{
+	Type:      topologyConfig.IndependentType,
+	Name:      "hello-world",
+	ModuleUrl: "github.com/noPerfection/service",
+	Parameters: datatype.New().Set("mode", "tutorial"),
+}); err != nil {
+	panic(err)
+}
+```
+
+Call `SetServiceConfig` before `Start()`. Hardcoded handler configs are applied
+after hardcoded service configs, so handlers can be attached to services that
+were created in code.
+
+If no services defined by a programmer, then service will create a default one with
+the name `main`.
+
 
 # noPerfection Service
 

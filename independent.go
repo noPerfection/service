@@ -267,6 +267,10 @@ func (independent *Independent) addTopologyHandlersToHandlers() error {
 func (independent *Independent) Start() error {
 	var err error
 
+	if err = independent.addHardcodedServicesToTopology(); err != nil {
+		err = fmt.Errorf("addHardcodedServicesToTopology: %w", err)
+		goto errOccurred
+	}
 	if err = independent.addDefaultServiceToTopology(); err != nil {
 		err = fmt.Errorf("lintDefaultTopology: %w", err)
 		goto errOccurred
