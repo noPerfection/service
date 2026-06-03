@@ -1,0 +1,19 @@
+{
+  "services": [
+    {
+      "type": "Independent",
+      "name": "hello-world",
+      "module-url": "github.com/noPerfection/service",
+      "handlers": [
+        {
+          "type": "Replier",
+          "category": "main",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8000
+          }
+        }
+      ]
+    }
+  ]
+}

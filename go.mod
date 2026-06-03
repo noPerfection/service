@@ -4,11 +4,11 @@ go 1.19
 
 replace github.com/noPerfection/topology/config => ../topology/config
 
-replace github.com/noPerfection/protocol/handler => ../protocol/handler
-
 replace github.com/noPerfection/datatype => ../datatype
 
 replace github.com/noPerfection/protocol/client => ../protocol/client
+
+replace github.com/noPerfection/protocol/handler => ../protocol/handler
 
 replace github.com/noPerfection/protocol/message => ../protocol/message
 
@@ -20,6 +20,7 @@ require (
 	github.com/noPerfection/os v0.0.0
 	github.com/noPerfection/protocol/client v0.0.0
 	github.com/noPerfection/protocol/handler v0.0.0
+	github.com/noPerfection/protocol/message v0.0.0
 	github.com/noPerfection/topology v0.0.0-20260602170203-c8fa84f22f77
 	github.com/noPerfection/topology/config v0.0.0
 	github.com/pebbe/zmq4 v1.2.10
@@ -85,7 +86,6 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/cakturk/go-netstat v0.0.0-20200220111822-e5b49efee7a5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/noPerfection/protocol/message v0.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect

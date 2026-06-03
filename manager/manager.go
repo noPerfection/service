@@ -12,6 +12,7 @@ import (
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
+	handlerControl "github.com/noPerfection/protocol/handler/control"
 	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/topology"
@@ -212,9 +213,10 @@ func (m *Manager) setHandlerControls() error {
 			continue
 		}
 
-		control, err := clientSyncReplier.NewBaseControl(handler.Endpoint.Id+"_control", 0)
+		controlID := handlerControl.ControlEndpointID(handler.Endpoint.Id, handler.Endpoint.Port)
+		control, err := clientSyncReplier.NewBaseControl(controlID, 0)
 		if err != nil {
-			return fmt.Errorf("sync_replier.NewBaseControl('%s_control'): %w", handler.Endpoint.Id, err)
+			return fmt.Errorf("sync_replier.NewBaseControl('%s'): %w", controlID, err)
 		}
 		m.handlerControls = append(m.handlerControls, control)
 	}
