@@ -12,6 +12,7 @@ type WithHardcodedTopology struct {
 	name           string
 	serviceConfigs map[string]config.Service
 	handlerConfigs map[string][]config.Handler
+	handlerDeps    map[string][]config.DepService
 	commandDeps    map[string]map[string][]config.DepService
 }
 
@@ -25,6 +26,7 @@ func NewHardcodedTopologies(serviceName string) *WithHardcodedTopology {
 		name:           serviceName,
 		serviceConfigs: make(map[string]config.Service),
 		handlerConfigs: make(map[string][]config.Handler),
+		handlerDeps:    make(map[string][]config.DepService),
 		commandDeps:    make(map[string]map[string][]config.DepService),
 	}
 }
@@ -120,6 +122,30 @@ func (topologies *WithHardcodedTopology) SetCommandDeps(dep config.DepService, h
 	return nil
 }
 
+// SetHandlerDeps stores handler dependencies by service.
+func (topologies *WithHardcodedTopology) SetHandlerDeps(dep config.DepService, serviceName ...string) error {
+	if topologies == nil {
+		return fmt.Errorf("hardcoded topologies is nil")
+	}
+	if len(serviceName) > 1 {
+		return fmt.Errorf("too many service names")
+	}
+	if dep.Name == "" {
+		return fmt.Errorf("dep service name is empty")
+	}
+
+	name := topologies.name
+	if len(serviceName) == 1 && serviceName[0] != "" {
+		name = serviceName[0]
+	}
+	if name == "" {
+		name = DefaultName
+	}
+
+	topologies.handlerDeps[name] = setDepService(topologies.handlerDeps[name], dep)
+	return nil
+}
+
 func (topologies *WithHardcodedTopology) HasHardcodedHandlers(serviceName ...string) bool {
 	if topologies == nil {
 		return false
@@ -168,6 +194,28 @@ func (independent *Independent) addHardcodedHandlersToTopology() error {
 	return nil
 }
 
+func (independent *Independent) addHardcodedHandlerDepsToTopology() error {
+	if independent == nil || independent.WithHardcodedTopology == nil {
+		return fmt.Errorf("service or WithHardcodedTopology is nil")
+	}
+
+	for serviceName, deps := range independent.handlerDeps {
+		serviceConfig, err := independent.topologyHandler.Service(serviceName)
+		if err != nil {
+			return fmt.Errorf("hardcoded handler deps for '%s' service not found in topology: %w", serviceName, err)
+		}
+
+		for _, dep := range deps {
+			serviceConfig.HandlerDeps = setDepService(serviceConfig.HandlerDeps, dep)
+		}
+		if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
+			return fmt.Errorf("topologyHandler.SetService('%s'): %w", serviceName, err)
+		}
+	}
+
+	return nil
+}
+
 func (independent *Independent) addHardcodedCommandDepsToTopology() error {
 	if independent == nil || independent.WithHardcodedTopology == nil {
 		return fmt.Errorf("service or WithHardcodedTopology is nil")
@@ -186,7 +234,7 @@ func (independent *Independent) addHardcodedCommandDepsToTopology() error {
 			}
 
 			for _, dep := range deps {
-				handler.CommandDeps = setCommandDep(handler.CommandDeps, dep)
+				handler.CommandDeps = setDepService(handler.CommandDeps, dep)
 			}
 			serviceConfig.SetHandler(handler, true)
 		}
@@ -198,7 +246,7 @@ func (independent *Independent) addHardcodedCommandDepsToTopology() error {
 	return nil
 }
 
-func setCommandDep(deps []config.DepService, dep config.DepService) []config.DepService {
+func setDepService(deps []config.DepService, dep config.DepService) []config.DepService {
 	for i := range deps {
 		if deps[i].Name == dep.Name {
 			deps[i] = dep
