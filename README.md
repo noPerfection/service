@@ -80,15 +80,217 @@ This tracker is given to the manager.
 Then, the manager creates its own heartbeat, and sends the messages to the parent.
 If no parent is given, it won't set it.
 
-# Usage
+# Hello World
+
+Install the module
+
+```bash
+go get github.com/noPerfection/service
+```
 
 ```go
-id := "application name"
-s := service.New(id)
-s.Prepare() // runs the manager
-s.RunDepManager()
-s.Run() // sets up
+package main
+
+import (
+	"fmt"
+
+	"github.com/noPerfection/datatype" // loaded indirectly with service module
+	"github.com/noPerfection/protocol/message" // loaded indirectly with service module
+	"github.com/noPerfection/service"
+)
+
+func main() {
+	app, _ := service.New()
+
+	replyWorld := func(req message.RequestInterface) message.ReplyInterface {
+		name, _ := req.RouteParameters().StringValue("name")
+		if name == "" {
+			name = "world"
+		}
+		return req.Ok(datatype.New().Set("message", "hello "+name))
+	}
+
+	app.Route("hello", replyWorld)
+
+	app.Start()
+	defer app.Stop()
+
+	fmt.Println("hello service is running")
+	app.Wait()
+}
 ```
+
+`Route` must be called before `Start`. If no handler category is passed, the route is attached to the default `main` handler. When no `main` handler is configured, the service creates one on `localhost:8000`.
+
+See [examples/hello-world](./examples/hello-world) for a live example that you can run locally.
+
+You can call the route with a protocol client:
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/noPerfection/datatype"
+	"github.com/noPerfection/protocol/client"
+	"github.com/noPerfection/protocol/message"
+)
+
+func main() {
+	c, err := client.New("localhost", 8000, client.ReplierType)
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
+
+	c.Timeout(time.Second)
+	c.Attempt(1)
+
+	reply, err := c.Request(&message.Request{
+		Command:    "hello",
+		Parameters: datatype.New().Set("name", "world"),
+	})
+	if err != nil {
+		panic(err)
+	}
+	if !reply.IsOK() {
+		panic(reply.ErrorMessage())
+	}
+
+	msg, _ := reply.ReplyParameters().StringValue("message")
+	fmt.Println(msg)
+}
+```
+
+## Why noPerfection
+
+The service comes with a built-in admin panel. You can manage it from other parts of the system by restarting a microservice, stopping it, or closing one of its handler threads.
+
+To do that, each service starts a manager. The manager is internal by default, so you can use it from code. You can also expose it on a known endpoint and send a signal to the service to stop itself.
+
+See [examples/001-close-service](./examples/001-close-service) for the runnable example.
+
+Following the Hello World example, use a custom manager endpoint:
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/noPerfection/datatype"
+	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service"
+)
+
+func main() {
+	managerEndpoint := message.NewEndpoint("localhost", 8001)
+	app, err := service.New("close-service", "noPerfection.json", managerEndpoint)
+	if err != nil {
+		panic(err)
+	}
+
+	replyWorld := func(req message.RequestInterface) message.ReplyInterface {
+		return req.Ok(datatype.New().Set("message", "hello and world"))
+	}
+
+	if err := app.Route("hello", replyWorld); err != nil {
+		panic(err)
+	}
+
+	if err := app.Start(); err != nil {
+		panic(err)
+	}
+	defer app.Stop()
+
+	fmt.Println("hello service is running")
+	app.Wait()
+}
+```
+
+Then create a client that uses `github.com/noPerfection/os/arg` for flags. Without flags, it calls the `hello` route. With `--close`, it sends a manager command that stops the service.
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/noPerfection/datatype"
+	"github.com/noPerfection/os/arg"
+	"github.com/noPerfection/protocol/client"
+	managerClient "github.com/noPerfection/protocol/client/sync_replier"
+	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/manager"
+)
+
+func main() {
+	if arg.FlagExist("close") {
+		closeService()
+		return
+	}
+
+	callHello()
+}
+
+func callHello() {
+	c, err := client.New("localhost", 8000, client.ReplierType)
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
+
+	c.Timeout(time.Second)
+	c.Attempt(1)
+
+	reply, err := c.Request(&message.Request{
+		Command:    "hello",
+		Parameters: datatype.New(),
+	})
+	if err != nil {
+		panic(err)
+	}
+	if !reply.IsOK() {
+		panic(reply.ErrorMessage())
+	}
+
+	message, _ := reply.ReplyParameters().StringValue("message")
+	fmt.Println(message)
+}
+
+func closeService() {
+	c, err := managerClient.NewClient("localhost", 8001)
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
+
+	reply, err := c.Request(&message.Request{
+		Command:    manager.StopService,
+		Parameters: datatype.New().Set("service", "close-service"),
+	})
+	if err != nil {
+		panic(err)
+	}
+	if !reply.IsOK() {
+		panic(reply.ErrorMessage())
+	}
+
+	fmt.Println("close signal sent")
+}
+```
+
+Run the service in one terminal, then run the client in another:
+
+```bash
+go run ./cmd/client
+go run ./cmd/client --close
+```
+
+After `--close`, look back at the service terminal. The service should stop because the manager releases `app.Wait()`.
 
 # noPerfection Service
 

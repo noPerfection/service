@@ -1,0 +1,27 @@
+{
+  "services": [
+    {
+      "type": "Independent",
+      "name": "close-service",
+      "module-url": "github.com/noPerfection/service",
+      "handlers": [
+        {
+          "type": "Replier",
+          "category": "main",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8000
+          }
+        },
+        {
+          "type": "SyncReplier",
+          "category": "manager",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8001
+          }
+        }
+      ]
+    }
+  ]
+}

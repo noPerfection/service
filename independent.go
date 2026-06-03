@@ -12,8 +12,13 @@ import (
 	"sync"
 
 	"github.com/noPerfection/log"
+	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
+	"github.com/noPerfection/protocol/handler/pair"
+	"github.com/noPerfection/protocol/handler/publisher"
 	"github.com/noPerfection/protocol/handler/replier"
+	"github.com/noPerfection/protocol/handler/sync_replier"
+	"github.com/noPerfection/protocol/handler/worker"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
@@ -129,14 +134,19 @@ func (independent *Independent) Type() config.Type {
 	return config.IndependentType
 }
 
-// Lint default topology registeres the default service (main) and
-// the default handler (also main category and replier).
-func (independent *Independent) lintDefaultTopology() error {
+// addDefaultServiceToTopology adds the default service (name is main)
+// if no config was given.
+//
+// Additionally, if config exists, but no handlers, it adds a default handler.
+// The default handler is the main category and replier.
+func (independent *Independent) addDefaultServiceToTopology() error {
 	serviceConfig, err := independent.topologyHandler.Service(independent.name)
 	// Error indicates no service config
 	if err != nil {
 		serviceConfig = *config.New(independent.name, config.IndependentType)
 		serviceConfig.ModuleUrl = DefaultModuleUrl
+	} else if len(serviceConfig.Handlers) > 0 {
+		return nil
 	}
 
 	defaultHandler, err := serviceConfig.HandlerByCategory(handlers.DefaultHandlerCategory)
@@ -144,6 +154,7 @@ func (independent *Independent) lintDefaultTopology() error {
 	if err == nil {
 		return nil
 	}
+
 	defaultHandler.Category = handlers.DefaultHandlerCategory
 	defaultHandler.Endpoint = handlers.DefaultHandlerEndpoint
 	defaultHandler.Type = config.ReplierType
@@ -152,28 +163,11 @@ func (independent *Independent) lintDefaultTopology() error {
 		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.name, err)
 	}
 
-	// Handler can not have the default category handler.
-	if independent.Handlers.IsHandlerExist(handlers.DefaultHandlerCategory) {
-		return fmt.Errorf("handler(category: '%s') already exists", handlers.DefaultHandlerCategory)
-	}
-
-	// Set the default handler.
-	handler := replier.New()
-	handler.SetConfig(handlerConfig.New(
-		handlerConfig.HandlerType(defaultHandler.Type),
-		defaultHandler.Endpoint.Id,
-		defaultHandler.Category,
-		defaultHandler.Endpoint.Port,
-	))
-	if err := independent.Handlers.SetHandler(handlers.DefaultHandlerCategory, handler); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-// Service Manager is added to the topology only if it is not the default endpoint.
-func (independent *Independent) lintManagerTopology() error {
+// Service Manager's Handler is added to the topology only if it is not the default endpoint.
+func (independent *Independent) addServiceManagerToTopology() error {
 	// Service manager's config in the handler config format.
 	managerConfig := independent.manager.Config()
 	if managerConfig.Endpoint == DefaultServiceManagerEndpoint {
@@ -201,18 +195,68 @@ func (independent *Independent) lintManagerTopology() error {
 	return nil
 }
 
+func newTopologyHandler(handlerType config.HandlerType) (base.Interface, error) {
+	switch handlerType {
+	case config.SyncReplierType:
+		return sync_replier.New(), nil
+	case config.ReplierType:
+		return replier.New(), nil
+	case config.PublisherType:
+		return publisher.New(), nil
+	case config.PairType:
+		return pair.New(), nil
+	case config.WorkerType:
+		return worker.New(), nil
+	default:
+		return nil, fmt.Errorf("unsupported handler type: %s", handlerType)
+	}
+}
+
+func (independent *Independent) addTopologyHandlers() error {
+	serviceConfig, err := independent.topologyHandler.Service(independent.name)
+	if err != nil {
+		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.name, err)
+	}
+
+	for _, configured := range serviceConfig.Handlers {
+		if configured.Category == topology.ServiceManagerCategory {
+			continue
+		}
+
+		handler, err := newTopologyHandler(configured.Type)
+		if err != nil {
+			return fmt.Errorf("newTopologyHandler('%s'): %w", configured.Category, err)
+		}
+		handler.SetConfig(handlerConfig.New(
+			handlerConfig.HandlerType(configured.Type),
+			configured.Endpoint.Id,
+			configured.Category,
+			configured.Endpoint.Port,
+		))
+		if err := independent.Handlers.SetHandler(configured.Category, handler); err != nil {
+			return fmt.Errorf("handlers.SetHandler('%s'): %w", configured.Category, err)
+		}
+	}
+
+	return nil
+}
+
 // Start the service.
 //
 // Requires at least one handler.
 func (independent *Independent) Start() error {
 	var err error
 
-	if err = independent.lintDefaultTopology(); err != nil {
+	if err = independent.addDefaultServiceToTopology(); err != nil {
 		err = fmt.Errorf("lintDefaultTopology: %w", err)
 		goto errOccurred
 	}
-	if err = independent.lintManagerTopology(); err != nil {
+	if err = independent.addServiceManagerToTopology(); err != nil {
 		err = fmt.Errorf("lintManagerTopology: %w", err)
+		goto errOccurred
+	}
+	if err = independent.addTopologyHandlers(); err != nil {
+		err = fmt.Errorf("addTopologyHandlers: %w", err)
 		goto errOccurred
 	}
 
@@ -225,9 +269,6 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("handlers.Start: %w", err)
 		goto errOccurred
 	}
-
-	// todo prepare the extensions by calling them in the context.
-	// todo prepare the extensions by setting them into the independent.manager.
 
 	independent.blocker = &sync.WaitGroup{}
 	independent.blocker.Add(1)

@@ -59,7 +59,7 @@ func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, DefaultName, independent.Name())
 
-	require.NoError(t, independent.lintDefaultTopology())
+	require.NoError(t, independent.addDefaultServiceToTopology())
 
 	serviceConfig, err := independent.topologyHandler.Service(DefaultName)
 	require.NoError(t, err)
@@ -71,6 +71,7 @@ func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) 
 	require.Equal(t, handlers.DefaultHandlerCategory, defaultHandler.Category)
 	require.Equal(t, handlers.DefaultHandlerEndpoint, defaultHandler.Endpoint)
 
+	require.NoError(t, independent.addTopologyHandlers())
 	require.True(t, independent.Handlers.IsHandlerExist(handlers.DefaultHandlerCategory))
 }
 
@@ -103,7 +104,7 @@ func TestLintManagerTopologyOverwritesExistingManagerConfig(t *testing.T) {
 	independent, err := New("custom-service", configPath, managerEndpoint)
 	require.NoError(t, err)
 
-	require.NoError(t, independent.lintManagerTopology())
+	require.NoError(t, independent.addServiceManagerToTopology())
 
 	serviceConfig, err := independent.topologyHandler.Service("custom-service")
 	require.NoError(t, err)
@@ -133,12 +134,45 @@ func TestLintDefaultTopologyKeepsExistingDefaultHandlerConfig(t *testing.T) {
 	independent, err := New("custom-service", configPath, message.NewEndpoint(testEndpointID(t, "manager"), 0))
 	require.NoError(t, err)
 
-	require.NoError(t, independent.lintDefaultTopology())
+	require.NoError(t, independent.addDefaultServiceToTopology())
 
 	serviceConfig, err := independent.topologyHandler.Service("custom-service")
 	require.NoError(t, err)
 	mainHandler := requireServiceHandler(t, serviceConfig, handlers.DefaultHandlerCategory)
+	require.Equal(t, existingMain.Type, mainHandler.Type)
 	require.Equal(t, existingMain.Endpoint, mainHandler.Endpoint)
+}
+
+func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) {
+	configPath := testConfigPath(t)
+	mainHandler := topologyConfig.Handler{
+		Type:     topologyConfig.ReplierType,
+		Category: handlers.DefaultHandlerCategory,
+		Endpoint: message.NewEndpoint(testEndpointID(t, "main"), 0),
+	}
+	managerHandler := topologyConfig.Handler{
+		Type:     topologyConfig.SyncReplierType,
+		Category: topology.ServiceManagerCategory,
+		Endpoint: message.NewEndpoint(testEndpointID(t, "manager"), 0),
+	}
+	existingService := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "custom-service",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers:  []topologyConfig.Handler{mainHandler, managerHandler},
+	}
+	appConfig, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	require.NoError(t, appConfig.SetService(existingService))
+	require.NoError(t, appConfig.Save())
+
+	independent, err := New("custom-service", configPath, managerHandler.Endpoint)
+	require.NoError(t, err)
+
+	require.NoError(t, independent.addTopologyHandlers())
+
+	require.True(t, independent.Handlers.IsHandlerExist(handlers.DefaultHandlerCategory))
+	require.False(t, independent.Handlers.IsHandlerExist(topology.ServiceManagerCategory))
 }
 
 func TestStartCreatesDefaultHandlerAndStartsManager(t *testing.T) {
