@@ -297,6 +297,7 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("addHardcodedCommandDepsToTopology: %w", err)
 		goto errOccurred
 	}
+	fmt.Println("warning: Topology might have dependency per command/handler to other services. But its not launched nor piped consider doing it")
 
 	if err = independent.addTopologyHandlersToHandlers(); err != nil {
 		err = fmt.Errorf("addTopologyHandlers: %w", err)
