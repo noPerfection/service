@@ -283,10 +283,17 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("addDefaultHandlerToTopology: %w", err)
 		goto errOccurred
 	}
+
 	if err = independent.addServiceManagerToTopology(); err != nil {
 		err = fmt.Errorf("lintManagerTopology: %w", err)
 		goto errOccurred
 	}
+
+	if err = independent.addHardcodedCommandDepsToTopology(); err != nil {
+		err = fmt.Errorf("addHardcodedCommandDepsToTopology: %w", err)
+		goto errOccurred
+	}
+
 	if err = independent.addTopologyHandlersToHandlers(); err != nil {
 		err = fmt.Errorf("addTopologyHandlers: %w", err)
 		goto errOccurred
