@@ -35,6 +35,7 @@ var DefaultServiceManagerEndpoint = message.NewEndpoint(topology.ServiceManagerC
 // Independent keeps all necessary parameters of the independent service.
 type Independent struct {
 	*handlers.Handlers
+	*WithHardcodedTopology
 	topologyHandler *topology.Handler // topology handles the configuration and dependencies
 	name            string
 	blocker         *sync.WaitGroup
@@ -89,10 +90,11 @@ func New(params ...interface{}) (*Independent, error) {
 	}
 
 	independent := &Independent{
-		Handlers:        handlers.NewHandlers(),
-		topologyHandler: topologyHandler,
-		name:            name,
-		manager:         m,
+		Handlers:              handlers.NewHandlers(),
+		WithHardcodedTopology: NewHardcodedTopologies(name),
+		topologyHandler:       topologyHandler,
+		name:                  name,
+		manager:               m,
 	}
 
 	return independent, nil
@@ -134,18 +136,31 @@ func (independent *Independent) Type() config.Type {
 	return config.IndependentType
 }
 
-// addDefaultServiceToTopology adds the default config
+// addDefaultServiceToTopology adds the default service config
 // if no config was given for this service.
-//
-// Additionally, if config exists, but no handlers, it adds a default handler.
-// The default handler is the main category and replier.
 func (independent *Independent) addDefaultServiceToTopology() error {
 	serviceConfig, err := independent.topologyHandler.Service(independent.name)
-	// Error indicates no service config
+	if err == nil {
+		return nil
+	}
+
+	serviceConfig = *config.New(independent.name, config.IndependentType)
+	serviceConfig.ModuleUrl = DefaultModuleUrl
+	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
+		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.name, err)
+	}
+
+	return nil
+}
+
+// addDefaultHandlerToTopology adds the default handler when no handlers exist.
+// Unless there are handlers set by you or others
+func (independent *Independent) addDefaultHandlerToTopology() error {
+	serviceConfig, err := independent.topologyHandler.Service(independent.name)
 	if err != nil {
-		serviceConfig = *config.New(independent.name, config.IndependentType)
-		serviceConfig.ModuleUrl = DefaultModuleUrl
-	} else if len(serviceConfig.Handlers) > 0 {
+		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.name, err)
+	}
+	if len(serviceConfig.Handlers) > 0 {
 		return nil
 	}
 
@@ -170,6 +185,8 @@ func (independent *Independent) addDefaultServiceToTopology() error {
 func (independent *Independent) addServiceManagerToTopology() error {
 	// Service manager's config in the handler config format.
 	managerConfig := independent.manager.Config()
+	// In aradil: managerConfig.Endpoint-default-se, nil-git-le
+	// manager-in config-de-ki endpoint -default -se -- nil -le.
 	if managerConfig.Endpoint == DefaultServiceManagerEndpoint {
 		return nil
 	}
@@ -195,7 +212,7 @@ func (independent *Independent) addServiceManagerToTopology() error {
 	return nil
 }
 
-func newTopologyHandler(handlerType config.HandlerType) (base.Interface, error) {
+func newHandler(handlerType config.HandlerType) (base.Interface, error) {
 	switch handlerType {
 	case config.SyncReplierType:
 		return sync_replier.New(), nil
@@ -212,7 +229,10 @@ func newTopologyHandler(handlerType config.HandlerType) (base.Interface, error) 
 	}
 }
 
-func (independent *Independent) addTopologyHandlers() error {
+// addTopologyHandlersToHandlers adds the handlers to the handlers list.
+// Except for the Service Manager category, any handler defined in the topology is
+// registered in the handlers package for launching them.
+func (independent *Independent) addTopologyHandlersToHandlers() error {
 	serviceConfig, err := independent.topologyHandler.Service(independent.name)
 	if err != nil {
 		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.name, err)
@@ -223,7 +243,7 @@ func (independent *Independent) addTopologyHandlers() error {
 			continue
 		}
 
-		handler, err := newTopologyHandler(configured.Type)
+		handler, err := newHandler(configured.Type)
 		if err != nil {
 			return fmt.Errorf("newTopologyHandler('%s'): %w", configured.Category, err)
 		}
@@ -251,14 +271,25 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("lintDefaultTopology: %w", err)
 		goto errOccurred
 	}
+	if err = independent.addHardcodedHandlersToTopology(); err != nil {
+		err = fmt.Errorf("addHardcodedHandlersToTopology: %w", err)
+		goto errOccurred
+	}
+	if err = independent.addDefaultHandlerToTopology(); err != nil {
+		err = fmt.Errorf("addDefaultHandlerToTopology: %w", err)
+		goto errOccurred
+	}
 	if err = independent.addServiceManagerToTopology(); err != nil {
 		err = fmt.Errorf("lintManagerTopology: %w", err)
 		goto errOccurred
 	}
-	if err = independent.addTopologyHandlers(); err != nil {
+	if err = independent.addTopologyHandlersToHandlers(); err != nil {
 		err = fmt.Errorf("addTopologyHandlers: %w", err)
 		goto errOccurred
 	}
+
+	// Todo, make sure you keep the orphan handlers and if they are
+	// simply warn or throw error.
 
 	if err = independent.topologyHandler.Start(); err != nil {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)

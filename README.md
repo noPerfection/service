@@ -292,6 +292,79 @@ go run ./cmd/client --close
 
 After `--close`, look back at the service terminal. The service should stop because the manager releases `app.Wait()`.
 
+## Tutorial 3: Override the Handler Configuration
+
+By default, when no handler config is provided, an independent service creates a
+`main` handler using:
+
+- handler type: `Replier`
+- endpoint: `localhost:8000`
+
+You can overwrite that handler configuration from code before the service starts.
+This is useful when you want the same Hello World service logic, but served by a
+different handler type or port.
+
+In this example, the `main` handler is changed to:
+
+- handler type: `SyncReplier`
+- endpoint: `localhost:3000`
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/noPerfection/datatype"
+	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service"
+	topologyConfig "github.com/noPerfection/topology/config"
+)
+
+func main() {
+	app, err := service.New("hello-world", "noPerfection.json")
+	if err != nil {
+		panic(err)
+	}
+
+	// Define the config for the default "main" handler.
+	if err := app.SetHandlerConfig(topologyConfig.Handler{
+		Type:     topologyConfig.SyncReplierType,
+		Category: "main",
+		Endpoint: message.NewEndpoint("localhost", 3000),
+	}); err != nil {
+		panic(err)
+	}
+
+	// Other app logic and routings.
+	err = app.Route("hello", func(req message.RequestInterface) message.ReplyInterface {
+		name, err := req.RouteParameters().StringValue("name")
+		if err != nil || name == "" {
+			name = "world"
+		}
+		return req.Ok(datatype.New().Set("message", "hello "+name))
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	if err := app.Start(); err != nil {
+		panic(err)
+	}
+	defer app.Stop()
+
+	fmt.Println("hello-world service listening on localhost:3000")
+	app.Wait()
+}
+```
+
+Because the handler type changed, the client should connect as a sync replier:
+
+```go
+c, err := client.New("localhost", 3000, client.SyncReplierType)
+```
+
+
 # noPerfection Service
 
 *noPerfection Service* is a library to create services on **noPerfection**. 
