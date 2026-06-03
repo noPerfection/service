@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 
+	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/topology/config"
 )
 
@@ -11,6 +12,7 @@ type WithHardcodedTopology struct {
 	name           string
 	serviceConfigs map[string]config.Service
 	handlerConfigs map[string][]config.Handler
+	commandDeps    map[string]map[string][]config.DepService
 }
 
 // NewHardcodedTopologies creates storage for code-defined topology configs.
@@ -23,6 +25,7 @@ func NewHardcodedTopologies(serviceName string) *WithHardcodedTopology {
 		name:           serviceName,
 		serviceConfigs: make(map[string]config.Service),
 		handlerConfigs: make(map[string][]config.Handler),
+		commandDeps:    make(map[string]map[string][]config.DepService),
 	}
 }
 
@@ -75,6 +78,48 @@ func (topologies *WithHardcodedTopology) SetHandlerConfig(handler config.Handler
 	return nil
 }
 
+// SetCommandDeps stores command dependencies by service and handler category.
+func (topologies *WithHardcodedTopology) SetCommandDeps(dep config.DepService, handlerAndServiceName ...string) error {
+	if topologies == nil {
+		return fmt.Errorf("hardcoded topologies is nil")
+	}
+	if len(handlerAndServiceName) > 2 {
+		return fmt.Errorf("too many arguments, expected handler category and service name")
+	}
+	if dep.Name == "" {
+		return fmt.Errorf("dep service name is empty")
+	}
+
+	handlerCategory := handlers.DefaultHandlerCategory
+	if len(handlerAndServiceName) > 0 && handlerAndServiceName[0] != "" {
+		handlerCategory = handlerAndServiceName[0]
+	}
+
+	serviceName := topologies.name
+	if len(handlerAndServiceName) > 1 && handlerAndServiceName[1] != "" {
+		serviceName = handlerAndServiceName[1]
+	}
+	if serviceName == "" {
+		serviceName = DefaultName
+	}
+
+	if topologies.commandDeps[serviceName] == nil {
+		topologies.commandDeps[serviceName] = make(map[string][]config.DepService)
+	}
+
+	deps := topologies.commandDeps[serviceName][handlerCategory]
+	for i := range deps {
+		if deps[i].Name == dep.Name {
+			deps[i] = dep
+			topologies.commandDeps[serviceName][handlerCategory] = deps
+			return nil
+		}
+	}
+
+	topologies.commandDeps[serviceName][handlerCategory] = append(deps, dep)
+	return nil
+}
+
 func (topologies *WithHardcodedTopology) HasHardcodedHandlers(serviceName ...string) bool {
 	if topologies == nil {
 		return false
@@ -121,4 +166,45 @@ func (independent *Independent) addHardcodedHandlersToTopology() error {
 	}
 
 	return nil
+}
+
+func (independent *Independent) addHardcodedCommandDepsToTopology() error {
+	if independent == nil || independent.WithHardcodedTopology == nil {
+		return fmt.Errorf("service or WithHardcodedTopology is nil")
+	}
+
+	for serviceName, depsByHandler := range independent.commandDeps {
+		serviceConfig, err := independent.topologyHandler.Service(serviceName)
+		if err != nil {
+			return fmt.Errorf("hardcoded command deps for '%s' service not found in topology: %w", serviceName, err)
+		}
+
+		for handlerCategory, deps := range depsByHandler {
+			handler, err := serviceConfig.HandlerByCategory(handlerCategory)
+			if err != nil {
+				return fmt.Errorf("hardcoded command deps handler '%s' in service '%s': %w", handlerCategory, serviceName, err)
+			}
+
+			for _, dep := range deps {
+				handler.CommandDeps = setCommandDep(handler.CommandDeps, dep)
+			}
+			serviceConfig.SetHandler(handler, true)
+		}
+		if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
+			return fmt.Errorf("topologyHandler.SetService('%s'): %w", serviceName, err)
+		}
+	}
+
+	return nil
+}
+
+func setCommandDep(deps []config.DepService, dep config.DepService) []config.DepService {
+	for i := range deps {
+		if deps[i].Name == dep.Name {
+			deps[i] = dep
+			return deps
+		}
+	}
+
+	return append(deps, dep)
 }

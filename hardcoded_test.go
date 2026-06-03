@@ -85,6 +85,40 @@ func TestSetServiceConfigUsesDefaultServiceNameWhenEmpty(t *testing.T) {
 	require.Equal(t, topologyConfig.IndependentType, stored.Type)
 }
 
+func TestSetCommandDepsStoresByDefaultHandlerAndService(t *testing.T) {
+	topologies := NewHardcodedTopologies("custom-service")
+	dep := topologyConfig.DepService{Name: "account"}
+
+	require.NoError(t, topologies.SetCommandDeps(dep))
+
+	require.Equal(t, []topologyConfig.DepService{dep}, topologies.commandDeps["custom-service"]["main"])
+}
+
+func TestSetCommandDepsStoresByExplicitHandlerAndService(t *testing.T) {
+	topologies := NewHardcodedTopologies("custom-service")
+	dep := topologyConfig.DepService{Name: "account"}
+
+	require.NoError(t, topologies.SetCommandDeps(dep, "api", "other-service"))
+
+	require.Equal(t, []topologyConfig.DepService{dep}, topologies.commandDeps["other-service"]["api"])
+}
+
+func TestSetCommandDepsReplacesExistingDepByName(t *testing.T) {
+	topologies := NewHardcodedTopologies("custom-service")
+	first := topologyConfig.DepService{Name: "account"}
+	second := topologyConfig.DepService{
+		Name: "account",
+		Proxies: []topologyConfig.DepTarget{
+			topologyConfig.RefTarget("proxy"),
+		},
+	}
+
+	require.NoError(t, topologies.SetCommandDeps(first))
+	require.NoError(t, topologies.SetCommandDeps(second))
+
+	require.Equal(t, []topologyConfig.DepService{second}, topologies.commandDeps["custom-service"]["main"])
+}
+
 func TestNewEmbedsHardcodedTopologies(t *testing.T) {
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)

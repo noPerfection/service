@@ -217,6 +217,68 @@ func TestAddHardcodedServicesToTopologyAllowsHardcodedHandlersForOtherService(t 
 	require.Equal(t, []topologyConfig.Handler{hardcodedHandler}, actual.Handlers)
 }
 
+func TestAddHardcodedCommandDepsToTopologyAddsDepsToDefaultHandler(t *testing.T) {
+	dep := topologyConfig.DepService{
+		Name:    "account",
+		Proxies: []topologyConfig.DepTarget{topologyConfig.RefTarget("account-proxy")},
+	}
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetCommandDeps(dep))
+
+	require.NoError(t, independent.addDefaultServiceToTopology())
+	require.NoError(t, independent.addDefaultHandlerToTopology())
+	require.NoError(t, independent.addHardcodedCommandDepsToTopology())
+
+	serviceConfig, err := independent.topologyHandler.Service("custom-service")
+	require.NoError(t, err)
+	mainHandler := requireServiceHandler(t, serviceConfig, handlers.DefaultHandlerCategory)
+	require.Equal(t, []topologyConfig.DepService{dep}, mainHandler.CommandDeps)
+}
+
+func TestAddHardcodedCommandDepsToTopologyAddsDepsToExplicitHandlerAndService(t *testing.T) {
+	handler := topologyConfig.Handler{
+		Type:     topologyConfig.ReplierType,
+		Category: "api",
+		Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
+	}
+	dep := topologyConfig.DepService{
+		Name:       "metrics",
+		Extensions: []topologyConfig.DepTarget{topologyConfig.RefTarget("metrics-extension")},
+	}
+	serviceConfig := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "other-service",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers:  []topologyConfig.Handler{handler},
+	}
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetServiceConfig(serviceConfig))
+	require.NoError(t, independent.SetCommandDeps(dep, "api", "other-service"))
+
+	require.NoError(t, independent.addHardcodedServicesToTopology())
+	require.NoError(t, independent.addHardcodedCommandDepsToTopology())
+
+	actual, err := independent.topologyHandler.Service("other-service")
+	require.NoError(t, err)
+	apiHandler := requireServiceHandler(t, actual, "api")
+	require.Equal(t, []topologyConfig.DepService{dep}, apiHandler.CommandDeps)
+}
+
+func TestAddHardcodedCommandDepsToTopologyRejectsMissingHandler(t *testing.T) {
+	dep := topologyConfig.DepService{Name: "account"}
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetCommandDeps(dep, "missing-handler"))
+
+	require.NoError(t, independent.addDefaultServiceToTopology())
+
+	err = independent.addHardcodedCommandDepsToTopology()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "hardcoded command deps handler 'missing-handler'")
+}
+
 func TestAddHardcodedHandlersToTopologyAddsHandlersToDefaultService(t *testing.T) {
 	hardcodedMain := topologyConfig.Handler{
 		Type:     topologyConfig.SyncReplierType,
