@@ -279,6 +279,59 @@ func TestAddHardcodedCommandDepsToTopologyRejectsMissingHandler(t *testing.T) {
 	require.Contains(t, err.Error(), "hardcoded command deps handler 'missing-handler'")
 }
 
+func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T) {
+	dep := topologyConfig.DepService{
+		Name:    "account",
+		Proxies: []topologyConfig.DepTarget{topologyConfig.RefTarget("account-proxy")},
+	}
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetHandlerDeps(dep))
+
+	require.NoError(t, independent.addDefaultServiceToTopology())
+	require.NoError(t, independent.addHardcodedHandlerDepsToTopology())
+
+	serviceConfig, err := independent.topologyHandler.Service("custom-service")
+	require.NoError(t, err)
+	require.Equal(t, []topologyConfig.DepService{dep}, serviceConfig.HandlerDeps)
+}
+
+func TestAddHardcodedHandlerDepsToTopologyAddsDepsToExplicitService(t *testing.T) {
+	dep := topologyConfig.DepService{
+		Name:       "metrics",
+		Extensions: []topologyConfig.DepTarget{topologyConfig.RefTarget("metrics-extension")},
+	}
+	serviceConfig := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "other-service",
+		ModuleUrl: DefaultModuleUrl,
+	}
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetServiceConfig(serviceConfig))
+	require.NoError(t, independent.SetHandlerDeps(dep, "other-service"))
+
+	require.NoError(t, independent.addHardcodedServicesToTopology())
+	require.NoError(t, independent.addHardcodedHandlerDepsToTopology())
+
+	actual, err := independent.topologyHandler.Service("other-service")
+	require.NoError(t, err)
+	require.Equal(t, []topologyConfig.DepService{dep}, actual.HandlerDeps)
+}
+
+func TestAddHardcodedHandlerDepsToTopologyRejectsMissingService(t *testing.T) {
+	dep := topologyConfig.DepService{Name: "account"}
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetHandlerDeps(dep, "missing-service"))
+
+	require.NoError(t, independent.addDefaultServiceToTopology())
+
+	err = independent.addHardcodedHandlerDepsToTopology()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "hardcoded handler deps for 'missing-service' service not found in topology")
+}
+
 func TestAddHardcodedHandlersToTopologyAddsHandlersToDefaultService(t *testing.T) {
 	hardcodedMain := topologyConfig.Handler{
 		Type:     topologyConfig.SyncReplierType,

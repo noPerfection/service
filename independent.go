@@ -289,6 +289,10 @@ func (independent *Independent) Start() error {
 		goto errOccurred
 	}
 
+	if err = independent.addHardcodedHandlerDepsToTopology(); err != nil {
+		err = fmt.Errorf("addHardcodedHandlerDepsToTopology: %w", err)
+		goto errOccurred
+	}
 	if err = independent.addHardcodedCommandDepsToTopology(); err != nil {
 		err = fmt.Errorf("addHardcodedCommandDepsToTopology: %w", err)
 		goto errOccurred
