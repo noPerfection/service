@@ -134,8 +134,8 @@ func (independent *Independent) Type() config.Type {
 	return config.IndependentType
 }
 
-// addDefaultServiceToTopology adds the default service (name is main)
-// if no config was given.
+// addDefaultServiceToTopology adds the default config
+// if no config was given for this service.
 //
 // Additionally, if config exists, but no handlers, it adds a default handler.
 // The default handler is the main category and replier.
