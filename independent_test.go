@@ -169,6 +169,54 @@ func TestAddDefaultHandlerToTopologySkipsWhenHardcodedHandlersWereAdded(t *testi
 	require.Equal(t, []topologyConfig.Handler{hardcodedMain}, serviceConfig.Handlers)
 }
 
+func TestAddHardcodedServicesToTopologyAddsServiceBeforeDefault(t *testing.T) {
+	hardcodedMain := topologyConfig.Handler{
+		Type:     topologyConfig.SyncReplierType,
+		Category: handlers.DefaultHandlerCategory,
+		Endpoint: message.NewEndpoint(testEndpointID(t, "hardcoded-main"), 0),
+	}
+	serviceConfig := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "custom-service",
+		ModuleUrl: "github.com/noPerfection/custom-service",
+		Handlers:  []topologyConfig.Handler{hardcodedMain},
+	}
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetServiceConfig(serviceConfig))
+
+	require.NoError(t, independent.addHardcodedServicesToTopology())
+	require.NoError(t, independent.addDefaultServiceToTopology())
+
+	actual, err := independent.topologyHandler.Service("custom-service")
+	require.NoError(t, err)
+	require.Equal(t, serviceConfig, actual)
+}
+
+func TestAddHardcodedServicesToTopologyAllowsHardcodedHandlersForOtherService(t *testing.T) {
+	hardcodedHandler := topologyConfig.Handler{
+		Type:     topologyConfig.ReplierType,
+		Category: "api",
+		Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
+	}
+	serviceConfig := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "other-service",
+		ModuleUrl: DefaultModuleUrl,
+	}
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetServiceConfig(serviceConfig))
+	require.NoError(t, independent.SetHandlerConfig(hardcodedHandler, "other-service"))
+
+	require.NoError(t, independent.addHardcodedServicesToTopology())
+	require.NoError(t, independent.addHardcodedHandlersToTopology())
+
+	actual, err := independent.topologyHandler.Service("other-service")
+	require.NoError(t, err)
+	require.Equal(t, []topologyConfig.Handler{hardcodedHandler}, actual.Handlers)
+}
+
 func TestAddHardcodedHandlersToTopologyAddsHandlersToDefaultService(t *testing.T) {
 	hardcodedMain := topologyConfig.Handler{
 		Type:     topologyConfig.SyncReplierType,
@@ -235,7 +283,7 @@ func TestAddHardcodedHandlersToTopologyRejectsMissingService(t *testing.T) {
 
 	err = independent.addHardcodedHandlersToTopology()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "topologyHandler.Service('missing-service')")
+	require.Contains(t, err.Error(), "hardcoded handlers for 'missing-service' service not found in topology")
 }
 
 func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) {

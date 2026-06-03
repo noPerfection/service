@@ -58,6 +58,33 @@ func TestSetHandlerConfigReplacesExistingCategory(t *testing.T) {
 	require.Equal(t, []topologyConfig.Handler{second}, serviceHandlers)
 }
 
+func TestSetServiceConfigStoresByServiceName(t *testing.T) {
+	topologies := NewHardcodedTopologies("custom-service")
+	serviceConfig := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "other-service",
+		ModuleUrl: DefaultModuleUrl,
+	}
+
+	require.NoError(t, topologies.SetServiceConfig(serviceConfig))
+
+	require.Equal(t, serviceConfig, topologies.serviceConfigs["other-service"])
+}
+
+func TestSetServiceConfigUsesDefaultServiceNameWhenEmpty(t *testing.T) {
+	topologies := NewHardcodedTopologies("custom-service")
+	serviceConfig := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		ModuleUrl: DefaultModuleUrl,
+	}
+
+	require.NoError(t, topologies.SetServiceConfig(serviceConfig))
+
+	stored := topologies.serviceConfigs["custom-service"]
+	require.Equal(t, "custom-service", stored.Name)
+	require.Equal(t, topologyConfig.IndependentType, stored.Type)
+}
+
 func TestNewEmbedsHardcodedTopologies(t *testing.T) {
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
