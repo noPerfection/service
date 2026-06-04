@@ -63,7 +63,7 @@ func (m *Manager) SetSharedBlocker(blocker **sync.WaitGroup) {
 	m.blocker = blocker
 }
 
-func (m *Manager) StartService(serviceName string, optionalParent ...*topology.ParentClient) (string, error) {
+func (m *Manager) StartService(serviceName string, optionalParent ...string) (string, error) {
 	if serviceName == "" || serviceName == m.serviceName {
 		return strconv.Itoa(os.Getpid()), nil
 	}
@@ -154,13 +154,9 @@ func (m *Manager) onStartService(req message.RequestInterface) message.ReplyInte
 		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('service'): %v", err))
 	}
 
-	var optionalParent []*topology.ParentClient
-	if kv, err := req.RouteParameters().NestedValue("parent"); err == nil {
-		var parent topology.ParentClient
-		if err := kv.Interface(&parent); err != nil {
-			return req.Fail(fmt.Sprintf("kv.Interface('parent'): %v", err))
-		}
-		optionalParent = append(optionalParent, &parent)
+	var optionalParent []string
+	if parentName, err := req.RouteParameters().StringValue("parent"); err == nil {
+		optionalParent = append(optionalParent, parentName)
 	}
 
 	id, err := m.StartService(serviceName, optionalParent...)
