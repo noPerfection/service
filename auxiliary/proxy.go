@@ -3,7 +3,6 @@ package auxiliary
 import (
 	"fmt"
 	"slices"
-	"sync"
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/client"
@@ -13,6 +12,7 @@ import (
 	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/message"
+	serviceLib "github.com/noPerfection/service"
 	serviceConfig "github.com/noPerfection/topology/config/service"
 )
 
@@ -21,7 +21,7 @@ type ReplyHandleFunc = func(handlerId string, req message.RequestInterface, repl
 
 // Proxy defines the parameters of the proxy parent
 type Proxy struct {
-	*Auxiliary
+	*serviceLib.Independent
 	rule            *serviceConfig.Rule // set it if this proxy is first in the chain
 	proxyConf       *serviceConfig.Proxy
 	onRequest       RequestHandleFunc
@@ -37,9 +37,14 @@ type HandlerWrapper struct {
 
 // NewProxy proxy parent returned
 func NewProxy(name ...string) (*Proxy, error) {
-	auxiliary, err := NewAuxiliary(name...)
+	params := make([]interface{}, len(name))
+	for i, value := range name {
+		params[i] = value
+	}
+
+	independent, err := serviceLib.New(params...)
 	if err != nil {
-		return nil, fmt.Errorf("parent.NewAuxiliary: %w", err)
+		return nil, fmt.Errorf("service.New: %w", err)
 	}
 
 	handlers := make(map[handlerConfig.HandlerType]func() base.Interface, 0)
@@ -51,7 +56,7 @@ func NewProxy(name ...string) (*Proxy, error) {
 	}
 
 	return &Proxy{
-		auxiliary,
+		independent,
 		nil,
 		nil,
 		nil,
@@ -330,7 +335,7 @@ func (proxy *Proxy) lintHandlers() error {
 		h := definer()
 		// todo use the proxy category; when generating a proxy parentId,
 		// it needs to over-write the generateConfig method of the parent to set a new parentId.
-		proxy.Auxiliary.SetHandler(proxy.Name()+handlerConfigs[i].Category, h)
+		proxy.Independent.SetHandler(proxy.Name()+handlerConfigs[i].Category, h)
 
 		// could lead to unexpected behavior if there are multiple urls
 		parentZmqType := handlerConfig.SocketType(handlerConfigs[i].Type)
@@ -402,8 +407,8 @@ func (proxy *Proxy) Start() error {
 	// then start the auxiliary.
 	// Because auxiliary will start the proxies as well.
 	// We don't want to block until the proxies are set to indicate the parent.
-	if err := proxy.Auxiliary.Start(); err != nil {
-		return fmt.Errorf("proxy.Auxiliary.Start: %w", err)
+	if err := proxy.Independent.Start(); err != nil {
+		return fmt.Errorf("proxy.Independent.Start: %w", err)
 	}
 
 	// send to the parent info that it was set.
