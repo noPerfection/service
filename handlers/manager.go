@@ -18,7 +18,7 @@ type Handlers struct {
 	handlers datatype.KeyValue
 	routes   map[string]map[string]base.HandleFunc
 	logger   *log.Logger
-	started  bool
+	running  bool
 }
 
 // NewHandlers creates an empty handler manager.
@@ -53,7 +53,7 @@ func (manager *Handlers) IsHandlerExist(category string) bool {
 }
 
 func (manager *Handlers) Route(command string, handleFunc base.HandleFunc, handlerCategory ...string) error {
-	if manager.started {
+	if manager.running {
 		return fmt.Errorf("I cant route when its already started. Please stop the handler first or the best way to route before starting the handler")
 	}
 	if len(handlerCategory) > 1 {
@@ -135,7 +135,7 @@ func (manager *Handlers) Start() error {
 		}
 		startedHandlers = append(startedHandlers, handler)
 	}
-	manager.started = true
+	manager.running = true
 	manager.routes = nil
 
 exitStartHandler:
@@ -170,7 +170,7 @@ func (manager *Handlers) Close() error {
 		return err
 	}
 	manager.routes = make(map[string]map[string]base.HandleFunc)
-	manager.started = false
+	manager.running = false
 
 	return nil
 }

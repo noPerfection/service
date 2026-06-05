@@ -117,9 +117,6 @@ func (proxy *Proxy) SetHandlerDefiner(handlerType handlerConfig.HandlerType, def
 	proxy.handlers[handlerType] = definer
 }
 
-// SetHandler is disabled as the proxy returns them from the parent
-func (proxy *Proxy) SetHandler(_ string, _ base.Interface) {}
-
 // SetRequestHandler sets the requests function defined by the user.
 func (proxy *Proxy) SetRequestHandler(onRequest RequestHandleFunc) error {
 	if proxy.onRequest != nil {

@@ -144,8 +144,12 @@ func (independent *Independent) addDefaultServiceToTopology() error {
 		return nil
 	}
 
-	serviceConfig = *config.New(independent.name, config.IndependentType)
-	serviceConfig.ModuleUrl = DefaultModuleUrl
+	serviceConfig = config.Service{
+		Type:      config.IndependentType,
+		Name:      independent.name,
+		ModuleUrl: DefaultModuleUrl,
+		Handlers:  []config.HandlerVariant{},
+	}
 	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
 		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.name, err)
 	}
@@ -164,16 +168,18 @@ func (independent *Independent) addDefaultHandlerToTopology() error {
 		return nil
 	}
 
-	defaultHandler, err := serviceConfig.HandlerByCategory(handlers.DefaultHandlerCategory)
+	_, err = serviceConfig.HandlerByCategory(handlers.DefaultHandlerCategory)
 	// No error indicates the default handler already exists
 	if err == nil {
 		return nil
 	}
 
-	defaultHandler.Category = handlers.DefaultHandlerCategory
-	defaultHandler.Endpoint = handlers.DefaultHandlerEndpoint
-	defaultHandler.Type = config.ReplierType
-	serviceConfig.Handlers = []config.Handler{defaultHandler}
+	defaultHandler := config.Handler{
+		Category: handlers.DefaultHandlerCategory,
+		Endpoint: handlers.DefaultHandlerEndpoint,
+		Type:     config.ReplierType,
+	}
+	serviceConfig.Handlers = []config.HandlerVariant{config.NewHandlerVariant(defaultHandler)}
 	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
 		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.name, err)
 	}
@@ -204,7 +210,7 @@ func (independent *Independent) addServiceManagerToTopology() error {
 		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.name, err)
 	}
 
-	serviceConfig.SetHandler(managerTopologyConfig, true)
+	serviceConfig.SetHandler(config.NewHandlerVariant(managerTopologyConfig), true)
 	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
 		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.name, err)
 	}
@@ -238,7 +244,8 @@ func (independent *Independent) addTopologyHandlersToHandlers() error {
 		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.name, err)
 	}
 
-	for _, configured := range serviceConfig.Handlers {
+	for _, configuredVariant := range serviceConfig.Handlers {
+		configured := configuredVariant.AsHandler()
 		if configured.Category == topology.ServiceManagerCategory {
 			continue
 		}

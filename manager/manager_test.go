@@ -51,7 +51,7 @@ func fakeServiceConfig(serviceName string, managerEndpoint message.Endpoint, han
 		Type:      topologyConfig.ProxyType,
 		Name:      serviceName,
 		ModuleUrl: "github.com/noPerfection/service/manager/test",
-		Handlers:  serviceHandlers,
+		Handlers:  topologyConfig.NewHandlerVariants(serviceHandlers...),
 	}
 }
 
@@ -102,7 +102,7 @@ func startTestRuntimeHandler(t *testing.T, services ...topologyConfig.Service) {
 	require.NoError(t, err)
 	defer client.Close()
 	for _, service := range services {
-		require.NoError(t, client.AddService(topologyConfig.InlineTarget(service)))
+		require.NoError(t, client.AddService(service))
 	}
 }
 
@@ -128,7 +128,8 @@ func startFakeServiceHandlers(t *testing.T, service topologyConfig.Service) []ba
 	t.Helper()
 
 	handlers := make([]base.Interface, 0, len(service.Handlers))
-	for _, configured := range service.Handlers {
+	for _, configuredVariant := range service.Handlers {
+		configured := configuredVariant.AsHandler()
 		if configured.Category == topology.ServiceManagerCategory {
 			continue
 		}
@@ -219,7 +220,7 @@ func TestSetHandlerControlsMatchesFakeServiceConfig(t *testing.T) {
 		handlerControlConfig, err := controlClient.HandlerConfig()
 		require.NoError(t, err)
 
-		expected := service.Handlers[i+1]
+		expected := service.Handlers[i+1].AsHandler()
 		require.Equal(t, expected.Category, handlerControlConfig.Category)
 		require.Equal(t, expected.Endpoint.Id, handlerControlConfig.Id)
 		require.Equal(t, expected.Endpoint.Port, handlerControlConfig.Port)

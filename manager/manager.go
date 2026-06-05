@@ -63,7 +63,7 @@ func (m *Manager) SetSharedBlocker(blocker **sync.WaitGroup) {
 	m.blocker = blocker
 }
 
-func (m *Manager) StartService(serviceName string, optionalParent ...string) (string, error) {
+func (m *Manager) StartService(serviceName string) (string, error) {
 	if serviceName == "" || serviceName == m.serviceName {
 		return strconv.Itoa(os.Getpid()), nil
 	}
@@ -154,12 +154,7 @@ func (m *Manager) onStartService(req message.RequestInterface) message.ReplyInte
 		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('service'): %v", err))
 	}
 
-	var optionalParent []string
-	if parentName, err := req.RouteParameters().StringValue("parent"); err == nil {
-		optionalParent = append(optionalParent, parentName)
-	}
-
-	id, err := m.StartService(serviceName, optionalParent...)
+	id, err := m.StartService(serviceName)
 	if err != nil {
 		return req.Fail(fmt.Sprintf("manager.StartService('%s'): %v", serviceName, err))
 	}
@@ -204,7 +199,8 @@ func (m *Manager) setHandlerControls() error {
 	}
 
 	m.handlerControls = make([]*clientSyncReplier.BaseControl, 0, len(service.Handlers))
-	for _, handler := range service.Handlers {
+	for _, handlerVariant := range service.Handlers {
+		handler := handlerVariant.AsHandler()
 		if handler.Category == topology.ServiceManagerCategory {
 			continue
 		}
