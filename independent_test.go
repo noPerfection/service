@@ -51,7 +51,7 @@ func requireServiceHandler(t *testing.T, service topologyConfig.Service, categor
 
 	handler, err := service.HandlerByCategory(category)
 	require.NoError(t, err)
-	return handler
+	return handler.AsHandler()
 }
 
 func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) {
@@ -72,7 +72,7 @@ func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) 
 	require.NoError(t, err)
 	require.Len(t, serviceConfig.Handlers, 1)
 
-	defaultHandler := serviceConfig.Handlers[0]
+	defaultHandler := serviceConfig.Handlers[0].AsHandler()
 	require.Equal(t, topologyConfig.ReplierType, defaultHandler.Type)
 	require.Equal(t, handlers.DefaultHandlerCategory, defaultHandler.Category)
 	require.Equal(t, handlers.DefaultHandlerEndpoint, defaultHandler.Endpoint)
@@ -92,14 +92,14 @@ func TestLintManagerTopologyOverwritesExistingManagerConfig(t *testing.T) {
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: []topologyConfig.Handler{
-			{
+		Handlers: topologyConfig.NewHandlerVariants(
+			topologyConfig.Handler{
 				Type:     topologyConfig.ReplierType,
 				Category: handlers.DefaultHandlerCategory,
 				Endpoint: handlers.DefaultHandlerEndpoint,
 			},
 			existingManager,
-		},
+		),
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestLintDefaultTopologyKeepsExistingDefaultHandlerConfig(t *testing.T) {
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers:  []topologyConfig.Handler{existingMain},
+		Handlers:  topologyConfig.NewHandlerVariants(existingMain),
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestAddDefaultHandlerToTopologySkipsWhenHardcodedHandlersWereAdded(t *testi
 
 	serviceConfig, err := independent.topologyHandler.Service("custom-service")
 	require.NoError(t, err)
-	require.Equal(t, []topologyConfig.Handler{hardcodedMain}, serviceConfig.Handlers)
+	require.Equal(t, topologyConfig.NewHandlerVariants(hardcodedMain), serviceConfig.Handlers)
 }
 
 func TestAddHardcodedServicesToTopologyAddsServiceBeforeDefault(t *testing.T) {
@@ -179,7 +179,7 @@ func TestAddHardcodedServicesToTopologyAddsServiceBeforeDefault(t *testing.T) {
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: "github.com/noPerfection/custom-service",
-		Handlers:  []topologyConfig.Handler{hardcodedMain},
+		Handlers:  topologyConfig.NewHandlerVariants(hardcodedMain),
 	}
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
@@ -214,13 +214,13 @@ func TestAddHardcodedServicesToTopologyAllowsHardcodedHandlersForOtherService(t 
 
 	actual, err := independent.topologyHandler.Service("other-service")
 	require.NoError(t, err)
-	require.Equal(t, []topologyConfig.Handler{hardcodedHandler}, actual.Handlers)
+	require.Equal(t, topologyConfig.NewHandlerVariants(hardcodedHandler), actual.Handlers)
 }
 
 func TestAddHardcodedCommandDepsToTopologyAddsDepsToDefaultHandler(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:    "account",
-		Proxies: []topologyConfig.DepTarget{topologyConfig.RefTarget("account-proxy")},
+		Proxies: []topologyConfig.ServicePointer{topologyConfig.RefTarget("account-proxy")},
 	}
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
@@ -244,13 +244,13 @@ func TestAddHardcodedCommandDepsToTopologyAddsDepsToExplicitHandlerAndService(t 
 	}
 	dep := topologyConfig.DepService{
 		Name:       "metrics",
-		Extensions: []topologyConfig.DepTarget{topologyConfig.RefTarget("metrics-extension")},
+		Extensions: []topologyConfig.ServicePointer{topologyConfig.RefTarget("metrics-extension")},
 	}
 	serviceConfig := topologyConfig.Service{
 		Type:      topologyConfig.IndependentType,
 		Name:      "other-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers:  []topologyConfig.Handler{handler},
+		Handlers:  topologyConfig.NewHandlerVariants(handler),
 	}
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
@@ -282,7 +282,7 @@ func TestAddHardcodedCommandDepsToTopologyRejectsMissingHandler(t *testing.T) {
 func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:    "account",
-		Proxies: []topologyConfig.DepTarget{topologyConfig.RefTarget("account-proxy")},
+		Proxies: []topologyConfig.ServicePointer{topologyConfig.RefTarget("account-proxy")},
 	}
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
@@ -299,7 +299,7 @@ func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T)
 func TestAddHardcodedHandlerDepsToTopologyAddsDepsToExplicitService(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:       "metrics",
-		Extensions: []topologyConfig.DepTarget{topologyConfig.RefTarget("metrics-extension")},
+		Extensions: []topologyConfig.ServicePointer{topologyConfig.RefTarget("metrics-extension")},
 	}
 	serviceConfig := topologyConfig.Service{
 		Type:      topologyConfig.IndependentType,
@@ -348,7 +348,7 @@ func TestAddHardcodedHandlersToTopologyAddsHandlersToDefaultService(t *testing.T
 
 	serviceConfig, err := independent.topologyHandler.Service("custom-service")
 	require.NoError(t, err)
-	require.Equal(t, []topologyConfig.Handler{hardcodedMain}, serviceConfig.Handlers)
+	require.Equal(t, topologyConfig.NewHandlerVariants(hardcodedMain), serviceConfig.Handlers)
 }
 
 func TestAddHardcodedHandlersToTopologyOverwritesExistingCategory(t *testing.T) {
@@ -367,7 +367,7 @@ func TestAddHardcodedHandlersToTopologyOverwritesExistingCategory(t *testing.T) 
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers:  []topologyConfig.Handler{existingMain},
+		Handlers:  topologyConfig.NewHandlerVariants(existingMain),
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
@@ -382,7 +382,7 @@ func TestAddHardcodedHandlersToTopologyOverwritesExistingCategory(t *testing.T) 
 
 	serviceConfig, err := independent.topologyHandler.Service("custom-service")
 	require.NoError(t, err)
-	require.Equal(t, []topologyConfig.Handler{hardcodedMain}, serviceConfig.Handlers)
+	require.Equal(t, topologyConfig.NewHandlerVariants(hardcodedMain), serviceConfig.Handlers)
 }
 
 func TestAddHardcodedHandlersToTopologyRejectsMissingService(t *testing.T) {
@@ -417,7 +417,7 @@ func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) 
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers:  []topologyConfig.Handler{mainHandler, managerHandler},
+		Handlers:  topologyConfig.NewHandlerVariants(mainHandler, managerHandler),
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)

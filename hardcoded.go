@@ -184,7 +184,7 @@ func (independent *Independent) addHardcodedHandlersToTopology() error {
 		}
 
 		for _, handler := range handlers {
-			serviceConfig.SetHandler(handler, true)
+			serviceConfig.SetHandler(config.NewHandlerVariant(handler), true)
 		}
 		if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
 			return fmt.Errorf("topologyHandler.SetService('%s'): %w", serviceName, err)
@@ -228,15 +228,15 @@ func (independent *Independent) addHardcodedCommandDepsToTopology() error {
 		}
 
 		for handlerCategory, deps := range depsByHandler {
-			handler, err := serviceConfig.HandlerByCategory(handlerCategory)
+			handlerVariant, err := serviceConfig.HandlerByCategory(handlerCategory)
 			if err != nil {
 				return fmt.Errorf("hardcoded command deps handler '%s' in service '%s': %w", handlerCategory, serviceName, err)
 			}
 
 			for _, dep := range deps {
-				handler.CommandDeps = setDepService(handler.CommandDeps, dep)
+				setHandlerVariantCommandDep(&handlerVariant, dep)
 			}
-			serviceConfig.SetHandler(handler, true)
+			serviceConfig.SetHandler(handlerVariant, true)
 		}
 		if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
 			return fmt.Errorf("topologyHandler.SetService('%s'): %w", serviceName, err)
@@ -244,6 +244,16 @@ func (independent *Independent) addHardcodedCommandDepsToTopology() error {
 	}
 
 	return nil
+}
+
+func setHandlerVariantCommandDep(handler *config.HandlerVariant, dep config.DepService) {
+	if handler.ProxyHandler != nil {
+		handler.ProxyHandler.CommandDeps = setDepService(handler.ProxyHandler.CommandDeps, dep)
+		return
+	}
+	if handler.Handler != nil {
+		handler.Handler.CommandDeps = setDepService(handler.Handler.CommandDeps, dep)
+	}
 }
 
 func setDepService(deps []config.DepService, dep config.DepService) []config.DepService {
