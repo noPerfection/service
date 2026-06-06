@@ -66,6 +66,8 @@ func (m *ProxyManager) SetSharedBlocker(blocker **sync.WaitGroup) {
 	m.blocker = blocker
 }
 
+// For now, let's make it not starting. It just returns its own name.
+// Later it will just keep almost identical to Start() data.
 func (m *ProxyManager) StartService(serviceName string) (string, error) {
 	if serviceName == "" || serviceName == m.serviceName {
 		return strconv.Itoa(os.Getpid()), nil
@@ -74,6 +76,7 @@ func (m *ProxyManager) StartService(serviceName string) (string, error) {
 	return "", fmt.Errorf("service name is not empty and not equal to the service name")
 }
 
+// For now, lets just return manager.running.
 func (m *ProxyManager) IsServiceRunning(serviceName string) (bool, error) {
 	if serviceName == "" || serviceName == m.serviceName {
 		return m.running, nil
@@ -230,6 +233,10 @@ func (m *ProxyManager) Start() error {
 	if err := m.Interface.Start(); err != nil {
 		return fmt.Errorf("handler.Start: %w", err)
 	}
+
+	// TODO:
+	// Here, we need to get the service, and set the proxy handlers.
+	//
 
 	m.running = true
 
