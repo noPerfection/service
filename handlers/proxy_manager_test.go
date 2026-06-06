@@ -151,11 +151,11 @@ func TestProxyHandlersSetProxyHandler(t *testing.T) {
 	require.False(t, reply.IsOK())
 	require.Equal(t, "not possible to send since no outbound yet", reply.ErrorMessage())
 
-	noConfigRoutes := proxyConfig
-	noConfigRoutes.Routes = nil
-	reply = proxyManagerRequest(t, client, SetProxyHandlerCommand, proxyManagerConfigParams(t, noConfigRoutes))
+	noProxyHandle := validProxyHandlerConfig(t, "without-proxy-handle")
+	noProxyHandle.Routes = nil
+	reply = proxyManagerRequest(t, client, SetProxyHandlerCommand, proxyManagerConfigParams(t, noProxyHandle))
 	require.False(t, reply.IsOK())
-	require.Equal(t, "not possible to send since no routes are configured", reply.ErrorMessage())
+	require.Equal(t, "can not set a proxy since no proxy handle for `without-proxy-handle` or `default` for any command proxy handle is set", reply.ErrorMessage())
 
 	reply = proxyManagerRequest(t, client, IsProxyHandlerRunningCommand, proxyManagerCategoryParams(category))
 	require.False(t, reply.IsOK())
@@ -163,6 +163,7 @@ func TestProxyHandlersSetProxyHandler(t *testing.T) {
 	requireProxyHandlerExists(t, client, category, false)
 
 	withConfigRoutes := proxyConfig
+	withConfigRoutes.Routes = nil
 	reply = proxyManagerRequest(t, client, SetProxyHandlerCommand, proxyManagerConfigParams(t, withConfigRoutes))
 	require.True(t, reply.IsOK(), reply.ErrorMessage())
 	requireProxyHandlerExists(t, client, category, true)
@@ -181,11 +182,44 @@ func TestProxyHandlersSetProxyHandler(t *testing.T) {
 	requireProxyHandlerRunning(t, client, category, false)
 }
 
+func TestProxyHandlersRouteAnyDefaultAndCategoryRules(t *testing.T) {
+	t.Run("no category requires user handler and sets manager routes", func(t *testing.T) {
+		manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-route-default"))
+
+		require.EqualError(t, manager.Route(base.Any, nil), "proxy handle function is required when command is '*'")
+		require.NoError(t, manager.Route(base.Any, proxyOKRoute))
+		require.NotNil(t, manager.routes[base.Any])
+		require.NoError(t, manager.Route("hello", proxyOKRoute))
+		require.NotNil(t, manager.routes["hello"])
+		require.Empty(t, manager.proxifiedHandlers)
+	})
+
+	t.Run("any with category requires user handler and sets category route only", func(t *testing.T) {
+		manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-route-category-default"))
+
+		require.EqualError(t, manager.Route(base.Any, nil, "api"), "proxy handle function is required when command is '*'")
+		require.NoError(t, manager.Route(base.Any, proxyOKRoute, "api"))
+		require.Empty(t, manager.routes)
+		require.NotNil(t, manager.proxifiedHandlers[Category("api")].routes[base.Any])
+	})
+
+	t.Run("named command with category requires handler", func(t *testing.T) {
+		manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-route-named"))
+
+		require.EqualError(t, manager.Route("hello", nil, "api"), "proxy handle function is required when command is 'hello'")
+
+		require.NoError(t, manager.Route("hello", proxyOKRoute, "api"))
+		require.NotNil(t, manager.proxifiedHandlers[Category("api")].routes["hello"])
+	})
+}
+
 func TestProxyHandlersStartStopProxyHandler(t *testing.T) {
 	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-start-stop"))
 	category := "api"
 	proxyConfig := validProxyHandlerConfig(t, category)
+	proxyConfig.Routes = []string{base.Any}
 	require.NoError(t, manager.Route("hello", proxyOKRoute, category))
+	require.NoError(t, manager.Route(base.Any, proxyOKRoute, category))
 
 	require.NoError(t, manager.Start())
 	t.Cleanup(func() {
@@ -248,8 +282,113 @@ func TestProxyHandlersStartStopProxyHandler(t *testing.T) {
 	requireProxyHandlerRequestTimeout(t, proxyConfig, "anything-after-close")
 }
 
+func TestProxyHandlersHandleFuncWhitelistAndRouteFallback(t *testing.T) {
+	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-handle-func"))
+	require.NoError(t, manager.Route(base.Any, proxyMessageRoute("Whitelisted default")))
+	require.NoError(t, manager.Route(base.Any, proxyMessageRoute("handler's default any is returned"), "handler-any"))
+	require.NoError(t, manager.Route("hello", proxyMessageRoute("hello from manager")))
+
+	require.NoError(t, manager.Start())
+	t.Cleanup(func() {
+		_ = manager.Close()
+	})
+
+	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Config().Id, manager.Interface.Config().Port)
+	require.NoError(t, err)
+	managerClient.Timeout(time.Second)
+	managerClient.Attempt(3)
+	defer managerClient.Close()
+
+	defaultConfig := validProxyHandlerConfig(t, "default-whitelist")
+	defaultConfig.Routes = nil
+	requireStartedProxyConfig(t, managerClient, defaultConfig)
+	defaultClient := newProxyHandlerClient(t, defaultConfig)
+	requireProxyMessage(t, defaultClient, "anything", "Whitelisted default")
+	require.NoError(t, defaultClient.Close())
+	requireStoppedAndRemovedProxyConfig(t, managerClient, defaultConfig.Category)
+
+	handlerAnyConfig := validProxyHandlerConfig(t, "handler-any")
+	handlerAnyConfig.Routes = []string{base.Any}
+	requireStartedProxyConfig(t, managerClient, handlerAnyConfig)
+	handlerAnyClient := newProxyHandlerClient(t, handlerAnyConfig)
+	requireProxyMessage(t, handlerAnyClient, "something-random", "handler's default any is returned")
+	require.NoError(t, handlerAnyClient.Close())
+	requireStoppedAndRemovedProxyConfig(t, managerClient, handlerAnyConfig.Category)
+
+	delete(manager.routes, base.Any)
+
+	managerHelloConfig := validProxyHandlerConfig(t, "manager-hello")
+	managerHelloConfig.Routes = nil
+	requireStartedProxyConfig(t, managerClient, managerHelloConfig)
+	managerHelloClient := newProxyHandlerClient(t, managerHelloConfig)
+	requireProxyFailure(t, managerHelloClient, "bye", "can not find the proxy handler")
+	requireProxyMessage(t, managerHelloClient, "hello", "hello from manager")
+	require.NoError(t, managerHelloClient.Close())
+	requireStoppedAndRemovedProxyConfig(t, managerClient, managerHelloConfig.Category)
+
+	manager.routes[base.Any] = proxyMessageRoute("manager any")
+
+	managerAnyConfig := validProxyHandlerConfig(t, "manager-any")
+	managerAnyConfig.Routes = nil
+	requireStartedProxyConfig(t, managerClient, managerAnyConfig)
+	managerAnyClient := newProxyHandlerClient(t, managerAnyConfig)
+	requireProxyMessage(t, managerAnyClient, "whatever", "manager any")
+	require.NoError(t, managerAnyClient.Close())
+}
+
+func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
+	emptyManager := NewProxyHandlers(testEndpointID(t, "proxy-manager-empty-outbound"))
+	request := &message.Request{
+		Command:    "hello",
+		Parameters: datatype.New(),
+	}
+	_, err := emptyManager.DeserializeRequest(message.MessageToEnvelope("", request.String()))
+	require.EqualError(t, err, "no proxified handlers")
+	_, err = emptyManager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "missing-service"))
+	require.EqualError(t, err, `outbound service "missing-service" not found`)
+
+	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-outbound"))
+	proxyConfig := validProxyHandlerConfig(t, "api")
+	manager.proxifiedHandlers[Category(proxyConfig.Category)] = &ProxifiedHandler{
+		routes:      make(map[string]ProxyHandleFunc),
+		proxyConfig: proxyConfig,
+	}
+
+	raw, err := manager.DeserializeRequest(message.MessageToEnvelope("", request.String()))
+	require.NoError(t, err)
+	proxyRequest := raw.(*ProxyRequest)
+	outbound, exists := proxyRequest.Outbound()
+	require.True(t, exists)
+	require.Equal(t, "api", outbound.proxifiedHandler)
+	require.Equal(t, "outbound-api", outbound.ServiceName)
+	require.Equal(t, DefaultHandlerCategory, outbound.HandlerCategory)
+
+	envelope, err := manager.SerializeRequest(proxyRequest)
+	require.NoError(t, err)
+	require.Equal(t, []string{"", request.String(), "outbound-api/" + DefaultHandlerCategory}, envelope)
+
+	raw, err = manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "outbound-api"))
+	require.NoError(t, err)
+	proxyRequest = raw.(*ProxyRequest)
+	outbound, exists = proxyRequest.Outbound()
+	require.True(t, exists)
+	require.Equal(t, "api", outbound.proxifiedHandler)
+	require.Equal(t, "outbound-api", outbound.ServiceName)
+	require.Equal(t, DefaultHandlerCategory, outbound.HandlerCategory)
+
+	envelope, err = manager.SerializeRequest(proxyRequest)
+	require.NoError(t, err)
+	require.Equal(t, []string{"", request.String(), "outbound-api/" + DefaultHandlerCategory}, envelope)
+}
+
 func proxyOKRoute(req ProxyRequest) ProxyReply {
-	return ProxyReply{Reply: *req.Ok(datatype.New()).(*message.Reply)}
+	return ProxyReply{Reply: *req.Ok(datatype.New().Set("proxified: todo need to go through routers", true)).(*message.Reply)}
+}
+
+func proxyMessageRoute(text string) ProxyHandleFunc {
+	return func(req ProxyRequest) ProxyReply {
+		return ProxyReply{Reply: *req.Ok(datatype.New().Set("message", text)).(*message.Reply)}
+	}
 }
 
 func validProxyHandlerConfig(t *testing.T, category string) topologyConfig.ProxyHandler {
@@ -342,6 +481,50 @@ func requireProxifiedReply(t *testing.T, client *clientSyncReplier.Client, comma
 	proxified, err := reply.ReplyParameters().BoolValue("proxified: todo need to go through routers")
 	require.NoError(t, err)
 	require.True(t, proxified)
+}
+
+func requireStartedProxyConfig(t *testing.T, managerClient *clientSyncReplier.Client, proxyConfig topologyConfig.ProxyHandler) {
+	t.Helper()
+
+	reply := proxyManagerRequest(t, managerClient, SetProxyHandlerCommand, proxyManagerConfigParams(t, proxyConfig))
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	reply = proxyManagerRequest(t, managerClient, StartProxyHandlerCommand, proxyManagerCategoryParams(proxyConfig.Category))
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+}
+
+func requireStoppedAndRemovedProxyConfig(t *testing.T, managerClient *clientSyncReplier.Client, category string) {
+	t.Helper()
+
+	reply := proxyManagerRequest(t, managerClient, StopProxyHandlerCommand, proxyManagerCategoryParams(category))
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	reply = proxyManagerRequest(t, managerClient, RemoveProxyHandlerCommand, proxyManagerCategoryParams(category))
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+}
+
+func requireProxyMessage(t *testing.T, client *clientSyncReplier.Client, command string, expected string) {
+	t.Helper()
+
+	reply, err := client.Request(&message.Request{
+		Command:    command,
+		Parameters: datatype.New(),
+	})
+	require.NoError(t, err)
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	actual, err := reply.ReplyParameters().StringValue("message")
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func requireProxyFailure(t *testing.T, client *clientSyncReplier.Client, command string, expected string) {
+	t.Helper()
+
+	reply, err := client.Request(&message.Request{
+		Command:    command,
+		Parameters: datatype.New(),
+	})
+	require.NoError(t, err)
+	require.False(t, reply.IsOK())
+	require.Equal(t, expected, reply.ErrorMessage())
 }
 
 func requireProxyHandlerRequestTimeout(t *testing.T, proxyConfig topologyConfig.ProxyHandler, command string) {

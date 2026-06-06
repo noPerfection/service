@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/noPerfection/datatype"
@@ -33,9 +35,16 @@ const (
 // Where is ProxyHandleFunc is concrete case of noPerfection/protocol/handler/base.HandleFunc
 type ProxyRequest struct {
 	message.Request
+	outbound Outbound
 }
 type ProxyReply struct {
 	message.Reply
+}
+
+type Outbound struct {
+	proxifiedHandler string
+	ServiceName      string
+	HandlerCategory  string `json:",omitempty"`
 }
 
 type ProxyHandleFunc func(req ProxyRequest) ProxyReply
@@ -55,6 +64,7 @@ type ProxifiedHandler struct {
 type ProxyHandlers struct {
 	base.Interface
 	proxifiedHandlers map[Category]*ProxifiedHandler
+	routes            map[string]ProxyHandleFunc
 	logger            *log.Logger
 	running           bool
 }
@@ -65,7 +75,44 @@ var _ message.Packer = (*ProxyHandlers)(nil)
 
 // Proxy's Request functions
 func (request ProxyRequest) Forward() (ProxyReply, error) {
-	return ProxyReply{}, fmt.Errorf("todo not implemented")
+	outbound, _ := request.Outbound()
+	return ProxyReply{}, fmt.Errorf("Todo implement a client to outbound for proxified handler, and outbound ref: %s", outbound.Ref())
+}
+
+func (request ProxyRequest) Outbound() (Outbound, bool) {
+	if request.outbound.ServiceName == "" {
+		return Outbound{}, false
+	}
+	return request.outbound, true
+}
+
+func (outbound Outbound) Ref() string {
+	return topologyConfig.RefTarget(outbound.ServiceName, outbound.HandlerCategory).Ref
+}
+
+func (outbound Outbound) MarshalJSON() ([]byte, error) {
+	if outbound.proxifiedHandler == "" {
+		return nil, fmt.Errorf("proxifiedHandler is required")
+	}
+	if outbound.ServiceName == "" {
+		return nil, fmt.Errorf("serviceName is required")
+	}
+	return topologyConfig.RefTarget(outbound.ServiceName, outbound.HandlerCategory).MarshalJSON()
+}
+
+func (outbound *Outbound) UnmarshalJSON(data []byte) error {
+	var pointer topologyConfig.ServicePointer
+	if err := pointer.UnmarshalJSON(data); err != nil {
+		return err
+	}
+	serviceName, handlerCategory := pointer.RefPath()
+	if serviceName == "" {
+		return fmt.Errorf("outbound serviceName is required")
+	}
+
+	outbound.ServiceName = serviceName
+	outbound.HandlerCategory = handlerCategory
+	return nil
 }
 
 // Proxy's Reply functions
@@ -89,6 +136,7 @@ func NewProxyHandlers(serviceName string) *ProxyHandlers {
 	return &ProxyHandlers{
 		Interface:         manager,
 		proxifiedHandlers: make(map[Category]*ProxifiedHandler),
+		routes:            make(map[string]ProxyHandleFunc),
 	}
 }
 
@@ -96,7 +144,78 @@ func NewProxyHandlers(serviceName string) *ProxyHandlers {
 This is overwriting any handler's routes to go through the proxy.
 */
 func (manager *ProxyHandlers) handleFunc(request message.RequestInterface) message.ReplyInterface {
-	return request.Ok(request.RouteParameters().Set("proxified: todo need to go through routers", true))
+	// Logic of the proxyfying.
+	// First if there is a routes in proxy handler, it means they are whitelisted commands.
+	// Note, whitelisted base.Any means, the first check is simply skipped since any command is allowed.
+	//
+	// If proxifiedHandlers.routes has routes but no base.Any, make sure that request.CommandName is whitelisted.
+	// if not whitelisted, then return error with error message "access-denied"
+
+	// Second, we need to see is there any custom proxy handlding.
+	// first, check is there manager.proxified.routes[request.CommandName()] if so, then call that.
+	// if not, then check is command is not base.Any, but does proxified.routes[base.Any] exists. if so, then call that.
+	// if not, then check  is manager.routes[request.CommandName()] exists, if so, then call that.
+	// if not, then check is command is not base.Any, but does manager.routes[base.Any] exists, if so then call that. error.
+	// if not, then return error with error message "can not find the proxy handler"
+	proxyRequest, ok := request.(*ProxyRequest)
+	if !ok {
+		return request.Fail("proxy request has unexpected type")
+	}
+
+	proxified, allowed := manager.proxifiedForCommand(request.CommandName())
+	if !allowed {
+		return request.Fail("access-denied")
+	}
+
+	var handleFunc ProxyHandleFunc
+	if proxified != nil {
+		handleFunc = proxified.routes[request.CommandName()]
+		if handleFunc == nil && request.CommandName() != base.Any {
+			handleFunc = proxified.routes[base.Any]
+		}
+	}
+	if handleFunc == nil {
+		handleFunc = manager.routes[request.CommandName()]
+	}
+	if handleFunc == nil && request.CommandName() != base.Any {
+		handleFunc = manager.routes[base.Any]
+	}
+	if handleFunc == nil {
+		return request.Fail("can not find the proxy handler")
+	}
+
+	reply := handleFunc(*proxyRequest)
+	return &reply
+}
+
+func (manager *ProxyHandlers) proxifiedForCommand(command string) (*ProxifiedHandler, bool) {
+	hasDeniedProxy := false
+	for _, proxified := range manager.proxifiedHandlers {
+		if proxified.proxyConfig.Category == "" {
+			continue
+		}
+		if proxyConfigAllowsCommand(proxified.proxyConfig, command) {
+			return proxified, true
+		}
+		hasDeniedProxy = true
+	}
+	if hasDeniedProxy {
+		return nil, false
+	}
+
+	return nil, true
+}
+
+func proxyConfigAllowsCommand(proxyConfig topologyConfig.ProxyHandler, command string) bool {
+	if len(proxyConfig.Routes) == 0 {
+		return true
+	}
+	for _, route := range proxyConfig.Routes {
+		if route == base.Any || route == command {
+			return true
+		}
+	}
+	return false
 }
 
 func (manager *ProxyHandlers) Route(command string, handleFunc ProxyHandleFunc, handlerCategory ...string) error {
@@ -106,11 +225,18 @@ func (manager *ProxyHandlers) Route(command string, handleFunc ProxyHandleFunc, 
 	if len(handlerCategory) > 1 {
 		return fmt.Errorf("too many handler categories")
 	}
-
-	category := Category(DefaultHandlerCategory)
-	if len(handlerCategory) == 1 && handlerCategory[0] != "" {
-		category = Category(handlerCategory[0])
+	if handleFunc == nil {
+		return fmt.Errorf("proxy handle function is required when command is '%s'", command)
 	}
+	if len(handlerCategory) == 0 || handlerCategory[0] == "" {
+		if manager.routes == nil {
+			manager.routes = make(map[string]ProxyHandleFunc)
+		}
+		manager.routes[command] = handleFunc
+		return nil
+	}
+
+	category := Category(handlerCategory[0])
 	proxified := manager.proxifiedHandlers[category]
 	if proxified == nil {
 		proxified = &ProxifiedHandler{
@@ -319,8 +445,8 @@ func (manager *ProxyHandlers) onSetProxyHandler(req message.RequestInterface) me
 	} else if proxified.running {
 		return req.Fail("not possible to send since the handler is already running, stop")
 	}
-	if len(proxyConfig.Routes) == 0 || len(proxified.routes) == 0 {
-		return req.Fail("not possible to send since no routes are configured")
+	if len(proxified.routes) == 0 && len(manager.routes) == 0 {
+		return req.Fail(fmt.Sprintf("can not set a proxy since no proxy handle for `%s` or `default` for any command proxy handle is set", category))
 	}
 
 	handler, err := newProxyHandler(proxyConfig.Type)
@@ -373,6 +499,116 @@ func validateProxyHandlerOutbounds(proxyConfig topologyConfig.ProxyHandler) erro
 	return nil
 }
 
+func (manager *ProxyHandlers) outboundFromTail(tail []string) (Outbound, error) {
+	if len(tail) == 0 {
+		return manager.defaultOutbound()
+	}
+	if len(tail) != 1 {
+		return Outbound{}, fmt.Errorf("proxy request outbound tail must have one frame")
+	}
+
+	rawRef, err := json.Marshal(tail[0])
+	if err != nil {
+		return Outbound{}, fmt.Errorf("json.Marshal outbound ref: %w", err)
+	}
+	var outbound Outbound
+	if err := outbound.UnmarshalJSON(rawRef); err != nil {
+		return Outbound{}, fmt.Errorf("outbound ref: %w", err)
+	}
+	return manager.resolveOutbound(outbound.ServiceName, outbound.HandlerCategory)
+}
+
+func (manager *ProxyHandlers) defaultOutbound() (Outbound, error) {
+	proxified, err := manager.firstProxifiedHandler()
+	if err != nil {
+		return Outbound{}, err
+	}
+	if proxified.proxyConfig.Category == "" {
+		return Outbound{}, fmt.Errorf("first proxified handler has no proxy config")
+	}
+	if len(proxified.proxyConfig.Outbounds) == 0 {
+		return Outbound{}, fmt.Errorf("first proxified handler has no outbounds")
+	}
+
+	return outboundFromServicePointer(proxified.proxyConfig.Category, proxified.proxyConfig.Outbounds[0], "", "")
+}
+
+func (manager *ProxyHandlers) resolveOutbound(serviceName string, handlerCategory string) (Outbound, error) {
+	categories := make([]string, 0, len(manager.proxifiedHandlers))
+	for category := range manager.proxifiedHandlers {
+		categories = append(categories, string(category))
+	}
+	sort.Strings(categories)
+
+	for _, category := range categories {
+		proxified := manager.proxifiedHandlers[Category(category)]
+		if proxified == nil || proxified.proxyConfig.Category == "" {
+			continue
+		}
+		for _, pointer := range proxified.proxyConfig.Outbounds {
+			outbound, err := outboundFromServicePointer(proxified.proxyConfig.Category, pointer, serviceName, handlerCategory)
+			if err == nil {
+				return outbound, nil
+			}
+		}
+	}
+
+	if handlerCategory == "" {
+		return Outbound{}, fmt.Errorf("outbound service %q not found", serviceName)
+	}
+	return Outbound{}, fmt.Errorf("outbound service %q handler %q not found", serviceName, handlerCategory)
+}
+
+func (manager *ProxyHandlers) firstProxifiedHandler() (*ProxifiedHandler, error) {
+	if len(manager.proxifiedHandlers) == 0 {
+		return nil, fmt.Errorf("no proxified handlers")
+	}
+
+	categories := make([]string, 0, len(manager.proxifiedHandlers))
+	for category := range manager.proxifiedHandlers {
+		categories = append(categories, string(category))
+	}
+	sort.Strings(categories)
+
+	for _, category := range categories {
+		proxified := manager.proxifiedHandlers[Category(category)]
+		if proxified != nil && proxified.proxyConfig.Category != "" {
+			return proxified, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no proxified handler configs")
+}
+
+func outboundFromServicePointer(proxifiedHandler string, pointer topologyConfig.ServicePointer, serviceName string, handlerCategory string) (Outbound, error) {
+	if pointer.Service.IsZero() {
+		return Outbound{}, fmt.Errorf("outbound service is required")
+	}
+	if serviceName != "" && pointer.Service.Name != serviceName {
+		return Outbound{}, fmt.Errorf("outbound service %q does not match %q", pointer.Service.Name, serviceName)
+	}
+	if len(pointer.Service.Handlers) == 0 {
+		return Outbound{}, fmt.Errorf("outbound service %q has no handlers", pointer.Service.Name)
+	}
+
+	selectedHandler := pointer.Service.Handlers[0].AsHandler()
+	if handlerCategory != "" {
+		var err error
+		var variant topologyConfig.HandlerVariant
+		variant, err = pointer.Service.HandlerByCategory(handlerCategory)
+		if err != nil {
+			return Outbound{}, err
+		}
+		selectedHandler = variant.AsHandler()
+	}
+
+	return Outbound{
+		proxifiedHandler: proxifiedHandler,
+		ServiceName:      pointer.Service.Name,
+		HandlerCategory:  selectedHandler.Category,
+	}, nil
+}
+
 func newProxyHandler(handlerType topologyConfig.HandlerType) (base.Interface, error) {
 	switch handlerType {
 	case topologyConfig.SyncReplierType:
@@ -401,7 +637,7 @@ func (manager *ProxyHandlers) DeserializeRequest(zmqEnvelope []string) (message.
 		return nil, err
 	}
 
-	conId, msg, _ := message.EnvelopeToMessage(zmqEnvelope)
+	conId, msg, tail := message.EnvelopeToMessage(zmqEnvelope)
 
 	data, err := datatype.NewFromString(msg)
 	if err != nil {
@@ -419,7 +655,12 @@ func (manager *ProxyHandlers) DeserializeRequest(zmqEnvelope []string) (message.
 	}
 	request.SetConId(conId)
 
-	return &ProxyRequest{Request: request}, nil
+	outbound, err := manager.outboundFromTail(tail)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ProxyRequest{Request: request, outbound: outbound}, nil
 }
 
 func (manager *ProxyHandlers) DeserializeReply(zmqEnvelope []string) (message.ReplyInterface, error) {
@@ -451,6 +692,13 @@ func (manager *ProxyHandlers) SerializeRequest(request message.RequestInterface)
 	str := request.String()
 	if str == "" {
 		return nil, fmt.Errorf("request.String returned an empty string")
+	}
+
+	if proxyRequest, ok := request.(*ProxyRequest); ok {
+		outbound, exists := proxyRequest.Outbound()
+		if exists {
+			return message.MessageToEnvelope(request.ConId(), str, outbound.Ref()), nil
+		}
 	}
 
 	return message.MessageToEnvelope(request.ConId(), str), nil
