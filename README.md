@@ -59,6 +59,9 @@ When the service is prepared, it runs the manager.
 The manager is set in the *"PREPARED"* state. 
 If the service has a parent service, then it will send the message to the parent.
 
+> `noPerfection/service/manager.Manager` implements both `noPerfection/protocol/handler/base.Interface`
+> and `noPerfection/topology.Interface` which means you can call manager using `noPerfection/topology/client.New(serviceId, servicePort)`
+
 After running the manager, the service runs the dependency manager.
 The dependency manager running means three things.
 If the service is running, it will ask to acknowledge the parent.
@@ -463,6 +466,9 @@ And doesn't work with the users directly.
 The third and last type of the services are **proxy** services. The proxy
 acts as a switch between a user/service and a user/service. Depending on 
 the proxy result the request will be forwarded or returned back to the client.
+
+**Constraints**
+* proxy service names can not start with `tmp` since it makes the proxy as an ipc protocol for its handlers manager thread which is prohibited.
 
 ---
 ## Controller

@@ -16,9 +16,10 @@ var DefaultHandlerEndpoint = message.NewEndpoint("localhost", 8000)
 // Handlers owns the local handler registry and lifecycle.
 type Handlers struct {
 	handlers datatype.KeyValue
-	routes   map[string]map[string]base.HandleFunc
-	logger   *log.Logger
-	running  bool
+	// handler category -> command -> handle function
+	routes  map[string]map[string]base.HandleFunc
+	logger  *log.Logger
+	running bool
 }
 
 // NewHandlers creates an empty handler manager.
