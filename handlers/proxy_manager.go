@@ -33,6 +33,8 @@ const (
 	IsProxyHandlerRunningCommand = "is-proxy-handler-running-command"
 	StartProxyHandlerCommand     = "start-proxy-handler-command"
 	StopProxyHandlerCommand      = "stop-proxy-handler-command"
+	StartProxyHandlersCommand    = "start-proxy-handlers-command"
+	StopProxyHandlersCommand     = "stop-proxy-handlers-command"
 	RemoveProxyHandlerCommand    = "remove-proxy-handler-command"
 
 	proxyBroadcastListenTimeout = 5 * time.Minute
@@ -372,6 +374,12 @@ func (manager *ProxyHandlers) Start() error {
 	if err := manager.Interface.Route(StopProxyHandlerCommand, manager.onStopProxyHandler); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", StopProxyHandlerCommand, err)
 	}
+	if err := manager.Interface.Route(StartProxyHandlersCommand, manager.onStartProxyHandlers); err != nil {
+		return fmt.Errorf("proxy manager Route('%s'): %w", StartProxyHandlersCommand, err)
+	}
+	if err := manager.Interface.Route(StopProxyHandlersCommand, manager.onStopProxyHandlers); err != nil {
+		return fmt.Errorf("proxy manager Route('%s'): %w", StopProxyHandlersCommand, err)
+	}
 	if err := manager.Interface.Route(RemoveProxyHandlerCommand, manager.onRemoveProxyHandler); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", RemoveProxyHandlerCommand, err)
 	}
@@ -389,23 +397,29 @@ func (manager *ProxyHandlers) Close() error {
 		return fmt.Errorf("proxy manager interface is nil, please create this manager using NewProxyHandlers(serviceName)")
 	}
 
-	handlers := make([]base.Interface, 0, len(manager.proxifiedHandlers)+1)
-	handlers = append(handlers, manager.Interface)
 	for _, proxified := range manager.proxifiedHandlers {
-		if proxified.handler != nil {
-			handlers = append(handlers, proxified.handler)
+		if proxified == nil {
+			continue
 		}
-	}
-
-	if err := closeHandlers(handlers); err != nil {
-		return err
-	}
-	for _, proxified := range manager.proxifiedHandlers {
+		if proxified.running {
+			if err := manager.stopProxyHandler(proxified); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := closeOutboundClients(proxified.outboundClients); err != nil {
 			return err
 		}
 		proxified.outboundClients = nil
-		proxified.running = false
+		if proxified.handler != nil {
+			if err := closeHandlers([]base.Interface{proxified.handler}); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := closeHandlers([]base.Interface{manager.Interface}); err != nil {
+		return err
 	}
 	manager.running = false
 
@@ -448,24 +462,22 @@ func (manager *ProxyHandlers) onStartProxyHandler(req message.RequestInterface) 
 	}
 
 	proxified := manager.proxifiedHandlers[Category(category)]
-	if proxified == nil || proxified.handler == nil {
-		return req.Fail(fmt.Sprintf("No proxified handler was set, please call %s command to set it first", SetProxyHandlerCommand))
+	if err := manager.startProxyHandler(proxified); err != nil {
+		return req.Fail(err.Error())
 	}
-	if proxified.running {
-		return req.Fail("proxified handler is already running")
-	}
-	if len(proxified.outboundClients) == 0 {
-		outboundClients, err := newOutboundClients(proxified.proxyConfig)
-		if err != nil {
-			return req.Fail(fmt.Sprintf("new outbound clients: %v", err))
+
+	return req.Ok(datatype.New())
+}
+
+func (manager *ProxyHandlers) onStartProxyHandlers(req message.RequestInterface) message.ReplyInterface {
+	for category, proxified := range manager.proxifiedHandlers {
+		if proxified == nil || proxified.handler == nil || proxified.running {
+			continue
 		}
-		proxified.outboundClients = outboundClients
+		if err := manager.startProxyHandler(proxified); err != nil {
+			return req.Fail(fmt.Sprintf("start proxy handler(%s): %v", category, err))
+		}
 	}
-	startOutboundSubscribers(proxified.outboundClients)
-	if err := proxified.handler.Start(); err != nil {
-		return req.Fail(fmt.Sprintf("proxified handler Start: %v", err))
-	}
-	proxified.running = true
 
 	return req.Ok(datatype.New())
 }
@@ -478,22 +490,66 @@ func (manager *ProxyHandlers) onStopProxyHandler(req message.RequestInterface) m
 	}
 
 	proxified := manager.proxifiedHandlers[Category(category)]
+	if err := manager.stopProxyHandler(proxified); err != nil {
+		return req.Fail(err.Error())
+	}
+
+	return req.Ok(datatype.New())
+}
+
+func (manager *ProxyHandlers) onStopProxyHandlers(req message.RequestInterface) message.ReplyInterface {
+	for category, proxified := range manager.proxifiedHandlers {
+		if proxified == nil || !proxified.running {
+			continue
+		}
+		if err := manager.stopProxyHandler(proxified); err != nil {
+			return req.Fail(fmt.Sprintf("stop proxy handler(%s): %v", category, err))
+		}
+	}
+
+	return req.Ok(datatype.New())
+}
+
+func (manager *ProxyHandlers) startProxyHandler(proxified *ProxifiedHandler) error {
 	if proxified == nil || proxified.handler == nil {
-		return req.Fail(fmt.Sprintf("No proxified handler was set, please call %s command to set it first", SetProxyHandlerCommand))
+		return fmt.Errorf("No proxified handler was set, please call %s command to set it first", SetProxyHandlerCommand)
+	}
+	if proxified.running {
+		return fmt.Errorf("proxified handler is already running")
+	}
+	if len(proxified.outboundClients) == 0 {
+		outboundClients, err := newOutboundClients(proxified.proxyConfig)
+		if err != nil {
+			return fmt.Errorf("new outbound clients: %v", err)
+		}
+		proxified.outboundClients = outboundClients
+	}
+	startOutboundSubscribers(proxified.outboundClients)
+	if err := proxified.handler.Start(); err != nil {
+		return fmt.Errorf("proxified handler Start: %v", err)
+	}
+	proxified.running = true
+
+	return nil
+}
+
+func (manager *ProxyHandlers) stopProxyHandler(proxified *ProxifiedHandler) error {
+	if proxified == nil || proxified.handler == nil {
+		return fmt.Errorf("No proxified handler was set, please call %s command to set it first", SetProxyHandlerCommand)
 	}
 	if !proxified.running {
-		return req.Fail("proxified handler is not running")
+		return fmt.Errorf("proxified handler is not running")
 	}
 	if err := closeHandlers([]base.Interface{proxified.handler}); err != nil {
-		return req.Fail(fmt.Sprintf("proxified handler Close: %v", err))
+		return fmt.Errorf("proxified handler Close: %v", err)
 	}
 	if err := closeOutboundClients(proxified.outboundClients); err != nil {
-		return req.Fail(fmt.Sprintf("outbound clients Close: %v", err))
+		return fmt.Errorf("outbound clients Close: %v", err)
 	}
 	proxified.outboundClients = nil
 	proxified.running = false
 
-	return req.Ok(datatype.New())
+	return nil
 }
 
 // Requires 'category' (string) parameter, returns empty reply on success

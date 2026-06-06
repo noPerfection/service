@@ -10,9 +10,9 @@ import (
 	"github.com/noPerfection/datatype"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
-	handlerControl "github.com/noPerfection/protocol/handler/control"
 	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/topology"
 )
 
@@ -22,11 +22,11 @@ var _ topology.NodeInterface = (*ProxyManager)(nil)
 // Manage this proxy service from other parts.
 type ProxyManager struct {
 	base.Interface
-	serviceName     string
-	handlerControls []*clientSyncReplier.BaseControl
-	topologyClient  *topology.Client
-	blocker         **sync.WaitGroup
-	running         bool
+	serviceName         string
+	topologyClient      *topology.Client
+	proxyHandlersClient *clientSyncReplier.Client
+	blocker             **sync.WaitGroup
+	running             bool
 }
 
 // NewProxyManager creates a manager for a proxy service.
@@ -42,18 +42,25 @@ func NewProxyManager(serviceName string, managerEndpoints ...message.Endpoint) (
 	if len(managerEndpoints) == 1 {
 		managerEndpoint = managerEndpoints[0]
 	}
+
 	topologyClient, err := topology.NewClient()
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewClient: %w", err)
 	}
 
+	proxyHandlersClient, err := clientSyncReplier.NewClient(serviceName+handlers.ProxyManagerCategory, 0)
+	if err != nil {
+		_ = topologyClient.Close()
+		return nil, fmt.Errorf("sync_replier.NewClient('%s'): %w", serviceName+handlers.ProxyManagerCategory, err)
+	}
+
 	handler := syncReplier.New()
 
 	h := &ProxyManager{
-		Interface:       handler,
-		handlerControls: make([]*clientSyncReplier.BaseControl, 0),
-		topologyClient:  topologyClient,
-		serviceName:     serviceName,
+		Interface:           handler,
+		topologyClient:      topologyClient,
+		proxyHandlersClient: proxyHandlersClient,
+		serviceName:         serviceName,
 	}
 
 	managerConfig := HandlerConfig(serviceName, managerEndpoint)
@@ -69,11 +76,22 @@ func (m *ProxyManager) SetSharedBlocker(blocker **sync.WaitGroup) {
 // For now, let's make it not starting. It just returns its own name.
 // Later it will just keep almost identical to Start() data.
 func (m *ProxyManager) StartService(serviceName string) (string, error) {
-	if serviceName == "" || serviceName == m.serviceName {
-		return strconv.Itoa(os.Getpid()), nil
+	if serviceName != "" && serviceName != m.serviceName {
+		return "", fmt.Errorf("service name is not empty and not equal to the service name")
 	}
 
-	return "", fmt.Errorf("service name is not empty and not equal to the service name")
+	if err := m.ensureTopologyClient(); err != nil {
+		return "", err
+	}
+	if err := m.ensureProxyHandlersClient(); err != nil {
+		return "", err
+	}
+	if err := m.proxyHandlersRequest(handlers.StartProxyHandlersCommand); err != nil {
+		return "", err
+	}
+
+	m.running = true
+	return strconv.Itoa(os.Getpid()), nil
 }
 
 // For now, lets just return manager.running.
@@ -90,21 +108,23 @@ func (m *ProxyManager) StopService(serviceName string) error {
 		return fmt.Errorf("service name is not empty and not equal to the service name")
 	}
 
+	if m.proxyHandlersClient != nil {
+		if err := m.proxyHandlersRequest(handlers.StopProxyHandlersCommand); err != nil {
+			return err
+		}
+	}
+	if m.proxyHandlersClient != nil {
+		if err := m.proxyHandlersClient.Close(); err != nil {
+			return fmt.Errorf("proxyHandlersClient.Close: %w", err)
+		}
+		m.proxyHandlersClient = nil
+	}
 	if m.topologyClient != nil {
 		if err := m.topologyClient.Close(); err != nil {
 			return fmt.Errorf("topologyClient.Close: %w", err)
 		}
 		m.topologyClient = nil
 	}
-	for _, control := range m.handlerControls {
-		if err := control.HandlerClose(); err != nil {
-			return fmt.Errorf("handlerControl.HandlerClose: %w", err)
-		}
-		if err := control.Close(); err != nil {
-			return fmt.Errorf("handlerControl.Close: %w", err)
-		}
-	}
-	m.handlerControls = make([]*clientSyncReplier.BaseControl, 0)
 
 	wasRunning := m.running
 	m.running = false
@@ -184,31 +204,44 @@ func (m *ProxyManager) stopAfterReply(serviceName string) {
 	_ = m.StopService(serviceName)
 }
 
-func (m *ProxyManager) setHandlerControls() error {
-	if m.topologyClient == nil {
-		return fmt.Errorf("topologyClient is nil")
+func (m *ProxyManager) ensureTopologyClient() error {
+	if m.topologyClient != nil {
+		return nil
 	}
-
-	service, err := m.topologyClient.Service(m.serviceName)
+	topologyClient, err := topology.NewClient()
 	if err != nil {
-		return fmt.Errorf("topologyClient.Service('%s'): %w", m.serviceName, err)
+		return fmt.Errorf("topology.NewClient: %w", err)
 	}
+	m.topologyClient = topologyClient
+	return nil
+}
 
-	m.handlerControls = make([]*clientSyncReplier.BaseControl, 0, len(service.Handlers))
-	for _, handlerVariant := range service.Handlers {
-		handler := handlerVariant.AsHandler()
-		if handler.Category == topology.ServiceManagerCategory {
-			continue
-		}
-
-		controlID := handlerControl.ControlEndpointID(handler.Endpoint.Id, handler.Endpoint.Port)
-		control, err := clientSyncReplier.NewBaseControl(controlID, 0)
-		if err != nil {
-			return fmt.Errorf("sync_replier.NewBaseControl('%s'): %w", controlID, err)
-		}
-		m.handlerControls = append(m.handlerControls, control)
+func (m *ProxyManager) ensureProxyHandlersClient() error {
+	if m.proxyHandlersClient != nil {
+		return nil
 	}
+	proxyHandlersClient, err := clientSyncReplier.NewClient(m.serviceName+handlers.ProxyManagerCategory, 0)
+	if err != nil {
+		return fmt.Errorf("sync_replier.NewClient('%s'): %w", m.serviceName+handlers.ProxyManagerCategory, err)
+	}
+	m.proxyHandlersClient = proxyHandlersClient
+	return nil
+}
 
+func (m *ProxyManager) proxyHandlersRequest(command string) error {
+	if err := m.ensureProxyHandlersClient(); err != nil {
+		return err
+	}
+	reply, err := m.proxyHandlersClient.Request(&message.Request{
+		Command:    command,
+		Parameters: datatype.New(),
+	})
+	if err != nil {
+		return fmt.Errorf("proxyHandlersClient.Request('%s'): %w", command, err)
+	}
+	if !reply.IsOK() {
+		return fmt.Errorf("proxyHandlersClient.Request('%s'): %s", command, reply.ErrorMessage())
+	}
 	return nil
 }
 
@@ -226,17 +259,13 @@ func (m *ProxyManager) Start() error {
 		return fmt.Errorf(`handler.Route("%s"): %w`, StopService, err)
 	}
 
-	if err := m.setHandlerControls(); err != nil {
-		return fmt.Errorf("setHandlerControls: %w", err)
+	if m.proxyHandlersClient == nil {
+		return fmt.Errorf("proxyHandlersClient is nil")
 	}
 
 	if err := m.Interface.Start(); err != nil {
 		return fmt.Errorf("handler.Start: %w", err)
 	}
-
-	// TODO:
-	// Here, we need to get the service, and set the proxy handlers.
-	//
 
 	m.running = true
 
