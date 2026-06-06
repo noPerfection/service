@@ -7,7 +7,9 @@ import (
 	"github.com/noPerfection/datatype"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
+	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/control"
+	handlerPublisher "github.com/noPerfection/protocol/handler/publisher"
 	"github.com/noPerfection/protocol/message"
 	topologyConfig "github.com/noPerfection/topology/config"
 	"github.com/stretchr/testify/require"
@@ -381,13 +383,243 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 	require.Equal(t, []string{"", request.String(), "outbound-api/" + DefaultHandlerCategory}, envelope)
 }
 
+func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
+	serviceName := "outbound-forward"
+	outboundHandlers := []topologyConfig.Handler{
+		startForwardOutboundHandler(t, handlerConfig.SyncReplierType, "sync", "sync reply"),
+		startForwardOutboundHandler(t, handlerConfig.ReplierType, "replier", "replier reply"),
+		startForwardOutboundHandler(t, handlerConfig.PairType, "pair", "pair reply"),
+		startForwardOutboundHandler(t, handlerConfig.WorkerType, "worker", "worker reply"),
+		startForwardPublisher(t, serviceName, "publisher", "publisher reply"),
+	}
+
+	proxyConfig := topologyConfig.ProxyHandler{
+		Handler: topologyConfig.Handler{
+			Type:     topologyConfig.SyncReplierType,
+			Category: "proxy",
+			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-forward"), 0),
+		},
+		Outbounds: []topologyConfig.ServicePointer{
+			topologyConfig.ServiceTarget(topologyConfig.Service{
+				Type:      topologyConfig.IndependentType,
+				Name:      serviceName,
+				ModuleUrl: "github.com/noPerfection/service/handlers/test",
+				Handlers:  topologyConfig.NewHandlerVariants(outboundHandlers...),
+			}),
+		},
+	}
+
+	outboundClients, err := newOutboundClients(proxyConfig)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, closeOutboundClients(outboundClients))
+	})
+	startOutboundSubscribers(outboundClients)
+	time.Sleep(50 * time.Millisecond)
+
+	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-forward"))
+	manager.proxifiedHandlers[Category(proxyConfig.Category)] = &ProxifiedHandler{
+		proxyConfig:     proxyConfig,
+		outboundClients: outboundClients,
+	}
+
+	cases := []struct {
+		category string
+		expected string
+	}{
+		{category: "sync", expected: "sync reply"},
+		{category: "replier", expected: "replier reply"},
+		{category: "publisher", expected: "publisher reply"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.category, func(t *testing.T) {
+			reply, err := proxyForwardRequest(manager, proxyConfig.Category, serviceName, tc.category).Forward()
+			require.NoError(t, err)
+			require.True(t, reply.IsOK(), reply.ErrorMessage())
+			actual, err := reply.ReplyParameters().StringValue("message")
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+
+	reply, err := proxyForwardRequest(manager, proxyConfig.Category, serviceName, "pair").Forward()
+	require.NoError(t, err)
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+
+	reply, err = proxyForwardRequest(manager, proxyConfig.Category, serviceName, "worker").Forward()
+	require.NoError(t, err)
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+
+	_, err = proxyForwardRequest(manager, proxyConfig.Category, serviceName, "missing").Forward()
+	require.EqualError(t, err, `outbound ref "outbound-forward/missing" is not connected`)
+}
+
+func TestProxyHandlerRouteForwardsToOutboundAcrossLifecycle(t *testing.T) {
+	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-route-forward"))
+	proxyCategory := "proxy-forward-route"
+	serviceName := "outbound-route-forward"
+	outboundHandler := startEchoOutboundHandler(t, "echo")
+	proxyConfig := topologyConfig.ProxyHandler{
+		Handler: topologyConfig.Handler{
+			Type:     topologyConfig.SyncReplierType,
+			Category: proxyCategory,
+			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-route-forward"), 0),
+		},
+		Routes: []string{base.Any},
+		Outbounds: []topologyConfig.ServicePointer{
+			topologyConfig.ServiceTarget(topologyConfig.Service{
+				Type:      topologyConfig.IndependentType,
+				Name:      serviceName,
+				ModuleUrl: "github.com/noPerfection/service/handlers/test",
+				Handlers:  topologyConfig.NewHandlerVariants(outboundHandler),
+			}),
+		},
+	}
+
+	require.NoError(t, manager.Route(base.Any, proxyForwardRoute, proxyCategory))
+	require.NoError(t, manager.Start())
+	t.Cleanup(func() {
+		_ = manager.Close()
+	})
+
+	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Config().Id, manager.Interface.Config().Port)
+	require.NoError(t, err)
+	managerClient.Timeout(time.Second)
+	managerClient.Attempt(3)
+	defer managerClient.Close()
+
+	reply := proxyManagerRequest(t, managerClient, SetProxyHandlerCommand, proxyManagerConfigParams(t, proxyConfig))
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+
+	requireProxyHandlerRequestTimeout(t, proxyConfig, "echo")
+
+	reply = proxyManagerRequest(t, managerClient, StartProxyHandlerCommand, proxyManagerCategoryParams(proxyCategory))
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	proxyClient := newProxyHandlerClient(t, proxyConfig)
+	requireForwardedEcho(t, proxyClient, "first")
+	require.NoError(t, proxyClient.Close())
+
+	reply = proxyManagerRequest(t, managerClient, StopProxyHandlerCommand, proxyManagerCategoryParams(proxyCategory))
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	requireProxyHandlerRequestTimeout(t, proxyConfig, "echo")
+
+	reply = proxyManagerRequest(t, managerClient, StartProxyHandlerCommand, proxyManagerCategoryParams(proxyCategory))
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	afterRestartClient := newProxyHandlerClient(t, proxyConfig)
+	requireForwardedEcho(t, afterRestartClient, "after-restart")
+	require.NoError(t, afterRestartClient.Close())
+}
+
 func proxyOKRoute(req ProxyRequest) ProxyReply {
 	return ProxyReply{Reply: *req.Ok(datatype.New().Set("proxified: todo need to go through routers", true)).(*message.Reply)}
+}
+
+func proxyForwardRoute(req ProxyRequest) ProxyReply {
+	reply, err := req.Forward()
+	if err != nil {
+		return ProxyReply{Reply: *req.Fail(err.Error()).(*message.Reply)}
+	}
+	return reply
 }
 
 func proxyMessageRoute(text string) ProxyHandleFunc {
 	return func(req ProxyRequest) ProxyReply {
 		return ProxyReply{Reply: *req.Ok(datatype.New().Set("message", text)).(*message.Reply)}
+	}
+}
+
+func startForwardOutboundHandler(t *testing.T, handlerType handlerConfig.HandlerType, category string, replyText string) topologyConfig.Handler {
+	t.Helper()
+
+	handler := newProtocolHandler(t, handlerType)
+	handler.SetConfig(inprocHandlerConfig(handlerType, category, testEndpointID(t, category)))
+	require.NoError(t, handler.Route("forward", func(req message.RequestInterface) message.ReplyInterface {
+		return req.Ok(datatype.New().Set("message", replyText))
+	}))
+	require.NoError(t, handler.Start())
+	t.Cleanup(func() {
+		_ = closeHandlers([]base.Interface{handler})
+	})
+
+	return topologyConfig.Handler{
+		Type:     topologyConfig.HandlerType(handlerType),
+		Category: category,
+		Endpoint: message.NewEndpoint(handler.Config().Id, handler.Config().Port),
+	}
+}
+
+func startEchoOutboundHandler(t *testing.T, category string) topologyConfig.Handler {
+	t.Helper()
+
+	handler := newProtocolHandler(t, handlerConfig.SyncReplierType)
+	handler.SetConfig(inprocHandlerConfig(handlerConfig.SyncReplierType, category, testEndpointID(t, category)))
+	require.NoError(t, handler.Route("echo", func(req message.RequestInterface) message.ReplyInterface {
+		payload, err := req.RouteParameters().StringValue("payload")
+		if err != nil {
+			return req.Fail(err.Error())
+		}
+		return req.Ok(datatype.New().Set("payload", payload))
+	}))
+	require.NoError(t, handler.Start())
+	t.Cleanup(func() {
+		_ = closeHandlers([]base.Interface{handler})
+	})
+
+	return topologyConfig.Handler{
+		Type:     topologyConfig.SyncReplierType,
+		Category: category,
+		Endpoint: message.NewEndpoint(handler.Config().Id, handler.Config().Port),
+	}
+}
+
+func startForwardPublisher(t *testing.T, serviceName string, category string, replyText string) topologyConfig.Handler {
+	t.Helper()
+
+	handler := newProtocolHandler(t, handlerConfig.PublisherType)
+	handler.SetConfig(inprocHandlerConfig(handlerConfig.PublisherType, category, testEndpointID(t, category)))
+	require.NoError(t, handler.Start())
+	t.Cleanup(func() {
+		_ = closeHandlers([]base.Interface{handler})
+	})
+
+	controlClient, err := clientSyncReplier.NewClient(control.ControlEndpointID(handler.Config().Id, handler.Config().Port), 0)
+	require.NoError(t, err)
+	controlClient.Timeout(time.Second)
+	controlClient.Attempt(3)
+	t.Cleanup(func() {
+		_ = controlClient.Close()
+	})
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		_, _ = controlClient.Request(&message.Request{
+			Command: handlerPublisher.Broadcast,
+			Parameters: datatype.New().Set(handlerPublisher.BroadcastParameter, message.Reply{
+				Status:     message.OK,
+				Parameters: datatype.New().Set("message", replyText).Set("service", serviceName),
+			}),
+		})
+	}()
+
+	return topologyConfig.Handler{
+		Type:     topologyConfig.PublisherType,
+		Category: category,
+		Endpoint: message.NewEndpoint(handler.Config().Id, handler.Config().Port),
+	}
+}
+
+func proxyForwardRequest(manager *ProxyHandlers, proxifiedCategory string, serviceName string, handlerCategory string) *ProxyRequest {
+	return &ProxyRequest{
+		Request: message.Request{
+			Command:    "forward",
+			Parameters: datatype.New(),
+		},
+		outbound: Outbound{
+			proxifiedHandler: proxifiedCategory,
+			ServiceName:      serviceName,
+			HandlerCategory:  handlerCategory,
+		},
+		manager: manager,
 	}
 }
 
@@ -513,6 +745,20 @@ func requireProxyMessage(t *testing.T, client *clientSyncReplier.Client, command
 	actual, err := reply.ReplyParameters().StringValue("message")
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
+}
+
+func requireForwardedEcho(t *testing.T, client *clientSyncReplier.Client, payload string) {
+	t.Helper()
+
+	reply, err := client.Request(&message.Request{
+		Command:    "echo",
+		Parameters: datatype.New().Set("payload", payload),
+	})
+	require.NoError(t, err)
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	actual, err := reply.ReplyParameters().StringValue("payload")
+	require.NoError(t, err)
+	require.Equal(t, payload, actual)
 }
 
 func requireProxyFailure(t *testing.T, client *clientSyncReplier.Client, command string, expected string) {

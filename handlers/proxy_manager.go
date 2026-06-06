@@ -5,9 +5,16 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
+	protocolClient "github.com/noPerfection/protocol/client"
+	clientPair "github.com/noPerfection/protocol/client/pair"
+	clientPublisher "github.com/noPerfection/protocol/client/publisher"
+	clientReplier "github.com/noPerfection/protocol/client/replier"
+	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
+	clientWorker "github.com/noPerfection/protocol/client/worker"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/pair"
@@ -27,6 +34,9 @@ const (
 	StartProxyHandlerCommand     = "start-proxy-handler-command"
 	StopProxyHandlerCommand      = "stop-proxy-handler-command"
 	RemoveProxyHandlerCommand    = "remove-proxy-handler-command"
+
+	proxyBroadcastListenTimeout = 5 * time.Minute
+	proxyReceiveAttempt         = uint8(0)
 )
 
 // Proxy services work with a special type of requests and replies.
@@ -36,6 +46,7 @@ const (
 type ProxyRequest struct {
 	message.Request
 	outbound Outbound
+	manager  *ProxyHandlers
 }
 type ProxyReply struct {
 	message.Reply
@@ -52,10 +63,20 @@ type ProxyHandleFunc func(req ProxyRequest) ProxyReply
 type Category string
 
 type ProxifiedHandler struct {
-	handler     base.Interface
-	routes      map[string]ProxyHandleFunc  // user can do whatever he wants
-	proxyConfig topologyConfig.ProxyHandler // handler's information
-	running     bool
+	handler         base.Interface
+	outboundClients map[string]map[string]outboundClient
+	routes          map[string]ProxyHandleFunc  // command => handleFunc; user can do whatever he wants
+	proxyConfig     topologyConfig.ProxyHandler // handler's information
+	running         bool
+}
+
+type outboundClient interface {
+	Close() error
+}
+
+type outboundReceiveOptions interface {
+	Timeout(time.Duration)
+	Attempt(uint8)
 }
 
 // ProxyHandlers owns the proxy handler registry and lifecycle.
@@ -74,11 +95,84 @@ var _ message.RequestInterface = (*ProxyRequest)(nil)
 var _ message.Packer = (*ProxyHandlers)(nil)
 
 // Proxy's Request functions
-func (request ProxyRequest) Forward() (ProxyReply, error) {
-	outbound, _ := request.Outbound()
-	return ProxyReply{}, fmt.Errorf("Todo implement a client to outbound for proxified handler, and outbound ref: %s", outbound.Ref())
+func (request *ProxyRequest) Forward() (ProxyReply, error) {
+	outbound, exists := request.Outbound()
+	if !exists {
+		return ProxyReply{}, fmt.Errorf("outbound is not set")
+	}
+	if request.manager == nil {
+		return ProxyReply{}, fmt.Errorf("proxyHandlers is not set")
+	}
+	proxified := request.manager.proxifiedHandlers[Category(outbound.proxifiedHandler)]
+	if proxified == nil {
+		return ProxyReply{}, fmt.Errorf("proxified handler %q is not set", outbound.proxifiedHandler)
+	}
+	clients := proxified.outboundClients[outbound.ServiceName]
+	if len(clients) == 0 {
+		return ProxyReply{}, fmt.Errorf("outbound service %q is not connected", outbound.ServiceName)
+	}
+	client := clients[outbound.HandlerCategory]
+	if client == nil {
+		return ProxyReply{}, fmt.Errorf("outbound ref %q is not connected", outbound.Ref())
+	}
+
+	switch c := client.(type) {
+	case protocolClient.RequestInterface:
+		reply, err := c.Request(&request.Request)
+		if err != nil {
+			return ProxyReply{}, err
+		}
+		return proxyReplyFromReply(reply)
+	case *clientPair.Client:
+		if err := c.Send(&request.Request); err != nil {
+			return ProxyReply{}, err
+		}
+		return ProxyReply{Reply: *request.Ok(datatype.New()).(*message.Reply)}, nil
+	case interface {
+		protocolClient.SendInterface
+		protocolClient.ReceiveInterface
+	}:
+		if err := c.Send(&request.Request); err != nil {
+			return ProxyReply{}, err
+		}
+		return receiveProxyReply(c.Receive())
+	case protocolClient.SendInterface:
+		if err := c.Send(&request.Request); err != nil {
+			return ProxyReply{}, err
+		}
+		return ProxyReply{Reply: *request.Ok(datatype.New()).(*message.Reply)}, nil
+	case protocolClient.ReceiveInterface:
+		return receiveProxyReply(c.Receive())
+	default:
+		return ProxyReply{}, fmt.Errorf("unsupported outbound client for ref %s", outbound.Ref())
+	}
 }
 
+func proxyReplyFromReply(reply message.ReplyInterface) (ProxyReply, error) {
+	messageReply, ok := reply.(*message.Reply)
+	if !ok {
+		return ProxyReply{}, fmt.Errorf("outbound reply has unexpected type %T", reply)
+	}
+	return ProxyReply{Reply: *messageReply}, nil
+}
+
+func receiveProxyReply(replies <-chan message.ReplyInterface) (ProxyReply, error) {
+	timer := time.NewTimer(proxyBroadcastListenTimeout)
+	defer timer.Stop()
+
+	select {
+	case reply, ok := <-replies:
+		if !ok {
+			return ProxyReply{}, fmt.Errorf("outbound receive channel closed")
+		}
+		return proxyReplyFromReply(reply)
+	case <-timer.C:
+		return ProxyReply{}, fmt.Errorf("outbound receive timeout")
+	}
+}
+
+// Outbound returns the outbound for the proxy request.
+// If the outbound is not set, return false.
 func (request ProxyRequest) Outbound() (Outbound, bool) {
 	if request.outbound.ServiceName == "" {
 		return Outbound{}, false
@@ -144,19 +238,6 @@ func NewProxyHandlers(serviceName string) *ProxyHandlers {
 This is overwriting any handler's routes to go through the proxy.
 */
 func (manager *ProxyHandlers) handleFunc(request message.RequestInterface) message.ReplyInterface {
-	// Logic of the proxyfying.
-	// First if there is a routes in proxy handler, it means they are whitelisted commands.
-	// Note, whitelisted base.Any means, the first check is simply skipped since any command is allowed.
-	//
-	// If proxifiedHandlers.routes has routes but no base.Any, make sure that request.CommandName is whitelisted.
-	// if not whitelisted, then return error with error message "access-denied"
-
-	// Second, we need to see is there any custom proxy handlding.
-	// first, check is there manager.proxified.routes[request.CommandName()] if so, then call that.
-	// if not, then check is command is not base.Any, but does proxified.routes[base.Any] exists. if so, then call that.
-	// if not, then check  is manager.routes[request.CommandName()] exists, if so, then call that.
-	// if not, then check is command is not base.Any, but does manager.routes[base.Any] exists, if so then call that. error.
-	// if not, then return error with error message "can not find the proxy handler"
 	proxyRequest, ok := request.(*ProxyRequest)
 	if !ok {
 		return request.Fail("proxy request has unexpected type")
@@ -320,6 +401,10 @@ func (manager *ProxyHandlers) Close() error {
 		return err
 	}
 	for _, proxified := range manager.proxifiedHandlers {
+		if err := closeOutboundClients(proxified.outboundClients); err != nil {
+			return err
+		}
+		proxified.outboundClients = nil
 		proxified.running = false
 	}
 	manager.running = false
@@ -369,6 +454,14 @@ func (manager *ProxyHandlers) onStartProxyHandler(req message.RequestInterface) 
 	if proxified.running {
 		return req.Fail("proxified handler is already running")
 	}
+	if len(proxified.outboundClients) == 0 {
+		outboundClients, err := newOutboundClients(proxified.proxyConfig)
+		if err != nil {
+			return req.Fail(fmt.Sprintf("new outbound clients: %v", err))
+		}
+		proxified.outboundClients = outboundClients
+	}
+	startOutboundSubscribers(proxified.outboundClients)
 	if err := proxified.handler.Start(); err != nil {
 		return req.Fail(fmt.Sprintf("proxified handler Start: %v", err))
 	}
@@ -394,6 +487,10 @@ func (manager *ProxyHandlers) onStopProxyHandler(req message.RequestInterface) m
 	if err := closeHandlers([]base.Interface{proxified.handler}); err != nil {
 		return req.Fail(fmt.Sprintf("proxified handler Close: %v", err))
 	}
+	if err := closeOutboundClients(proxified.outboundClients); err != nil {
+		return req.Fail(fmt.Sprintf("outbound clients Close: %v", err))
+	}
+	proxified.outboundClients = nil
 	proxified.running = false
 
 	return req.Ok(datatype.New())
@@ -415,6 +512,10 @@ func (manager *ProxyHandlers) onRemoveProxyHandler(req message.RequestInterface)
 	}
 
 	proxified.handler = nil
+	if err := closeOutboundClients(proxified.outboundClients); err != nil {
+		return req.Fail(fmt.Sprintf("outbound clients Close: %v", err))
+	}
+	proxified.outboundClients = nil
 	proxified.proxyConfig = topologyConfig.ProxyHandler{}
 
 	return req.Ok(datatype.New())
@@ -448,6 +549,10 @@ func (manager *ProxyHandlers) onSetProxyHandler(req message.RequestInterface) me
 	if len(proxified.routes) == 0 && len(manager.routes) == 0 {
 		return req.Fail(fmt.Sprintf("can not set a proxy since no proxy handle for `%s` or `default` for any command proxy handle is set", category))
 	}
+	if err := closeOutboundClients(proxified.outboundClients); err != nil {
+		return req.Fail(fmt.Sprintf("outbound clients Close: %v", err))
+	}
+	proxified.outboundClients = nil
 
 	handler, err := newProxyHandler(proxyConfig.Type)
 	if err != nil {
@@ -471,6 +576,10 @@ func (manager *ProxyHandlers) onSetProxyHandler(req message.RequestInterface) me
 
 	proxified.handler = handler
 	proxified.proxyConfig = proxyConfig
+	proxified.outboundClients, err = newOutboundClients(proxyConfig)
+	if err != nil {
+		return req.Fail(fmt.Sprintf("new outbound clients: %v", err))
+	}
 	proxified.running = false
 
 	return req.Ok(datatype.New())
@@ -497,6 +606,91 @@ func validateProxyHandlerOutbounds(proxyConfig topologyConfig.ProxyHandler) erro
 	}
 
 	return nil
+}
+
+func newOutboundClients(proxyConfig topologyConfig.ProxyHandler) (map[string]map[string]outboundClient, error) {
+	clients := make(map[string]map[string]outboundClient)
+	for i, outbound := range proxyConfig.Outbounds {
+		service := outbound.Service
+		if service.IsZero() {
+			return nil, fmt.Errorf("outbounds[%d] service is required", i)
+		}
+		if clients[service.Name] == nil {
+			clients[service.Name] = make(map[string]outboundClient)
+		}
+		for j, variant := range service.Handlers {
+			handler := variant.AsHandler()
+			client, err := newOutboundClient(handler)
+			if err != nil {
+				_ = closeOutboundClients(clients)
+				return nil, fmt.Errorf("outbounds[%d].handlers[%d]: %w", i, j, err)
+			}
+			clients[service.Name][handler.Category] = client
+		}
+	}
+	return clients, nil
+}
+
+func newOutboundClient(handler topologyConfig.Handler) (outboundClient, error) {
+	var client outboundClient
+	var err error
+
+	switch handler.Type {
+	case topologyConfig.SyncReplierType:
+		client, err = clientSyncReplier.NewClient(handler.Endpoint.Id, handler.Endpoint.Port)
+	case topologyConfig.ReplierType:
+		client, err = clientReplier.NewClient(handler.Endpoint.Id, handler.Endpoint.Port)
+	case topologyConfig.PublisherType:
+		client, err = clientPublisher.NewClient(handler.Endpoint.Id, handler.Endpoint.Port)
+		if err == nil {
+			configureOutboundReceiver(client)
+		}
+	case topologyConfig.PairType:
+		client, err = clientPair.NewClient(handler.Endpoint.Id, handler.Endpoint.Port)
+	case topologyConfig.WorkerType:
+		client, err = clientWorker.NewClient(handler.Endpoint.Id, handler.Endpoint.Port)
+	default:
+		return nil, fmt.Errorf("unsupported outbound handler type: %s", handler.Type)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func configureOutboundReceiver(client outboundClient) {
+	options, ok := client.(outboundReceiveOptions)
+	if !ok {
+		return
+	}
+	options.Timeout(proxyBroadcastListenTimeout)
+	options.Attempt(proxyReceiveAttempt)
+}
+
+func closeOutboundClients(clients map[string]map[string]outboundClient) error {
+	for serviceName, serviceClients := range clients {
+		for category, client := range serviceClients {
+			if client == nil {
+				continue
+			}
+			if err := client.Close(); err != nil {
+				return fmt.Errorf("outbound client(%s/%s).Close: %w", serviceName, category, err)
+			}
+		}
+	}
+	return nil
+}
+
+func startOutboundSubscribers(clients map[string]map[string]outboundClient) {
+	for _, serviceClients := range clients {
+		for _, client := range serviceClients {
+			receiver, ok := client.(protocolClient.ReceiveInterface)
+			if !ok {
+				continue
+			}
+			go receiver.Receive()
+		}
+	}
 }
 
 func (manager *ProxyHandlers) outboundFromTail(tail []string) (Outbound, error) {
@@ -660,7 +854,7 @@ func (manager *ProxyHandlers) DeserializeRequest(zmqEnvelope []string) (message.
 		return nil, err
 	}
 
-	return &ProxyRequest{Request: request, outbound: outbound}, nil
+	return &ProxyRequest{Request: request, outbound: outbound, manager: manager}, nil
 }
 
 func (manager *ProxyHandlers) DeserializeReply(zmqEnvelope []string) (message.ReplyInterface, error) {
