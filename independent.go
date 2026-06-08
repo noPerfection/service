@@ -70,18 +70,27 @@ func New(params ...interface{}) (*Independent, error) {
 			configPath = configPathArg
 		}
 	}
+
+	// Start the topology handler.
+	topologyHandler, err := topology.NewHandler(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("topology.NewHandler: %w", err)
+	}
+
 	if len(params) > 2 && params[2] != nil {
 		managerEndpointArg, ok := params[2].(message.Endpoint)
 		if !ok {
 			return nil, fmt.Errorf("manager endpoint argument must be message.Endpoint")
 		}
 		managerEndpoint = managerEndpointArg
-	}
-
-	// Start the topology handler.
-	topologyHandler, err := topology.NewHandler(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("topology.NewHandler: %w", err)
+	} else {
+		serviceConfig, err := topologyHandler.Service(name)
+		if err == nil {
+			managerHandler, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
+			if err == nil {
+				managerEndpoint = managerHandler.AsHandler().Endpoint
+			}
+		}
 	}
 
 	m, err := manager.New(name, managerEndpoint)
@@ -187,12 +196,23 @@ func (independent *Independent) addDefaultHandlerToTopology() error {
 	return nil
 }
 
-// Service Manager's Handler is added to the topology only if it is not the default endpoint.
+// addServiceManagerToTopology stores a non-default manager handler when topology
+// does not already have the same manager endpoint.
 func (independent *Independent) addServiceManagerToTopology() error {
+	// Our service's config in the topology.
+	serviceConfig, err := independent.topologyHandler.Service(independent.name)
+	if err != nil {
+		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.name, err)
+	}
+
 	// Service manager's config in the handler config format.
 	managerConfig := independent.manager.Config()
-	// In aradil: managerConfig.Endpoint-default-se, nil-git-le
-	// manager-in config-de-ki endpoint -default -se -- nil -le.
+	currentManager, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
+	if err == nil {
+		if currentManager.AsHandler().Endpoint == managerConfig.Endpoint {
+			return nil
+		}
+	}
 	if managerConfig.Endpoint == DefaultServiceManagerEndpoint {
 		return nil
 	}
@@ -202,12 +222,6 @@ func (independent *Independent) addServiceManagerToTopology() error {
 		Type:     config.HandlerType(managerConfig.Type),
 		Category: managerConfig.Category,
 		Endpoint: managerConfig.Endpoint,
-	}
-
-	// Our service's config in the topology.
-	serviceConfig, err := independent.topologyHandler.Service(independent.name)
-	if err != nil {
-		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.name, err)
 	}
 
 	serviceConfig.SetHandler(config.NewHandlerVariant(managerTopologyConfig), true)

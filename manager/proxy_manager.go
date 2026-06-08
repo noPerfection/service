@@ -47,14 +47,22 @@ func NewProxyManager(serviceName string, managerEndpoints ...message.Endpoint) (
 		return nil, fmt.Errorf("too many manager endpoints")
 	}
 
-	managerEndpoint := DefaultProxyManagerEndpoint(serviceName)
-	if len(managerEndpoints) == 1 {
-		managerEndpoint = managerEndpoints[0]
-	}
-
 	topologyClient, err := topology.NewClient()
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewClient: %w", err)
+	}
+
+	managerEndpoint := DefaultProxyManagerEndpoint(serviceName)
+	if len(managerEndpoints) == 1 {
+		managerEndpoint = managerEndpoints[0]
+	} else {
+		serviceConfig, err := topologyClient.Service(serviceName)
+		if err == nil {
+			managerHandler, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
+			if err == nil {
+				managerEndpoint = managerHandler.AsHandler().Endpoint
+			}
+		}
 	}
 
 	proxyHandlersClient, err := clientSyncReplier.NewClient(serviceName+handlers.ProxyManagerCategory, 0)

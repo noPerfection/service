@@ -12,8 +12,10 @@ type WithHardcodedTopology struct {
 	name           string
 	serviceConfigs map[string]config.Service
 	handlerConfigs map[string][]config.Handler
-	handlerDeps    map[string][]config.DepService
-	commandDeps    map[string]map[string][]config.DepService
+	// service name -> deps
+	handlerDeps map[string][]config.DepService
+	// service name -> handler category -> deps
+	commandDeps map[string]map[string][]config.DepService
 }
 
 // NewHardcodedTopologies creates storage for code-defined topology configs.
