@@ -337,6 +337,55 @@ func TestAddHardcodedCommandDepsToTopologyRejectsMissingHandler(t *testing.T) {
 	require.Contains(t, err.Error(), "hardcoded command deps handler 'missing-handler'")
 }
 
+func TestEnsureProxyHandlerOutboundAddsRouteAndOutboundHandler(t *testing.T) {
+	proxyConfig := topologyConfig.ProxyHandler{
+		Handler: topologyConfig.Handler{
+			Type:     topologyConfig.SyncReplierType,
+			Category: handlers.DefaultHandlerCategory,
+			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy"), 0),
+		},
+		Routes: []string{"existing"},
+		Outbounds: []topologyConfig.ServicePointer{
+			topologyConfig.ServiceTarget(topologyConfig.Service{
+				Type:      topologyConfig.IndependentType,
+				Name:      "custom-service",
+				ModuleUrl: DefaultModuleUrl,
+				Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
+					Type:     topologyConfig.ReplierType,
+					Category: "api",
+					Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
+				}),
+			}),
+		},
+	}
+	webHandler := topologyConfig.Handler{
+		Type:     topologyConfig.ReplierType,
+		Category: "web",
+		Endpoint: message.NewEndpoint(testEndpointID(t, "web"), 0),
+	}
+	outbound := topologyConfig.ServiceTarget(topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "custom-service",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers:  topologyConfig.NewHandlerVariants(webHandler),
+	})
+
+	proxyConfig.Routes = appendUnique(proxyConfig.Routes, "hello")
+	proxyConfig, changed := ensureProxyHandlerOutbound(proxyConfig, outbound)
+	require.True(t, changed)
+	require.ElementsMatch(t, []string{"existing", "hello"}, proxyConfig.Routes)
+	require.Len(t, proxyConfig.Outbounds, 1)
+	_, err := proxyConfig.Outbounds[0].Service.HandlerByCategory("api")
+	require.NoError(t, err)
+	_, err = proxyConfig.Outbounds[0].Service.HandlerByCategory("web")
+	require.NoError(t, err)
+
+	proxyConfig, changed = ensureProxyHandlerOutbound(proxyConfig, outbound)
+	require.False(t, changed)
+	require.Len(t, proxyConfig.Outbounds, 1)
+	require.Len(t, proxyConfig.Outbounds[0].Service.Handlers, 2)
+}
+
 func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:    "account",

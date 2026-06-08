@@ -7,7 +7,7 @@
       "handlers": [
         {
           "type": "SyncReplier",
-          "category": "default-name",
+          "category": "main",
           "endpoint": {
             "id": "localhost",
             "port": 8001
@@ -16,21 +16,7 @@
             "*"
           ],
           "outbounds": [
-            {
-              "type": "Independent",
-              "name": "hello-world",
-              "module-url": "github.com/noPerfection/service/examples/004-default-name-proxy/cmd/service",
-              "handlers": [
-                {
-                  "type": "Replier",
-                  "category": "main",
-                  "endpoint": {
-                    "id": "localhost",
-                    "port": 8000
-                  }
-                }
-              ]
-            }
+            "hello-world"
           ]
         },
         {

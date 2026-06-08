@@ -7,7 +7,6 @@ import (
 	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
-	"github.com/noPerfection/service/handlers"
 	topologyConfig "github.com/noPerfection/topology/config"
 )
 
@@ -15,7 +14,7 @@ const (
 	configPath    = "noPerfection.json"
 	serviceName   = "hello-world"
 	proxyName     = "default-name-proxy"
-	proxyCategory = "default-name"
+	proxyCategory = "main"
 )
 
 func main() {
@@ -44,6 +43,33 @@ func main() {
 }
 
 func defaultNameProxyConfig() topologyConfig.Service {
+	// return topologyConfig.Service{
+	// 	Type:      topologyConfig.ProxyType,
+	// 	Name:      proxyName,
+	// 	ModuleUrl: "github.com/noPerfection/service/examples/004-default-name-proxy/cmd/proxy",
+	// 	Handlers: []topologyConfig.HandlerVariant{
+	// 		topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
+	// 			Handler: topologyConfig.Handler{
+	// 				Type:     topologyConfig.SyncReplierType,
+	// 				Category: proxyCategory,
+	// 				Endpoint: message.NewEndpoint("localhost", 8001),
+	// 			},
+	// 			Routes: []string{base.Any},
+	// 			Outbounds: []topologyConfig.ServicePointer{
+	// 				topologyConfig.ServiceTarget(topologyConfig.Service{
+	// 					Type:      topologyConfig.IndependentType,
+	// 					Name:      serviceName,
+	// 					ModuleUrl: "github.com/noPerfection/service/examples/004-default-name-proxy/cmd/service",
+	// 					Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
+	// 						Type:     topologyConfig.ReplierType,
+	// 						Category: handlers.DefaultHandlerCategory,
+	// 						Endpoint: message.NewEndpoint("localhost", 8000),
+	// 					}),
+	// 				}),
+	// 			},
+	// 		}),
+	// 	},
+	// }
 	return topologyConfig.Service{
 		Type:      topologyConfig.ProxyType,
 		Name:      proxyName,
@@ -57,34 +83,26 @@ func defaultNameProxyConfig() topologyConfig.Service {
 				},
 				Routes: []string{base.Any},
 				Outbounds: []topologyConfig.ServicePointer{
-					topologyConfig.ServiceTarget(topologyConfig.Service{
-						Type:      topologyConfig.IndependentType,
-						Name:      serviceName,
-						ModuleUrl: "github.com/noPerfection/service/examples/004-default-name-proxy/cmd/service",
-						Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-							Type:     topologyConfig.ReplierType,
-							Category: handlers.DefaultHandlerCategory,
-							Endpoint: message.NewEndpoint("localhost", 8000),
-						}),
-					}),
+					topologyConfig.RefTarget(serviceName),
 				},
 			}),
 		},
 	}
 }
 
-// func defaultNameProxyConfig() topologyConfig.Service {
+// func defaultNameProxyConfig2() topologyConfig.Service {
 // 	return topologyConfig.Service{
 // 		Type: topologyConfig.ProxyType,
 // 		Name: proxyName,
-// 		Handlers: []topologyConfig.HandlerVariant{
-// 			topologyConfig.NewHandlerVariant(topologyConfig.Handler{
-// 				Type:     topologyConfig.SyncReplierType,
-// 				Category: topology.ServiceManagerCategory,
-// 				Endpoint: message.NewEndpoint("localhost", 8002),
-// 			}),
-// 		},
 // 	}
+// }
+
+// func defaultProxyManagerConfig2() topologyConfig.HandlerVariant {
+// 	return topologyConfig.NewHandlerVariant(topologyConfig.Handler{
+// 		Type:     topologyConfig.SyncReplierType,
+// 		Category: topology.ServiceManagerCategory,
+// 		Endpoint: message.NewEndpoint("localhost", 8002),
+// 	})
 // }
 
 func onHello(req message.RequestInterface) message.ReplyInterface {
