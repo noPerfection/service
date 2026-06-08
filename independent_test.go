@@ -386,6 +386,78 @@ func TestEnsureProxyHandlerOutboundAddsRouteAndOutboundHandler(t *testing.T) {
 	require.Len(t, proxyConfig.Outbounds[0].Service.Handlers, 2)
 }
 
+func TestCommandProxyOutboundTargetUsesNextProxyThenCommandHandler(t *testing.T) {
+	apiHandler := topologyConfig.Handler{
+		Type:     topologyConfig.SyncReplierType,
+		Category: "api",
+		Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
+	}
+	serviceConfig := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "custom-service",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers:  topologyConfig.NewHandlerVariants(apiHandler),
+	}
+	nextProxy := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "name2",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
+			Type:     topologyConfig.SyncReplierType,
+			Category: handlers.DefaultHandlerCategory,
+			Endpoint: message.NewEndpoint(testEndpointID(t, "name2"), 0),
+		}),
+	}
+	proxies := []topologyConfig.ServicePointer{
+		topologyConfig.ServiceTarget(topologyConfig.Service{
+			Type:      topologyConfig.IndependentType,
+			Name:      "name1",
+			ModuleUrl: DefaultModuleUrl,
+			Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
+				Type:     topologyConfig.SyncReplierType,
+				Category: handlers.DefaultHandlerCategory,
+				Endpoint: message.NewEndpoint(testEndpointID(t, "name1"), 0),
+			}),
+		}),
+		topologyConfig.ServiceTarget(nextProxy),
+	}
+
+	independent := &Independent{}
+	outbound, err := independent.commandProxyOutboundTarget(nil, serviceConfig, apiHandler, proxies, 0)
+	require.NoError(t, err)
+	require.Equal(t, "name2", outbound.Name())
+
+	outbound, err = independent.commandProxyOutboundTarget(nil, serviceConfig, apiHandler, proxies, 1)
+	require.NoError(t, err)
+	require.Equal(t, "custom-service", outbound.Name())
+	require.Len(t, outbound.Service.Handlers, 1)
+	handler := requireServiceHandler(t, outbound.Service, "api")
+	require.Equal(t, apiHandler.Endpoint, handler.Endpoint)
+}
+
+func TestEnsureProxyHandlerForwardSetsCommandOutboundRef(t *testing.T) {
+	proxyConfig := topologyConfig.ProxyHandler{}
+	outbound := topologyConfig.ServiceTarget(topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "next-proxy",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
+			Type:     topologyConfig.SyncReplierType,
+			Category: "proxy-api",
+			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-api"), 0),
+		}),
+	})
+
+	proxyConfig, changed, err := ensureProxyHandlerForward(proxyConfig, "hello", outbound)
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, map[string]string{"hello": "next-proxy/proxy-api"}, proxyConfig.Forward)
+
+	proxyConfig, changed, err = ensureProxyHandlerForward(proxyConfig, "hello", outbound)
+	require.NoError(t, err)
+	require.False(t, changed)
+}
+
 func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:    "account",
