@@ -510,6 +510,60 @@ func TestProxyHandlerRouteForwardsToOutboundAcrossLifecycle(t *testing.T) {
 	require.NoError(t, afterRestartClient.Close())
 }
 
+func TestProxyHandlerConfiguredForwardOverridesTailOutbound(t *testing.T) {
+	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-configured-forward"))
+	proxyCategory := "proxy-forward-config"
+	serviceName := "outbound-forward-config"
+	defaultHandler := startForwardOutboundHandler(t, handlerConfig.SyncReplierType, "default", "default reply")
+	configuredHandler := startForwardOutboundHandler(t, handlerConfig.SyncReplierType, DefaultHandlerCategory, "configured reply")
+	proxyConfig := topologyConfig.ProxyHandler{
+		Handler: topologyConfig.Handler{
+			Type:     topologyConfig.SyncReplierType,
+			Category: proxyCategory,
+			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-forward-config"), 0),
+		},
+		Routes:  []string{"forward"},
+		Forward: map[string]string{"forward": serviceName},
+		Outbounds: []topologyConfig.ServicePointer{
+			topologyConfig.ServiceTarget(topologyConfig.Service{
+				Type:      topologyConfig.IndependentType,
+				Name:      serviceName,
+				ModuleUrl: "github.com/noPerfection/service/handlers/test",
+				Handlers:  topologyConfig.NewHandlerVariants(defaultHandler, configuredHandler),
+			}),
+		},
+	}
+
+	require.NoError(t, manager.Route(base.Any, proxyForwardRoute, proxyCategory))
+	require.NoError(t, manager.Start())
+	t.Cleanup(func() {
+		_ = manager.Close()
+	})
+
+	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Config().Id, manager.Interface.Config().Port)
+	require.NoError(t, err)
+	managerClient.Timeout(time.Second)
+	managerClient.Attempt(3)
+	defer managerClient.Close()
+
+	reply := proxyManagerRequest(t, managerClient, SetProxyHandlerCommand, proxyManagerConfigParams(t, proxyConfig))
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	reply = proxyManagerRequest(t, managerClient, StartProxyHandlerCommand, proxyManagerCategoryParams(proxyCategory))
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+
+	request := &message.Request{
+		Command:    "forward",
+		Parameters: datatype.New(),
+	}
+	rawRequest, err := manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), serviceName+"/default"))
+	require.NoError(t, err)
+	reply = manager.handleFunc(rawRequest)
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	message, err := reply.ReplyParameters().StringValue("message")
+	require.NoError(t, err)
+	require.Equal(t, "configured reply", message)
+}
+
 func proxyOKRoute(req ProxyRequest) ProxyReply {
 	return ProxyReply{Reply: *req.Ok(datatype.New().Set("proxified: todo need to go through routers", true)).(*message.Reply)}
 }

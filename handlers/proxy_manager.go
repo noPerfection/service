@@ -252,6 +252,9 @@ func (manager *ProxyHandlers) handleFunc(request message.RequestInterface) messa
 
 	var handleFunc ProxyHandleFunc
 	if proxified != nil {
+		if err := manager.applyConfiguredForward(proxified, proxyRequest); err != nil {
+			return request.Fail(err.Error())
+		}
 		handleFunc = proxified.routes[request.CommandName()]
 		if handleFunc == nil && request.CommandName() != base.Any {
 			handleFunc = proxified.routes[base.Any]
@@ -269,6 +272,47 @@ func (manager *ProxyHandlers) handleFunc(request message.RequestInterface) messa
 
 	reply := handleFunc(*proxyRequest)
 	return &reply
+}
+
+func (manager *ProxyHandlers) applyConfiguredForward(proxified *ProxifiedHandler, request *ProxyRequest) error {
+	if proxified == nil || proxified.proxyConfig.Category == "" {
+		return nil
+	}
+
+	ref, ok := proxified.proxyConfig.Forward[request.CommandName()]
+	if !ok {
+		return nil
+	}
+
+	var outbound Outbound
+	rawRef, err := json.Marshal(ref)
+	if err != nil {
+		return fmt.Errorf("json.Marshal forward outbound ref: %w", err)
+	}
+	if err := outbound.UnmarshalJSON(rawRef); err != nil {
+		return fmt.Errorf("forward outbound ref: %w", err)
+	}
+	if outbound.HandlerCategory == "" {
+		outbound.HandlerCategory = DefaultHandlerCategory
+	}
+	resolved, err := proxified.resolveConfiguredForward(outbound)
+	if err != nil {
+		return fmt.Errorf("forward outbound %q: %w", ref, err)
+	}
+	request.outbound = resolved
+
+	return nil
+}
+
+func (proxified *ProxifiedHandler) resolveConfiguredForward(outbound Outbound) (Outbound, error) {
+	for _, pointer := range proxified.proxyConfig.Outbounds {
+		resolved, err := outboundFromServicePointer(proxified.proxyConfig.Category, pointer, outbound.ServiceName, outbound.HandlerCategory)
+		if err == nil {
+			return resolved, nil
+		}
+	}
+
+	return Outbound{}, fmt.Errorf("outbound service %q handler %q not found", outbound.ServiceName, outbound.HandlerCategory)
 }
 
 func (manager *ProxyHandlers) proxifiedForCommand(command string) (*ProxifiedHandler, bool) {
@@ -749,14 +793,8 @@ func startOutboundSubscribers(clients map[string]map[string]outboundClient) {
 	}
 }
 
+// Requires length of tail to be 1, and converts the first frame to Outbound on success
 func (manager *ProxyHandlers) outboundFromTail(tail []string) (Outbound, error) {
-	if len(tail) == 0 {
-		return manager.defaultOutbound()
-	}
-	if len(tail) != 1 {
-		return Outbound{}, fmt.Errorf("proxy request outbound tail must have one frame")
-	}
-
 	rawRef, err := json.Marshal(tail[0])
 	if err != nil {
 		return Outbound{}, fmt.Errorf("json.Marshal outbound ref: %w", err)
@@ -905,9 +943,17 @@ func (manager *ProxyHandlers) DeserializeRequest(zmqEnvelope []string) (message.
 	}
 	request.SetConId(conId)
 
-	outbound, err := manager.outboundFromTail(tail)
-	if err != nil {
-		return nil, err
+	var outbound Outbound
+	if len(tail) > 0 {
+		outbound, err = manager.outboundFromTail(tail)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		outbound, err = manager.defaultOutbound()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &ProxyRequest{Request: request, outbound: outbound, manager: manager}, nil
