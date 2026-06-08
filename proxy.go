@@ -30,7 +30,6 @@ func NewProxy(name string, params ...interface{}) (*Proxy, error) {
 	}
 
 	configPath := DefaultConfigPath
-	var managerEndpoints []message.Endpoint
 	if len(params) > 2 {
 		return nil, fmt.Errorf("too many arguments, expected name, config path, and manager endpoint")
 	}
@@ -43,20 +42,30 @@ func NewProxy(name string, params ...interface{}) (*Proxy, error) {
 			configPath = configPathArg
 		}
 	}
-	if len(params) > 1 && params[1] != nil {
-		managerEndpointArg, ok := params[1].(message.Endpoint)
-		if !ok {
-			return nil, fmt.Errorf("manager endpoint argument must be message.Endpoint")
-		}
-		managerEndpoints = append(managerEndpoints, managerEndpointArg)
-	}
 
 	topologyHandler, err := topology.NewHandler(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewHandler: %w", err)
 	}
 
-	m, err := manager.NewProxyManager(name, managerEndpoints...)
+	managerEndpoint := manager.DefaultProxyManagerEndpoint(name)
+	if len(params) > 1 && params[1] != nil {
+		managerEndpointArg, ok := params[1].(message.Endpoint)
+		if !ok {
+			return nil, fmt.Errorf("manager endpoint argument must be message.Endpoint")
+		}
+		managerEndpoint = managerEndpointArg
+	} else {
+		serviceConfig, err := topologyHandler.Service(name)
+		if err == nil {
+			managerHandler, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
+			if err == nil {
+				managerEndpoint = managerHandler.AsHandler().Endpoint
+			}
+		}
+	}
+
+	m, err := manager.NewProxyManager(name, managerEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("manager.NewProxyManager: %w", err)
 	}

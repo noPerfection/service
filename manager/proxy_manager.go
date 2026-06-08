@@ -39,12 +39,9 @@ type ProxyManager struct {
 
 // NewProxyManager creates a manager for a proxy service.
 // Optionally you can pass the manager's endpoint to manage proxy from remote computer or other process.
-func NewProxyManager(serviceName string, managerEndpoints ...message.Endpoint) (*ProxyManager, error) {
+func NewProxyManager(serviceName string, managerEndpoint message.Endpoint) (*ProxyManager, error) {
 	if serviceName == "" {
 		return nil, fmt.Errorf("serviceName is required")
-	}
-	if len(managerEndpoints) > 1 {
-		return nil, fmt.Errorf("too many manager endpoints")
 	}
 
 	topologyClient, err := topology.NewClient()
@@ -52,23 +49,10 @@ func NewProxyManager(serviceName string, managerEndpoints ...message.Endpoint) (
 		return nil, fmt.Errorf("topology.NewClient: %w", err)
 	}
 
-	managerEndpoint := DefaultProxyManagerEndpoint(serviceName)
-	if len(managerEndpoints) == 1 {
-		managerEndpoint = managerEndpoints[0]
-	} else {
-		serviceConfig, err := topologyClient.Service(serviceName)
-		if err == nil {
-			managerHandler, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
-			if err == nil {
-				managerEndpoint = managerHandler.AsHandler().Endpoint
-			}
-		}
-	}
-
-	proxyHandlersClient, err := clientSyncReplier.NewClient(serviceName+handlers.ProxyManagerCategory, 0)
+	proxyHandlersClient, err := clientSyncReplier.NewClient(serviceName+handlers.ProxyHandlersCategory, 0)
 	if err != nil {
 		_ = topologyClient.Close()
-		return nil, fmt.Errorf("sync_replier.NewClient('%s'): %w", serviceName+handlers.ProxyManagerCategory, err)
+		return nil, fmt.Errorf("sync_replier.NewClient('%s'): %w", serviceName+handlers.ProxyHandlersCategory, err)
 	}
 
 	handler := syncReplier.New()
@@ -247,9 +231,9 @@ func (m *ProxyManager) ensureProxyHandlersClient() error {
 	if m.proxyHandlersClient != nil {
 		return nil
 	}
-	proxyHandlersClient, err := clientSyncReplier.NewClient(m.serviceName+handlers.ProxyManagerCategory, 0)
+	proxyHandlersClient, err := clientSyncReplier.NewClient(m.serviceName+handlers.ProxyHandlersCategory, 0)
 	if err != nil {
-		return fmt.Errorf("sync_replier.NewClient('%s'): %w", m.serviceName+handlers.ProxyManagerCategory, err)
+		return fmt.Errorf("sync_replier.NewClient('%s'): %w", m.serviceName+handlers.ProxyHandlersCategory, err)
 	}
 	m.proxyHandlersClient = proxyHandlersClient
 	return nil
