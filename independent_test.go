@@ -169,6 +169,36 @@ func TestAddDefaultHandlerToTopologySkipsWhenHardcodedHandlersWereAdded(t *testi
 	require.Equal(t, topologyConfig.NewHandlerVariants(hardcodedMain), serviceConfig.Handlers)
 }
 
+func TestAddHardcodedServicesToTopologyAddsProxyService(t *testing.T) {
+	proxyConfig := topologyConfig.Service{
+		Type:      topologyConfig.ProxyType,
+		Name:      "default-name-proxy",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers: []topologyConfig.HandlerVariant{
+			topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
+				Handler: topologyConfig.Handler{
+					Type:     topologyConfig.SyncReplierType,
+					Category: "default-name",
+					Endpoint: message.NewEndpoint(testEndpointID(t, "proxy"), 8001),
+				},
+				Outbounds: []topologyConfig.ServicePointer{
+					topologyConfig.RefTarget("hello-world", handlers.DefaultHandlerCategory),
+				},
+			}),
+		},
+	}
+	independent, err := New("hello-world", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetServiceConfig(proxyConfig))
+
+	require.NoError(t, independent.addHardcodedServicesToTopology())
+	require.NoError(t, independent.addDefaultServiceToTopology())
+
+	actual, err := independent.topologyHandler.Service("default-name-proxy")
+	require.NoError(t, err)
+	require.Equal(t, proxyConfig, actual)
+}
+
 func TestAddHardcodedServicesToTopologyAddsServiceBeforeDefault(t *testing.T) {
 	hardcodedMain := topologyConfig.Handler{
 		Type:     topologyConfig.SyncReplierType,

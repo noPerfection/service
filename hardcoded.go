@@ -164,6 +164,18 @@ func (independent *Independent) addHardcodedServicesToTopology() error {
 	}
 
 	for serviceName, serviceConfig := range independent.serviceConfigs {
+		// If the service is not in the topology, add it.
+		_, err := independent.topologyHandler.Service(serviceName)
+		if err != nil {
+			if err := independent.topologyHandler.AddService(serviceConfig); err != nil {
+				if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
+					return fmt.Errorf("topologyHandler.SetService('%s'): %w", serviceName, err)
+				}
+			}
+			continue
+		}
+
+		// Otherwise, update it.
 		if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
 			return fmt.Errorf("topologyHandler.SetService('%s'): %w", serviceName, err)
 		}
