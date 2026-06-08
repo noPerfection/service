@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	ProxyManagerCategory         = "_proxy_manager_noperf"
+	ProxyHandlersCategory        = "_proxy_manager_noperf"
 	SetProxyHandlerCommand       = "set-proxy-handler-command"
 	IsProxyHandlerExistCommand   = "is-proxy-handler-exist-command"
 	IsProxyHandlerRunningCommand = "is-proxy-handler-running-command"
@@ -224,8 +224,8 @@ func NewProxyHandlers(serviceName string) *ProxyHandlers {
 	manager := sync_replier.New()
 	manager.SetConfig(handlerConfig.New(
 		handlerConfig.SyncReplierType,
-		serviceName+ProxyManagerCategory,
-		ProxyManagerCategory,
+		serviceName+ProxyHandlersCategory,
+		ProxyHandlersCategory,
 		0,
 	))
 
