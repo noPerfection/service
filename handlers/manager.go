@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
@@ -51,6 +52,21 @@ func (manager *Handlers) SetHandler(category string, handler base.Interface) err
 func (manager *Handlers) IsHandlerExist(category string) bool {
 	_, exists := manager.handlers[category]
 	return exists
+}
+
+func (manager *Handlers) RouteCommands(category string) ([]string, error) {
+	raw, exists := manager.handlers[category]
+	if !exists {
+		return nil, fmt.Errorf("handler of %s category is not found", category)
+	}
+	handler, ok := raw.(base.Interface)
+	if !ok {
+		return nil, fmt.Errorf("handler of %s category is not a base.Interface", category)
+	}
+
+	commands := handler.RouteCommands()
+	sort.Strings(commands)
+	return commands, nil
 }
 
 func (manager *Handlers) Route(command string, handleFunc base.HandleFunc, handlerCategory ...string) error {
