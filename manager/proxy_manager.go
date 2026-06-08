@@ -210,6 +210,60 @@ func (m *ProxyManager) onStopService(req message.RequestInterface) message.Reply
 	return req.Ok(datatype.New())
 }
 
+func (m *ProxyManager) onSetProxyHandler(req message.RequestInterface) message.ReplyInterface {
+	if _, err := req.RouteParameters().NestedValue("config"); err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('config'): %v", err))
+	}
+	return m.forwardProxyHandlerRequest(req, handlers.SetProxyHandlerCommand, false)
+}
+
+func (m *ProxyManager) onIsProxyHandlerExist(req message.RequestInterface) message.ReplyInterface {
+	return m.forwardProxyHandlerRequest(req, handlers.IsProxyHandlerExistCommand, true)
+}
+
+func (m *ProxyManager) onProxyHandlerRunning(req message.RequestInterface) message.ReplyInterface {
+	return m.forwardProxyHandlerRequest(req, handlers.IsProxyHandlerRunningCommand, true)
+}
+
+func (m *ProxyManager) onStartProxyHandler(req message.RequestInterface) message.ReplyInterface {
+	return m.forwardProxyHandlerRequest(req, handlers.StartProxyHandlerCommand, true)
+}
+
+func (m *ProxyManager) onStopProxyHandler(req message.RequestInterface) message.ReplyInterface {
+	return m.forwardProxyHandlerRequest(req, handlers.StopProxyHandlerCommand, true)
+}
+
+func (m *ProxyManager) onRemoveProxyHandler(req message.RequestInterface) message.ReplyInterface {
+	return m.forwardProxyHandlerRequest(req, handlers.RemoveProxyHandlerCommand, true)
+}
+
+func (m *ProxyManager) forwardProxyHandlerRequest(req message.RequestInterface, command string, requireCategory bool) message.ReplyInterface {
+	serviceName, err := req.RouteParameters().StringValue("service")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('service'): %v", err))
+	}
+	if serviceName != m.serviceName {
+		return req.Fail(fmt.Sprintf("service %q does not match proxy service %q", serviceName, m.serviceName))
+	}
+	if requireCategory {
+		if _, err := req.RouteParameters().StringValue("category"); err != nil {
+			return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('category'): %v", err))
+		}
+	}
+	if err := m.ensureProxyHandlersClient(); err != nil {
+		return req.Fail(err.Error())
+	}
+
+	reply, err := m.proxyHandlersClient.Request(&message.Request{
+		Command:    command,
+		Parameters: req.RouteParameters(),
+	})
+	if err != nil {
+		return req.Fail(fmt.Sprintf("proxyHandlersClient.Request('%s'): %v", command, err))
+	}
+	return reply
+}
+
 func (m *ProxyManager) stopAfterReply(serviceName string) {
 	time.Sleep(100 * time.Millisecond)
 	_ = m.StopService(serviceName)
@@ -398,6 +452,36 @@ func (m *ProxyManager) Start() error {
 	if !m.Interface.IsRouteExist(StopService) {
 		if err := m.Interface.Route(StopService, m.onStopService); err != nil {
 			return fmt.Errorf(`handler.Route("%s"): %w`, StopService, err)
+		}
+	}
+	if !m.Interface.IsRouteExist(handlers.SetProxyHandlerCommand) {
+		if err := m.Interface.Route(handlers.SetProxyHandlerCommand, m.onSetProxyHandler); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, handlers.SetProxyHandlerCommand, err)
+		}
+	}
+	if !m.Interface.IsRouteExist(handlers.IsProxyHandlerExistCommand) {
+		if err := m.Interface.Route(handlers.IsProxyHandlerExistCommand, m.onIsProxyHandlerExist); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, handlers.IsProxyHandlerExistCommand, err)
+		}
+	}
+	if !m.Interface.IsRouteExist(handlers.IsProxyHandlerRunningCommand) {
+		if err := m.Interface.Route(handlers.IsProxyHandlerRunningCommand, m.onProxyHandlerRunning); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, handlers.IsProxyHandlerRunningCommand, err)
+		}
+	}
+	if !m.Interface.IsRouteExist(handlers.StartProxyHandlerCommand) {
+		if err := m.Interface.Route(handlers.StartProxyHandlerCommand, m.onStartProxyHandler); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, handlers.StartProxyHandlerCommand, err)
+		}
+	}
+	if !m.Interface.IsRouteExist(handlers.StopProxyHandlerCommand) {
+		if err := m.Interface.Route(handlers.StopProxyHandlerCommand, m.onStopProxyHandler); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, handlers.StopProxyHandlerCommand, err)
+		}
+	}
+	if !m.Interface.IsRouteExist(handlers.RemoveProxyHandlerCommand) {
+		if err := m.Interface.Route(handlers.RemoveProxyHandlerCommand, m.onRemoveProxyHandler); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, handlers.RemoveProxyHandlerCommand, err)
 		}
 	}
 
