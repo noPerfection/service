@@ -73,6 +73,20 @@ func defaultNameProxyConfig() topologyConfig.Service {
 	}
 }
 
+// func defaultNameProxyConfig() topologyConfig.Service {
+// 	return topologyConfig.Service{
+// 		Type: topologyConfig.ProxyType,
+// 		Name: proxyName,
+// 		Handlers: []topologyConfig.HandlerVariant{
+// 			topologyConfig.NewHandlerVariant(topologyConfig.Handler{
+// 				Type:     topologyConfig.SyncReplierType,
+// 				Category: topology.ServiceManagerCategory,
+// 				Endpoint: message.NewEndpoint("localhost", 8002),
+// 			}),
+// 		},
+// 	}
+// }
+
 func onHello(req message.RequestInterface) message.ReplyInterface {
 	name, err := req.RouteParameters().StringValue("name")
 	if err != nil || name == "" {

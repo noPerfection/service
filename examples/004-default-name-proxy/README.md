@@ -45,3 +45,28 @@ Expected output:
 ```text
 hello Medet Ahmetson
 ```
+
+---
+Testing the reply, and failure without forwarding.
+If you type a `loser` as a name, it should return success:
+
+```bash
+go run ./cmd/client --name="loser"
+```
+Expected output:
+
+```text
+Who is loser?
+```
+
+If you type any name that contains `shit` it should return failure:
+
+```bash
+go run ./cmd/client --name="bullshit"
+```
+
+Expected output:
+
+```bash
+panic: I'll tell your mom
+```
