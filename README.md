@@ -493,6 +493,76 @@ name, so the proxy fills it and the service returns `hello Medet Ahmetson`.
 See [examples/004-default-name-proxy](./examples/004-default-name-proxy) for the
 runnable example.
 
+## Tutorial 5: Proxy by command deps
+
+In [Tutorial 4](#tutorial-4-default-name-proxy), we created a proxy handler with
+an outbound parameter pointing to the `hello-world` service. That works, but
+managing endpoints and keeping those outbounds synchronized is tiresome.
+
+Instead, we can make it dynamic with `SetCommandDeps`.
+
+The proxy and client do not change. They stay the same as
+`cmd/proxy/main.go` and `cmd/client/main.go` from Tutorial 4. The service is
+almost identical too, but its topology is more fine grained.
+
+First, define the proxy service. It has a proxy handler on `localhost:8001`, but
+no outbound is written by hand:
+
+```go
+app.SetServiceConfig(topologyConfig.Service{
+	Type:      topologyConfig.ProxyType,
+	Name:      proxyName,
+	ModuleUrl: "github.com/noPerfection/service/examples/005-command-deps/cmd/proxy",
+	Handlers: []topologyConfig.HandlerVariant{
+		topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
+			Handler: topologyConfig.Handler{
+				Type:     topologyConfig.SyncReplierType,
+				Category: proxyCategory,
+				Endpoint: message.NewEndpoint("localhost", 8001),
+			},
+		}),
+	},
+})
+```
+
+Then define the proxy manager endpoint. The service uses this endpoint to
+synchronize the command dependency with the proxy process:
+
+```go
+app.SetHandlerConfig(topologyConfig.Handler{
+	Type:     topologyConfig.SyncReplierType,
+	Category: topology.ServiceManagerCategory,
+	Endpoint: message.NewEndpoint("localhost", 8002),
+}, proxyName)
+```
+
+Finally, declare that the `hello` command should go through the proxy:
+
+```go
+app.SetCommandDeps(topologyConfig.DepService{
+	Name: "hello",
+	Proxies: []topologyConfig.ServicePointer{
+		topologyConfig.RefTarget(proxyName),
+	},
+})
+```
+
+Now the service can synchronize the proxy handler route and outbound for the
+`hello` command. Run the service, proxy, and client in separate terminals:
+
+```bash
+go run ./cmd/service
+go run ./cmd/proxy
+go run ./cmd/client --name="Jonny Dough"
+go run ./cmd/client
+```
+
+The first client call prints `hello Jonny Dough`. The second call omits the
+name, so the proxy fills it and the service returns `hello Medet Ahmetson`.
+
+See [examples/005-command-deps](./examples/005-command-deps) for the full
+example.
+
 
 ## Contents
 

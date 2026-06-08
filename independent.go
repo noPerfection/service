@@ -10,8 +10,11 @@ package service
 import (
 	"fmt"
 	"sync"
+	"time"
 
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
+	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/pair"
@@ -325,9 +328,6 @@ func (independent *Independent) Start() error {
 		goto errOccurred
 	}
 
-	// Todo, make sure you keep the orphan handlers and if they are
-	// simply warn or throw error.
-
 	if err = independent.topologyHandler.Start(); err != nil {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
@@ -347,6 +347,11 @@ func (independent *Independent) Start() error {
 		goto errOccurred
 	}
 
+	if err = independent.syncCommandOutbounds(); err != nil {
+		err = fmt.Errorf("syncCommandOutbounds: %w", err)
+		goto errOccurred
+	}
+
 errOccurred:
 	if err != nil {
 		if independent.manager != nil && independent.manager.Running() {
@@ -358,6 +363,300 @@ errOccurred:
 	}
 
 	return err
+}
+
+func (independent *Independent) syncCommandOutbounds() error {
+	topologyClient, err := topology.NewClient()
+	if err != nil {
+		return fmt.Errorf("topology.NewClient: %w", err)
+	}
+	defer topologyClient.Close()
+
+	serviceConfig, err := topologyClient.Service(independent.name)
+	if err != nil {
+		return fmt.Errorf("topologyClient.Service('%s'): %w", independent.name, err)
+	}
+
+	for _, variant := range serviceConfig.Handlers {
+		handler := variant.AsHandler()
+		if handler.Category == topology.ServiceManagerCategory || len(handler.CommandDeps) == 0 {
+			continue
+		}
+
+		for _, dep := range handler.CommandDeps {
+			for _, proxyPointer := range dep.Proxies {
+				if err := independent.syncCommandProxyOutbound(topologyClient, serviceConfig, handler, dep.Name, proxyPointer); err != nil {
+					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxyPointer.Name(), err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (independent *Independent) syncCommandProxyOutbound(topologyClient *topology.Client, serviceConfig config.Service, commandHandler config.Handler, command string, proxyPointer config.ServicePointer) error {
+	outbound := commandOutboundTarget(serviceConfig, commandHandler)
+	if proxyPointer.Ref != "" {
+		return independent.syncReferencedCommandProxyOutbound(topologyClient, command, proxyPointer, outbound)
+	}
+	if proxyPointer.Service.IsZero() {
+		return fmt.Errorf("proxy service pointer is empty")
+	}
+	return independent.syncInlineCommandProxyOutbound(topologyClient, command, proxyPointer.Service, outbound)
+}
+
+func commandOutboundTarget(serviceConfig config.Service, commandHandler config.Handler) config.ServicePointer {
+	outboundService := serviceConfig
+	outboundService.Handlers = config.NewHandlerVariants(commandHandler)
+	return config.ServiceTarget(outboundService)
+}
+
+func (independent *Independent) syncInlineCommandProxyOutbound(topologyClient *topology.Client, command string, proxyService config.Service, outbound config.ServicePointer) error {
+	proxyConfig, err := firstProxyHandlerConfig(proxyService)
+	if err != nil {
+		return err
+	}
+	proxyConfig.Routes = appendUnique(proxyConfig.Routes, command)
+	proxyConfig, _ = ensureProxyHandlerOutbound(proxyConfig, outbound)
+
+	managerService := proxyService
+	if topologyService, err := topologyClient.Service(proxyService.Name); err == nil {
+		managerService = topologyService
+	}
+	if err := persistProxyHandlerConfig(topologyClient, managerService, proxyConfig); err != nil {
+		return err
+	}
+	proxyManagerClient, err := newProxyManagerClient(managerService)
+	if err != nil {
+		return err
+	}
+	defer proxyManagerClient.Close()
+
+	exists, err := proxyHandlerExists(proxyManagerClient, proxyService.Name, proxyConfig.Category)
+	if err != nil {
+		return nil
+	}
+	if !exists {
+		if err := setProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig); err != nil {
+			return err
+		}
+		return startProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig.Category)
+	}
+
+	running, err := proxyHandlerRunning(proxyManagerClient, proxyService.Name, proxyConfig.Category)
+	if err != nil {
+		return err
+	}
+	if running {
+		if err := stopProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig.Category); err != nil {
+			return err
+		}
+	}
+	if err := setProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig); err != nil {
+		return err
+	}
+	return startProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig.Category)
+}
+
+func (independent *Independent) syncReferencedCommandProxyOutbound(topologyClient *topology.Client, command string, proxyPointer config.ServicePointer, outbound config.ServicePointer) error {
+	proxyServiceName, proxyHandlerCategory := proxyPointer.RefPath()
+	if proxyServiceName == "" {
+		return fmt.Errorf("proxy ref %q is invalid", proxyPointer.Ref)
+	}
+	if proxyHandlerCategory == "" {
+		proxyHandlerCategory = handlers.DefaultHandlerCategory
+	}
+
+	proxyService, err := topologyClient.Service(proxyServiceName)
+	if err != nil {
+		return fmt.Errorf("topologyClient.Service('%s'): %w", proxyServiceName, err)
+	}
+	proxyHandlerVariant, err := proxyService.HandlerByCategory(proxyHandlerCategory)
+	if err != nil {
+		return fmt.Errorf("proxy service %q handler %q: %w", proxyServiceName, proxyHandlerCategory, err)
+	}
+
+	proxyConfig := proxyHandlerVariant.AsProxyHandler()
+	updated := false
+	if !containsString(proxyConfig.Routes, command) {
+		proxyConfig.Routes = append(proxyConfig.Routes, command)
+		updated = true
+	}
+	proxyConfig, updatedOutbound := ensureProxyHandlerOutbound(proxyConfig, outbound)
+	updated = updated || updatedOutbound
+
+	if updated {
+		if err := persistProxyHandlerConfig(topologyClient, proxyService, proxyConfig); err != nil {
+			return err
+		}
+	}
+	proxyManagerClient, err := newProxyManagerClient(proxyService)
+	if err != nil {
+		return err
+	}
+	defer proxyManagerClient.Close()
+
+	exists, err := proxyHandlerExists(proxyManagerClient, proxyService.Name, proxyConfig.Category)
+	if err != nil {
+		return nil
+	}
+	if !exists {
+		if err := setProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig); err != nil {
+			return err
+		}
+		return startProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig.Category)
+	}
+	if !updated {
+		return nil
+	}
+
+	running, err := proxyHandlerRunning(proxyManagerClient, proxyService.Name, proxyConfig.Category)
+	if err != nil {
+		return err
+	}
+	if running {
+		if err := stopProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig.Category); err != nil {
+			return err
+		}
+	}
+	if err := setProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig); err != nil {
+		return err
+	}
+	return startProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig.Category)
+}
+
+func firstProxyHandlerConfig(proxyService config.Service) (config.ProxyHandler, error) {
+	for _, variant := range proxyService.Handlers {
+		if variant.ProxyHandler != nil {
+			return variant.AsProxyHandler(), nil
+		}
+	}
+	return config.ProxyHandler{}, fmt.Errorf("proxy service %q has no proxy handlers", proxyService.Name)
+}
+
+func persistProxyHandlerConfig(topologyClient *topology.Client, proxyService config.Service, proxyConfig config.ProxyHandler) error {
+	proxyService.SetHandler(config.NewProxyHandlerVariant(proxyConfig), true)
+	if err := topologyClient.SetService(proxyService); err != nil {
+		return fmt.Errorf("topologyClient.SetService('%s'): %w", proxyService.Name, err)
+	}
+	return nil
+}
+
+func ensureProxyHandlerOutbound(proxyConfig config.ProxyHandler, outbound config.ServicePointer) (config.ProxyHandler, bool) {
+	for i := range proxyConfig.Outbounds {
+		if proxyConfig.Outbounds[i].Name() != outbound.Name() {
+			continue
+		}
+		if outbound.Ref != "" {
+			if proxyConfig.Outbounds[i].Ref == outbound.Ref {
+				return proxyConfig, false
+			}
+			proxyConfig.Outbounds[i] = outbound
+			return proxyConfig, true
+		}
+		if proxyConfig.Outbounds[i].Service.IsZero() {
+			proxyConfig.Outbounds[i] = outbound
+			return proxyConfig, true
+		}
+		changed := ensureServiceHasHandlers(&proxyConfig.Outbounds[i].Service, outbound.Service.Handlers)
+		return proxyConfig, changed
+	}
+
+	proxyConfig.Outbounds = append(proxyConfig.Outbounds, outbound)
+	return proxyConfig, true
+}
+
+func ensureServiceHasHandlers(serviceConfig *config.Service, handlersToAdd []config.HandlerVariant) bool {
+	changed := false
+	for _, handlerToAdd := range handlersToAdd {
+		category := handlerToAdd.AsHandler().Category
+		if _, err := serviceConfig.HandlerByCategory(category); err == nil {
+			continue
+		}
+		serviceConfig.Handlers = append(serviceConfig.Handlers, handlerToAdd)
+		changed = true
+	}
+	return changed
+}
+
+func newProxyManagerClient(proxyService config.Service) (*clientSyncReplier.Client, error) {
+	endpoint := manager.DefaultProxyManagerEndpoint(proxyService.Name)
+	if managerHandler, err := proxyService.HandlerByCategory(topology.ServiceManagerCategory); err == nil {
+		endpoint = managerHandler.AsHandler().Endpoint
+	}
+	client, err := clientSyncReplier.NewClient(endpoint.Id, endpoint.Port)
+	if err != nil {
+		return nil, err
+	}
+	client.Timeout(time.Second)
+	client.Attempt(1)
+	return client, nil
+}
+
+func proxyHandlerExists(client *clientSyncReplier.Client, serviceName string, category string) (bool, error) {
+	reply, err := proxyManagerRequest(client, handlers.IsProxyHandlerExistCommand, datatype.New().Set("service", serviceName).Set("category", category))
+	if err != nil {
+		return false, err
+	}
+	return reply.ReplyParameters().BoolValue("exists")
+}
+
+func proxyHandlerRunning(client *clientSyncReplier.Client, serviceName string, category string) (bool, error) {
+	reply, err := proxyManagerRequest(client, handlers.IsProxyHandlerRunningCommand, datatype.New().Set("service", serviceName).Set("category", category))
+	if err != nil {
+		return false, err
+	}
+	return reply.ReplyParameters().BoolValue("running")
+}
+
+func setProxyHandler(client *clientSyncReplier.Client, serviceName string, proxyConfig config.ProxyHandler) error {
+	configParams, err := datatype.NewFromInterface(proxyConfig)
+	if err != nil {
+		return fmt.Errorf("datatype.NewFromInterface: %w", err)
+	}
+	_, err = proxyManagerRequest(client, handlers.SetProxyHandlerCommand, datatype.New().Set("service", serviceName).Set("config", configParams))
+	return err
+}
+
+func startProxyHandler(client *clientSyncReplier.Client, serviceName string, category string) error {
+	_, err := proxyManagerRequest(client, handlers.StartProxyHandlerCommand, datatype.New().Set("service", serviceName).Set("category", category))
+	return err
+}
+
+func stopProxyHandler(client *clientSyncReplier.Client, serviceName string, category string) error {
+	_, err := proxyManagerRequest(client, handlers.StopProxyHandlerCommand, datatype.New().Set("service", serviceName).Set("category", category))
+	return err
+}
+
+func proxyManagerRequest(client *clientSyncReplier.Client, command string, params datatype.KeyValue) (message.ReplyInterface, error) {
+	reply, err := client.Request(&message.Request{
+		Command:    command,
+		Parameters: params,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("proxy manager request %q: %w", command, err)
+	}
+	if !reply.IsOK() {
+		return nil, fmt.Errorf("proxy manager request %q: %s", command, reply.ErrorMessage())
+	}
+	return reply, nil
+}
+
+func appendUnique(values []string, value string) []string {
+	if containsString(values, value) {
+		return values
+	}
+	return append(values, value)
+}
+
+func containsString(values []string, value string) bool {
+	for _, existing := range values {
+		if existing == value {
+			return true
+		}
+	}
+	return false
 }
 
 func (independent *Independent) Stop() error {

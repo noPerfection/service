@@ -9,8 +9,10 @@ import (
 
 // WithHardcodedTopology keeps handler topology configs set from code.
 type WithHardcodedTopology struct {
-	name           string
+	name string
+	// service name -> service config
 	serviceConfigs map[string]config.Service
+	// service name -> handler configs
 	handlerConfigs map[string][]config.Handler
 	// service name -> deps
 	handlerDeps map[string][]config.DepService
