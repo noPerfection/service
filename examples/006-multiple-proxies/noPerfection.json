@@ -1,0 +1,130 @@
+{
+  "services": [
+    {
+      "type": "Proxy",
+      "name": "default-name-proxy",
+      "module-url": "github.com/noPerfection/service/examples/006-multiple-proxies/cmd/proxy",
+      "handlers": [
+        {
+          "type": "SyncReplier",
+          "category": "main",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8001
+          },
+          "routes": [
+            "hello"
+          ],
+          "outbounds": [
+            {
+              "type": "Proxy",
+              "name": "upper-case-names",
+              "module-url": "github.com/noPerfection/service/examples/006-multiple-proxies/cmd/proxy2",
+              "handlers": [
+                {
+                  "type": "SyncReplier",
+                  "category": "main",
+                  "endpoint": {
+                    "id": "localhost",
+                    "port": 8003
+                  },
+                  "outbounds": null
+                }
+              ]
+            }
+          ],
+          "forward": {
+            "hello": "upper-case-names/main"
+          }
+        },
+        {
+          "type": "SyncReplier",
+          "category": "manager",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8002
+          }
+        }
+      ]
+    },
+    {
+      "type": "Proxy",
+      "name": "upper-case-names",
+      "module-url": "github.com/noPerfection/service/examples/006-multiple-proxies/cmd/proxy2",
+      "handlers": [
+        {
+          "type": "SyncReplier",
+          "category": "main",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8003
+          },
+          "routes": [
+            "hello"
+          ],
+          "outbounds": [
+            {
+              "type": "Independent",
+              "name": "hello-world",
+              "module-url": "github.com/noPerfection/service",
+              "handlers": [
+                {
+                  "type": "Replier",
+                  "category": "main",
+                  "endpoint": {
+                    "id": "localhost",
+                    "port": 8000
+                  },
+                  "command-deps": [
+                    {
+                      "name": "hello",
+                      "proxies": [
+                        "default-name-proxy",
+                        "upper-case-names"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "forward": {
+            "hello": "hello-world/main"
+          }
+        },
+        {
+          "type": "SyncReplier",
+          "category": "manager",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8004
+          }
+        }
+      ]
+    },
+    {
+      "type": "Independent",
+      "name": "hello-world",
+      "module-url": "github.com/noPerfection/service",
+      "handlers": [
+        {
+          "type": "Replier",
+          "category": "main",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8000
+          },
+          "command-deps": [
+            {
+              "name": "hello",
+              "proxies": [
+                "default-name-proxy",
+                "upper-case-names"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

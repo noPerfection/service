@@ -563,6 +563,70 @@ name, so the proxy fills it and the service returns `hello Medet Ahmetson`.
 See [examples/005-command-deps](./examples/005-command-deps) for the full
 example.
 
+## Tutorial 6: Multiple proxies together
+
+Command deps can also pipe several proxies together. The order is top to bottom:
+the first proxy in `Proxies` is the proxy the user sees, and each proxy forwards
+to the next one. The last proxy forwards to this service.
+
+Suppose names always need to be initialized after a name exists:
+
+* `MEDET` becomes `Medet`
+* `MEDeT  aHMETSON` becomes `Medet Ahmetson`
+
+We can keep the first proxy from Tutorial 5. It still fills a missing name. Then
+we add a second proxy named `upper-case-names` in `cmd/proxy2/main.go`. That
+proxy normalizes the name and forwards the request to the service.
+
+The client and first proxy stay the same as
+`examples/005-command-deps/cmd/client/main.go` and
+`examples/005-command-deps/cmd/proxy/main.go`.
+
+The service only needs to configure both proxy services, their main handlers,
+and their managers:
+
+```go
+app.SetServiceConfig(proxyConfig(defaultProxyName, defaultProxyPackage, 8001))
+app.SetHandlerConfig(proxyManagerConfig(8002), defaultProxyName)
+
+app.SetServiceConfig(proxyConfig(formatProxyName, formatProxyPackage, 8003))
+app.SetHandlerConfig(proxyManagerConfig(8004), formatProxyName)
+```
+
+Then declare the `hello` command proxy chain:
+
+```go
+app.SetCommandDeps(topologyConfig.DepService{
+	Name: "hello",
+	Proxies: []topologyConfig.ServicePointer{
+		topologyConfig.RefTarget(defaultProxyName),
+		topologyConfig.RefTarget(formatProxyName),
+	},
+})
+```
+
+With this order, requests flow like this:
+
+```text
+client -> default-name-proxy -> upper-case-names -> hello-world
+```
+
+Run the service and both proxies in separate terminals:
+
+```bash
+go run ./cmd/service
+go run ./cmd/proxy
+go run ./cmd/proxy2
+go run ./cmd/client --name="MEDeT  aHMETSON"
+go run ./cmd/client
+```
+
+Both client calls print `hello Medet Ahmetson`. The first call formats the
+provided name. The second call fills the default name first, then formats it.
+
+See [examples/006-multiple-proxies](./examples/006-multiple-proxies) for the
+full example.
+
 
 ## Contents
 

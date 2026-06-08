@@ -365,6 +365,7 @@ errOccurred:
 	return err
 }
 
+// Set the outbound of the proxy to this service
 func (independent *Independent) syncCommandOutbounds() error {
 	topologyClient, err := topology.NewClient()
 	if err != nil {
@@ -384,8 +385,12 @@ func (independent *Independent) syncCommandOutbounds() error {
 		}
 
 		for _, dep := range handler.CommandDeps {
-			for _, proxyPointer := range dep.Proxies {
-				if err := independent.syncCommandProxyOutbound(topologyClient, serviceConfig, handler, dep.Name, proxyPointer); err != nil {
+			for proxyIndex, proxyPointer := range dep.Proxies {
+				outbound, err := independent.commandProxyOutboundTarget(topologyClient, serviceConfig, handler, dep.Proxies, proxyIndex)
+				if err != nil {
+					return fmt.Errorf("handler %q command %q proxy %q outbound: %w", handler.Category, dep.Name, proxyPointer.Name(), err)
+				}
+				if err := independent.syncCommandProxyOutbound(topologyClient, dep.Name, proxyPointer, outbound); err != nil {
 					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxyPointer.Name(), err)
 				}
 			}
@@ -395,8 +400,7 @@ func (independent *Independent) syncCommandOutbounds() error {
 	return nil
 }
 
-func (independent *Independent) syncCommandProxyOutbound(topologyClient *topology.Client, serviceConfig config.Service, commandHandler config.Handler, command string, proxyPointer config.ServicePointer) error {
-	outbound := commandOutboundTarget(serviceConfig, commandHandler)
+func (independent *Independent) syncCommandProxyOutbound(topologyClient *topology.Client, command string, proxyPointer config.ServicePointer, outbound config.ServicePointer) error {
 	if proxyPointer.Ref != "" {
 		return independent.syncReferencedCommandProxyOutbound(topologyClient, command, proxyPointer, outbound)
 	}
@@ -406,10 +410,46 @@ func (independent *Independent) syncCommandProxyOutbound(topologyClient *topolog
 	return independent.syncInlineCommandProxyOutbound(topologyClient, command, proxyPointer.Service, outbound)
 }
 
-func commandOutboundTarget(serviceConfig config.Service, commandHandler config.Handler) config.ServicePointer {
+func (independent *Independent) commandProxyOutboundTarget(topologyClient *topology.Client, serviceConfig config.Service, handlerConfig config.Handler, proxies []config.ServicePointer, proxyIndex int) (config.ServicePointer, error) {
+	if proxyIndex+1 >= len(proxies) {
+		return commandOutboundTarget(serviceConfig, handlerConfig), nil
+	}
+	return independent.proxyPointerOutboundTarget(topologyClient, proxies[proxyIndex+1])
+}
+
+func commandOutboundTarget(serviceConfig config.Service, handlerConfig config.Handler) config.ServicePointer {
 	outboundService := serviceConfig
-	outboundService.Handlers = config.NewHandlerVariants(commandHandler)
+	outboundService.Handlers = config.NewHandlerVariants(handlerConfig)
 	return config.ServiceTarget(outboundService)
+}
+
+func (independent *Independent) proxyPointerOutboundTarget(topologyClient *topology.Client, proxyPointer config.ServicePointer) (config.ServicePointer, error) {
+	if proxyPointer.Ref == "" {
+		if proxyPointer.Service.IsZero() {
+			return config.ServicePointer{}, fmt.Errorf("proxy service pointer is empty")
+		}
+		return proxyPointer, nil
+	}
+
+	proxyServiceName, proxyHandlerCategory := proxyPointer.RefPath()
+	if proxyServiceName == "" {
+		return config.ServicePointer{}, fmt.Errorf("proxy ref %q is invalid", proxyPointer.Ref)
+	}
+	if proxyHandlerCategory == "" {
+		proxyHandlerCategory = handlers.DefaultHandlerCategory
+	}
+
+	proxyService, err := topologyClient.Service(proxyServiceName)
+	if err != nil {
+		return config.ServicePointer{}, fmt.Errorf("topologyClient.Service('%s'): %w", proxyServiceName, err)
+	}
+	proxyHandlerVariant, err := proxyService.HandlerByCategory(proxyHandlerCategory)
+	if err != nil {
+		return config.ServicePointer{}, fmt.Errorf("proxy service %q handler %q: %w", proxyServiceName, proxyHandlerCategory, err)
+	}
+	proxyService.Handlers = []config.HandlerVariant{proxyHandlerVariant}
+
+	return config.ServiceTarget(proxyService), nil
 }
 
 func (independent *Independent) syncInlineCommandProxyOutbound(topologyClient *topology.Client, command string, proxyService config.Service, outbound config.ServicePointer) error {
@@ -485,6 +525,12 @@ func (independent *Independent) syncReferencedCommandProxyOutbound(topologyClien
 	}
 	proxyConfig, updatedOutbound := ensureProxyHandlerOutbound(proxyConfig, outbound)
 	updated = updated || updatedOutbound
+	var updatedForward bool
+	proxyConfig, updatedForward, err = ensureProxyHandlerForward(proxyConfig, command, outbound)
+	if err != nil {
+		return err
+	}
+	updated = updated || updatedForward
 
 	if updated {
 		if err := persistProxyHandlerConfig(topologyClient, proxyService, proxyConfig); err != nil {
@@ -565,6 +611,39 @@ func ensureProxyHandlerOutbound(proxyConfig config.ProxyHandler, outbound config
 
 	proxyConfig.Outbounds = append(proxyConfig.Outbounds, outbound)
 	return proxyConfig, true
+}
+
+func ensureProxyHandlerForward(proxyConfig config.ProxyHandler, command string, outbound config.ServicePointer) (config.ProxyHandler, bool, error) {
+	outboundRef, err := proxyForwardRef(outbound)
+	if err != nil {
+		return config.ProxyHandler{}, false, err
+	}
+	if proxyConfig.Forward == nil {
+		proxyConfig.Forward = make(map[string]string)
+	}
+	if proxyConfig.Forward[command] == outboundRef {
+		return proxyConfig, false, nil
+	}
+	proxyConfig.Forward[command] = outboundRef
+	return proxyConfig, true, nil
+}
+
+func proxyForwardRef(outbound config.ServicePointer) (string, error) {
+	if outbound.Ref != "" {
+		serviceName, handlerCategory := outbound.RefPath()
+		if serviceName == "" {
+			return "", fmt.Errorf("outbound ref %q is invalid", outbound.Ref)
+		}
+		return config.RefTarget(serviceName, handlerCategory).Ref, nil
+	}
+	if outbound.Service.IsZero() {
+		return "", fmt.Errorf("outbound service pointer is empty")
+	}
+	if len(outbound.Service.Handlers) == 0 {
+		return "", fmt.Errorf("outbound service %q has no handlers", outbound.Service.Name)
+	}
+	handlerCategory := outbound.Service.Handlers[0].AsHandler().Category
+	return config.RefTarget(outbound.Service.Name, handlerCategory).Ref, nil
 }
 
 func ensureServiceHasHandlers(serviceConfig *config.Service, handlersToAdd []config.HandlerVariant) bool {
