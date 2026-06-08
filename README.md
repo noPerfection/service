@@ -605,6 +605,16 @@ The extensions are the solutions that could be re-used by multiple projects.
 The proxy acts as a switch between a user/service and a user/service. Depending on 
 the proxy result the request will be forwarded or returned back to the client.
 
+Forwarding priority is:
+
+1. The proxy handler configuration's `forward` parameter.
+2. The message tail, when no configured forward exists for the command.
+3. The default outbound, which is the first outbound in the proxy handler config.
+
+The message tail is attached during request deserialization. Configured
+forwarding is applied when a whitelisted command in the proxy handler route is
+detected, and it overwrites the request outbound before `req.Forward()` is used.
+
 **Limitations**
 * proxy service names can not start with `tmp` since it makes the proxy as an ipc protocol for its handlers manager thread which is prohibited.
 
