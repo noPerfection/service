@@ -627,6 +627,92 @@ provided name. The second call fills the default name first, then formats it.
 See [examples/006-multiple-proxies](./examples/006-multiple-proxies) for the
 full example.
 
+## Tutorial 7: Proxy by handler deps
+
+Command deps are useful when a single command needs a proxy. But sometimes the
+client should not need to know which socket belongs to which command.
+
+Suppose our service has two routes:
+
+* `hello`
+* `age-verification`
+
+The `hello` command should still use the default-name proxy from Tutorial 5.
+The `age-verification` command simply receives an integer `age` and returns a
+`passed` boolean. It does not need the default-name proxy.
+
+Without handler deps, the client would need to know two sockets: one for the
+default-name proxy and one for the service. That is tiresome. Instead, we add an
+`entrypoint` proxy. The client calls only this entrypoint socket, and internally
+the entrypoint forwards each command to the right next hop.
+
+First, configure both proxy services and their managers:
+
+```go
+app.SetServiceConfig(proxyConfig(defaultProxyName, defaultProxyPackage, 8001))
+app.SetHandlerConfig(proxyManagerConfig(8002), defaultProxyName)
+
+app.SetServiceConfig(proxyConfig(entrypointName, entrypointPackage, 8003))
+app.SetHandlerConfig(proxyManagerConfig(8004), entrypointName)
+```
+
+Then keep the command dep for `hello`:
+
+```go
+app.SetCommandDeps(topologyConfig.DepService{
+	Name: "hello",
+	Proxies: []topologyConfig.ServicePointer{
+		topologyConfig.RefTarget(defaultProxyName),
+	},
+})
+```
+
+Finally, set the entrypoint as a handler dep for the service handler:
+
+```go
+app.SetHandlerDeps(topologyConfig.DepService{
+	Name: handlers.DefaultHandlerCategory,
+	Proxies: []topologyConfig.ServicePointer{
+		topologyConfig.RefTarget(entrypointName),
+	},
+})
+```
+
+The entrypoint code is intentionally small. It just forwards whatever command it
+receives:
+
+```go
+func onForward(req handlers.ProxyRequest) handlers.ProxyReply {
+	reply, err := req.Forward()
+	if err != nil {
+		return handlers.ProxyReply{Reply: *req.Fail(err.Error()).(*message.Reply)}
+	}
+
+	return reply
+}
+```
+
+During startup, handler-dep sync whitelists the service handler route commands
+on the entrypoint. For commands that also have command deps, it configures a
+`forward` entry to the first command proxy. So `hello` goes through
+`default-name-proxy`, while `age-verification` goes directly to the service.
+
+Run the service, default-name proxy, entrypoint, and client:
+
+```bash
+go run ./cmd/service
+go run ./cmd/proxy
+go run ./cmd/entrypoint
+go run ./cmd/client
+go run ./cmd/client --age=21
+```
+
+The first client call prints `hello Medet Ahmetson`. The second prints `true`.
+Both calls use the same entrypoint socket.
+
+See [examples/007-handler-deps](./examples/007-handler-deps) for the full
+example.
+
 
 ## Contents
 
