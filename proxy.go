@@ -126,17 +126,28 @@ func (proxy *Proxy) addDefaultServiceToTopology() error {
 }
 
 func (proxy *Proxy) addServiceManagerToTopology() error {
+	// Our service's config in the topology.
+	serviceConfig, err := proxy.topologyHandler.Service(proxy.name)
+	if err != nil {
+		return fmt.Errorf("topologyHandler.Service('%s'): %w", proxy.name, err)
+	}
+
+	// Service manager's config in the handler config format.
 	managerConfig := proxy.manager.Config()
+	currentManager, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
+	if err == nil {
+		if currentManager.AsHandler().Endpoint == managerConfig.Endpoint {
+			return nil
+		}
+	}
+	if managerConfig.Endpoint == DefaultServiceManagerEndpoint {
+		return nil
+	}
 
 	managerTopologyConfig := config.Handler{
 		Type:     config.HandlerType(managerConfig.Type),
 		Category: managerConfig.Category,
 		Endpoint: managerConfig.Endpoint,
-	}
-
-	serviceConfig, err := proxy.topologyHandler.Service(proxy.name)
-	if err != nil {
-		return fmt.Errorf("topologyHandler.Service('%s'): %w", proxy.name, err)
 	}
 
 	serviceConfig.SetHandler(config.NewHandlerVariant(managerTopologyConfig), true)
