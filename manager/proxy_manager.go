@@ -210,6 +210,19 @@ func (m *ProxyManager) onStopService(req message.RequestInterface) message.Reply
 	return req.Ok(datatype.New())
 }
 
+func (m *ProxyManager) onServices(req message.RequestInterface) message.ReplyInterface {
+	if m.topologyClient == nil {
+		return req.Fail("topologyClient is nil")
+	}
+
+	services, err := m.topologyClient.Services()
+	if err != nil {
+		return req.Fail(fmt.Sprintf("topologyClient.Services: %v", err))
+	}
+
+	return req.Ok(datatype.New().Set("services", services))
+}
+
 func (m *ProxyManager) onSetProxyHandler(req message.RequestInterface) message.ReplyInterface {
 	if _, err := req.RouteParameters().NestedValue("config"); err != nil {
 		return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('config'): %v", err))
@@ -452,6 +465,11 @@ func (m *ProxyManager) Start() error {
 	if !m.Interface.IsRouteExist(StopService) {
 		if err := m.Interface.Route(StopService, m.onStopService); err != nil {
 			return fmt.Errorf(`handler.Route("%s"): %w`, StopService, err)
+		}
+	}
+	if !m.Interface.IsRouteExist(Services) {
+		if err := m.Interface.Route(Services, m.onServices); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, Services, err)
 		}
 	}
 	if !m.Interface.IsRouteExist(handlers.SetProxyHandlerCommand) {

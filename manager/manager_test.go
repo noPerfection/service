@@ -227,6 +227,43 @@ func TestSetHandlerControlsMatchesFakeServiceConfig(t *testing.T) {
 	}
 }
 
+func TestRemoteServicesReturnsConfiguredServices(t *testing.T) {
+	managerEndpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
+	serviceName := testEndpointID(t, "service")
+	service := fakeServiceConfig(serviceName, managerEndpoint)
+	startTestRuntimeHandler(t, service)
+
+	manager := newTestManager(t, service, managerEndpoint)
+	require.NoError(t, manager.Start())
+
+	client, err := clientSyncReplier.NewClient(managerEndpoint.Id, managerEndpoint.Port)
+	require.NoError(t, err)
+	defer client.Close()
+
+	reply, err := client.Request(&message.Request{
+		Command:    Services,
+		Parameters: datatype.New(),
+	})
+	require.NoError(t, err)
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+
+	rawServices, err := reply.ReplyParameters().NestedListValue("services")
+	require.NoError(t, err)
+
+	services := make([]topologyConfig.Service, 0, len(rawServices))
+	for _, rawService := range rawServices {
+		var service topologyConfig.Service
+		require.NoError(t, rawService.Interface(&service))
+		services = append(services, service)
+	}
+
+	serviceNames := make([]string, 0, len(services))
+	for _, service := range services {
+		serviceNames = append(serviceNames, service.Name)
+	}
+	require.Contains(t, serviceNames, serviceName)
+}
+
 func TestStopServiceWithNilBlockerStopsConfiguredHandlers(t *testing.T) {
 	managerEndpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
 	serviceName := testEndpointID(t, "service")
