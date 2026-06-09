@@ -22,6 +22,7 @@ const (
 	IsServiceRunning = topology.IsServiceRunning
 	StartService     = topology.StartService
 	StopService      = topology.StopService
+	Services         = topology.Services
 )
 
 var _ topology.NodeInterface = (*Manager)(nil)
@@ -173,6 +174,19 @@ func (m *Manager) onStopService(req message.RequestInterface) message.ReplyInter
 	return req.Ok(datatype.New())
 }
 
+func (m *Manager) onServices(req message.RequestInterface) message.ReplyInterface {
+	if m.topologyClient == nil {
+		return req.Fail("topologyClient is nil")
+	}
+
+	services, err := m.topologyClient.Services()
+	if err != nil {
+		return req.Fail(fmt.Sprintf("topologyClient.Services: %v", err))
+	}
+
+	return req.Ok(datatype.New().Set("services", services))
+}
+
 func (m *Manager) stopAfterReply(serviceName string) {
 	time.Sleep(100 * time.Millisecond)
 	_ = m.StopService(serviceName)
@@ -244,6 +258,9 @@ func (m *Manager) Start() error {
 	}
 	if err := m.Interface.Route(StopService, m.onStopService); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, StopService, err)
+	}
+	if err := m.Interface.Route(Services, m.onServices); err != nil {
+		return fmt.Errorf(`handler.Route("%s"): %w`, Services, err)
 	}
 
 	if err := m.setHandlerControls(); err != nil {
