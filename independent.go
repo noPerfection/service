@@ -627,9 +627,23 @@ func (independent *Independent) syncHandlerDepProxyOutbounds(serviceConfig *conf
 }
 
 func commandOutboundTarget(serviceConfig config.Service, handlerConfig config.Handler) config.ServicePointer {
-	outboundService := serviceConfig
-	outboundService.Handlers = config.NewHandlerVariants(handlerConfig)
-	return config.ServiceTarget(outboundService)
+	return config.ServiceTarget(minimalOutboundService(serviceConfig, handlerConfig))
+}
+
+func minimalOutboundService(serviceConfig config.Service, handlerConfig config.Handler) config.Service {
+	return config.Service{
+		Type:     serviceConfig.Type,
+		Name:     serviceConfig.Name,
+		Handlers: config.NewHandlerVariants(minimalOutboundHandler(handlerConfig)),
+	}
+}
+
+func minimalOutboundHandler(handlerConfig config.Handler) config.Handler {
+	return config.Handler{
+		Type:     handlerConfig.Type,
+		Category: handlerConfig.Category,
+		Endpoint: handlerConfig.Endpoint,
+	}
 }
 
 func (independent *Independent) proxyPointerOutboundTarget(proxyPointer config.ServicePointer) (config.ServicePointer, error) {
@@ -637,7 +651,11 @@ func (independent *Independent) proxyPointerOutboundTarget(proxyPointer config.S
 		if proxyPointer.Service.IsZero() {
 			return config.ServicePointer{}, fmt.Errorf("proxy service pointer is empty")
 		}
-		return proxyPointer, nil
+		handler, err := firstOutboundHandler(proxyPointer.Service)
+		if err != nil {
+			return config.ServicePointer{}, err
+		}
+		return config.ServiceTarget(minimalOutboundService(proxyPointer.Service, handler)), nil
 	}
 
 	proxyServiceName, proxyHandlerCategory := proxyPointer.RefPath()
@@ -656,9 +674,15 @@ func (independent *Independent) proxyPointerOutboundTarget(proxyPointer config.S
 	if err != nil {
 		return config.ServicePointer{}, fmt.Errorf("proxy service %q handler %q: %w", proxyService.Name, proxyHandlerCategory, err)
 	}
-	proxyService.Handlers = []config.HandlerVariant{proxyHandlerVariant}
 
-	return config.ServiceTarget(proxyService), nil
+	return config.ServiceTarget(minimalOutboundService(proxyService, proxyHandlerVariant.AsHandler())), nil
+}
+
+func firstOutboundHandler(serviceConfig config.Service) (config.Handler, error) {
+	if len(serviceConfig.Handlers) == 0 {
+		return config.Handler{}, fmt.Errorf("proxy service %q has no handlers", serviceConfig.Name)
+	}
+	return serviceConfig.Handlers[0].AsHandler(), nil
 }
 
 func (independent *Independent) syncInlineHandlerDepProxyOutbounds(serviceConfig *config.Service, routes []string, proxyPointer *config.ServicePointer, outbound config.ServicePointer, commandOutbounds map[string]config.ServicePointer) error {
@@ -798,6 +822,7 @@ func (independent *Independent) persistProxyHandlerConfig(proxyService config.Se
 }
 
 func ensureProxyHandlerOutbound(proxyConfig config.ProxyHandler, outbound config.ServicePointer) (config.ProxyHandler, bool) {
+	outbound = minimalOutboundPointer(outbound)
 	for i := range proxyConfig.Outbounds {
 		if proxyConfig.Outbounds[i].Name() != outbound.Name() {
 			continue
@@ -813,12 +838,58 @@ func ensureProxyHandlerOutbound(proxyConfig config.ProxyHandler, outbound config
 			proxyConfig.Outbounds[i] = outbound
 			return proxyConfig, true
 		}
-		changed := ensureServiceHasHandlers(&proxyConfig.Outbounds[i].Service, outbound.Service.Handlers)
-		return proxyConfig, changed
+		if servicePointersEqual(proxyConfig.Outbounds[i], outbound) {
+			return proxyConfig, false
+		}
+		proxyConfig.Outbounds[i] = outbound
+		return proxyConfig, true
 	}
 
 	proxyConfig.Outbounds = append(proxyConfig.Outbounds, outbound)
 	return proxyConfig, true
+}
+
+func minimalOutboundPointer(outbound config.ServicePointer) config.ServicePointer {
+	if outbound.Ref != "" || outbound.Service.IsZero() || len(outbound.Service.Handlers) == 0 {
+		return outbound
+	}
+	return config.ServiceTarget(minimalOutboundService(outbound.Service, outbound.Service.Handlers[0].AsHandler()))
+}
+
+func servicePointersEqual(a config.ServicePointer, b config.ServicePointer) bool {
+	if a.Ref != b.Ref {
+		return false
+	}
+	if a.Ref != "" {
+		return true
+	}
+	return servicesEqual(a.Service, b.Service)
+}
+
+func servicesEqual(a config.Service, b config.Service) bool {
+	if a.Type != b.Type || a.Name != b.Name || a.ModuleUrl != b.ModuleUrl || a.StartCommand != b.StartCommand {
+		return false
+	}
+	if len(a.HandlerDeps) != 0 || len(b.HandlerDeps) != 0 {
+		return false
+	}
+	if len(a.Handlers) != len(b.Handlers) {
+		return false
+	}
+	for i := range a.Handlers {
+		if !handlersEqual(a.Handlers[i].AsHandler(), b.Handlers[i].AsHandler()) {
+			return false
+		}
+	}
+	return true
+}
+
+func handlersEqual(a config.Handler, b config.Handler) bool {
+	return a.Type == b.Type &&
+		a.Category == b.Category &&
+		a.Endpoint == b.Endpoint &&
+		len(a.CommandDeps) == 0 &&
+		len(b.CommandDeps) == 0
 }
 
 func configureHandlerDepProxyConfig(proxyConfig config.ProxyHandler, routes []string, outbound config.ServicePointer, commandOutbounds map[string]config.ServicePointer) (config.ProxyHandler, bool, error) {

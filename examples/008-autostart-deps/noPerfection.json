@@ -20,15 +20,6 @@
             {
               "type": "Independent",
               "name": "hello-world",
-              "module-url": "github.com/noPerfection/service",
-              "handler-deps": [
-                {
-                  "name": "main",
-                  "proxies": [
-                    "entrypoint"
-                  ]
-                }
-              ],
               "handlers": [
                 {
                   "type": "Replier",
@@ -36,15 +27,7 @@
                   "endpoint": {
                     "id": "localhost",
                     "port": 8000
-                  },
-                  "command-deps": [
-                    {
-                      "name": "hello",
-                      "proxies": [
-                        "default-name-proxy"
-                      ]
-                    }
-                  ]
+                  }
                 }
               ]
             }
@@ -84,15 +67,6 @@
             {
               "type": "Independent",
               "name": "hello-world",
-              "module-url": "github.com/noPerfection/service",
-              "handler-deps": [
-                {
-                  "name": "main",
-                  "proxies": [
-                    "entrypoint"
-                  ]
-                }
-              ],
               "handlers": [
                 {
                   "type": "Replier",
@@ -100,23 +74,13 @@
                   "endpoint": {
                     "id": "localhost",
                     "port": 8000
-                  },
-                  "command-deps": [
-                    {
-                      "name": "hello",
-                      "proxies": [
-                        "default-name-proxy"
-                      ]
-                    }
-                  ]
+                  }
                 }
               ]
             },
             {
               "type": "Proxy",
               "name": "default-name-proxy",
-              "module-url": "github.com/noPerfection/service/examples/008-autostart-deps/cmd/proxy",
-              "start-command": "./bin/proxy",
               "handlers": [
                 {
                   "type": "SyncReplier",
@@ -124,8 +88,7 @@
                   "endpoint": {
                     "id": "tmp/default_name_proxy",
                     "port": 0
-                  },
-                  "outbounds": null
+                  }
                 }
               ]
             }
