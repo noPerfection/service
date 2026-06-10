@@ -1,10 +1,3 @@
-// Package service is the primary service.
-// This package is calling out the orchestra. Then within that orchestra sets up
-// - handler manager
-// - proxies
-// - extensions
-// - config manager
-// - dep manager
 package service
 
 import (
