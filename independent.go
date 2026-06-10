@@ -291,7 +291,6 @@ func (independent *Independent) addTopologyHandlersToHandlers() error {
 // Requires at least one handler.
 func (independent *Independent) Start() error {
 	var err error
-
 	if err = independent.addHardcodedServicesToTopology(); err != nil {
 		err = fmt.Errorf("addHardcodedServicesToTopology: %w", err)
 		goto errOccurred
