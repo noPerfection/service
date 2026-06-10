@@ -1,0 +1,148 @@
+{
+  "services": [
+    {
+      "type": "Proxy",
+      "name": "default-name-proxy",
+      "module-url": "github.com/noPerfection/service/examples/009-single-process/proxy",
+      "handlers": [
+        {
+          "type": "SyncReplier",
+          "category": "main",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8002
+          },
+          "routes": [
+            "hello"
+          ],
+          "outbounds": [
+            {
+              "type": "Independent",
+              "name": "hello-world",
+              "handlers": [
+                {
+                  "type": "Replier",
+                  "category": "main",
+                  "endpoint": {
+                    "id": "localhost",
+                    "port": 8000
+                  }
+                }
+              ]
+            }
+          ],
+          "forward": {
+            "hello": "hello-world/main"
+          }
+        },
+        {
+          "type": "SyncReplier",
+          "category": "manager",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8003
+          }
+        }
+      ]
+    },
+    {
+      "type": "Proxy",
+      "name": "entrypoint",
+      "module-url": "github.com/noPerfection/service/examples/009-single-process/entrypoint",
+      "handlers": [
+        {
+          "type": "SyncReplier",
+          "category": "main",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8004
+          },
+          "routes": [
+            "age-verification",
+            "hello"
+          ],
+          "outbounds": [
+            {
+              "type": "Independent",
+              "name": "hello-world",
+              "handlers": [
+                {
+                  "type": "Replier",
+                  "category": "main",
+                  "endpoint": {
+                    "id": "localhost",
+                    "port": 8000
+                  }
+                }
+              ]
+            },
+            {
+              "type": "Proxy",
+              "name": "default-name-proxy",
+              "handlers": [
+                {
+                  "type": "SyncReplier",
+                  "category": "main",
+                  "endpoint": {
+                    "id": "localhost",
+                    "port": 8002
+                  }
+                }
+              ]
+            }
+          ],
+          "forward": {
+            "hello": "default-name-proxy/main"
+          }
+        },
+        {
+          "type": "SyncReplier",
+          "category": "manager",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8005
+          }
+        }
+      ]
+    },
+    {
+      "type": "Independent",
+      "name": "hello-world",
+      "module-url": "github.com/noPerfection/service/examples/009-single-process/hello",
+      "handler-deps": [
+        {
+          "name": "main",
+          "proxies": [
+            "entrypoint"
+          ]
+        }
+      ],
+      "handlers": [
+        {
+          "type": "Replier",
+          "category": "main",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8000
+          },
+          "command-deps": [
+            {
+              "name": "hello",
+              "proxies": [
+                "default-name-proxy"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "SyncReplier",
+          "category": "manager",
+          "endpoint": {
+            "id": "localhost",
+            "port": 8001
+          }
+        }
+      ]
+    }
+  ]
+}

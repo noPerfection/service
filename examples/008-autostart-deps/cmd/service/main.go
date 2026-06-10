@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 
+	"runtime/debug"
+
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
@@ -31,6 +33,16 @@ const (
 )
 
 func main() {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		// binary built without modules, or very old toolchain
+	}
+
+	moduleURL := info.Main.Path
+	moduleVersion := info.Main.Version
+	mainPackage := info.Path
+	fmt.Println("Module URL:", moduleURL, "Module Version:", moduleVersion, "Main Package:", mainPackage)
+
 	managerEndpoint := message.NewEndpoint("localhost", serviceManagerPort)
 	app, err := service.New(serviceName, configPath, managerEndpoint)
 	if err != nil {
