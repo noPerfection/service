@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/noPerfection/datatype"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
@@ -16,6 +15,7 @@ import (
 	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/topology"
+	"github.com/noPerfection/topology/config"
 )
 
 const (
@@ -33,14 +33,14 @@ type Manager struct {
 	base.Interface
 	serviceName     string
 	handlerControls []*clientSyncReplier.BaseControl
-	topologyClient  *topology.Client
+	topology        *topology.Client
 	blocker         **sync.WaitGroup
 	running         bool
 }
 
 // New service with the parameters.
 func New(serviceName string, managerEndpoint message.Endpoint) (*Manager, error) {
-	topologyClient, err := topology.NewClient()
+	topology, err := topology.NewClient()
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewClient: %w", err)
 	}
@@ -50,7 +50,7 @@ func New(serviceName string, managerEndpoint message.Endpoint) (*Manager, error)
 	h := &Manager{
 		Interface:       handler,
 		handlerControls: make([]*clientSyncReplier.BaseControl, 0),
-		topologyClient:  topologyClient,
+		topology:        topology,
 		serviceName:     serviceName,
 	}
 
@@ -68,28 +68,55 @@ func (m *Manager) StartService(serviceName string) (string, error) {
 	if serviceName == "" || serviceName == m.serviceName {
 		return strconv.Itoa(os.Getpid()), nil
 	}
+	if m.topology == nil {
+		return "", fmt.Errorf("topology is nil")
+	}
+	return m.topology.StartService(serviceName)
+}
 
-	return "", fmt.Errorf("service name is not empty and not equal to the service name")
+func (m *Manager) StartServiceByConfig(record config.Service) (string, error) {
+	if record.Name == "" || record.Name == m.serviceName {
+		return strconv.Itoa(os.Getpid()), nil
+	}
+	if m.topology == nil {
+		return "", fmt.Errorf("topology is nil")
+	}
+	return m.topology.StartServiceByConfig(record)
 }
 
 func (m *Manager) IsServiceRunning(serviceName string) (bool, error) {
 	if serviceName == "" || serviceName == m.serviceName {
 		return m.running, nil
 	}
+	if m.topology == nil {
+		return false, fmt.Errorf("topology is nil")
+	}
+	return m.topology.IsServiceRunning(serviceName)
+}
 
-	return false, fmt.Errorf("service name is not empty and not equal to the service name")
+func (m *Manager) IsServiceRunningByManager(serviceName string, handler config.Handler) (bool, error) {
+	if serviceName == "" || serviceName == m.serviceName {
+		return m.running, nil
+	}
+	if m.topology == nil {
+		return false, fmt.Errorf("topology is nil")
+	}
+	return m.topology.IsServiceRunningByManager(serviceName, handler)
 }
 
 func (m *Manager) StopService(serviceName string) error {
 	if serviceName != "" && serviceName != m.serviceName {
-		return fmt.Errorf("service name is not empty and not equal to the service name")
+		if m.topology == nil {
+			return fmt.Errorf("topology is nil")
+		}
+		return m.topology.StopService(serviceName)
 	}
 
-	if m.topologyClient != nil {
-		if err := m.topologyClient.Close(); err != nil {
-			return fmt.Errorf("topologyClient.Close: %w", err)
+	if m.topology != nil {
+		if err := m.topology.Close(); err != nil {
+			return fmt.Errorf("topology.Close: %w", err)
 		}
-		m.topologyClient = nil
+		m.topology = nil
 	}
 	for _, control := range m.handlerControls {
 		if err := control.HandlerClose(); err != nil {
@@ -169,27 +196,24 @@ func (m *Manager) onStopService(req message.RequestInterface) message.ReplyInter
 		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('service'): %v", err))
 	}
 
-	go m.stopAfterReply(serviceName)
+	if err := m.StopService(serviceName); err != nil {
+		return req.Fail(fmt.Sprintf("manager.StopService('%s'): %v", serviceName, err))
+	}
 
 	return req.Ok(datatype.New())
 }
 
 func (m *Manager) onServices(req message.RequestInterface) message.ReplyInterface {
-	if m.topologyClient == nil {
-		return req.Fail("topologyClient is nil")
+	if m.topology == nil {
+		return req.Fail("topology is nil")
 	}
 
-	services, err := m.topologyClient.Services()
+	services, err := m.topology.Services()
 	if err != nil {
-		return req.Fail(fmt.Sprintf("topologyClient.Services: %v", err))
+		return req.Fail(fmt.Sprintf("topology.Services: %v", err))
 	}
 
 	return req.Ok(datatype.New().Set("services", services))
-}
-
-func (m *Manager) stopAfterReply(serviceName string) {
-	time.Sleep(100 * time.Millisecond)
-	_ = m.StopService(serviceName)
 }
 
 // HandlerConfig returns the manager handler configuration.
@@ -203,13 +227,13 @@ func HandlerConfig(serviceName string, managerEndpoint message.Endpoint) *handle
 }
 
 func (m *Manager) setHandlerControls() error {
-	if m.topologyClient == nil {
-		return fmt.Errorf("topologyClient is nil")
+	if m.topology == nil {
+		return fmt.Errorf("topology is nil")
 	}
 
-	service, err := m.topologyClient.Service(m.serviceName)
+	service, err := m.topology.Service(m.serviceName)
 	if err != nil {
-		return fmt.Errorf("topologyClient.Service('%s'): %w", m.serviceName, err)
+		return fmt.Errorf("topology.Service('%s'): %w", m.serviceName, err)
 	}
 
 	m.handlerControls = make([]*clientSyncReplier.BaseControl, 0, len(service.Handlers))

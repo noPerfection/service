@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
@@ -205,7 +204,9 @@ func (m *ProxyManager) onStopService(req message.RequestInterface) message.Reply
 		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('service'): %v", err))
 	}
 
-	go m.stopAfterReply(serviceName)
+	if err := m.StopService(serviceName); err != nil {
+		return req.Fail(fmt.Sprintf("manager.StopService('%s'): %v", serviceName, err))
+	}
 
 	return req.Ok(datatype.New())
 }
@@ -275,11 +276,6 @@ func (m *ProxyManager) forwardProxyHandlerRequest(req message.RequestInterface, 
 		return req.Fail(fmt.Sprintf("proxyHandlersClient.Request('%s'): %v", command, err))
 	}
 	return reply
-}
-
-func (m *ProxyManager) stopAfterReply(serviceName string) {
-	time.Sleep(100 * time.Millisecond)
-	_ = m.StopService(serviceName)
 }
 
 func (m *ProxyManager) ensureTopologyClient() error {
