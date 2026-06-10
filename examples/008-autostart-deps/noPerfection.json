@@ -4,7 +4,7 @@
       "type": "Proxy",
       "name": "default-name-proxy",
       "module-url": "github.com/noPerfection/service/examples/008-autostart-deps/cmd/proxy",
-      "start-command": "go run ./cmd/proxy/main.go",
+      "start-command": "./bin/proxy",
       "handlers": [
         {
           "type": "SyncReplier",
@@ -67,7 +67,7 @@
       "type": "Proxy",
       "name": "entrypoint",
       "module-url": "github.com/noPerfection/service/examples/008-autostart-deps/cmd/entrypoint",
-      "start-command": "go run ./cmd/entrypoint/main.go",
+      "start-command": "./bin/entrypoint",
       "handlers": [
         {
           "type": "SyncReplier",
@@ -116,7 +116,7 @@
               "type": "Proxy",
               "name": "default-name-proxy",
               "module-url": "github.com/noPerfection/service/examples/008-autostart-deps/cmd/proxy",
-              "start-command": "go run ./cmd/proxy/main.go",
+              "start-command": "./bin/proxy",
               "handlers": [
                 {
                   "type": "SyncReplier",

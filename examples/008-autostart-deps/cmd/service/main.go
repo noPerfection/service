@@ -12,20 +12,22 @@ import (
 )
 
 const (
-	configPath               = "noPerfection.json"
-	serviceName              = "hello-world"
-	defaultProxyName         = "default-name-proxy"
-	entrypointName           = "entrypoint"
-	proxyCategory            = "main"
-	serviceManagerPort       = 8001
-	defaultProxyEndpoint     = "tmp/default_name_proxy"
-	defaultProxyManager      = "tmp/default_name_proxy_manager"
-	entrypointEndpoint       = "tmp/entrypoint_proxy"
-	entrypointManager        = "tmp/entrypoint_proxy_manager"
-	defaultProxyPackage      = "github.com/noPerfection/service/examples/008-autostart-deps/cmd/proxy"
-	entrypointPackage        = "github.com/noPerfection/service/examples/008-autostart-deps/cmd/entrypoint"
-	defaultProxyStartCommand = "go run ./cmd/proxy/main.go"
-	entrypointStartCommand   = "go run ./cmd/entrypoint/main.go"
+	configPath           = "noPerfection.json"
+	serviceName          = "hello-world"
+	defaultProxyName     = "default-name-proxy"
+	entrypointName       = "entrypoint"
+	proxyCategory        = "main"
+	serviceManagerPort   = 8001
+	defaultProxyEndpoint = "tmp/default_name_proxy"
+	defaultProxyManager  = "tmp/default_name_proxy_manager"
+	entrypointEndpoint   = "tmp/entrypoint_proxy"
+	entrypointManager    = "tmp/entrypoint_proxy_manager"
+	defaultProxyPackage  = "github.com/noPerfection/service/examples/008-autostart-deps/cmd/proxy"
+	entrypointPackage    = "github.com/noPerfection/service/examples/008-autostart-deps/cmd/entrypoint"
+	// defaultProxyStartCommand = "go run ./cmd/proxy/main.go"
+	// entrypointStartCommand   = "go run ./cmd/entrypoint/main.go"
+	defaultProxyStartCommand = "./bin/proxy"
+	entrypointStartCommand   = "./bin/entrypoint"
 )
 
 func main() {
