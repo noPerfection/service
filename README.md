@@ -879,6 +879,14 @@ The difference is that `cmd/demo` imports the reusable `hello`, `proxy`, and
 `entrypoint` packages, starts all three in one process, and then waits for all
 of them together.
 
+Keep this example on TCP or in-process endpoints. If you switch the proxies to
+`tmp/...` IPC, they also need `start-command`, and then the topology manager may
+try to launch the same proxy apps that `cmd/demo` already started in this
+process. Depending on startup order and manager probes, the extra launch may be
+skipped or it may create duplicate processes that fight over the same IPC
+sockets. Use `tmp/` IPC with `start-command` for the multi-process autostart
+style, not this single-process one.
+
 Run the whole topology:
 
 ```bash
