@@ -960,19 +960,6 @@ func proxyForwardRef(outbound config.ServicePointer) (string, error) {
 	return config.RefTarget(outbound.Service.Name, handlerCategory).Ref, nil
 }
 
-func ensureServiceHasHandlers(serviceConfig *config.Service, handlersToAdd []config.HandlerVariant) bool {
-	changed := false
-	for _, handlerToAdd := range handlersToAdd {
-		category := handlerToAdd.AsHandler().Category
-		if _, err := serviceConfig.HandlerByCategory(category); err == nil {
-			continue
-		}
-		serviceConfig.Handlers = append(serviceConfig.Handlers, handlerToAdd)
-		changed = true
-	}
-	return changed
-}
-
 func stringSlicesEqual(a []string, b []string) bool {
 	if len(a) != len(b) {
 		return false
