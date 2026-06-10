@@ -700,7 +700,7 @@ func validateProxyHandlerOutbounds(proxyConfig topologyConfig.ProxyHandler) erro
 		if len(outbound.Service.Handlers) == 0 {
 			return fmt.Errorf("outbounds[%d] service %q must have at least one handler", i, outbound.Service.Name)
 		}
-		if err := topologyConfig.ValidateService(outbound.Service); err != nil {
+		if err := topologyConfig.ValidateOutboundService(outbound.Service); err != nil {
 			return fmt.Errorf("outbounds[%d] service: %w", i, err)
 		}
 	}
