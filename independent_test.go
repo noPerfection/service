@@ -375,15 +375,17 @@ func TestEnsureProxyHandlerOutboundAddsRouteAndOutboundHandler(t *testing.T) {
 	require.True(t, changed)
 	require.ElementsMatch(t, []string{"existing", "hello"}, proxyConfig.Routes)
 	require.Len(t, proxyConfig.Outbounds, 1)
+	require.Empty(t, proxyConfig.Outbounds[0].Service.ModuleUrl)
+	require.Empty(t, proxyConfig.Outbounds[0].Service.HandlerDeps)
+	handler := requireServiceHandler(t, proxyConfig.Outbounds[0].Service, "web")
+	require.Empty(t, handler.CommandDeps)
 	_, err := proxyConfig.Outbounds[0].Service.HandlerByCategory("api")
-	require.NoError(t, err)
-	_, err = proxyConfig.Outbounds[0].Service.HandlerByCategory("web")
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	proxyConfig, changed = ensureProxyHandlerOutbound(proxyConfig, outbound)
 	require.False(t, changed)
 	require.Len(t, proxyConfig.Outbounds, 1)
-	require.Len(t, proxyConfig.Outbounds[0].Service.Handlers, 2)
+	require.Len(t, proxyConfig.Outbounds[0].Service.Handlers, 1)
 }
 
 func TestCommandOutboundTargetUsesCommandHandler(t *testing.T) {
@@ -401,9 +403,12 @@ func TestCommandOutboundTargetUsesCommandHandler(t *testing.T) {
 
 	outbound := commandOutboundTarget(serviceConfig, apiHandler)
 	require.Equal(t, "custom-service", outbound.Name())
+	require.Empty(t, outbound.Service.ModuleUrl)
+	require.Empty(t, outbound.Service.HandlerDeps)
 	require.Len(t, outbound.Service.Handlers, 1)
 	handler := requireServiceHandler(t, outbound.Service, "api")
 	require.Equal(t, apiHandler.Endpoint, handler.Endpoint)
+	require.Empty(t, handler.CommandDeps)
 }
 
 func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *testing.T) {
