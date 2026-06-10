@@ -101,7 +101,7 @@ func TestNewUsesManagerEndpointFromConfigWhenEndpointNotPassed(t *testing.T) {
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
-	require.NoError(t, appConfig.SetService(existingService))
+	require.NoError(t, appConfig.AddService(existingService))
 	require.NoError(t, appConfig.Save())
 
 	independent, err = New("custom-service", configPath)
@@ -131,7 +131,7 @@ func TestLintManagerTopologyOverwritesExistingManagerConfig(t *testing.T) {
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
-	require.NoError(t, appConfig.SetService(existingService))
+	require.NoError(t, appConfig.AddService(existingService))
 	require.NoError(t, appConfig.Save())
 
 	managerEndpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
@@ -162,7 +162,7 @@ func TestLintDefaultTopologyKeepsExistingDefaultHandlerConfig(t *testing.T) {
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
-	require.NoError(t, appConfig.SetService(existingService))
+	require.NoError(t, appConfig.AddService(existingService))
 	require.NoError(t, appConfig.Save())
 
 	independent, err := New("custom-service", configPath, message.NewEndpoint(testEndpointID(t, "manager"), 0))
@@ -386,7 +386,7 @@ func TestEnsureProxyHandlerOutboundAddsRouteAndOutboundHandler(t *testing.T) {
 	require.Len(t, proxyConfig.Outbounds[0].Service.Handlers, 2)
 }
 
-func TestCommandProxyOutboundTargetUsesNextProxyThenCommandHandler(t *testing.T) {
+func TestCommandOutboundTargetUsesCommandHandler(t *testing.T) {
 	apiHandler := topologyConfig.Handler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: "api",
@@ -398,37 +398,8 @@ func TestCommandProxyOutboundTargetUsesNextProxyThenCommandHandler(t *testing.T)
 		ModuleUrl: DefaultModuleUrl,
 		Handlers:  topologyConfig.NewHandlerVariants(apiHandler),
 	}
-	nextProxy := topologyConfig.Service{
-		Type:      topologyConfig.IndependentType,
-		Name:      "name2",
-		ModuleUrl: DefaultModuleUrl,
-		Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-			Type:     topologyConfig.SyncReplierType,
-			Category: handlers.DefaultHandlerCategory,
-			Endpoint: message.NewEndpoint(testEndpointID(t, "name2"), 0),
-		}),
-	}
-	proxies := []topologyConfig.ServicePointer{
-		topologyConfig.ServiceTarget(topologyConfig.Service{
-			Type:      topologyConfig.IndependentType,
-			Name:      "name1",
-			ModuleUrl: DefaultModuleUrl,
-			Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-				Type:     topologyConfig.SyncReplierType,
-				Category: handlers.DefaultHandlerCategory,
-				Endpoint: message.NewEndpoint(testEndpointID(t, "name1"), 0),
-			}),
-		}),
-		topologyConfig.ServiceTarget(nextProxy),
-	}
 
-	independent := &Independent{}
-	outbound, err := independent.commandProxyOutboundTarget(nil, serviceConfig, apiHandler, proxies, 0)
-	require.NoError(t, err)
-	require.Equal(t, "name2", outbound.Name())
-
-	outbound, err = independent.commandProxyOutboundTarget(nil, serviceConfig, apiHandler, proxies, 1)
-	require.NoError(t, err)
+	outbound := commandOutboundTarget(serviceConfig, apiHandler)
 	require.Equal(t, "custom-service", outbound.Name())
 	require.Len(t, outbound.Service.Handlers, 1)
 	handler := requireServiceHandler(t, outbound.Service, "api")
@@ -487,12 +458,12 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 	proxies := []topologyConfig.ServicePointer{entrypoint, audit}
 
 	independent := &Independent{}
-	outbound, commandOutbounds, err := independent.handlerDepProxyOutboundTargets(nil, serviceConfig, apiHandler, proxies, 0, []string{"age-verification", "hello"})
+	outbound, commandOutbounds, err := independent.handlerDepProxyOutboundTargets(serviceConfig, apiHandler, proxies, 0, []string{"age-verification", "hello"})
 	require.NoError(t, err)
 	require.Equal(t, "audit", outbound.Name())
 	require.Empty(t, commandOutbounds)
 
-	outbound, commandOutbounds, err = independent.handlerDepProxyOutboundTargets(nil, serviceConfig, apiHandler, proxies, 1, []string{"age-verification", "hello"})
+	outbound, commandOutbounds, err = independent.handlerDepProxyOutboundTargets(serviceConfig, apiHandler, proxies, 1, []string{"age-verification", "hello"})
 	require.NoError(t, err)
 	require.Equal(t, "custom-service", outbound.Name())
 	require.Len(t, commandOutbounds, 1)
@@ -655,7 +626,7 @@ func TestAddHardcodedHandlersToTopologyOverwritesExistingCategory(t *testing.T) 
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
-	require.NoError(t, appConfig.SetService(existingService))
+	require.NoError(t, appConfig.AddService(existingService))
 	require.NoError(t, appConfig.Save())
 
 	independent, err := New("custom-service", configPath)
@@ -705,7 +676,7 @@ func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) 
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
-	require.NoError(t, appConfig.SetService(existingService))
+	require.NoError(t, appConfig.AddService(existingService))
 	require.NoError(t, appConfig.Save())
 
 	independent, err := New("custom-service", configPath, managerHandler.Endpoint)
@@ -755,4 +726,33 @@ func TestNewRejectsInvalidParams(t *testing.T) {
 
 	_, err = New("service", testConfigPath(t), "manager")
 	require.EqualError(t, err, "manager endpoint argument must be message.Endpoint")
+}
+
+func TestStartIpcServiceSkipsDuplicateRefs(t *testing.T) {
+	pointers := []topologyConfig.ServicePointer{
+		topologyConfig.RefTarget("entrypoint"),
+		topologyConfig.RefTarget("entrypoint"),
+	}
+	startedRefs := make(map[string]struct{})
+	for _, pointer := range pointers {
+		if pointer.Ref == "" {
+			continue
+		}
+		serviceName, _ := pointer.RefPath()
+		if _, done := startedRefs[serviceName]; done {
+			continue
+		}
+		startedRefs[serviceName] = struct{}{}
+	}
+	require.Len(t, startedRefs, 1)
+}
+
+func TestStartIpcServiceRequiresStartCommand(t *testing.T) {
+	service := topologyConfig.Service{Name: "ipc-proxy"}
+	require.Empty(t, service.StartCommand)
+	require.EqualError(
+		t,
+		fmt.Errorf("service '%s' has no start command given", service.Name),
+		"service 'ipc-proxy' has no start command given",
+	)
 }

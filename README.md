@@ -713,6 +713,158 @@ Both calls use the same entrypoint socket.
 See [examples/007-handler-deps](./examples/007-handler-deps) for the full
 example.
 
+## Tutorial 8: Autostart deps on same machine
+
+Now it is time to show the power of noPerfection. Our services are different
+apps that we usually run in multiple terminals for testing. That is tiresome.
+Instead, we can make them managed by the service itself.
+
+Every handler config has an endpoint with `id` and `port`. When a handler
+endpoint has `port: 0` and its `id` starts with `tmp`, noPerfection treats it as
+a local same-machine endpoint. That means the service can connect to that
+handler directly by its endpoint config, without a public TCP port.
+
+But connecting is not enough. The dependency process must be running too. So
+for each local dependency service, we also set `StartCommand`. That command is
+how the topology starts the dependency when the main service boots.
+
+This example modifies the previous entrypoint/default-name-proxy example. The
+proxy and entrypoint `main.go` files stay the same. We only change the service
+that sets their config:
+
+```go
+const (
+	serviceMainID            = "tmp/hello_world"
+	defaultProxyID           = "tmp/default_name_proxy"
+	entrypointID             = "tmp/entrypoint_proxy"
+	defaultProxyStartCommand = "go run ./cmd/proxy/main.go"
+	entrypointStartCommand   = "go run ./cmd/entrypoint/main.go"
+)
+
+app.SetHandlerConfig(topologyConfig.Handler{
+	Type:     topologyConfig.ReplierType,
+	Category: handlers.DefaultHandlerCategory,
+	Endpoint: message.NewEndpoint(serviceMainID, 0),
+})
+
+defaultProxy := proxyConfig(
+	defaultProxyName,
+	defaultProxyPackage,
+	defaultProxyID,
+	defaultProxyStartCommand,
+)
+app.SetServiceConfig(defaultProxy)
+
+entrypoint := proxyConfig(
+	entrypointName,
+	entrypointPackage,
+	entrypointID,
+	entrypointStartCommand,
+)
+app.SetServiceConfig(entrypoint)
+```
+
+The proxy config stores both things: the local endpoint and the start command:
+
+```go
+func proxyConfig(name string, moduleURL string, endpointID string, startCommand string) topologyConfig.Service {
+	return topologyConfig.Service{
+		Type:         topologyConfig.ProxyType,
+		Name:         name,
+		ModuleUrl:    moduleURL,
+		StartCommand: startCommand,
+		Handlers: []topologyConfig.HandlerVariant{
+			topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
+				Handler: topologyConfig.Handler{
+					Type:     topologyConfig.SyncReplierType,
+					Category: proxyCategory,
+					Endpoint: message.NewEndpoint(endpointID, 0),
+				},
+			}),
+		},
+	}
+}
+```
+
+During startup, the service syncs proxy outbounds and then autostarts same-machine
+dependencies through the topology handler. You only need one terminal for the
+service.
+
+Remember from Tutorial 1 that services have managers? We can improve the client
+too. If the client is called with `--services`, it connects to the independent
+service manager and prints configured services with their running state:
+
+```go
+func listServices() {
+	c, err := newManagerClient()
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
+
+	reply, err := c.Request(&message.Request{
+		Command:    manager.Services,
+		Parameters: datatype.New(),
+	})
+	if err != nil {
+		panic(err)
+	}
+	if !reply.IsOK() {
+		panic(reply.ErrorMessage())
+	}
+
+	rawServices, err := reply.ReplyParameters().NestedListValue("services")
+	if err != nil {
+		panic(err)
+	}
+
+	for _, rawService := range rawServices {
+		var service topologyConfig.Service
+		if err := rawService.Interface(&service); err != nil {
+			panic(err)
+		}
+		running, err := serviceRunning(c, service.Name)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("%s running=%t\n", service.Name, running)
+	}
+}
+
+func serviceRunning(c *managerClient.Client, serviceName string) (bool, error) {
+	reply, err := c.Request(&message.Request{
+		Command:    manager.IsServiceRunning,
+		Parameters: datatype.New().Set("service", serviceName),
+	})
+	if err != nil {
+		return false, err
+	}
+	if !reply.IsOK() {
+		return false, fmt.Errorf("%s", reply.ErrorMessage())
+	}
+	return reply.ReplyParameters().BoolValue("running")
+}
+```
+
+The client also supports:
+
+- `--help` to list all flags
+- `--status=<service-name>`
+- `--start=<service-name>`
+- `--stop=<service-name>`
+
+Run the service and client:
+
+```bash
+go run ./cmd/service
+go run ./cmd/client
+go run ./cmd/client --age=21
+go run ./cmd/client --services
+```
+
+See [examples/008-autostart-deps](./examples/008-autostart-deps) for the full
+example.
+
 
 ## Contents
 

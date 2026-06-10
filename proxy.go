@@ -127,8 +127,8 @@ func (proxy *Proxy) addDefaultServiceToTopology() error {
 		ModuleUrl: DefaultModuleUrl,
 		Handlers:  []config.HandlerVariant{},
 	}
-	if err := proxy.topologyHandler.SetService(serviceConfig); err != nil {
-		return fmt.Errorf("topologyHandler.SetService('%s'): %w", proxy.name, err)
+	if err := proxy.topologyHandler.AddService(serviceConfig); err != nil {
+		return fmt.Errorf("topologyHandler.AddService('%s'): %w", proxy.name, err)
 	}
 
 	return nil

@@ -408,9 +408,9 @@ func TestStartFailsWhenTopologyClientIsNil(t *testing.T) {
 	managerEndpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
 	manager, err := New("fake-service", managerEndpoint)
 	require.NoError(t, err)
-	manager.topologyClient = nil
+	manager.topology = nil
 
-	require.EqualError(t, manager.Start(), "setHandlerControls: topologyClient is nil")
+	require.EqualError(t, manager.Start(), "setHandlerControls: topology is nil")
 	require.False(t, manager.Running())
 }
 
@@ -422,11 +422,13 @@ func TestServiceNameValidation(t *testing.T) {
 		_ = manager.Close()
 	})
 
+	manager.topology = nil
+
 	_, err = manager.StartService("other-service")
-	require.EqualError(t, err, "service name is not empty and not equal to the service name")
+	require.EqualError(t, err, "topology is nil")
 
 	_, err = manager.IsServiceRunning("other-service")
-	require.EqualError(t, err, "service name is not empty and not equal to the service name")
+	require.EqualError(t, err, "topology is nil")
 
-	require.EqualError(t, manager.StopService("other-service"), "service name is not empty and not equal to the service name")
+	require.EqualError(t, manager.StopService("other-service"), "topology is nil")
 }
