@@ -866,6 +866,47 @@ See [examples/008-autostart-deps](./examples/008-autostart-deps) for the full
 example.
 
 
+### Tutorial 9: Single Process Demo
+
+So far, our services were handled from multiple places: one command for the
+service, one command for each proxy, or a service process that autostarts its
+dependencies. We can also run the same topology from one Go package instead of
+scattering the runtime across several commands.
+
+This tutorial keeps the TCP endpoints, the `hello` command, the
+`age-verification` command, and the two proxies from the previous examples.
+The difference is that `cmd/demo` imports the reusable `hello`, `proxy`, and
+`entrypoint` packages, starts all three in one process, and then waits for all
+of them together.
+
+Run the whole topology:
+
+```bash
+go run ./cmd/demo
+```
+
+Call `hello` through the entrypoint:
+
+```bash
+go run ./cmd/client
+```
+
+Call `age-verification` through the same entrypoint:
+
+```bash
+go run ./cmd/client --age=21
+```
+
+List configured services and their running state:
+
+```bash
+go run ./cmd/client --services
+```
+
+See [examples/009-single-process](./examples/009-single-process) for the full
+example.
+
+
 ## Contents
 
 * [Contents](#contents)
