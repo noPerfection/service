@@ -151,10 +151,12 @@ func (independent *Independent) addDefaultServiceToTopology() error {
 	}
 
 	serviceConfig = config.Service{
-		Type:      config.IndependentType,
-		Name:      independent.name,
-		ModuleUrl: DefaultModuleUrl,
-		Handlers:  []config.HandlerVariant{},
+		Type:     config.IndependentType,
+		Name:     independent.name,
+		Handlers: []config.HandlerVariant{},
+	}
+	if err := fillDefaultModuleURL(&serviceConfig); err != nil {
+		return err
 	}
 	if err := independent.topologyHandler.AddService(serviceConfig); err != nil {
 		return fmt.Errorf("topologyHandler.AddService('%s'): %w", independent.name, err)
