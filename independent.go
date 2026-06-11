@@ -444,9 +444,6 @@ func (independent *Independent) startIpcServicesFor(serviceConfig config.Service
 
 	for _, variant := range serviceConfig.Handlers {
 		handler := variant.AsHandler()
-		if handler.Category == topology.ServiceManagerCategory {
-			continue
-		}
 		for _, dep := range handler.CommandDeps {
 			for _, proxy := range dep.Proxies {
 				if err := independent.startIpcService(proxy, startedRefs); err != nil {
