@@ -81,6 +81,18 @@ func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) 
 	require.True(t, independent.Handlers.IsHandlerExist(handlers.DefaultHandlerCategory))
 }
 
+func TestAddDefaultServiceToTopologyFillsModuleURL(t *testing.T) {
+	stubBuildInfo(t, "example.com/app", true)
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+
+	require.NoError(t, independent.addDefaultServiceToTopology())
+
+	serviceConfig, err := independent.topologyHandler.Service("custom-service")
+	require.NoError(t, err)
+	require.Equal(t, "example.com/app", serviceConfig.ModuleUrl)
+}
+
 func TestNewUsesManagerEndpointFromConfigWhenEndpointNotPassed(t *testing.T) {
 	configPath := testConfigPath(t)
 
