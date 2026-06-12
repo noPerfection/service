@@ -59,7 +59,11 @@ func (topologies *WithHardcodedTopology) SetHandlerConfig(handler config.Handler
 	if len(serviceName) > 1 {
 		return fmt.Errorf("too many service names")
 	}
-	if handler.Category == "" {
+	baseHandler, ok := handler.AsIndependentHandler()
+	if !ok {
+		return fmt.Errorf("handler is not an independent handler")
+	}
+	if baseHandler.Category == "" {
 		return fmt.Errorf("handler category is empty")
 	}
 
@@ -73,7 +77,8 @@ func (topologies *WithHardcodedTopology) SetHandlerConfig(handler config.Handler
 
 	handlers := topologies.handlerConfigs[name]
 	for i := range handlers {
-		if handlers[i].Category == handler.Category {
+		existing, ok := handlers[i].AsIndependentHandler()
+		if ok && existing.Category == baseHandler.Category {
 			handlers[i] = handler
 			topologies.handlerConfigs[name] = handlers
 			return nil
@@ -200,7 +205,7 @@ func (independent *Independent) addHardcodedHandlersToTopology() error {
 		}
 
 		for _, handler := range handlers {
-			serviceConfig.SetHandler(config.NewHandlerVariant(handler), true)
+			serviceConfig.SetHandler(handler, true)
 		}
 		if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
 			return fmt.Errorf("topologyHandler.SetService('%s'): %w", serviceName, err)
@@ -249,10 +254,11 @@ func (independent *Independent) addHardcodedCommandDepsToTopology() error {
 				return fmt.Errorf("hardcoded command deps handler '%s' in service '%s': %w", handlerCategory, serviceName, err)
 			}
 
+			updatedHandler := handlerVariant
 			for _, dep := range deps {
-				setHandlerVariantCommandDep(&handlerVariant, dep)
+				updatedHandler = setHandlerCommandDep(updatedHandler, dep)
 			}
-			serviceConfig.SetHandler(handlerVariant, true)
+			serviceConfig.SetHandler(updatedHandler, true)
 		}
 		if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
 			return fmt.Errorf("topologyHandler.SetService('%s'): %w", serviceName, err)
@@ -262,14 +268,16 @@ func (independent *Independent) addHardcodedCommandDepsToTopology() error {
 	return nil
 }
 
-func setHandlerVariantCommandDep(handler *config.HandlerVariant, dep config.DepService) {
-	if handler.ProxyHandler != nil {
-		handler.ProxyHandler.CommandDeps = setDepService(handler.ProxyHandler.CommandDeps, dep)
-		return
+func setHandlerCommandDep(handler config.Handler, dep config.DepService) config.Handler {
+	if proxyHandler, ok := handler.AsProxyHandler(); ok {
+		proxyHandler.CommandDeps = setDepService(proxyHandler.CommandDeps, dep)
+		return config.NewProxyHandlerVariant(proxyHandler)
 	}
-	if handler.Handler != nil {
-		handler.Handler.CommandDeps = setDepService(handler.Handler.CommandDeps, dep)
+	if independentHandler, ok := handler.AsIndependentHandler(); ok {
+		independentHandler.CommandDeps = setDepService(independentHandler.CommandDeps, dep)
+		return config.NewHandlerVariant(independentHandler)
 	}
+	return handler
 }
 
 func setDepService(deps []config.DepService, dep config.DepService) []config.DepService {

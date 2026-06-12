@@ -689,26 +689,11 @@ func TestValidateProtocolOrders(t *testing.T) {
 				protocolOutboundService(t, "service", topologyConfig.IndependentType, "inproc"),
 			),
 		},
-		{
-			name: "independent service rejects inproc handlers parameter",
-			service: topologyConfig.Service{
-				Type:       topologyConfig.IndependentType,
-				Name:       "service",
-				ModuleUrl:  DefaultModuleUrl,
-				Parameters: datatype.New().Set(InprocHandlersParameter, []string{handlers.DefaultHandlerCategory}),
-				Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-					Type:     topologyConfig.SyncReplierType,
-					Category: handlers.DefaultHandlerCategory,
-					Endpoint: protocolEndpoint(t, "service", "tcp"),
-				}),
-			},
-			wantErr: `service "service" has "inproc-handlers" parameter, but only Proxy and Extension services can use it`,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := (&Independent{}).validateProtocolOrdersFor(tt.service, make(map[string]struct{}))
+			err := (&Independent{}).validateProtocolOrdersFor(tt.service)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return
@@ -750,7 +735,7 @@ func protocolProxyLikeServiceWithInprocHandlers(t *testing.T, name string, servi
 			if len(inprocHandlers) == 0 {
 				return nil
 			}
-			return datatype.New().Set(InprocHandlersParameter, inprocHandlers)
+			return datatype.New().Set(topologyConfig.InprocHandlersParameter, inprocHandlers)
 		}(),
 		Handlers: []topologyConfig.HandlerVariant{
 			topologyConfig.NewProxyHandlerVariant(proxyHandler),

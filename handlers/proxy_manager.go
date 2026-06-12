@@ -719,7 +719,11 @@ func newOutboundClients(proxyConfig topologyConfig.ProxyHandler) (map[string]map
 			clients[service.Name] = make(map[string]outboundClient)
 		}
 		for j, variant := range service.Handlers {
-			handler := variant.AsHandler()
+			handler, ok := variant.AsIndependentHandler()
+			if !ok {
+				_ = closeOutboundClients(clients)
+				return nil, fmt.Errorf("outbounds[%d].handlers[%d] is not an independent handler", i, j)
+			}
 			client, err := newOutboundClient(handler)
 			if err != nil {
 				_ = closeOutboundClients(clients)
@@ -731,7 +735,7 @@ func newOutboundClients(proxyConfig topologyConfig.ProxyHandler) (map[string]map
 	return clients, nil
 }
 
-func newOutboundClient(handler topologyConfig.Handler) (outboundClient, error) {
+func newOutboundClient(handler topologyConfig.IndependentHandler) (outboundClient, error) {
 	var client outboundClient
 	var err error
 
@@ -879,15 +883,21 @@ func outboundFromServicePointer(proxifiedHandler string, pointer topologyConfig.
 		return Outbound{}, fmt.Errorf("outbound service %q has no handlers", pointer.Service.Name)
 	}
 
-	selectedHandler := pointer.Service.Handlers[0].AsHandler()
+	selectedHandler, ok := pointer.Service.Handlers[0].AsIndependentHandler()
+	if !ok {
+		return Outbound{}, fmt.Errorf("outbound service %q first handler is not an independent handler", pointer.Service.Name)
+	}
 	if handlerCategory != "" {
 		var err error
-		var variant topologyConfig.HandlerVariant
+		var variant topologyConfig.Handler
 		variant, err = pointer.Service.HandlerByCategory(handlerCategory)
 		if err != nil {
 			return Outbound{}, err
 		}
-		selectedHandler = variant.AsHandler()
+		selectedHandler, ok = variant.AsIndependentHandler()
+		if !ok {
+			return Outbound{}, fmt.Errorf("outbound service %q handler %q is not an independent handler", pointer.Service.Name, handlerCategory)
+		}
 	}
 
 	return Outbound{

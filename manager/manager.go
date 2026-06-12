@@ -94,7 +94,7 @@ func (m *Manager) IsServiceRunning(serviceName string) (bool, error) {
 	return m.topology.IsServiceRunning(serviceName)
 }
 
-func (m *Manager) IsServiceRunningByManager(serviceName string, handler config.Handler) (bool, error) {
+func (m *Manager) IsServiceRunningByManager(serviceName string, handler config.IndependentHandler) (bool, error) {
 	if serviceName == "" || serviceName == m.serviceName {
 		return m.running, nil
 	}
@@ -238,7 +238,10 @@ func (m *Manager) setHandlerControls() error {
 
 	m.handlerControls = make([]*clientSyncReplier.BaseControl, 0, len(service.Handlers))
 	for _, handlerVariant := range service.Handlers {
-		handler := handlerVariant.AsHandler()
+		handler, ok := handlerVariant.AsIndependentHandler()
+		if !ok {
+			continue
+		}
 		if handler.Category == topology.ServiceManagerCategory {
 			continue
 		}
