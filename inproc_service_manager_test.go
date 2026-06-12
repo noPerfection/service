@@ -49,7 +49,8 @@ func TestValidateInprocServiceManagers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := (&Independent{}).validateInprocServiceManagersFor(tt.service)
+			inprocServices := 0
+			err := (&Independent{}).validateInprocServiceManagersFor(tt.service, &inprocServices)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return

@@ -293,6 +293,7 @@ func (independent *Independent) addTopologyHandlersToHandlers() error {
 // Requires at least one handler.
 func (independent *Independent) Start() error {
 	var err error
+	var inprocServices int
 	if err = independent.addHardcodedServicesToTopology(); err != nil {
 		err = fmt.Errorf("addHardcodedServicesToTopology: %w", err)
 		goto errOccurred
@@ -369,9 +370,14 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("validateProtocolOrders: %w", err)
 		goto errOccurred
 	}
-	if err = independent.validateInprocServiceManagers(); err != nil {
+	if inprocServices, err = independent.validateInprocServiceManagers(); err != nil {
 		err = fmt.Errorf("validateInprocServiceManagers: %w", err)
 		goto errOccurred
+	}
+	if inprocServices > 0 {
+		fmt.Printf("todo: implement inproc_topology for checking %d inproc managers\n", inprocServices)
+	} else {
+		fmt.Println("todo: inproc are 0, make sure that inproc_topology is not running at all")
 	}
 	if err = independent.startIpcServices(); err != nil {
 		err = fmt.Errorf("startIpcServices: %w", err)
@@ -737,21 +743,22 @@ func validateProtocolOrder(callerService config.Service, caller config.Handler, 
 	return fmt.Errorf("can not access from %s to %s", callerProtocol, outboundProtocol)
 }
 
-func (independent *Independent) validateInprocServiceManagers() error {
+func (independent *Independent) validateInprocServiceManagers() (int, error) {
 	services, err := independent.topology.Services()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
+	inprocServices := 0
 	for _, serviceConfig := range services {
-		if err := independent.validateInprocServiceManagersFor(serviceConfig); err != nil {
-			return err
+		if err := independent.validateInprocServiceManagersFor(serviceConfig, &inprocServices); err != nil {
+			return 0, err
 		}
 	}
-	return nil
+	return inprocServices, nil
 }
 
-func (independent *Independent) validateInprocServiceManagersFor(serviceConfig config.Service) error {
+func (independent *Independent) validateInprocServiceManagersFor(serviceConfig config.Service, inprocServices *int) error {
 	if serviceConfig.IsInproc() {
 		endpoint, err := serviceManagerEndpoint(serviceConfig)
 		if err != nil {
@@ -760,14 +767,25 @@ func (independent *Independent) validateInprocServiceManagersFor(serviceConfig c
 		if !endpoint.IsInproc() {
 			return fmt.Errorf("service %q is inproc but manager endpoint %q is not inproc", serviceConfig.Name, endpoint.ClientUrl())
 		}
+		(*inprocServices)++
 	}
 
 	for _, dep := range serviceConfig.HandlerDeps {
-		if err := independent.validateInlineInprocServiceManagerPointers(dep.Proxies); err != nil {
-			return fmt.Errorf("handler dep %q proxy: %w", dep.Name, err)
+		for _, pointer := range dep.Proxies {
+			if pointer.Ref != "" || pointer.Service.IsZero() {
+				continue
+			}
+			if err := independent.validateInprocServiceManagersFor(pointer.Service, inprocServices); err != nil {
+				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, pointer.Name(), err)
+			}
 		}
-		if err := independent.validateInlineInprocServiceManagerPointers(dep.Extensions); err != nil {
-			return fmt.Errorf("handler dep %q extension: %w", dep.Name, err)
+		for _, pointer := range dep.Extensions {
+			if pointer.Ref != "" || pointer.Service.IsZero() {
+				continue
+			}
+			if err := independent.validateInprocServiceManagersFor(pointer.Service, inprocServices); err != nil {
+				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, pointer.Name(), err)
+			}
 		}
 	}
 
@@ -777,11 +795,21 @@ func (independent *Independent) validateInprocServiceManagersFor(serviceConfig c
 			continue
 		}
 		for _, dep := range handler.CommandDeps {
-			if err := independent.validateInlineInprocServiceManagerPointers(dep.Proxies); err != nil {
-				return fmt.Errorf("handler %q command %q proxy: %w", handler.Category, dep.Name, err)
+			for _, pointer := range dep.Proxies {
+				if pointer.Ref != "" || pointer.Service.IsZero() {
+					continue
+				}
+				if err := independent.validateInprocServiceManagersFor(pointer.Service, inprocServices); err != nil {
+					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, pointer.Name(), err)
+				}
 			}
-			if err := independent.validateInlineInprocServiceManagerPointers(dep.Extensions); err != nil {
-				return fmt.Errorf("handler %q command %q extension: %w", handler.Category, dep.Name, err)
+			for _, pointer := range dep.Extensions {
+				if pointer.Ref != "" || pointer.Service.IsZero() {
+					continue
+				}
+				if err := independent.validateInprocServiceManagersFor(pointer.Service, inprocServices); err != nil {
+					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, pointer.Name(), err)
+				}
 			}
 		}
 	}
@@ -802,18 +830,6 @@ func serviceManagerEndpoint(serviceConfig config.Service) (message.Endpoint, err
 		return message.Endpoint{}, fmt.Errorf("service %q manager handler is not an independent handler", serviceConfig.Name)
 	}
 	return handler.Endpoint, nil
-}
-
-func (independent *Independent) validateInlineInprocServiceManagerPointers(pointers []config.ServicePointer) error {
-	for _, pointer := range pointers {
-		if pointer.Ref != "" || pointer.Service.IsZero() {
-			continue
-		}
-		if err := independent.validateInprocServiceManagersFor(pointer.Service); err != nil {
-			return fmt.Errorf("%s: %w", pointer.Name(), err)
-		}
-	}
-	return nil
 }
 
 func (independent *Independent) syncCommandOutbounds() error {
