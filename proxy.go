@@ -60,7 +60,10 @@ func NewProxy(name string, params ...interface{}) (*Proxy, error) {
 		if err == nil {
 			managerHandler, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
 			if err == nil {
-				managerEndpoint = managerHandler.AsHandler().Endpoint
+				handler, ok := managerHandler.AsIndependentHandler()
+				if ok {
+					managerEndpoint = handler.Endpoint
+				}
 			}
 		}
 	}
@@ -124,7 +127,7 @@ func (proxy *Proxy) addDefaultServiceToTopology() error {
 	serviceConfig = config.Service{
 		Type:     config.ProxyType,
 		Name:     proxy.name,
-		Handlers: []config.HandlerVariant{},
+		Handlers: []config.Handler{},
 	}
 	if err := fillDefaultModuleURL(&serviceConfig); err != nil {
 		return err
@@ -147,7 +150,8 @@ func (proxy *Proxy) addServiceManagerToTopology() error {
 	managerConfig := proxy.manager.Config()
 	currentManager, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
 	if err == nil {
-		if currentManager.AsHandler().Endpoint == managerConfig.Endpoint {
+		handler, ok := currentManager.AsIndependentHandler()
+		if ok && handler.Endpoint == managerConfig.Endpoint {
 			return nil
 		}
 	}
@@ -155,7 +159,7 @@ func (proxy *Proxy) addServiceManagerToTopology() error {
 		return nil
 	}
 
-	managerTopologyConfig := config.Handler{
+	managerTopologyConfig := config.IndependentHandler{
 		Type:     config.HandlerType(managerConfig.Type),
 		Category: managerConfig.Category,
 		Endpoint: managerConfig.Endpoint,

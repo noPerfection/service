@@ -319,11 +319,10 @@ func (m *ProxyManager) setProxyHandlers() error {
 	}
 
 	for i, variant := range serviceConfig.Handlers {
-		if variant.ProxyHandler == nil {
+		proxyHandler, ok := variant.AsProxyHandler()
+		if !ok {
 			continue
 		}
-
-		proxyHandler := variant.AsProxyHandler()
 		if len(proxyHandler.Outbounds) == 0 {
 			m.warnProxyHandlerNoOutbounds(proxyHandler)
 			continue
@@ -390,9 +389,12 @@ func (m *ProxyManager) normalizeProxyHandlerOutboundRef(outbound topologyConfig.
 		return topologyConfig.ServicePointer{}, fmt.Errorf("service %q handler %q: %w", serviceName, handlerCategory, err)
 	}
 
-	handler := handlerVariant.AsHandler()
+	handler, ok := handlerVariant.AsIndependentHandler()
+	if !ok {
+		return topologyConfig.ServicePointer{}, fmt.Errorf("service %q handler %q is not an independent handler", serviceName, handlerCategory)
+	}
 	handler.Endpoint.Id = m.normalizedProxyHandlerEndpointID(handler.Endpoint)
-	serviceConfig.Handlers = []topologyConfig.HandlerVariant{topologyConfig.NewHandlerVariant(handler)}
+	serviceConfig.Handlers = []topologyConfig.Handler{topologyConfig.NewHandlerVariant(handler)}
 
 	return topologyConfig.ServiceTarget(serviceConfig), nil
 }
