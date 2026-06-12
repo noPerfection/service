@@ -915,6 +915,42 @@ See [examples/009-single-process](./examples/009-single-process) for the full
 example.
 
 
+### Tutorial 10: Inproc Handlers Parameter
+
+Sometimes a proxy handler exposes a TCP or IPC endpoint, but the current process
+owns that handler as part of an embedded, single-process topology. In that case
+the handler should be treated as in-process for protocol-order validation, even
+though its endpoint is remote-capable.
+
+Mark those handler categories in the service parameters:
+
+```json
+{
+  "type": "Proxy",
+  "name": "entrypoint",
+  "parameters": {
+    "inproc-handlers": ["main"]
+  }
+}
+```
+
+`inproc-handlers` does not change the socket endpoint. It only tells the service
+startup validation that the listed handler categories are owned by the current
+process. This lets an embedded entrypoint bind TCP or IPC while still forwarding
+to hidden inproc command proxies and services.
+
+This parameter is only valid on `Proxy` and `Extension` services. `Independent`
+services reject it because they are the top-level service boundary, not an
+embedded proxy or extension handler.
+
+Without this parameter, a TCP or IPC proxy handler can not forward into an
+inproc handler because inproc endpoints are process-local. With the parameter,
+the listed handler is treated as inproc for that validation path.
+
+See [examples/010-inproc-handlers](./examples/010-inproc-handlers) for the full
+example note.
+
+
 ## Contents
 
 * [Contents](#contents)
