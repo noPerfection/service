@@ -25,6 +25,7 @@ import (
 const DefaultName = "main"
 const DefaultConfigPath = "noPerfection.json"
 const DefaultModuleUrl = "github.com/noPerfection/service"
+const InprocHandlersParameter = "inproc-handlers"
 
 var DefaultServiceManagerEndpoint = message.NewEndpoint(topology.ServiceManagerCategory, 0)
 
@@ -358,6 +359,10 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("syncCommandOutbounds: %w", err)
 		goto errOccurred
 	}
+	if err = independent.validateProtocolOrders(); err != nil {
+		err = fmt.Errorf("validateProtocolOrders: %w", err)
+		goto errOccurred
+	}
 	if err = independent.startIpcServices(); err != nil {
 		err = fmt.Errorf("startIpcServices: %w", err)
 		goto errOccurred
@@ -528,6 +533,208 @@ func (independent *Independent) startIpcService(pointer config.ServicePointer, s
 		return fmt.Errorf("manager.StartServiceByConfig('%s'): %w", pointer.Service.Name, err)
 	}
 	return nil
+}
+
+func (independent *Independent) validateProtocolOrders() error {
+	serviceConfig, err := independent.topologyService(independent.name)
+	if err != nil {
+		return fmt.Errorf("service %q: %w", independent.name, err)
+	}
+
+	visited := make(map[string]struct{})
+	return independent.validateProtocolOrdersFor(serviceConfig, visited)
+}
+
+func (independent *Independent) validateProtocolOrdersFor(serviceConfig config.Service, visited map[string]struct{}) error {
+	if serviceConfig.Name != "" {
+		if _, done := visited[serviceConfig.Name]; done {
+			return nil
+		}
+		visited[serviceConfig.Name] = struct{}{}
+	}
+	if err := validateInprocHandlersParameter(serviceConfig); err != nil {
+		return err
+	}
+
+	for _, variant := range serviceConfig.Handlers {
+		proxyHandler := variant.AsProxyHandler()
+		if len(proxyHandler.Outbounds) == 0 {
+			continue
+		}
+		caller := proxyHandler.Handler
+		for _, outbound := range proxyHandler.Outbounds {
+			outboundService, outboundHandler, err := independent.outboundServiceAndHandler(outbound)
+			if err != nil {
+				return fmt.Errorf("proxy %q handler %q outbound %q: %w", serviceConfig.Name, caller.Category, outbound.Name(), err)
+			}
+			if err := validateProtocolOrder(serviceConfig, caller, outboundService, outboundHandler); err != nil {
+				return fmt.Errorf("proxy %q handler %q outbound %q: %w", serviceConfig.Name, caller.Category, outbound.Name(), err)
+			}
+			if outboundService.Type == config.ProxyType {
+				if err := independent.validateProtocolOrdersFor(outboundService, visited); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	for _, dep := range serviceConfig.HandlerDeps {
+		for _, proxy := range dep.Proxies {
+			if err := independent.validateProtocolOrderPointer(proxy, visited); err != nil {
+				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, proxy.Name(), err)
+			}
+		}
+		for _, extension := range dep.Extensions {
+			if err := independent.validateProtocolOrderPointer(extension, visited); err != nil {
+				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, extension.Name(), err)
+			}
+		}
+	}
+
+	for _, variant := range serviceConfig.Handlers {
+		handler := variant.AsHandler()
+		for _, dep := range handler.CommandDeps {
+			for _, proxy := range dep.Proxies {
+				if err := independent.validateProtocolOrderPointer(proxy, visited); err != nil {
+					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxy.Name(), err)
+				}
+			}
+			for _, extension := range dep.Extensions {
+				if err := independent.validateProtocolOrderPointer(extension, visited); err != nil {
+					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, extension.Name(), err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (independent *Independent) validateProtocolOrderPointer(pointer config.ServicePointer, visited map[string]struct{}) error {
+	serviceConfig, _, err := independent.outboundServiceAndHandler(pointer)
+	if err != nil {
+		return err
+	}
+	return independent.validateProtocolOrdersFor(serviceConfig, visited)
+}
+
+func (independent *Independent) outboundServiceAndHandler(pointer config.ServicePointer) (config.Service, config.Handler, error) {
+	if pointer.Ref == "" {
+		if pointer.Service.IsZero() {
+			return config.Service{}, config.Handler{}, fmt.Errorf("service pointer is empty")
+		}
+		handler, err := firstOutboundHandler(pointer.Service)
+		if err != nil {
+			return config.Service{}, config.Handler{}, err
+		}
+		return pointer.Service, handler, nil
+	}
+
+	serviceName, handlerCategory := pointer.RefPath()
+	if serviceName == "" {
+		return config.Service{}, config.Handler{}, fmt.Errorf("ref %q is invalid", pointer.Ref)
+	}
+	if handlerCategory == "" {
+		handlerCategory = handlers.DefaultHandlerCategory
+	}
+
+	serviceConfig, err := independent.topologyService(serviceName)
+	if err != nil {
+		return config.Service{}, config.Handler{}, err
+	}
+	handlerVariant, err := serviceConfig.HandlerByCategory(handlerCategory)
+	if err != nil {
+		return config.Service{}, config.Handler{}, fmt.Errorf("service %q handler %q: %w", serviceName, handlerCategory, err)
+	}
+	return serviceConfig, handlerVariant.AsHandler(), nil
+}
+
+func (independent *Independent) topologyService(serviceName string) (config.Service, error) {
+	if independent.topology != nil {
+		return independent.topology.Service(serviceName)
+	}
+	if independent.topologyHandler != nil {
+		return independent.topologyHandler.Service(serviceName)
+	}
+	return config.Service{}, fmt.Errorf("topology is nil")
+}
+
+type protocolOrder uint8
+
+const (
+	inprocProtocolOrder protocolOrder = iota
+	ipcProtocolOrder
+	tcpProtocolOrder
+)
+
+func validateProtocolOrder(callerService config.Service, caller config.Handler, outboundService config.Service, outbound config.Handler) error {
+	callerOrder := serviceHandlerProtocolOrder(callerService, caller)
+	outboundOrder := serviceHandlerProtocolOrder(outboundService, outbound)
+	if callerOrder <= outboundOrder {
+		return nil
+	}
+	return fmt.Errorf("can not access from %s to %s", protocolOrderName(callerOrder), protocolOrderName(outboundOrder))
+}
+
+func serviceHandlerProtocolOrder(serviceConfig config.Service, handler config.Handler) protocolOrder {
+	if serviceHasInprocHandler(serviceConfig, handler.Category) {
+		return inprocProtocolOrder
+	}
+	if handler.Endpoint.IsInproc() {
+		return inprocProtocolOrder
+	}
+	if handler.Endpoint.IsIpc() {
+		return ipcProtocolOrder
+	}
+	return tcpProtocolOrder
+}
+
+func protocolOrderName(order protocolOrder) string {
+	switch order {
+	case inprocProtocolOrder:
+		return "inproc"
+	case ipcProtocolOrder:
+		return "ipc"
+	default:
+		return "tcp"
+	}
+}
+
+func serviceHasInprocHandler(serviceConfig config.Service, category string) bool {
+	if serviceConfig.Type != config.ProxyType && serviceConfig.Type != config.ExtensionType {
+		return false
+	}
+	if serviceConfig.Parameters == nil || category == "" {
+		return false
+	}
+	raw, exists := serviceConfig.Parameters[InprocHandlersParameter]
+	if !exists {
+		return false
+	}
+	switch categories := raw.(type) {
+	case []string:
+		return containsString(categories, category)
+	case []interface{}:
+		for _, item := range categories {
+			if name, ok := item.(string); ok && name == category {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func validateInprocHandlersParameter(serviceConfig config.Service) error {
+	if serviceConfig.Parameters == nil {
+		return nil
+	}
+	if _, exists := serviceConfig.Parameters[InprocHandlersParameter]; !exists {
+		return nil
+	}
+	if serviceConfig.Type == config.ProxyType || serviceConfig.Type == config.ExtensionType {
+		return nil
+	}
+	return fmt.Errorf("service %q has %q parameter, but only Proxy and Extension services can use it", serviceConfig.Name, InprocHandlersParameter)
 }
 
 func (independent *Independent) syncCommandOutbounds() error {
