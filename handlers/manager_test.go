@@ -86,7 +86,7 @@ func TestSetHandlerDuplicateCategoryOverwritesWithoutError(t *testing.T) {
 	require.Len(t, manager.handlers, 1)
 	require.Same(t, second, manager.handlers["api"])
 	require.NotSame(t, first, manager.handlers["api"])
-	require.Equal(t, config.ReplierType, manager.handlers["api"].(base.Interface).Type())
+	require.Equal(t, config.ReplierType, manager.handlers["api"].Type())
 	require.True(t, first.Closed())
 }
 
@@ -127,8 +127,7 @@ func TestManagerRegistryCapacity(t *testing.T) {
 
 	require.Len(t, manager.handlers, len(cases))
 	for _, tc := range cases {
-		handler, ok := manager.handlers[tc.category].(base.Interface)
-		require.True(t, ok)
+		handler := manager.handlers[tc.category]
 		require.Equal(t, tc.handlerType, handler.Type())
 	}
 }
@@ -156,14 +155,14 @@ func TestSetLoggerNilDisablesLogger(t *testing.T) {
 	require.Nil(t, manager.logger)
 }
 
-func TestSetLoggerRejectsInvalidRegistryEntry(t *testing.T) {
+func TestSetLoggerRejectsNilRegistryEntry(t *testing.T) {
 	manager := NewHandlers()
-	manager.handlers.Set("bad", "not a handler")
+	manager.handlers["bad"] = nil
 
 	logger, err := log.New("test", true)
 	require.NoError(t, err)
 
-	require.EqualError(t, manager.SetLogger(logger), "handler of bad category is not a base.Interface")
+	require.EqualError(t, manager.SetLogger(logger), "handler of bad category is nil")
 }
 
 func TestRouteUsesDefaultHandlerCategory(t *testing.T) {
@@ -273,8 +272,7 @@ func TestStartWithMultipleProtocolHandlers(t *testing.T) {
 		require.NoError(t, manager.Close())
 	})
 
-	for category, raw := range manager.handlers {
-		handler := raw.(base.Interface)
+	for category, handler := range manager.handlers {
 		require.False(t, handler.Closed(), "handler %s should be running", category)
 	}
 }
@@ -285,11 +283,11 @@ func TestCloseNoHandlers(t *testing.T) {
 	require.NoError(t, manager.Close())
 }
 
-func TestCloseRejectsInvalidRegistryEntry(t *testing.T) {
+func TestCloseRejectsNilRegistryEntry(t *testing.T) {
 	manager := NewHandlers()
-	manager.handlers.Set("bad", "not a handler")
+	manager.handlers["bad"] = nil
 
-	require.EqualError(t, manager.Close(), "handler of bad category is not a base.Interface")
+	require.EqualError(t, manager.Close(), "handler of bad category is nil")
 }
 
 func TestCloseMarksHandlersClosed(t *testing.T) {
