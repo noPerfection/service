@@ -318,7 +318,7 @@ func (m *ProxyManager) setProxyHandlers() error {
 		return fmt.Errorf("service %q type is %q, expected %q", m.serviceName, serviceConfig.Type, topologyConfig.ProxyType)
 	}
 
-	for i, variant := range serviceConfig.Handlers {
+	for _, variant := range serviceConfig.Handlers {
 		proxyHandler, ok := variant.AsProxyHandler()
 		if !ok {
 			continue
@@ -328,12 +328,8 @@ func (m *ProxyManager) setProxyHandlers() error {
 			continue
 		}
 
-		normalizedProxyHandler, err := m.normalizeProxyHandlerOutbounds(proxyHandler)
-		if err != nil {
-			return fmt.Errorf("handler[%d] %q outbounds: %w", i, proxyHandler.Category, err)
-		}
-		if err := m.setProxyHandler(normalizedProxyHandler); err != nil {
-			return fmt.Errorf("setProxyHandler('%s'): %w", normalizedProxyHandler.Category, err)
+		if err := m.setProxyHandler(proxyHandler); err != nil {
+			return fmt.Errorf("setProxyHandler('%s'): %w", proxyHandler.Category, err)
 		}
 	}
 
@@ -349,61 +345,6 @@ func (m *ProxyManager) warnProxyHandlerNoOutbounds(proxyHandler topologyConfig.P
 		"proxy has no outbounds, please set it before starting the proxy, it wont be started yet",
 		"category", proxyHandler.Category,
 	)
-}
-
-func (m *ProxyManager) normalizeProxyHandlerOutbounds(proxyHandler topologyConfig.ProxyHandler) (topologyConfig.ProxyHandler, error) {
-	normalized := proxyHandler
-	normalized.Outbounds = make([]topologyConfig.ServicePointer, 0, len(proxyHandler.Outbounds))
-
-	for i, outbound := range proxyHandler.Outbounds {
-		if outbound.Ref == "" {
-			normalized.Outbounds = append(normalized.Outbounds, outbound)
-			continue
-		}
-
-		normalizedOutbound, err := m.normalizeProxyHandlerOutboundRef(outbound)
-		if err != nil {
-			return topologyConfig.ProxyHandler{}, fmt.Errorf("outbounds[%d]: %w", i, err)
-		}
-		normalized.Outbounds = append(normalized.Outbounds, normalizedOutbound)
-	}
-
-	return normalized, nil
-}
-
-func (m *ProxyManager) normalizeProxyHandlerOutboundRef(outbound topologyConfig.ServicePointer) (topologyConfig.ServicePointer, error) {
-	serviceName, handlerCategory := outbound.RefPath()
-	if serviceName == "" {
-		return topologyConfig.ServicePointer{}, fmt.Errorf("invalid ref %q", outbound.Ref)
-	}
-	if handlerCategory == "" {
-		handlerCategory = handlers.DefaultHandlerCategory
-	}
-
-	serviceConfig, err := m.topologyClient.Service(serviceName)
-	if err != nil {
-		return topologyConfig.ServicePointer{}, fmt.Errorf("topologyClient.Service('%s'): %w", serviceName, err)
-	}
-	handlerVariant, err := serviceConfig.HandlerByCategory(handlerCategory)
-	if err != nil {
-		return topologyConfig.ServicePointer{}, fmt.Errorf("service %q handler %q: %w", serviceName, handlerCategory, err)
-	}
-
-	handler, ok := handlerVariant.AsIndependentHandler()
-	if !ok {
-		return topologyConfig.ServicePointer{}, fmt.Errorf("service %q handler %q is not an independent handler", serviceName, handlerCategory)
-	}
-	handler.Endpoint.Id = m.normalizedProxyHandlerEndpointID(handler.Endpoint)
-	serviceConfig.Handlers = []topologyConfig.Handler{topologyConfig.NewHandlerVariant(handler)}
-
-	return topologyConfig.ServiceTarget(serviceConfig), nil
-}
-
-func (m *ProxyManager) normalizedProxyHandlerEndpointID(endpoint message.Endpoint) string {
-	if endpoint.IsRemote() {
-		return endpoint.Id
-	}
-	return m.serviceName + "_proxy_" + endpoint.Id
 }
 
 func (m *ProxyManager) setProxyHandler(proxyHandler topologyConfig.ProxyHandler) error {
