@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/message"
@@ -16,7 +15,8 @@ var DefaultHandlerEndpoint = message.NewEndpoint("localhost", 8000)
 
 // Handlers owns the local handler registry and lifecycle.
 type Handlers struct {
-	handlers datatype.KeyValue
+	// handler category -> handler/base.Interface
+	handlers map[string]base.Interface
 	// handler category -> command -> handle function
 	routes  map[string]map[string]base.HandleFunc
 	logger  *log.Logger
@@ -26,17 +26,19 @@ type Handlers struct {
 // NewHandlers creates an empty handler manager.
 func NewHandlers() *Handlers {
 	return &Handlers{
-		handlers: datatype.New(),
+		handlers: make(map[string]base.Interface),
 		routes:   make(map[string]map[string]base.HandleFunc),
 	}
 }
 
 // SetHandler adds or replaces a handler by category.
 func (manager *Handlers) SetHandler(category string, handler base.Interface) error {
-	if raw, exists := manager.handlers[category]; exists {
-		registered, ok := raw.(base.Interface)
-		if !ok {
-			return fmt.Errorf("handler of %s category is not a base.Interface", category)
+	if handler == nil {
+		return fmt.Errorf("handler of %s category is nil", category)
+	}
+	if registered, exists := manager.handlers[category]; exists {
+		if registered == nil {
+			return fmt.Errorf("handler of %s category is nil", category)
 		}
 		if !registered.Closed() {
 			if err := closeHandlers([]base.Interface{registered}); err != nil {
@@ -44,7 +46,7 @@ func (manager *Handlers) SetHandler(category string, handler base.Interface) err
 			}
 		}
 	}
-	manager.handlers.Set(category, handler)
+	manager.handlers[category] = handler
 
 	return nil
 }
@@ -55,13 +57,12 @@ func (manager *Handlers) IsHandlerExist(category string) bool {
 }
 
 func (manager *Handlers) RouteCommands(category string) ([]string, error) {
-	raw, exists := manager.handlers[category]
+	handler, exists := manager.handlers[category]
 	if !exists {
 		return nil, fmt.Errorf("handler of %s category is not found", category)
 	}
-	handler, ok := raw.(base.Interface)
-	if !ok {
-		return nil, fmt.Errorf("handler of %s category is not a base.Interface", category)
+	if handler == nil {
+		return nil, fmt.Errorf("handler of %s category is nil", category)
 	}
 
 	commands := handler.RouteCommands()
@@ -93,10 +94,9 @@ func (manager *Handlers) Route(command string, handleFunc base.HandleFunc, handl
 func (manager *Handlers) SetLogger(logger *log.Logger) error {
 	manager.logger = logger
 
-	for category, raw := range manager.handlers {
-		handler, ok := raw.(base.Interface)
-		if !ok {
-			return fmt.Errorf("handler of %s category is not a base.Interface", category)
+	for category, handler := range manager.handlers {
+		if handler == nil {
+			return fmt.Errorf("handler of %s category is nil", category)
 		}
 		if err := handler.SetLogger(logger); err != nil {
 			return fmt.Errorf("handler(category: '%s').SetLogger: %w", category, err)
@@ -121,10 +121,9 @@ func (manager *Handlers) Start() error {
 		}
 	}
 
-	for category, raw := range manager.handlers {
-		handler, ok := raw.(base.Interface)
-		if !ok {
-			err = fmt.Errorf("handler of %s category is not a base.Interface", category)
+	for category, handler := range manager.handlers {
+		if handler == nil {
+			err = fmt.Errorf("handler of %s category is nil", category)
 			goto exitStartHandler
 		}
 		if handler.Config() == nil {
@@ -175,10 +174,9 @@ exitStartHandler:
 // After the service is started, the handlers are closed by the service/manager
 func (manager *Handlers) Close() error {
 	handlers := make([]base.Interface, 0, len(manager.handlers))
-	for category, raw := range manager.handlers {
-		handler, ok := raw.(base.Interface)
-		if !ok {
-			return fmt.Errorf("handler of %s category is not a base.Interface", category)
+	for category, handler := range manager.handlers {
+		if handler == nil {
+			return fmt.Errorf("handler of %s category is nil", category)
 		}
 		handlers = append(handlers, handler)
 	}
