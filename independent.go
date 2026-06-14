@@ -1302,6 +1302,9 @@ func newProxyManagerClient(proxyService config.Service) (*clientSyncReplier.Clie
 }
 
 func applyProxyHandlerToManager(proxyService config.Service, proxyConfig config.ProxyHandler, updated bool) error {
+	if !updated {
+		return nil
+	}
 	proxyManagerClient, err := newProxyManagerClient(proxyService)
 	if err != nil {
 		return err
@@ -1317,9 +1320,6 @@ func applyProxyHandlerToManager(proxyService config.Service, proxyConfig config.
 			return err
 		}
 		return startProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig.Category)
-	}
-	if !updated {
-		return nil
 	}
 
 	running, err := proxyHandlerRunning(proxyManagerClient, proxyService.Name, proxyConfig.Category)
