@@ -32,15 +32,19 @@ var _ topology.NodeInterface = (*Manager)(nil)
 // Manage this service from other parts.
 type Manager struct {
 	base.Interface
-	serviceName     string
+	serviceURL      string // mushroomURL of this service in the topology mycelium
 	handlerControls []*clientSyncReplier.BaseControl
 	topology        *topology.Client
 	blocker         **sync.WaitGroup
+	started         bool
 	running         bool
 }
 
-// New service with the parameters.
-func New(serviceName string, managerEndpoint message.Endpoint) (*Manager, error) {
+// New creates a manager for an independent service.
+// serviceURL is the mushroomURL used to locate this service in the topology mycelium
+// (a plain symbol such as "main", or a full dereference URL).
+// managerEndpoint is the socket other processes use to start, stop, and probe this service.
+func New(serviceURL string, managerEndpoint message.Endpoint) (*Manager, error) {
 	topology, err := topology.NewClient()
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewClient: %w", err)
@@ -52,7 +56,7 @@ func New(serviceName string, managerEndpoint message.Endpoint) (*Manager, error)
 		Interface:       handler,
 		handlerControls: make([]*clientSyncReplier.BaseControl, 0),
 		topology:        topology,
-		serviceName:     serviceName,
+		serviceURL:      serviceURL,
 	}
 
 	managerConfig := HandlerConfig(managerEndpoint)
@@ -65,18 +69,54 @@ func (m *Manager) SetSharedBlocker(blocker **sync.WaitGroup) {
 	m.blocker = blocker
 }
 
-func (m *Manager) StartService(serviceName string) (string, error) {
-	if serviceName == "" || serviceName == m.serviceName {
+func (m *Manager) selfService() (config.Service, error) {
+	if m.topology == nil {
+		return config.Service{}, fmt.Errorf("topology is nil")
+	}
+	return m.topology.Service(m.serviceURL)
+}
+
+// matchesSelf reports whether serviceURL refers to this manager's service.
+// Empty serviceURL means this process. Both URLs are resolved through topology
+// and compared with config.Service.Equal (name and manager endpoint).
+func (m *Manager) matchesSelf(serviceURL string) (bool, error) {
+	if serviceURL == "" {
+		return true, nil
+	}
+	if m.topology == nil {
+		return false, fmt.Errorf("topology is nil")
+	}
+	self, err := m.selfService()
+	if err != nil {
+		return false, err
+	}
+	other, err := m.topology.Service(serviceURL)
+	if err != nil {
+		return false, err
+	}
+	return self.Equal(other), nil
+}
+
+func (m *Manager) StartService(serviceURL string) (string, error) {
+	match, err := m.matchesSelf(serviceURL)
+	if err != nil {
+		return "", err
+	}
+	if match {
 		return strconv.Itoa(os.Getpid()), nil
 	}
 	if m.topology == nil {
 		return "", fmt.Errorf("topology is nil")
 	}
-	return m.topology.StartService(serviceName)
+	return m.topology.StartService(serviceURL)
 }
 
 func (m *Manager) StartServiceByConfig(record config.Service) (string, error) {
-	if record.Name == "" || record.Name == m.serviceName {
+	self, err := m.selfService()
+	if err != nil {
+		return "", err
+	}
+	if record.Equal(self) {
 		return strconv.Itoa(os.Getpid()), nil
 	}
 
@@ -94,21 +134,29 @@ func (m *Manager) StartServiceByConfig(record config.Service) (string, error) {
 	return m.startServiceOnManager(record.Name, handler.Endpoint)
 }
 
-func (m *Manager) IsServiceRunning(serviceName string) (bool, error) {
-	if serviceName == "" || serviceName == m.serviceName {
+func (m *Manager) IsServiceRunning(serviceURL string) (bool, error) {
+	match, err := m.matchesSelf(serviceURL)
+	if err != nil {
+		return false, err
+	}
+	if match {
 		return m.running, nil
 	}
 	if m.topology == nil {
 		return false, fmt.Errorf("topology is nil")
 	}
-	return m.topology.IsServiceRunning(serviceName)
+	return m.topology.IsServiceRunning(serviceURL)
 }
 
-func (m *Manager) IsServiceRunningByManager(serviceName string, handler config.IndependentHandler) (bool, error) {
-	if serviceName == "" || serviceName == m.serviceName {
+func (m *Manager) IsServiceRunningByManager(serviceURL string, handler config.IndependentHandler) (bool, error) {
+	match, err := m.matchesSelf(serviceURL)
+	if err != nil {
+		return false, err
+	}
+	if match {
 		return m.running, nil
 	}
-	return m.isServiceRunningOnManager(serviceName, handler.Endpoint)
+	return m.isServiceRunningOnManager(serviceURL, handler.Endpoint)
 }
 
 func (m *Manager) isServiceRunningOnManager(serviceName string, endpoint message.Endpoint) (bool, error) {
@@ -167,12 +215,20 @@ func (m *Manager) startServiceOnManager(serviceName string, endpoint message.End
 	return id, nil
 }
 
-func (m *Manager) StopService(serviceName string) error {
-	if serviceName != "" && serviceName != m.serviceName {
+func (m *Manager) StopService(serviceURL string) error {
+	if !m.running && m.started {
+		return nil
+	}
+
+	match, err := m.matchesSelf(serviceURL)
+	if err != nil {
+		return err
+	}
+	if serviceURL != "" && !match {
 		if m.topology == nil {
 			return fmt.Errorf("topology is nil")
 		}
-		return m.topology.StopService(serviceName)
+		return m.topology.StopService(serviceURL)
 	}
 
 	if m.topology != nil {
@@ -206,7 +262,7 @@ func (m *Manager) Close() error {
 		return fmt.Errorf("manager is nil")
 	}
 
-	if err := m.StopService(m.serviceName); err != nil {
+	if err := m.StopService(m.serviceURL); err != nil {
 		return err
 	}
 	if err := closeHandler(m.Interface); err != nil {
@@ -294,9 +350,9 @@ func (m *Manager) setHandlerControls() error {
 		return fmt.Errorf("topology is nil")
 	}
 
-	service, err := m.topology.Service(m.serviceName)
+	service, err := m.selfService()
 	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", m.serviceName, err)
+		return fmt.Errorf("topology.Service(%q): %w", m.serviceURL, err)
 	}
 
 	m.handlerControls = make([]*clientSyncReplier.BaseControl, 0, len(service.Handlers))
@@ -336,9 +392,7 @@ func closeHandler(handler base.Interface) error {
 	return nil
 }
 
-// Start the orchestra in the background.
-// If it failed to run, then return an error.
-// The url request is the main service to which this orchestra belongs too.
+// Start registers manager routes and connects handler controls for this service.
 func (m *Manager) Start() error {
 	if err := m.Interface.Route(IsServiceRunning, m.onIsServiceRunning); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, IsServiceRunning, err)
@@ -361,6 +415,7 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("handler.Start: %w", err)
 	}
 
+	m.started = true
 	m.running = true
 
 	return nil
