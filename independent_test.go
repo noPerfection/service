@@ -846,7 +846,7 @@ func TestAddHardcodedHandlerDepsToTopologyRejectsMissingService(t *testing.T) {
 
 	err = independent.addHardcodedHandlerDepsToTopology()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "hardcoded handler deps for 'missing-service' service not found in topology")
+	require.Contains(t, err.Error(), `hardcoded handler deps for "missing-service" not found in topology`)
 }
 
 func TestAddHardcodedHandlersToTopologyAddsHandlersToDefaultService(t *testing.T) {
@@ -915,7 +915,7 @@ func TestAddHardcodedHandlersToTopologyRejectsMissingService(t *testing.T) {
 
 	err = independent.addHardcodedHandlersToTopology()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "hardcoded handlers for 'missing-service' service not found in topology")
+	require.Contains(t, err.Error(), `hardcoded handlers for "missing-service" not found in topology`)
 }
 
 func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) {
