@@ -37,8 +37,8 @@ func testEndpointID(t *testing.T, name string) string {
 	return fmt.Sprintf("%s_%s_%d", strings.ReplaceAll(t.Name(), "/", "_"), name, seq)
 }
 
-func fakeServiceConfig(serviceName string, managerEndpoint message.Endpoint, handlers ...topologyConfig.Handler) topologyConfig.Service {
-	serviceHandlers := []topologyConfig.Handler{
+func fakeServiceConfig(serviceName string, managerEndpoint message.Endpoint, handlers ...topologyConfig.IndependentHandler) topologyConfig.Service {
+	serviceHandlers := []topologyConfig.IndependentHandler{
 		{
 			Type:     topologyConfig.SyncReplierType,
 			Category: topology.ServiceManagerCategory,
@@ -47,17 +47,22 @@ func fakeServiceConfig(serviceName string, managerEndpoint message.Endpoint, han
 	}
 	serviceHandlers = append(serviceHandlers, handlers...)
 
+	handlerList := make([]topologyConfig.Handler, len(serviceHandlers))
+	for i, h := range serviceHandlers {
+		handlerList[i] = h
+	}
+
 	return topologyConfig.Service{
-		Type:      topologyConfig.ProxyType,
+		Type:      topologyConfig.IndependentType,
 		Name:      serviceName,
 		ModuleUrl: "github.com/noPerfection/service/manager/test",
-		Handlers:  topologyConfig.NewHandlerVariants(serviceHandlers...),
+		Handlers:  handlerList,
 	}
 }
 
-func fakeHandlerConfig(t *testing.T, handlerType topologyConfig.HandlerType, category string) topologyConfig.Handler {
+func fakeHandlerConfig(t *testing.T, handlerType topologyConfig.HandlerType, category string) topologyConfig.IndependentHandler {
 	t.Helper()
-	return topologyConfig.Handler{
+	return topologyConfig.IndependentHandler{
 		Type:     handlerType,
 		Category: category,
 		Endpoint: message.NewEndpoint(testEndpointID(t, category), 0),
@@ -129,7 +134,10 @@ func startFakeServiceHandlers(t *testing.T, service topologyConfig.Service) []ba
 
 	handlers := make([]base.Interface, 0, len(service.Handlers))
 	for _, configuredVariant := range service.Handlers {
-		configured := configuredVariant.AsHandler()
+		configured, ok := configuredVariant.AsIndependentHandler()
+		if !ok {
+			continue
+		}
 		if configured.Category == topology.ServiceManagerCategory {
 			continue
 		}
@@ -220,7 +228,8 @@ func TestSetHandlerControlsMatchesFakeServiceConfig(t *testing.T) {
 		handlerControlConfig, err := controlClient.HandlerConfig()
 		require.NoError(t, err)
 
-		expected := service.Handlers[i+1].AsHandler()
+		expected, ok := service.Handlers[i+1].AsIndependentHandler()
+		require.True(t, ok)
 		require.Equal(t, expected.Category, handlerControlConfig.Category)
 		require.Equal(t, expected.Endpoint.Id, handlerControlConfig.Id)
 		require.Equal(t, expected.Endpoint.Port, handlerControlConfig.Port)

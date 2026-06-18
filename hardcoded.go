@@ -271,11 +271,11 @@ func (independent *Independent) addHardcodedCommandDepsToTopology() error {
 func setHandlerCommandDep(handler config.Handler, dep config.DepService) config.Handler {
 	if proxyHandler, ok := handler.AsProxyHandler(); ok {
 		proxyHandler.CommandDeps = setDepService(proxyHandler.CommandDeps, dep)
-		return config.NewProxyHandlerVariant(proxyHandler)
+		return proxyHandler
 	}
 	if independentHandler, ok := handler.AsIndependentHandler(); ok {
 		independentHandler.CommandDeps = setDepService(independentHandler.CommandDeps, dep)
-		return config.NewHandlerVariant(independentHandler)
+		return independentHandler
 	}
 	return handler
 }

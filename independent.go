@@ -39,25 +39,46 @@ type Independent struct {
 	manager         *manager.Manager // manage this service from other parts
 }
 
-// Return instance of an independent service.
-// Optional parameters are name and topology config path.
-func New(params ...interface{}) (*Independent, error) {
-	name := DefaultName
+// New returns an independent service instance.
+//
+// Optional parameters, in order:
+//
+//  1. mushroomURL — service identity in the configuration. A plain symbol is treated as the
+//     service name at the root of the topology (e.g. "main" → services[name:main]). Full
+//     mushroom paths are accepted but not validated yet.
+//
+//  2. configPath — topology JSON file for this process (default "noPerfection.json").
+//
+//  3. managerEndpoint — highest-priority manager socket. Remote processes use this endpoint
+//     to start, stop, and probe the service. When omitted, the endpoint is taken from the
+//     service record in topology, then DefaultServiceManagerEndpoint.
+//
+// Examples:
+//
+//	// Root service "main", default config and manager from topology.
+//	app, err := New("main", "noPerfection.json")
+//
+//	// Same service, remote manager endpoint overrides topology.
+//	app, err := New("main", "noPerfection.json", message.NewEndpoint("manager", 9100))
+func New(params ...any) (*Independent, error) {
+	mushroomURL := DefaultName
 	configPath := DefaultConfigPath
 	managerEndpoint := DefaultServiceManagerEndpoint
 
 	if len(params) > 3 {
 		return nil, fmt.Errorf("too many arguments, expected name, config path, and manager endpoint")
 	}
+
 	if len(params) > 0 && params[0] != nil {
-		nameArg, ok := params[0].(string)
+		mushroomUrlArg, ok := params[0].(string)
 		if !ok {
 			return nil, fmt.Errorf("name argument must be string")
 		}
-		if len(nameArg) > 0 {
-			name = nameArg
+		if len(mushroomUrlArg) > 0 {
+			mushroomURL = mushroomUrlArg
 		}
 	}
+
 	if len(params) > 1 && params[1] != nil {
 		configPathArg, ok := params[1].(string)
 		if !ok {
@@ -68,12 +89,13 @@ func New(params ...interface{}) (*Independent, error) {
 		}
 	}
 
-	// Start the topology handler.
 	topologyHandler, err := topology.NewHandler(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewHandler: %w", err)
 	}
 
+	// If user passes the manager endpoint, then use it,
+	// otherwise try to get it from the topology config.
 	if len(params) > 2 && params[2] != nil {
 		managerEndpointArg, ok := params[2].(message.Endpoint)
 		if !ok {
@@ -81,7 +103,7 @@ func New(params ...interface{}) (*Independent, error) {
 		}
 		managerEndpoint = managerEndpointArg
 	} else {
-		serviceConfig, err := topologyHandler.Service(name)
+		serviceConfig, err := topologyHandler.Service(mushroomURL)
 		if err == nil {
 			managerHandler, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
 			if err == nil {
@@ -93,16 +115,16 @@ func New(params ...interface{}) (*Independent, error) {
 		}
 	}
 
-	m, err := manager.New(name, managerEndpoint)
+	m, err := manager.New(mushroomURL, managerEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("manager.New: %w", err)
 	}
 
 	independent := &Independent{
 		Handlers:              handlers.NewHandlers(),
-		WithHardcodedTopology: NewHardcodedTopologies(name),
+		WithHardcodedTopology: NewHardcodedTopologies(mushroomURL),
 		topologyHandler:       topologyHandler,
-		name:                  name,
+		name:                  mushroomURL,
 		manager:               m,
 	}
 
@@ -190,7 +212,7 @@ func (independent *Independent) addDefaultHandlerToTopology() error {
 		Endpoint: handlers.DefaultHandlerEndpoint,
 		Type:     config.ReplierType,
 	}
-	serviceConfig.Handlers = []config.Handler{config.NewHandlerVariant(defaultHandler)}
+	serviceConfig.Handlers = []config.Handler{defaultHandler}
 	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
 		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.name, err)
 	}
@@ -227,7 +249,7 @@ func (independent *Independent) addServiceManagerToTopology() error {
 		Endpoint: managerConfig.Endpoint,
 	}
 
-	serviceConfig.SetHandler(config.NewHandlerVariant(managerTopologyConfig), true)
+	serviceConfig.SetHandler(managerTopologyConfig, true)
 	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
 		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.name, err)
 	}
@@ -310,7 +332,6 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("addDefaultHandlerToTopology: %w", err)
 		goto errOccurred
 	}
-
 	if err = independent.addServiceManagerToTopology(); err != nil {
 		err = fmt.Errorf("lintManagerTopology: %w", err)
 		goto errOccurred
@@ -324,6 +345,7 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("addHardcodedCommandDepsToTopology: %w", err)
 		goto errOccurred
 	}
+
 	if err = independent.addTopologyHandlersToHandlers(); err != nil {
 		err = fmt.Errorf("addTopologyHandlers: %w", err)
 		goto errOccurred
@@ -333,7 +355,6 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
 	}
-
 	if err = independent.Handlers.Start(); err != nil {
 		err = fmt.Errorf("handlers.Start: %w", err)
 		goto errOccurred
@@ -341,8 +362,8 @@ func (independent *Independent) Start() error {
 
 	independent.blocker = &sync.WaitGroup{}
 	independent.blocker.Add(1)
-	independent.manager.SetSharedBlocker(&independent.blocker)
 
+	independent.manager.SetSharedBlocker(&independent.blocker)
 	if err = independent.manager.Start(); err != nil {
 		err = fmt.Errorf("service.manager.Start: %w", err)
 		goto errOccurred
@@ -561,6 +582,10 @@ func (independent *Independent) startIpcService(pointer config.ServicePointer, s
 	return nil
 }
 
+// Validate protocol orders for all services and handlers in the topology:
+// tcp can forward to tcp, but not other protocols.
+// ipc can forward to ipc and tcp, but not inproc protocol.
+// inproc can forward to inproc only, but not ipc or tcp protocol.
 func (independent *Independent) validateProtocolOrders() error {
 	serviceConfig, err := independent.topologyService(independent.name)
 	if err != nil {
@@ -581,10 +606,10 @@ func (independent *Independent) validateProtocolOrdersFor(serviceConfig config.S
 			for _, outbound := range proxyHandler.Outbounds {
 				outboundService, outboundHandler, err := inlineOutboundServiceAndHandler(outbound)
 				if err != nil {
-					return fmt.Errorf("proxy %q handler %q outbound %q: %w", serviceConfig.Name, proxyHandler.Category, outbound.Name(), err)
+					return fmt.Errorf("proxy %q handler %q outbound %q: %w", serviceConfig.Name, proxyHandler.Category, outbound.Name, err)
 				}
 				if err := validateProtocolOrder(serviceConfig, variant, outboundService, outboundHandler); err != nil {
-					return fmt.Errorf("proxy %q handler %q outbound %q: %w", serviceConfig.Name, proxyHandler.Category, outbound.Name(), err)
+					return fmt.Errorf("proxy %q handler %q outbound %q: %w", serviceConfig.Name, proxyHandler.Category, outbound.Name, err)
 				}
 			}
 		}
@@ -646,18 +671,15 @@ func (independent *Independent) validateProtocolOrdersFor(serviceConfig config.S
 	return nil
 }
 
-func inlineOutboundServiceAndHandler(outbound config.ServicePointer) (config.Service, config.Handler, error) {
-	if outbound.Ref != "" {
-		return config.Service{}, nil, fmt.Errorf("outbound must be inline service, not ref %q", outbound.Ref)
-	}
-	if outbound.Service.IsZero() {
+func inlineOutboundServiceAndHandler(outbound config.Service) (config.Service, config.Handler, error) {
+	if outbound.IsZero() {
 		return config.Service{}, nil, fmt.Errorf("outbound service is empty")
 	}
-	handler, err := firstOutboundHandler(outbound.Service)
+	handler, err := firstOutboundHandler(outbound)
 	if err != nil {
 		return config.Service{}, nil, err
 	}
-	return outbound.Service, handler, nil
+	return outbound, handler, nil
 }
 
 func (independent *Independent) serviceAndHandlerFromPointer(pointer config.ServicePointer) (config.Service, config.Handler, error) {
@@ -743,6 +765,7 @@ func validateProtocolOrder(callerService config.Service, caller config.Handler, 
 	return fmt.Errorf("can not access from %s to %s", callerProtocol, outboundProtocol)
 }
 
+// If service is inproc, it must have an inproc manager.
 func (independent *Independent) validateInprocServiceManagers() (int, error) {
 	services, err := independent.topology.Services()
 	if err != nil {
@@ -832,6 +855,8 @@ func serviceManagerEndpoint(serviceConfig config.Service) (message.Endpoint, err
 	return handler.Endpoint, nil
 }
 
+// For every proxy in a command’s chain, figure out who it forwards to,
+// write that into the proxy’s config, save it, and tell the running proxy to reload.
 func (independent *Independent) syncCommandOutbounds() error {
 	serviceConfig, err := independent.topology.Service(independent.name)
 	if err != nil {
@@ -839,11 +864,7 @@ func (independent *Independent) syncCommandOutbounds() error {
 	}
 
 	for handlerIndex := range serviceConfig.Handlers {
-		handlerVariant := serviceConfig.Handlers[handlerIndex]
-		handler, ok := handlerVariant.AsIndependentHandler()
-		if !ok {
-			continue
-		}
+		handler, _ := serviceConfig.Handlers[handlerIndex].AsIndependentHandler()
 		if handler.Category == topology.ServiceManagerCategory || len(handler.CommandDeps) == 0 {
 			continue
 		}
@@ -852,8 +873,8 @@ func (independent *Independent) syncCommandOutbounds() error {
 			dep := &handler.CommandDeps[depIndex]
 			for proxyIndex := range dep.Proxies {
 				proxyPointer := &dep.Proxies[proxyIndex]
-				var outbound config.ServicePointer
-				// Get proxy target: either the next proxy if it exists or this service handler if this is the last proxy.
+				var outbound config.Service
+				// Get proxy target: either the next proxy or this service handler.
 				if proxyIndex+1 < len(dep.Proxies) {
 					var err error
 					outbound, err = independent.proxyPointerOutboundTarget(dep.Proxies[proxyIndex+1])
@@ -861,7 +882,7 @@ func (independent *Independent) syncCommandOutbounds() error {
 						return fmt.Errorf("handler %q command %q proxy %q outbound: %w", handler.Category, dep.Name, proxyPointer.Name(), err)
 					}
 				} else {
-					outbound = commandOutboundTarget(serviceConfig, handler)
+					outbound = minimalOutboundService(serviceConfig, handler)
 				}
 				// Sync command proxy config: referenced root proxy or inline proxy embedded in this service tree.
 				var err error
@@ -882,13 +903,13 @@ func (independent *Independent) syncCommandOutbounds() error {
 	return nil
 }
 
-func (independent *Independent) handlerDepProxyOutboundTargets(serviceConfig config.Service, handlerConfig config.Handler, proxies []config.ServicePointer, proxyIndex int, routes []string) (config.ServicePointer, map[string]config.ServicePointer, error) {
+func (independent *Independent) handlerDepProxyOutboundTargets(serviceConfig config.Service, handlerConfig config.Handler, proxies []config.ServicePointer, proxyIndex int, routes []string) (config.Service, map[string]config.Service, error) {
 	if proxyIndex+1 < len(proxies) {
 		outbound, err := independent.proxyPointerOutboundTarget(proxies[proxyIndex+1])
 		return outbound, nil, err
 	}
 
-	commandOutbounds := make(map[string]config.ServicePointer)
+	commandOutbounds := make(map[string]config.Service)
 	for _, route := range routes {
 		commandDep, ok := commandDepByName(handlerConfig, route)
 		if !ok || len(commandDep.Proxies) == 0 {
@@ -896,12 +917,12 @@ func (independent *Independent) handlerDepProxyOutboundTargets(serviceConfig con
 		}
 		outbound, err := independent.proxyPointerOutboundTarget(commandDep.Proxies[0])
 		if err != nil {
-			return config.ServicePointer{}, nil, fmt.Errorf("command %q first proxy: %w", route, err)
+			return config.Service{}, nil, fmt.Errorf("command %q first proxy: %w", route, err)
 		}
 		commandOutbounds[route] = outbound
 	}
 
-	return commandOutboundTarget(serviceConfig, handlerConfig), commandOutbounds, nil
+	return minimalOutboundService(serviceConfig, handlerConfig), commandOutbounds, nil
 }
 
 func commandDepByName(handlerConfig config.Handler, command string) (config.DepService, bool) {
@@ -917,7 +938,7 @@ func commandDepByName(handlerConfig config.Handler, command string) (config.DepS
 	return config.DepService{}, false
 }
 
-func (independent *Independent) syncHandlerDepProxyOutbounds(serviceConfig *config.Service, routes []string, proxyPointer *config.ServicePointer, outbound config.ServicePointer, commandOutbounds map[string]config.ServicePointer) error {
+func (independent *Independent) syncHandlerDepProxyOutbounds(serviceConfig *config.Service, routes []string, proxyPointer *config.ServicePointer, outbound config.Service, commandOutbounds map[string]config.Service) error {
 	if proxyPointer.Ref != "" {
 		return independent.syncReferencedHandlerDepProxyOutbounds(routes, *proxyPointer, outbound, commandOutbounds)
 	}
@@ -927,15 +948,13 @@ func (independent *Independent) syncHandlerDepProxyOutbounds(serviceConfig *conf
 	return independent.syncInlineHandlerDepProxyOutbounds(serviceConfig, routes, proxyPointer, outbound, commandOutbounds)
 }
 
-func commandOutboundTarget(serviceConfig config.Service, handlerConfig config.Handler) config.ServicePointer {
-	return config.ServiceTarget(minimalOutboundService(serviceConfig, handlerConfig))
-}
-
 func minimalOutboundService(serviceConfig config.Service, handlerConfig config.Handler) config.Service {
 	return config.Service{
-		Type:     serviceConfig.Type,
-		Name:     serviceConfig.Name,
-		Handlers: config.NewHandlerVariants(minimalOutboundHandler(handlerConfig)),
+		Type: serviceConfig.Type,
+		Name: serviceConfig.Name,
+		Handlers: []config.Handler{
+			minimalOutboundHandler(handlerConfig),
+		},
 	}
 }
 
@@ -951,12 +970,12 @@ func minimalOutboundHandler(handlerConfig config.Handler) config.IndependentHand
 	}
 }
 
-func (independent *Independent) proxyPointerOutboundTarget(proxyPointer config.ServicePointer) (config.ServicePointer, error) {
+func (independent *Independent) proxyPointerOutboundTarget(proxyPointer config.ServicePointer) (config.Service, error) {
 	serviceConfig, handler, err := independent.serviceAndHandlerFromPointer(proxyPointer)
 	if err != nil {
-		return config.ServicePointer{}, err
+		return config.Service{}, err
 	}
-	return config.ServiceTarget(minimalOutboundService(serviceConfig, handler)), nil
+	return minimalOutboundService(serviceConfig, handler), nil
 }
 
 func firstOutboundHandler(serviceConfig config.Service) (config.Handler, error) {
@@ -966,7 +985,7 @@ func firstOutboundHandler(serviceConfig config.Service) (config.Handler, error) 
 	return serviceConfig.Handlers[0], nil
 }
 
-func (independent *Independent) syncInlineHandlerDepProxyOutbounds(serviceConfig *config.Service, routes []string, proxyPointer *config.ServicePointer, outbound config.ServicePointer, commandOutbounds map[string]config.ServicePointer) error {
+func (independent *Independent) syncInlineHandlerDepProxyOutbounds(serviceConfig *config.Service, routes []string, proxyPointer *config.ServicePointer, outbound config.Service, commandOutbounds map[string]config.Service) error {
 	managerService, proxyConfig, updated, err := independent.updateInlineProxyHandlerConfig(serviceConfig, proxyPointer, func(proxyConfig config.ProxyHandler) (config.ProxyHandler, bool, error) {
 		return configureHandlerDepProxyConfig(proxyConfig, routes, outbound, commandOutbounds)
 	})
@@ -976,7 +995,7 @@ func (independent *Independent) syncInlineHandlerDepProxyOutbounds(serviceConfig
 	return applyProxyHandlerToManager(managerService, proxyConfig, updated)
 }
 
-func (independent *Independent) syncInlineCommandProxyOutbound(serviceConfig *config.Service, command string, proxyPointer *config.ServicePointer, outbound config.ServicePointer) error {
+func (independent *Independent) syncInlineCommandProxyOutbound(serviceConfig *config.Service, command string, proxyPointer *config.ServicePointer, outbound config.Service) error {
 	managerService, proxyConfig, updated, err := independent.updateInlineProxyHandlerConfig(serviceConfig, proxyPointer, func(proxyConfig config.ProxyHandler) (config.ProxyHandler, bool, error) {
 		updated := false
 		if !containsString(proxyConfig.Routes, command) {
@@ -994,7 +1013,7 @@ func (independent *Independent) syncInlineCommandProxyOutbound(serviceConfig *co
 	return applyProxyHandlerToManager(managerService, proxyConfig, updated)
 }
 
-func (independent *Independent) syncReferencedHandlerDepProxyOutbounds(routes []string, proxyPointer config.ServicePointer, outbound config.ServicePointer, commandOutbounds map[string]config.ServicePointer) error {
+func (independent *Independent) syncReferencedHandlerDepProxyOutbounds(routes []string, proxyPointer config.ServicePointer, outbound config.Service, commandOutbounds map[string]config.Service) error {
 	proxyServiceName, proxyHandlerCategory := proxyPointer.RefPath()
 	if proxyServiceName == "" {
 		return fmt.Errorf("proxy ref %q is invalid", proxyPointer.Ref)
@@ -1028,7 +1047,7 @@ func (independent *Independent) syncReferencedHandlerDepProxyOutbounds(routes []
 	return applyProxyHandlerToManager(proxyService, proxyConfig, updated)
 }
 
-func (independent *Independent) syncReferencedCommandProxyOutbound(command string, proxyPointer config.ServicePointer, outbound config.ServicePointer) error {
+func (independent *Independent) syncReferencedCommandProxyOutbound(command string, proxyPointer config.ServicePointer, outbound config.Service) error {
 	proxyServiceName, proxyHandlerCategory := proxyPointer.RefPath()
 	if proxyServiceName == "" {
 		return fmt.Errorf("proxy ref %q is invalid", proxyPointer.Ref)
@@ -1092,7 +1111,7 @@ func (independent *Independent) updateInlineProxyHandlerConfig(serviceConfig *co
 		return config.Service{}, config.ProxyHandler{}, false, err
 	}
 
-	proxyPointer.Service.SetHandler(config.NewProxyHandlerVariant(proxyConfig), true)
+	proxyPointer.Service.SetHandler(proxyConfig, true)
 	if updated {
 		if err := independent.topology.SetService(*serviceConfig); err != nil {
 			return config.Service{}, config.ProxyHandler{}, false, fmt.Errorf("topologyClient.SetService('%s'): %w", serviceConfig.Name, err)
@@ -1102,31 +1121,20 @@ func (independent *Independent) updateInlineProxyHandlerConfig(serviceConfig *co
 }
 
 func (independent *Independent) persistProxyHandlerConfig(proxyService config.Service, proxyConfig config.ProxyHandler) error {
-	proxyService.SetHandler(config.NewProxyHandlerVariant(proxyConfig), true)
+	proxyService.SetHandler(proxyConfig, true)
 	if err := independent.topology.SetService(proxyService); err != nil {
 		return fmt.Errorf("topologyClient.SetService('%s'): %w", proxyService.Name, err)
 	}
 	return nil
 }
 
-func ensureProxyHandlerOutbound(proxyConfig config.ProxyHandler, outbound config.ServicePointer) (config.ProxyHandler, bool) {
-	outbound = minimalOutboundPointer(outbound)
+func ensureProxyHandlerOutbound(proxyConfig config.ProxyHandler, outbound config.Service) (config.ProxyHandler, bool) {
+	outbound = minimalOutbound(outbound)
 	for i := range proxyConfig.Outbounds {
-		if proxyConfig.Outbounds[i].Name() != outbound.Name() {
+		if proxyConfig.Outbounds[i].Name != outbound.Name {
 			continue
 		}
-		if outbound.Ref != "" {
-			if proxyConfig.Outbounds[i].Ref == outbound.Ref {
-				return proxyConfig, false
-			}
-			proxyConfig.Outbounds[i] = outbound
-			return proxyConfig, true
-		}
-		if proxyConfig.Outbounds[i].Service.IsZero() {
-			proxyConfig.Outbounds[i] = outbound
-			return proxyConfig, true
-		}
-		if servicePointersEqual(proxyConfig.Outbounds[i], outbound) {
+		if servicesEqual(proxyConfig.Outbounds[i], outbound) {
 			return proxyConfig, false
 		}
 		proxyConfig.Outbounds[i] = outbound
@@ -1137,21 +1145,11 @@ func ensureProxyHandlerOutbound(proxyConfig config.ProxyHandler, outbound config
 	return proxyConfig, true
 }
 
-func minimalOutboundPointer(outbound config.ServicePointer) config.ServicePointer {
-	if outbound.Ref != "" || outbound.Service.IsZero() || len(outbound.Service.Handlers) == 0 {
+func minimalOutbound(outbound config.Service) config.Service {
+	if outbound.IsZero() || len(outbound.Handlers) == 0 {
 		return outbound
 	}
-	return config.ServiceTarget(minimalOutboundService(outbound.Service, outbound.Service.Handlers[0]))
-}
-
-func servicePointersEqual(a config.ServicePointer, b config.ServicePointer) bool {
-	if a.Ref != b.Ref {
-		return false
-	}
-	if a.Ref != "" {
-		return true
-	}
-	return servicesEqual(a.Service, b.Service)
+	return minimalOutboundService(outbound, outbound.Handlers[0])
 }
 
 func servicesEqual(a config.Service, b config.Service) bool {
@@ -1188,7 +1186,7 @@ func handlersEqual(a config.Handler, b config.Handler) bool {
 		len(baseB.CommandDeps) == 0
 }
 
-func configureHandlerDepProxyConfig(proxyConfig config.ProxyHandler, routes []string, outbound config.ServicePointer, commandOutbounds map[string]config.ServicePointer) (config.ProxyHandler, bool, error) {
+func configureHandlerDepProxyConfig(proxyConfig config.ProxyHandler, routes []string, outbound config.Service, commandOutbounds map[string]config.Service) (config.ProxyHandler, bool, error) {
 	updated := false
 	if !stringSlicesEqual(proxyConfig.Routes, routes) {
 		proxyConfig.Routes = append([]string(nil), routes...)
@@ -1223,7 +1221,7 @@ func configureHandlerDepProxyConfig(proxyConfig config.ProxyHandler, routes []st
 	return proxyConfig, updated, nil
 }
 
-func ensureProxyHandlerForward(proxyConfig config.ProxyHandler, command string, outbound config.ServicePointer) (config.ProxyHandler, bool, error) {
+func ensureProxyHandlerForward(proxyConfig config.ProxyHandler, command string, outbound config.Service) (config.ProxyHandler, bool, error) {
 	outboundRef, err := proxyForwardRef(outbound)
 	if err != nil {
 		return config.ProxyHandler{}, false, err
@@ -1238,26 +1236,18 @@ func ensureProxyHandlerForward(proxyConfig config.ProxyHandler, command string, 
 	return proxyConfig, true, nil
 }
 
-func proxyForwardRef(outbound config.ServicePointer) (string, error) {
-	if outbound.Ref != "" {
-		serviceName, handlerCategory := outbound.RefPath()
-		if serviceName == "" {
-			return "", fmt.Errorf("outbound ref %q is invalid", outbound.Ref)
-		}
-		return config.RefTarget(serviceName, handlerCategory).Ref, nil
+func proxyForwardRef(outbound config.Service) (string, error) {
+	if outbound.IsZero() {
+		return "", fmt.Errorf("outbound service is empty")
 	}
-	if outbound.Service.IsZero() {
-		return "", fmt.Errorf("outbound service pointer is empty")
+	if len(outbound.Handlers) == 0 {
+		return "", fmt.Errorf("outbound service %q has no handlers", outbound.Name)
 	}
-	if len(outbound.Service.Handlers) == 0 {
-		return "", fmt.Errorf("outbound service %q has no handlers", outbound.Service.Name)
-	}
-	handler, ok := outbound.Service.Handlers[0].AsIndependentHandler()
+	handler, ok := outbound.Handlers[0].AsIndependentHandler()
 	if !ok {
-		return "", fmt.Errorf("outbound service %q first handler is not an independent handler", outbound.Service.Name)
+		return "", fmt.Errorf("outbound service %q first handler is not an independent handler", outbound.Name)
 	}
-	handlerCategory := handler.Category
-	return config.RefTarget(outbound.Service.Name, handlerCategory).Ref, nil
+	return config.RefTarget(outbound.Name, handler.Category).Ref, nil
 }
 
 func stringSlicesEqual(a []string, b []string) bool {

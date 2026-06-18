@@ -30,8 +30,8 @@ func TestProxyManagerOnProxyHandlerRunningForwardsToProxyHandlers(t *testing.T) 
 	defer proxyHandlersClient.Close()
 
 	manager := &ProxyManager{
-		serviceName:         serviceName,
-		proxyHandlersClient: proxyHandlersClient,
+		serviceName: serviceName,
+		handlers:    proxyHandlersClient,
 	}
 
 	reply := manager.onSetProxyHandler(&message.Request{

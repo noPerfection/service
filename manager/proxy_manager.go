@@ -28,12 +28,12 @@ func DefaultProxyManagerEndpoint(serviceName string) message.Endpoint {
 // Manage this proxy service from other parts.
 type ProxyManager struct {
 	base.Interface
-	serviceName         string
-	topologyClient      *topology.Client
-	proxyHandlersClient *clientSyncReplier.Client
-	blocker             **sync.WaitGroup
-	running             bool
-	logger              *log.Logger
+	serviceName string
+	topology    *topology.Client
+	handlers    *clientSyncReplier.Client
+	blocker     **sync.WaitGroup
+	running     bool
+	logger      *log.Logger
 }
 
 // NewProxyManager creates a manager for a proxy service.
@@ -57,13 +57,13 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint) (*Pro
 	handler := syncReplier.New()
 
 	h := &ProxyManager{
-		Interface:           handler,
-		topologyClient:      topologyClient,
-		proxyHandlersClient: proxyHandlersClient,
-		serviceName:         serviceName,
+		Interface:   handler,
+		topology:    topologyClient,
+		handlers:    proxyHandlersClient,
+		serviceName: serviceName,
 	}
 
-	managerConfig := HandlerConfig(serviceName, managerEndpoint)
+	managerConfig := HandlerConfig(managerEndpoint)
 	handler.SetConfig(managerConfig)
 
 	return h, nil
@@ -126,15 +126,15 @@ func (m *ProxyManager) StopService(serviceName string) error {
 	if err := m.proxyHandlersRequest(handlers.StopProxyHandlersCommand); err != nil {
 		return err
 	}
-	if err := m.proxyHandlersClient.Close(); err != nil {
+	if err := m.handlers.Close(); err != nil {
 		return fmt.Errorf("proxyHandlersClient.Close: %w", err)
 	}
-	m.proxyHandlersClient = nil
-	if m.topologyClient != nil {
-		if err := m.topologyClient.Close(); err != nil {
+	m.handlers = nil
+	if m.topology != nil {
+		if err := m.topology.Close(); err != nil {
 			return fmt.Errorf("topologyClient.Close: %w", err)
 		}
-		m.topologyClient = nil
+		m.topology = nil
 	}
 
 	if m.running && m.blocker != nil && *m.blocker != nil {
@@ -212,11 +212,11 @@ func (m *ProxyManager) onStopService(req message.RequestInterface) message.Reply
 }
 
 func (m *ProxyManager) onServices(req message.RequestInterface) message.ReplyInterface {
-	if m.topologyClient == nil {
+	if m.topology == nil {
 		return req.Fail("topologyClient is nil")
 	}
 
-	services, err := m.topologyClient.Services()
+	services, err := m.topology.Services()
 	if err != nil {
 		return req.Fail(fmt.Sprintf("topologyClient.Services: %v", err))
 	}
@@ -268,7 +268,7 @@ func (m *ProxyManager) forwardProxyHandlerRequest(req message.RequestInterface, 
 		return req.Fail(err.Error())
 	}
 
-	reply, err := m.proxyHandlersClient.Request(&message.Request{
+	reply, err := m.handlers.Request(&message.Request{
 		Command:    command,
 		Parameters: req.RouteParameters(),
 	})
@@ -279,38 +279,38 @@ func (m *ProxyManager) forwardProxyHandlerRequest(req message.RequestInterface, 
 }
 
 func (m *ProxyManager) ensureTopologyClient() error {
-	if m.topologyClient != nil {
+	if m.topology != nil {
 		return nil
 	}
 	topologyClient, err := topology.NewClient()
 	if err != nil {
 		return fmt.Errorf("topology.NewClient: %w", err)
 	}
-	m.topologyClient = topologyClient
+	m.topology = topologyClient
 	return nil
 }
 
 func (m *ProxyManager) ensureProxyHandlersClient() error {
-	if m.proxyHandlersClient != nil {
+	if m.handlers != nil {
 		return nil
 	}
 	proxyHandlersClient, err := clientSyncReplier.NewClient(m.serviceName+handlers.ProxyHandlersCategory, 0)
 	if err != nil {
 		return fmt.Errorf("sync_replier.NewClient('%s'): %w", m.serviceName+handlers.ProxyHandlersCategory, err)
 	}
-	m.proxyHandlersClient = proxyHandlersClient
+	m.handlers = proxyHandlersClient
 	return nil
 }
 
 func (m *ProxyManager) setProxyHandlers() error {
-	if m.topologyClient == nil {
+	if m.topology == nil {
 		return fmt.Errorf("topologyClient is nil")
 	}
-	if m.proxyHandlersClient == nil {
+	if m.handlers == nil {
 		return fmt.Errorf("proxyHandlersClient is nil")
 	}
 
-	serviceConfig, err := m.topologyClient.Service(m.serviceName)
+	serviceConfig, err := m.topology.Service(m.serviceName)
 	if err != nil {
 		return fmt.Errorf("topologyClient.Service('%s'): %w", m.serviceName, err)
 	}
@@ -348,7 +348,7 @@ func (m *ProxyManager) warnProxyHandlerNoOutbounds(proxyHandler topologyConfig.P
 }
 
 func (m *ProxyManager) setProxyHandler(proxyHandler topologyConfig.ProxyHandler) error {
-	if m.proxyHandlersClient == nil {
+	if m.handlers == nil {
 		return fmt.Errorf("proxyHandlersClient is nil")
 	}
 	configParams, err := datatype.NewFromInterface(proxyHandler)
@@ -356,7 +356,7 @@ func (m *ProxyManager) setProxyHandler(proxyHandler topologyConfig.ProxyHandler)
 		return fmt.Errorf("datatype.NewFromInterface: %w", err)
 	}
 
-	reply, err := m.proxyHandlersClient.Request(&message.Request{
+	reply, err := m.handlers.Request(&message.Request{
 		Command: handlers.SetProxyHandlerCommand,
 		Parameters: datatype.New().
 			Set("config", configParams),
@@ -371,10 +371,10 @@ func (m *ProxyManager) setProxyHandler(proxyHandler topologyConfig.ProxyHandler)
 }
 
 func (m *ProxyManager) proxyHandlersRequest(command string) error {
-	if m.proxyHandlersClient == nil {
+	if m.handlers == nil {
 		return fmt.Errorf("proxyHandlersClient is nil")
 	}
-	reply, err := m.proxyHandlersClient.Request(&message.Request{
+	reply, err := m.handlers.Request(&message.Request{
 		Command:    command,
 		Parameters: datatype.New(),
 	})

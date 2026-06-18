@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/noPerfection/datatype"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
@@ -54,7 +55,7 @@ func New(serviceName string, managerEndpoint message.Endpoint) (*Manager, error)
 		serviceName:     serviceName,
 	}
 
-	managerConfig := HandlerConfig(serviceName, managerEndpoint)
+	managerConfig := HandlerConfig(managerEndpoint)
 	handler.SetConfig(managerConfig)
 
 	return h, nil
@@ -78,10 +79,19 @@ func (m *Manager) StartServiceByConfig(record config.Service) (string, error) {
 	if record.Name == "" || record.Name == m.serviceName {
 		return strconv.Itoa(os.Getpid()), nil
 	}
-	if m.topology == nil {
-		return "", fmt.Errorf("topology is nil")
+
+	managerHandler, err := record.HandlerByCategory(topology.ServiceManagerCategory)
+	if err != nil {
+		if m.topology == nil {
+			return "", fmt.Errorf("topology is nil")
+		}
+		return m.topology.StartService(record.Name)
 	}
-	return m.topology.StartServiceByConfig(record)
+	handler, ok := managerHandler.AsIndependentHandler()
+	if !ok {
+		return "", fmt.Errorf("service %q manager handler is not independent", record.Name)
+	}
+	return m.startServiceOnManager(record.Name, handler.Endpoint)
 }
 
 func (m *Manager) IsServiceRunning(serviceName string) (bool, error) {
@@ -98,10 +108,63 @@ func (m *Manager) IsServiceRunningByManager(serviceName string, handler config.I
 	if serviceName == "" || serviceName == m.serviceName {
 		return m.running, nil
 	}
-	if m.topology == nil {
-		return false, fmt.Errorf("topology is nil")
+	return m.isServiceRunningOnManager(serviceName, handler.Endpoint)
+}
+
+func (m *Manager) isServiceRunningOnManager(serviceName string, endpoint message.Endpoint) (bool, error) {
+	client, err := clientSyncReplier.NewClient(endpoint.Id, endpoint.Port)
+	if err != nil {
+		return false, fmt.Errorf("sync_replier.NewClient: %w", err)
 	}
-	return m.topology.IsServiceRunningByManager(serviceName, handler)
+	defer client.Close()
+
+	client.Timeout(100 * time.Millisecond)
+	client.Attempt(2)
+
+	reply, err := client.Request(&message.Request{
+		Command:    IsServiceRunning,
+		Parameters: datatype.New().Set("service", serviceName),
+	})
+	if err != nil {
+		return false, nil
+	}
+	if !reply.IsOK() {
+		return false, fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
+	}
+
+	running, err := reply.ReplyParameters().BoolValue("running")
+	if err != nil {
+		return false, fmt.Errorf("reply.Parameters.GetBoolean('running'): %w", err)
+	}
+	return running, nil
+}
+
+func (m *Manager) startServiceOnManager(serviceName string, endpoint message.Endpoint) (string, error) {
+	client, err := clientSyncReplier.NewClient(endpoint.Id, endpoint.Port)
+	if err != nil {
+		return "", fmt.Errorf("sync_replier.NewClient: %w", err)
+	}
+	defer client.Close()
+
+	client.Timeout(time.Second)
+	client.Attempt(3)
+
+	reply, err := client.Request(&message.Request{
+		Command:    StartService,
+		Parameters: datatype.New().Set("service", serviceName),
+	})
+	if err != nil {
+		return "", fmt.Errorf("socket.Request('%s'): %w", StartService, err)
+	}
+	if !reply.IsOK() {
+		return "", fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
+	}
+
+	id, err := reply.ReplyParameters().StringValue("id")
+	if err != nil {
+		return "", fmt.Errorf("reply.Parameters.GetString('id'): %w", err)
+	}
+	return id, nil
 }
 
 func (m *Manager) StopService(serviceName string) error {
@@ -217,7 +280,7 @@ func (m *Manager) onServices(req message.RequestInterface) message.ReplyInterfac
 }
 
 // HandlerConfig returns the manager handler configuration.
-func HandlerConfig(serviceName string, managerEndpoint message.Endpoint) *handlerConfig.Handler {
+func HandlerConfig(managerEndpoint message.Endpoint) *handlerConfig.Handler {
 	return handlerConfig.New(
 		handlerConfig.SyncReplierType,
 		managerEndpoint.Id,
