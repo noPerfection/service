@@ -66,23 +66,9 @@ func TestSetServiceConfigStoresByServiceName(t *testing.T) {
 		ModuleUrl: DefaultModuleUrl,
 	}
 
-	require.NoError(t, topologies.SetServiceConfig(serviceConfig))
+	require.NoError(t, topologies.SetServiceConfig(serviceConfig, "other-service"))
 
 	require.Equal(t, serviceConfig, topologies.serviceConfigs["other-service"])
-}
-
-func TestSetServiceConfigUsesDefaultServiceNameWhenEmpty(t *testing.T) {
-	topologies := NewHardcodedTopologies("custom-service")
-	serviceConfig := topologyConfig.Service{
-		Type:      topologyConfig.IndependentType,
-		ModuleUrl: DefaultModuleUrl,
-	}
-
-	require.NoError(t, topologies.SetServiceConfig(serviceConfig))
-
-	stored := topologies.serviceConfigs["custom-service"]
-	require.Equal(t, "custom-service", stored.Name)
-	require.Equal(t, topologyConfig.IndependentType, stored.Type)
 }
 
 func TestSetCommandDepsStoresByDefaultHandlerAndService(t *testing.T) {
@@ -155,7 +141,7 @@ func TestNewEmbedsHardcodedTopologies(t *testing.T) {
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
 	require.NotNil(t, independent.WithHardcodedTopology)
-	require.Equal(t, "custom-service", independent.WithHardcodedTopology.name)
+	require.Equal(t, "custom-service", independent.WithHardcodedTopology.mushroomURL)
 }
 
 func requireHardcodedServiceHandlers(t *testing.T, topologies *WithHardcodedTopology, serviceName string) []topologyConfig.Handler {

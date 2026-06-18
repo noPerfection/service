@@ -4,7 +4,7 @@ import (
 	topologyConfig "github.com/noPerfection/topology/config"
 )
 
-const rootServicesParent = "pkg:$?*var=services"
+const rootServicesParent = "*pkg:$?var=services"
 
 func testHandlers(handlers ...topologyConfig.IndependentHandler) []topologyConfig.Handler {
 	result := make([]topologyConfig.Handler, len(handlers))
