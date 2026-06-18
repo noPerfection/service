@@ -173,7 +173,7 @@ func (independent *Independent) addDefaultServiceToTopology() error {
 	if err := fillDefaultModuleURL(&serviceConfig); err != nil {
 		return err
 	}
-	if err := independent.topologyHandler.AddService(serviceConfig); err != nil {
+	if err := independent.topologyHandler.AddService(serviceConfig, serviceParentURL(independent.mushroomURL)...); err != nil {
 		return fmt.Errorf("topologyHandler.AddService('%s'): %w", independent.mushroomURL, err)
 	}
 
@@ -203,17 +203,16 @@ func (independent *Independent) addDefaultHandlerToTopology() error {
 		Type:     config.ReplierType,
 	}
 	serviceConfig.Handlers = []config.Handler{defaultHandler}
-	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
+	if err := independent.topologyHandler.SetService(serviceConfig, serviceParentURL(independent.mushroomURL)...); err != nil {
 		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.mushroomURL, err)
 	}
 
 	return nil
 }
 
-// addServiceManagerToTopology stores a non-default manager handler when topology
-// does not already have the same manager endpoint.
+// addServiceManagerToTopology stores a non-default manager handler.
+// If topology already has the same manager endpoint, then do nothing.
 func (independent *Independent) addServiceManagerToTopology() error {
-	// Our service's config in the topology.
 	serviceConfig, err := independent.topologyHandler.Service(independent.mushroomURL)
 	if err != nil {
 		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.mushroomURL, err)
@@ -240,7 +239,7 @@ func (independent *Independent) addServiceManagerToTopology() error {
 	}
 
 	serviceConfig.SetHandler(managerTopologyConfig, true)
-	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
+	if err := independent.topologyHandler.SetService(serviceConfig, serviceParentURL(independent.mushroomURL)...); err != nil {
 		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.mushroomURL, err)
 	}
 
@@ -867,10 +866,12 @@ func (independent *Independent) syncCommandOutbounds() error {
 				// Get proxy target: either the next proxy or this service handler.
 				if proxyIndex+1 < len(dep.Proxies) {
 					var err error
-					outbound, err = independent.proxyPointerOutboundTarget(dep.Proxies[proxyIndex+1])
+					// next proxy target is another proxy
+					targetService, targetHandler, err := independent.serviceAndHandlerFromPointer(dep.Proxies[proxyIndex+1])
 					if err != nil {
-						return fmt.Errorf("handler %q command %q proxy %q outbound: %w", handler.Category, dep.Name, proxyPointer.Name(), err)
+						return err
 					}
+					outbound = minimalOutboundService(targetService, targetHandler)
 				} else {
 					outbound = minimalOutboundService(serviceConfig, handler)
 				}
@@ -878,8 +879,6 @@ func (independent *Independent) syncCommandOutbounds() error {
 				var err error
 				if proxyPointer.Ref != "" {
 					err = independent.syncReferencedCommandProxyOutbound(dep.Name, *proxyPointer, outbound)
-				} else if proxyPointer.Service.IsZero() {
-					err = fmt.Errorf("proxy service pointer is empty")
 				} else {
 					err = independent.syncInlineCommandProxyOutbound(&serviceConfig, dep.Name, proxyPointer, outbound)
 				}
