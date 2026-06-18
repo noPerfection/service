@@ -60,7 +60,7 @@ func requireServiceHandler(t *testing.T, service topologyConfig.Service, categor
 func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) {
 	independent, err := New(nil, testConfigPath(t))
 	require.NoError(t, err)
-	require.Equal(t, DefaultName, independent.Name())
+	require.Equal(t, DefaultName, independent.WithHardcodedTopology.mushroomURL)
 
 	require.NoError(t, independent.addDefaultServiceToTopology())
 
