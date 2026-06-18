@@ -17,6 +17,7 @@ replace github.com/noPerfection/protocol/message => ../protocol/message
 replace github.com/noPerfection/os => ../os
 
 require (
+	github.com/ahmetson/mushroom v0.0.0
 	github.com/noPerfection/datatype v0.0.0
 	github.com/noPerfection/log v0.0.0
 	github.com/noPerfection/protocol/client v0.0.0
@@ -48,7 +49,6 @@ require (
 )
 
 require (
-	github.com/ahmetson/mushroom v0.0.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect

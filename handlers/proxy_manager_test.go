@@ -370,7 +370,7 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 
 	envelope, err := manager.SerializeRequest(proxyRequest)
 	require.NoError(t, err)
-	require.Equal(t, []string{"", request.String(), "outbound-api/" + DefaultHandlerCategory}, envelope)
+	require.Equal(t, []string{"", request.String(), "pkg:$?var=services[name:outbound-api]"}, envelope)
 
 	raw, err = manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "outbound-api"))
 	require.NoError(t, err)
@@ -383,7 +383,7 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 
 	envelope, err = manager.SerializeRequest(proxyRequest)
 	require.NoError(t, err)
-	require.Equal(t, []string{"", request.String(), "outbound-api/" + DefaultHandlerCategory}, envelope)
+	require.Equal(t, []string{"", request.String(), "pkg:$?var=services[name:outbound-api]"}, envelope)
 }
 
 func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
@@ -454,7 +454,7 @@ func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
 	require.True(t, reply.IsOK(), reply.ErrorMessage())
 
 	_, err = proxyForwardRequest(manager, proxyConfig.Category, serviceName, "missing").Forward()
-	require.EqualError(t, err, `outbound ref "outbound-forward/missing" is not connected`)
+	require.EqualError(t, err, `outbound ref "pkg:$?var=services[name:outbound-forward].handlers[category:missing]" is not connected`)
 }
 
 func TestProxyHandlerRouteForwardsToOutboundAcrossLifecycle(t *testing.T) {
