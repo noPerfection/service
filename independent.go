@@ -34,7 +34,7 @@ type Independent struct {
 	*WithHardcodedTopology
 	topologyHandler *topology.Handler // topology handles the configuration and dependencies
 	topology        *topology.Client
-	name            string
+	mushroomURL     string
 	blocker         *sync.WaitGroup
 	manager         *manager.Manager // manage this service from other parts
 }
@@ -124,7 +124,7 @@ func New(params ...any) (*Independent, error) {
 		Handlers:              handlers.NewHandlers(),
 		WithHardcodedTopology: NewHardcodedTopologies(mushroomURL),
 		topologyHandler:       topologyHandler,
-		name:                  mushroomURL,
+		mushroomURL:           mushroomURL,
 		manager:               m,
 	}
 
@@ -140,9 +140,9 @@ func (independent *Independent) EnableLogger(enable bool) error {
 		return nil
 	}
 
-	logger, err := log.New(independent.name, true)
+	logger, err := log.New(independent.mushroomURL, true)
 	if err != nil {
-		return fmt.Errorf("log.New(%s): %w", independent.name, err)
+		return fmt.Errorf("log.New(%s): %w", independent.mushroomURL, err)
 	}
 	if err := independent.Handlers.SetLogger(logger); err != nil {
 		return fmt.Errorf("handlers.SetLogger: %w", err)
@@ -157,34 +157,24 @@ func (independent *Independent) EnableLogger(enable bool) error {
 	return nil
 }
 
-// Name returns the unique name of the service
-func (independent *Independent) Name() string {
-	return independent.name
-}
-
-// Type returns the configuration type for an independent service.
-func (independent *Independent) Type() config.Type {
-	return config.IndependentType
-}
-
 // addDefaultServiceToTopology adds the default service config
 // if no config was given for this service.
 func (independent *Independent) addDefaultServiceToTopology() error {
-	serviceConfig, err := independent.topologyHandler.Service(independent.name)
+	serviceConfig, err := independent.topologyHandler.Service(independent.mushroomURL)
 	if err == nil {
 		return nil
 	}
 
 	serviceConfig = config.Service{
 		Type:     config.IndependentType,
-		Name:     independent.name,
+		Name:     independent.mushroomURL,
 		Handlers: []config.Handler{},
 	}
 	if err := fillDefaultModuleURL(&serviceConfig); err != nil {
 		return err
 	}
 	if err := independent.topologyHandler.AddService(serviceConfig); err != nil {
-		return fmt.Errorf("topologyHandler.AddService('%s'): %w", independent.name, err)
+		return fmt.Errorf("topologyHandler.AddService('%s'): %w", independent.mushroomURL, err)
 	}
 
 	return nil
@@ -193,9 +183,9 @@ func (independent *Independent) addDefaultServiceToTopology() error {
 // addDefaultHandlerToTopology adds the default handler when no handlers exist.
 // Unless there are handlers set by you or others
 func (independent *Independent) addDefaultHandlerToTopology() error {
-	serviceConfig, err := independent.topologyHandler.Service(independent.name)
+	serviceConfig, err := independent.topologyHandler.Service(independent.mushroomURL)
 	if err != nil {
-		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.name, err)
+		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.mushroomURL, err)
 	}
 	if len(serviceConfig.Handlers) > 0 {
 		return nil
@@ -214,7 +204,7 @@ func (independent *Independent) addDefaultHandlerToTopology() error {
 	}
 	serviceConfig.Handlers = []config.Handler{defaultHandler}
 	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
-		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.name, err)
+		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.mushroomURL, err)
 	}
 
 	return nil
@@ -224,9 +214,9 @@ func (independent *Independent) addDefaultHandlerToTopology() error {
 // does not already have the same manager endpoint.
 func (independent *Independent) addServiceManagerToTopology() error {
 	// Our service's config in the topology.
-	serviceConfig, err := independent.topologyHandler.Service(independent.name)
+	serviceConfig, err := independent.topologyHandler.Service(independent.mushroomURL)
 	if err != nil {
-		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.name, err)
+		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.mushroomURL, err)
 	}
 
 	// Service manager's config in the handler config format.
@@ -251,7 +241,7 @@ func (independent *Independent) addServiceManagerToTopology() error {
 
 	serviceConfig.SetHandler(managerTopologyConfig, true)
 	if err := independent.topologyHandler.SetService(serviceConfig); err != nil {
-		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.name, err)
+		return fmt.Errorf("topologyHandler.SetService('%s'): %w", independent.mushroomURL, err)
 	}
 
 	return nil
@@ -278,9 +268,9 @@ func newHandler(handlerType config.HandlerType) (base.Interface, error) {
 // Except for the Service Manager category, any handler defined in the topology is
 // registered in the handlers package for launching them.
 func (independent *Independent) addTopologyHandlersToHandlers() error {
-	serviceConfig, err := independent.topologyHandler.Service(independent.name)
+	serviceConfig, err := independent.topologyHandler.Service(independent.mushroomURL)
 	if err != nil {
-		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.name, err)
+		return fmt.Errorf("topologyHandler.Service('%s'): %w", independent.mushroomURL, err)
 	}
 
 	for _, configuredVariant := range serviceConfig.Handlers {
@@ -408,7 +398,7 @@ func (independent *Independent) Start() error {
 errOccurred:
 	if err != nil {
 		if independent.manager != nil && independent.manager.Running() {
-			closeErr := independent.manager.StopService(independent.name)
+			closeErr := independent.manager.StopService(independent.mushroomURL)
 			if closeErr != nil {
 				err = fmt.Errorf("%v: manager.StopService: %w", err, closeErr)
 			}
@@ -419,9 +409,9 @@ errOccurred:
 }
 
 func (independent *Independent) syncHandlerDepOutbounds() error {
-	serviceConfig, err := independent.topology.Service(independent.name)
+	serviceConfig, err := independent.topology.Service(independent.mushroomURL)
 	if err != nil {
-		return fmt.Errorf("topologyClient.Service('%s'): %w", independent.name, err)
+		return fmt.Errorf("topologyClient.Service('%s'): %w", independent.mushroomURL, err)
 	}
 	if len(serviceConfig.HandlerDeps) == 0 {
 		return nil
@@ -466,9 +456,9 @@ func (independent *Independent) syncHandlerDepOutbounds() error {
 
 // startIpcServices starts IPC services this service depends on.
 func (independent *Independent) startIpcServices() error {
-	serviceConfig, err := independent.topology.Service(independent.name)
+	serviceConfig, err := independent.topology.Service(independent.mushroomURL)
 	if err != nil {
-		return fmt.Errorf("topologyClient.Service('%s'): %w", independent.name, err)
+		return fmt.Errorf("topologyClient.Service('%s'): %w", independent.mushroomURL, err)
 	}
 
 	startedRefs := make(map[string]struct{})
@@ -587,9 +577,9 @@ func (independent *Independent) startIpcService(pointer config.ServicePointer, s
 // ipc can forward to ipc and tcp, but not inproc protocol.
 // inproc can forward to inproc only, but not ipc or tcp protocol.
 func (independent *Independent) validateProtocolOrders() error {
-	serviceConfig, err := independent.topologyService(independent.name)
+	serviceConfig, err := independent.topologyService(independent.mushroomURL)
 	if err != nil {
-		return fmt.Errorf("service %q: %w", independent.name, err)
+		return fmt.Errorf("service %q: %w", independent.mushroomURL, err)
 	}
 
 	return independent.validateProtocolOrdersFor(serviceConfig)
@@ -858,9 +848,9 @@ func serviceManagerEndpoint(serviceConfig config.Service) (message.Endpoint, err
 // For every proxy in a command’s chain, figure out who it forwards to,
 // write that into the proxy’s config, save it, and tell the running proxy to reload.
 func (independent *Independent) syncCommandOutbounds() error {
-	serviceConfig, err := independent.topology.Service(independent.name)
+	serviceConfig, err := independent.topology.Service(independent.mushroomURL)
 	if err != nil {
-		return fmt.Errorf("topologyClient.Service('%s'): %w", independent.name, err)
+		return fmt.Errorf("topologyClient.Service('%s'): %w", independent.mushroomURL, err)
 	}
 
 	for handlerIndex := range serviceConfig.Handlers {
@@ -1393,7 +1383,7 @@ func containsString(values []string, value string) bool {
 }
 
 func (independent *Independent) Stop() error {
-	return independent.manager.StopService(independent.name)
+	return independent.manager.StopService(independent.mushroomURL)
 }
 
 func (independent *Independent) Wait() {
