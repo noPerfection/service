@@ -305,8 +305,8 @@ func (manager *ProxyHandlers) applyConfiguredForward(proxified *ProxifiedHandler
 }
 
 func (proxified *ProxifiedHandler) resolveConfiguredForward(outbound Outbound) (Outbound, error) {
-	for _, pointer := range proxified.proxyConfig.Outbounds {
-		resolved, err := outboundFromServicePointer(proxified.proxyConfig.Category, pointer, outbound.ServiceName, outbound.HandlerCategory)
+	for _, service := range proxified.proxyConfig.Outbounds {
+		resolved, err := outboundFromService(proxified.proxyConfig.Category, service, outbound.ServiceName, outbound.HandlerCategory)
 		if err == nil {
 			return resolved, nil
 		}
@@ -691,16 +691,13 @@ func validateProxyHandlerOutbounds(proxyConfig topologyConfig.ProxyHandler) erro
 	}
 
 	for i, outbound := range proxyConfig.Outbounds {
-		if outbound.Ref != "" {
-			return fmt.Errorf("outbounds[%d] must be inline service, not ref %q", i, outbound.Ref)
-		}
-		if outbound.Service.IsZero() {
+		if outbound.IsZero() {
 			return fmt.Errorf("outbounds[%d] service is required", i)
 		}
-		if len(outbound.Service.Handlers) == 0 {
-			return fmt.Errorf("outbounds[%d] service %q must have at least one handler", i, outbound.Service.Name)
+		if len(outbound.Handlers) == 0 {
+			return fmt.Errorf("outbounds[%d] service %q must have at least one handler", i, outbound.Name)
 		}
-		if err := topologyConfig.ValidateOutboundService(outbound.Service); err != nil {
+		if err := topologyConfig.ValidateOutboundService(outbound); err != nil {
 			return fmt.Errorf("outbounds[%d] service: %w", i, err)
 		}
 	}
@@ -711,14 +708,13 @@ func validateProxyHandlerOutbounds(proxyConfig topologyConfig.ProxyHandler) erro
 func newOutboundClients(proxyConfig topologyConfig.ProxyHandler) (map[string]map[string]outboundClient, error) {
 	clients := make(map[string]map[string]outboundClient)
 	for i, outbound := range proxyConfig.Outbounds {
-		service := outbound.Service
-		if service.IsZero() {
+		if outbound.IsZero() {
 			return nil, fmt.Errorf("outbounds[%d] service is required", i)
 		}
-		if clients[service.Name] == nil {
-			clients[service.Name] = make(map[string]outboundClient)
+		if clients[outbound.Name] == nil {
+			clients[outbound.Name] = make(map[string]outboundClient)
 		}
-		for j, variant := range service.Handlers {
+		for j, variant := range outbound.Handlers {
 			handler, ok := variant.AsIndependentHandler()
 			if !ok {
 				_ = closeOutboundClients(clients)
@@ -729,7 +725,7 @@ func newOutboundClients(proxyConfig topologyConfig.ProxyHandler) (map[string]map
 				_ = closeOutboundClients(clients)
 				return nil, fmt.Errorf("outbounds[%d].handlers[%d]: %w", i, j, err)
 			}
-			clients[service.Name][handler.Category] = client
+			clients[outbound.Name][handler.Category] = client
 		}
 	}
 	return clients, nil
@@ -822,7 +818,7 @@ func (manager *ProxyHandlers) defaultOutbound() (Outbound, error) {
 		return Outbound{}, fmt.Errorf("first proxified handler has no outbounds")
 	}
 
-	return outboundFromServicePointer(proxified.proxyConfig.Category, proxified.proxyConfig.Outbounds[0], "", "")
+	return outboundFromService(proxified.proxyConfig.Category, proxified.proxyConfig.Outbounds[0], "", "")
 }
 
 func (manager *ProxyHandlers) resolveOutbound(serviceName string, handlerCategory string) (Outbound, error) {
@@ -837,10 +833,10 @@ func (manager *ProxyHandlers) resolveOutbound(serviceName string, handlerCategor
 		if proxified == nil || proxified.proxyConfig.Category == "" {
 			continue
 		}
-		for _, pointer := range proxified.proxyConfig.Outbounds {
-			outbound, err := outboundFromServicePointer(proxified.proxyConfig.Category, pointer, serviceName, handlerCategory)
+		for _, outbound := range proxified.proxyConfig.Outbounds {
+			resolved, err := outboundFromService(proxified.proxyConfig.Category, outbound, serviceName, handlerCategory)
 			if err == nil {
-				return outbound, nil
+				return resolved, nil
 			}
 		}
 	}
@@ -872,37 +868,37 @@ func (manager *ProxyHandlers) firstProxifiedHandler() (*ProxifiedHandler, error)
 	return nil, fmt.Errorf("no proxified handler configs")
 }
 
-func outboundFromServicePointer(proxifiedHandler string, pointer topologyConfig.ServicePointer, serviceName string, handlerCategory string) (Outbound, error) {
-	if pointer.Service.IsZero() {
+func outboundFromService(proxifiedHandler string, service topologyConfig.Service, serviceName string, handlerCategory string) (Outbound, error) {
+	if service.IsZero() {
 		return Outbound{}, fmt.Errorf("outbound service is required")
 	}
-	if serviceName != "" && pointer.Service.Name != serviceName {
-		return Outbound{}, fmt.Errorf("outbound service %q does not match %q", pointer.Service.Name, serviceName)
+	if serviceName != "" && service.Name != serviceName {
+		return Outbound{}, fmt.Errorf("outbound service %q does not match %q", service.Name, serviceName)
 	}
-	if len(pointer.Service.Handlers) == 0 {
-		return Outbound{}, fmt.Errorf("outbound service %q has no handlers", pointer.Service.Name)
+	if len(service.Handlers) == 0 {
+		return Outbound{}, fmt.Errorf("outbound service %q has no handlers", service.Name)
 	}
 
-	selectedHandler, ok := pointer.Service.Handlers[0].AsIndependentHandler()
+	selectedHandler, ok := service.Handlers[0].AsIndependentHandler()
 	if !ok {
-		return Outbound{}, fmt.Errorf("outbound service %q first handler is not an independent handler", pointer.Service.Name)
+		return Outbound{}, fmt.Errorf("outbound service %q first handler is not an independent handler", service.Name)
 	}
 	if handlerCategory != "" {
 		var err error
 		var variant topologyConfig.Handler
-		variant, err = pointer.Service.HandlerByCategory(handlerCategory)
+		variant, err = service.HandlerByCategory(handlerCategory)
 		if err != nil {
 			return Outbound{}, err
 		}
 		selectedHandler, ok = variant.AsIndependentHandler()
 		if !ok {
-			return Outbound{}, fmt.Errorf("outbound service %q handler %q is not an independent handler", pointer.Service.Name, handlerCategory)
+			return Outbound{}, fmt.Errorf("outbound service %q handler %q is not an independent handler", service.Name, handlerCategory)
 		}
 	}
 
 	return Outbound{
 		proxifiedHandler: proxifiedHandler,
-		ServiceName:      pointer.Service.Name,
+		ServiceName:      service.Name,
 		HandlerCategory:  selectedHandler.Category,
 	}, nil
 }

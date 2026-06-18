@@ -72,18 +72,18 @@ func inprocManagerProxyService(name string, handlerEndpoint message.Endpoint, in
 		ModuleUrl:  DefaultModuleUrl,
 		Parameters: parameters,
 		Handlers: []topologyConfig.Handler{
-			topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
+			topologyConfig.ProxyHandler{
 				IndependentHandler: topologyConfig.IndependentHandler{
 					Type:     topologyConfig.SyncReplierType,
 					Category: handlers.DefaultHandlerCategory,
 					Endpoint: handlerEndpoint,
 				},
-			}),
-			topologyConfig.NewHandlerVariant(topologyConfig.IndependentHandler{
+			},
+			topologyConfig.IndependentHandler{
 				Type:     topologyConfig.SyncReplierType,
 				Category: topology.ServiceManagerCategory,
 				Endpoint: managerEndpoint,
-			}),
+			},
 		},
 	}
 }
@@ -93,7 +93,7 @@ func inprocManagerIndependentService(name string, handlerEndpoint message.Endpoi
 		Type:      topologyConfig.IndependentType,
 		Name:      name,
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: topologyConfig.NewHandlerVariants(
+		Handlers: testHandlers(
 			topologyConfig.IndependentHandler{
 				Type:     topologyConfig.SyncReplierType,
 				Category: handlers.DefaultHandlerCategory,

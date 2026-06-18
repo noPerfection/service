@@ -10,7 +10,7 @@ import (
 
 func TestSetHandlerConfigStoresByDefaultServiceAndCategory(t *testing.T) {
 	topologies := NewHardcodedTopologies("custom-service")
-	handler := topologyConfig.Handler{
+	handler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.ReplierType,
 		Category: "main",
 		Endpoint: message.NewEndpoint(testEndpointID(t, "main"), 0),
@@ -24,7 +24,7 @@ func TestSetHandlerConfigStoresByDefaultServiceAndCategory(t *testing.T) {
 
 func TestSetHandlerConfigStoresByExplicitServiceAndCategory(t *testing.T) {
 	topologies := NewHardcodedTopologies("default-service")
-	handler := topologyConfig.Handler{
+	handler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: "api",
 		Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
@@ -40,12 +40,12 @@ func TestSetHandlerConfigStoresByExplicitServiceAndCategory(t *testing.T) {
 
 func TestSetHandlerConfigReplacesExistingCategory(t *testing.T) {
 	topologies := NewHardcodedTopologies("custom-service")
-	first := topologyConfig.Handler{
+	first := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.ReplierType,
 		Category: "main",
 		Endpoint: message.NewEndpoint(testEndpointID(t, "first"), 0),
 	}
-	second := topologyConfig.Handler{
+	second := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: "main",
 		Endpoint: message.NewEndpoint(testEndpointID(t, "second"), 0),

@@ -165,7 +165,7 @@ func (proxy *Proxy) addServiceManagerToTopology() error {
 		Endpoint: managerConfig.Endpoint,
 	}
 
-	serviceConfig.SetHandler(config.NewHandlerVariant(managerTopologyConfig), true)
+	serviceConfig.SetHandler(managerTopologyConfig, true)
 	if err := proxy.topologyHandler.SetService(serviceConfig); err != nil {
 		return fmt.Errorf("topologyHandler.SetService('%s'): %w", proxy.name, err)
 	}

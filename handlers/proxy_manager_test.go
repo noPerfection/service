@@ -15,6 +15,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func handlersOf(handlers ...topologyConfig.IndependentHandler) []topologyConfig.Handler {
+	result := make([]topologyConfig.Handler, len(handlers))
+	for i, h := range handlers {
+		result[i] = h
+	}
+	return result
+}
+
 func TestProxyHandlersLifecycle(t *testing.T) {
 	require.Panics(t, func() {
 		NewProxyHandlers("tmp-proxy-service")
@@ -65,7 +73,7 @@ func TestValidateProxyHandlerOutboundsRequiresInlineServiceWithHandler(t *testin
 		Type:      topologyConfig.IndependentType,
 		Name:      "api",
 		ModuleUrl: "github.com/noPerfection/service/handlers/test",
-		Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
+		Handlers: handlersOf(topologyConfig.IndependentHandler{
 			Type:     topologyConfig.ReplierType,
 			Category: "main",
 			Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
@@ -74,7 +82,7 @@ func TestValidateProxyHandlerOutboundsRequiresInlineServiceWithHandler(t *testin
 
 	tests := []struct {
 		name        string
-		outbounds   []topologyConfig.ServicePointer
+		outbounds   []topologyConfig.Service
 		expectedErr string
 	}{
 		{
@@ -83,28 +91,23 @@ func TestValidateProxyHandlerOutboundsRequiresInlineServiceWithHandler(t *testin
 			expectedErr: "not possible to send since no outbound yet",
 		},
 		{
-			name:        "service-2/main",
-			outbounds:   []topologyConfig.ServicePointer{topologyConfig.RefTarget("api")},
-			expectedErr: `outbounds[0] must be inline service, not ref "api"`,
-		},
-		{
 			name:        "missing service",
-			outbounds:   []topologyConfig.ServicePointer{{}},
+			outbounds:   []topologyConfig.Service{{}},
 			expectedErr: "outbounds[0] service is required",
 		},
 		{
 			name: "service without handler",
-			outbounds: []topologyConfig.ServicePointer{
-				topologyConfig.ServiceTarget(topologyConfig.Service{
+			outbounds: []topologyConfig.Service{
+				{
 					Type: topologyConfig.IndependentType,
 					Name: "api",
-				}),
+				},
 			},
 			expectedErr: `outbounds[0] service "api" must have at least one handler`,
 		},
 		{
 			name:      "inline service with handler",
-			outbounds: []topologyConfig.ServicePointer{topologyConfig.ServiceTarget(inlineService)},
+			outbounds: []topologyConfig.Service{inlineService},
 		},
 	}
 
@@ -148,7 +151,7 @@ func TestProxyHandlersSetProxyHandler(t *testing.T) {
 	require.Contains(t, reply.ErrorMessage(), "Can not convert 'config' to noPerfection/topology/config.ProxyHandler: ")
 
 	noOutbounds := proxyConfig
-	noOutbounds.Outbounds = []topologyConfig.ServicePointer{}
+	noOutbounds.Outbounds = []topologyConfig.Service{}
 	reply = proxyManagerRequest(t, client, SetProxyHandlerCommand, proxyManagerConfigParams(t, noOutbounds))
 	require.False(t, reply.IsOK())
 	require.Equal(t, "not possible to send since no outbound yet", reply.ErrorMessage())
@@ -385,7 +388,7 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 
 func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
 	serviceName := "outbound-forward"
-	outboundHandlers := []topologyConfig.Handler{
+	outboundHandlers := []topologyConfig.IndependentHandler{
 		startForwardOutboundHandler(t, handlerConfig.SyncReplierType, "sync", "sync reply"),
 		startForwardOutboundHandler(t, handlerConfig.ReplierType, "replier", "replier reply"),
 		startForwardOutboundHandler(t, handlerConfig.PairType, "pair", "pair reply"),
@@ -394,18 +397,18 @@ func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
 	}
 
 	proxyConfig := topologyConfig.ProxyHandler{
-		Handler: topologyConfig.Handler{
+		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: "proxy",
 			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-forward"), 0),
 		},
-		Outbounds: []topologyConfig.ServicePointer{
-			topologyConfig.ServiceTarget(topologyConfig.Service{
+		Outbounds: []topologyConfig.Service{
+			topologyConfig.Service{
 				Type:      topologyConfig.IndependentType,
 				Name:      serviceName,
 				ModuleUrl: "github.com/noPerfection/service/handlers/test",
-				Handlers:  topologyConfig.NewHandlerVariants(outboundHandlers...),
-			}),
+				Handlers:  handlersOf(outboundHandlers...),
+			},
 		},
 	}
 
@@ -460,19 +463,19 @@ func TestProxyHandlerRouteForwardsToOutboundAcrossLifecycle(t *testing.T) {
 	serviceName := "outbound-route-forward"
 	outboundHandler := startEchoOutboundHandler(t, "echo")
 	proxyConfig := topologyConfig.ProxyHandler{
-		Handler: topologyConfig.Handler{
+		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: proxyCategory,
 			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-route-forward"), 0),
 		},
 		Routes: []string{base.Any},
-		Outbounds: []topologyConfig.ServicePointer{
-			topologyConfig.ServiceTarget(topologyConfig.Service{
+		Outbounds: []topologyConfig.Service{
+			topologyConfig.Service{
 				Type:      topologyConfig.IndependentType,
 				Name:      serviceName,
 				ModuleUrl: "github.com/noPerfection/service/handlers/test",
-				Handlers:  topologyConfig.NewHandlerVariants(outboundHandler),
-			}),
+				Handlers:  handlersOf(outboundHandler),
+			},
 		},
 	}
 
@@ -517,20 +520,20 @@ func TestProxyHandlerConfiguredForwardOverridesTailOutbound(t *testing.T) {
 	defaultHandler := startForwardOutboundHandler(t, handlerConfig.SyncReplierType, "default", "default reply")
 	configuredHandler := startForwardOutboundHandler(t, handlerConfig.SyncReplierType, DefaultHandlerCategory, "configured reply")
 	proxyConfig := topologyConfig.ProxyHandler{
-		Handler: topologyConfig.Handler{
+		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: proxyCategory,
 			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-forward-config"), 0),
 		},
 		Routes:  []string{"forward"},
 		Forward: map[string]string{"forward": serviceName},
-		Outbounds: []topologyConfig.ServicePointer{
-			topologyConfig.ServiceTarget(topologyConfig.Service{
+		Outbounds: []topologyConfig.Service{
+			topologyConfig.Service{
 				Type:      topologyConfig.IndependentType,
 				Name:      serviceName,
 				ModuleUrl: "github.com/noPerfection/service/handlers/test",
-				Handlers:  topologyConfig.NewHandlerVariants(defaultHandler, configuredHandler),
-			}),
+				Handlers:  handlersOf(defaultHandler, configuredHandler),
+			},
 		},
 	}
 
@@ -582,7 +585,7 @@ func proxyMessageRoute(text string) ProxyHandleFunc {
 	}
 }
 
-func startForwardOutboundHandler(t *testing.T, handlerType handlerConfig.HandlerType, category string, replyText string) topologyConfig.Handler {
+func startForwardOutboundHandler(t *testing.T, handlerType handlerConfig.HandlerType, category string, replyText string) topologyConfig.IndependentHandler {
 	t.Helper()
 
 	handler := newProtocolHandler(t, handlerType)
@@ -595,14 +598,14 @@ func startForwardOutboundHandler(t *testing.T, handlerType handlerConfig.Handler
 		_ = closeHandlers([]base.Interface{handler})
 	})
 
-	return topologyConfig.Handler{
+	return topologyConfig.IndependentHandler{
 		Type:     topologyConfig.HandlerType(handlerType),
 		Category: category,
 		Endpoint: message.NewEndpoint(handler.Config().Id, handler.Config().Port),
 	}
 }
 
-func startEchoOutboundHandler(t *testing.T, category string) topologyConfig.Handler {
+func startEchoOutboundHandler(t *testing.T, category string) topologyConfig.IndependentHandler {
 	t.Helper()
 
 	handler := newProtocolHandler(t, handlerConfig.SyncReplierType)
@@ -619,14 +622,14 @@ func startEchoOutboundHandler(t *testing.T, category string) topologyConfig.Hand
 		_ = closeHandlers([]base.Interface{handler})
 	})
 
-	return topologyConfig.Handler{
+	return topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: category,
 		Endpoint: message.NewEndpoint(handler.Config().Id, handler.Config().Port),
 	}
 }
 
-func startForwardPublisher(t *testing.T, serviceName string, category string, replyText string) topologyConfig.Handler {
+func startForwardPublisher(t *testing.T, serviceName string, category string, replyText string) topologyConfig.IndependentHandler {
 	t.Helper()
 
 	handler := newProtocolHandler(t, handlerConfig.PublisherType)
@@ -655,7 +658,7 @@ func startForwardPublisher(t *testing.T, serviceName string, category string, re
 		})
 	}()
 
-	return topologyConfig.Handler{
+	return topologyConfig.IndependentHandler{
 		Type:     topologyConfig.PublisherType,
 		Category: category,
 		Endpoint: message.NewEndpoint(handler.Config().Id, handler.Config().Port),
@@ -681,23 +684,23 @@ func validProxyHandlerConfig(t *testing.T, category string) topologyConfig.Proxy
 	t.Helper()
 
 	return topologyConfig.ProxyHandler{
-		Handler: topologyConfig.Handler{
+		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: category,
 			Endpoint: message.NewEndpoint(testEndpointID(t, category), 0),
 		},
 		Routes: []string{"hello"},
-		Outbounds: []topologyConfig.ServicePointer{
-			topologyConfig.ServiceTarget(topologyConfig.Service{
+		Outbounds: []topologyConfig.Service{
+			topologyConfig.Service{
 				Type:      topologyConfig.IndependentType,
 				Name:      "outbound-" + category,
 				ModuleUrl: "github.com/noPerfection/service/handlers/test",
-				Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
+				Handlers: handlersOf(topologyConfig.IndependentHandler{
 					Type:     topologyConfig.SyncReplierType,
 					Category: DefaultHandlerCategory,
 					Endpoint: message.NewEndpoint(testEndpointID(t, "outbound-"+category), 0),
 				}),
-			}),
+			},
 		},
 	}
 }

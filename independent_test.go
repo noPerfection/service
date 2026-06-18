@@ -47,12 +47,14 @@ func closeTopologyHandler(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 }
 
-func requireServiceHandler(t *testing.T, service topologyConfig.Service, category string) topologyConfig.Handler {
+func requireServiceHandler(t *testing.T, service topologyConfig.Service, category string) topologyConfig.IndependentHandler {
 	t.Helper()
 
 	handler, err := service.HandlerByCategory(category)
 	require.NoError(t, err)
-	return handler.AsHandler()
+	independentHandler, ok := handler.AsIndependentHandler()
+	require.True(t, ok)
+	return independentHandler
 }
 
 func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) {
@@ -73,7 +75,8 @@ func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) 
 	require.NoError(t, err)
 	require.Len(t, serviceConfig.Handlers, 1)
 
-	defaultHandler := serviceConfig.Handlers[0].AsHandler()
+	defaultHandler, ok := serviceConfig.Handlers[0].AsIndependentHandler()
+	require.True(t, ok)
 	require.Equal(t, topologyConfig.ReplierType, defaultHandler.Type)
 	require.Equal(t, handlers.DefaultHandlerCategory, defaultHandler.Category)
 	require.Equal(t, handlers.DefaultHandlerEndpoint, defaultHandler.Endpoint)
@@ -106,7 +109,7 @@ func TestNewUsesManagerEndpointFromConfigWhenEndpointNotPassed(t *testing.T) {
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
+		Handlers: testHandlers(topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: topology.ServiceManagerCategory,
 			Endpoint: configuredEndpoint,
@@ -114,7 +117,7 @@ func TestNewUsesManagerEndpointFromConfigWhenEndpointNotPassed(t *testing.T) {
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
-	require.NoError(t, appConfig.AddService(existingService))
+	require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
 	require.NoError(t, appConfig.Save())
 
 	independent, err = New("custom-service", configPath)
@@ -124,7 +127,7 @@ func TestNewUsesManagerEndpointFromConfigWhenEndpointNotPassed(t *testing.T) {
 
 func TestLintManagerTopologyOverwritesExistingManagerConfig(t *testing.T) {
 	configPath := testConfigPath(t)
-	existingManager := topologyConfig.Handler{
+	existingManager := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: topology.ServiceManagerCategory,
 		Endpoint: DefaultServiceManagerEndpoint,
@@ -133,8 +136,8 @@ func TestLintManagerTopologyOverwritesExistingManagerConfig(t *testing.T) {
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: topologyConfig.NewHandlerVariants(
-			topologyConfig.Handler{
+		Handlers: testHandlers(
+			topologyConfig.IndependentHandler{
 				Type:     topologyConfig.ReplierType,
 				Category: handlers.DefaultHandlerCategory,
 				Endpoint: handlers.DefaultHandlerEndpoint,
@@ -144,7 +147,7 @@ func TestLintManagerTopologyOverwritesExistingManagerConfig(t *testing.T) {
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
-	require.NoError(t, appConfig.AddService(existingService))
+	require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
 	require.NoError(t, appConfig.Save())
 
 	managerEndpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
@@ -162,7 +165,7 @@ func TestLintManagerTopologyOverwritesExistingManagerConfig(t *testing.T) {
 
 func TestLintDefaultTopologyKeepsExistingDefaultHandlerConfig(t *testing.T) {
 	configPath := testConfigPath(t)
-	existingMain := topologyConfig.Handler{
+	existingMain := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: handlers.DefaultHandlerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "existing-main"), 0),
@@ -171,11 +174,11 @@ func TestLintDefaultTopologyKeepsExistingDefaultHandlerConfig(t *testing.T) {
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers:  topologyConfig.NewHandlerVariants(existingMain),
+		Handlers:  testHandlers(existingMain),
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
-	require.NoError(t, appConfig.AddService(existingService))
+	require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
 	require.NoError(t, appConfig.Save())
 
 	independent, err := New("custom-service", configPath, message.NewEndpoint(testEndpointID(t, "manager"), 0))
@@ -192,7 +195,7 @@ func TestLintDefaultTopologyKeepsExistingDefaultHandlerConfig(t *testing.T) {
 }
 
 func TestAddDefaultHandlerToTopologySkipsWhenHardcodedHandlersWereAdded(t *testing.T) {
-	hardcodedMain := topologyConfig.Handler{
+	hardcodedMain := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.ReplierType,
 		Category: handlers.DefaultHandlerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "hardcoded-main"), 0),
@@ -207,7 +210,7 @@ func TestAddDefaultHandlerToTopologySkipsWhenHardcodedHandlersWereAdded(t *testi
 
 	serviceConfig, err := independent.topologyHandler.Service("custom-service")
 	require.NoError(t, err)
-	require.Equal(t, topologyConfig.NewHandlerVariants(hardcodedMain), serviceConfig.Handlers)
+	require.Equal(t, testHandlers(hardcodedMain), serviceConfig.Handlers)
 }
 
 func TestAddHardcodedServicesToTopologyAddsProxyService(t *testing.T) {
@@ -215,17 +218,25 @@ func TestAddHardcodedServicesToTopologyAddsProxyService(t *testing.T) {
 		Type:      topologyConfig.ProxyType,
 		Name:      "default-name-proxy",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: []topologyConfig.HandlerVariant{
-			topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
-				Handler: topologyConfig.Handler{
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.ProxyHandler{
+				IndependentHandler: topologyConfig.IndependentHandler{
 					Type:     topologyConfig.SyncReplierType,
 					Category: "default-name",
 					Endpoint: message.NewEndpoint(testEndpointID(t, "proxy"), 8001),
 				},
-				Outbounds: []topologyConfig.ServicePointer{
-					topologyConfig.RefTarget("hello-world", handlers.DefaultHandlerCategory),
+				Outbounds: []topologyConfig.Service{
+					{
+						Type: topologyConfig.IndependentType,
+						Name: "hello-world",
+						Handlers: testHandlers(topologyConfig.IndependentHandler{
+							Type:     topologyConfig.ReplierType,
+							Category: handlers.DefaultHandlerCategory,
+							Endpoint: message.NewEndpoint(testEndpointID(t, "hello-world"), 0),
+						}),
+					},
 				},
-			}),
+			},
 		},
 	}
 	independent, err := New("hello-world", testConfigPath(t))
@@ -241,7 +252,7 @@ func TestAddHardcodedServicesToTopologyAddsProxyService(t *testing.T) {
 }
 
 func TestAddHardcodedServicesToTopologyAddsServiceBeforeDefault(t *testing.T) {
-	hardcodedMain := topologyConfig.Handler{
+	hardcodedMain := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: handlers.DefaultHandlerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "hardcoded-main"), 0),
@@ -250,7 +261,7 @@ func TestAddHardcodedServicesToTopologyAddsServiceBeforeDefault(t *testing.T) {
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: "github.com/noPerfection/custom-service",
-		Handlers:  topologyConfig.NewHandlerVariants(hardcodedMain),
+		Handlers:  testHandlers(hardcodedMain),
 	}
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
@@ -265,7 +276,7 @@ func TestAddHardcodedServicesToTopologyAddsServiceBeforeDefault(t *testing.T) {
 }
 
 func TestAddHardcodedServicesToTopologyAllowsHardcodedHandlersForOtherService(t *testing.T) {
-	hardcodedHandler := topologyConfig.Handler{
+	hardcodedHandler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.ReplierType,
 		Category: "api",
 		Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
@@ -285,7 +296,7 @@ func TestAddHardcodedServicesToTopologyAllowsHardcodedHandlersForOtherService(t 
 
 	actual, err := independent.topologyHandler.Service("other-service")
 	require.NoError(t, err)
-	require.Equal(t, topologyConfig.NewHandlerVariants(hardcodedHandler), actual.Handlers)
+	require.Equal(t, testHandlers(hardcodedHandler), actual.Handlers)
 }
 
 func TestAddHardcodedCommandDepsToTopologyAddsDepsToDefaultHandler(t *testing.T) {
@@ -308,7 +319,7 @@ func TestAddHardcodedCommandDepsToTopologyAddsDepsToDefaultHandler(t *testing.T)
 }
 
 func TestAddHardcodedCommandDepsToTopologyAddsDepsToExplicitHandlerAndService(t *testing.T) {
-	handler := topologyConfig.Handler{
+	handler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.ReplierType,
 		Category: "api",
 		Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
@@ -321,7 +332,7 @@ func TestAddHardcodedCommandDepsToTopologyAddsDepsToExplicitHandlerAndService(t 
 		Type:      topologyConfig.IndependentType,
 		Name:      "other-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers:  topologyConfig.NewHandlerVariants(handler),
+		Handlers:  testHandlers(handler),
 	}
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
@@ -352,57 +363,60 @@ func TestAddHardcodedCommandDepsToTopologyRejectsMissingHandler(t *testing.T) {
 
 func TestEnsureProxyHandlerOutboundAddsRouteAndOutboundHandler(t *testing.T) {
 	proxyConfig := topologyConfig.ProxyHandler{
-		Handler: topologyConfig.Handler{
+		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: handlers.DefaultHandlerCategory,
 			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy"), 0),
 		},
 		Routes: []string{"existing"},
-		Outbounds: []topologyConfig.ServicePointer{
-			topologyConfig.ServiceTarget(topologyConfig.Service{
+		Outbounds: []topologyConfig.Service{
+			{
 				Type:      topologyConfig.IndependentType,
 				Name:      "custom-service",
 				ModuleUrl: DefaultModuleUrl,
-				Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-					Type:     topologyConfig.ReplierType,
-					Category: "api",
-					Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
-				}),
-			}),
+				Handlers: []topologyConfig.Handler{
+					topologyConfig.IndependentHandler{
+						Type:     topologyConfig.ReplierType,
+						Category: "api",
+						Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
+					},
+				},
+			},
 		},
 	}
-	webHandler := topologyConfig.Handler{
-		Type:     topologyConfig.ReplierType,
-		Category: "web",
-		Endpoint: message.NewEndpoint(testEndpointID(t, "web"), 0),
-	}
-	outbound := topologyConfig.ServiceTarget(topologyConfig.Service{
+	outbound := topologyConfig.Service{
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers:  topologyConfig.NewHandlerVariants(webHandler),
-	})
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.IndependentHandler{
+				Type:     topologyConfig.ReplierType,
+				Category: "web",
+				Endpoint: message.NewEndpoint(testEndpointID(t, "web"), 0),
+			},
+		},
+	}
 
 	proxyConfig.Routes = appendUnique(proxyConfig.Routes, "hello")
 	proxyConfig, changed := ensureProxyHandlerOutbound(proxyConfig, outbound)
 	require.True(t, changed)
 	require.ElementsMatch(t, []string{"existing", "hello"}, proxyConfig.Routes)
 	require.Len(t, proxyConfig.Outbounds, 1)
-	require.Empty(t, proxyConfig.Outbounds[0].Service.ModuleUrl)
-	require.Empty(t, proxyConfig.Outbounds[0].Service.HandlerDeps)
-	handler := requireServiceHandler(t, proxyConfig.Outbounds[0].Service, "web")
+	require.Empty(t, proxyConfig.Outbounds[0].ModuleUrl)
+	require.Empty(t, proxyConfig.Outbounds[0].HandlerDeps)
+	handler := requireServiceHandler(t, proxyConfig.Outbounds[0], "web")
 	require.Empty(t, handler.CommandDeps)
-	_, err := proxyConfig.Outbounds[0].Service.HandlerByCategory("api")
+	_, err := proxyConfig.Outbounds[0].HandlerByCategory("api")
 	require.Error(t, err)
 
 	proxyConfig, changed = ensureProxyHandlerOutbound(proxyConfig, outbound)
 	require.False(t, changed)
 	require.Len(t, proxyConfig.Outbounds, 1)
-	require.Len(t, proxyConfig.Outbounds[0].Service.Handlers, 1)
+	require.Len(t, proxyConfig.Outbounds[0].Handlers, 1)
 }
 
 func TestCommandOutboundTargetUsesCommandHandler(t *testing.T) {
-	apiHandler := topologyConfig.Handler{
+	apiHandler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: "api",
 		Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
@@ -411,21 +425,21 @@ func TestCommandOutboundTargetUsesCommandHandler(t *testing.T) {
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers:  topologyConfig.NewHandlerVariants(apiHandler),
+		Handlers: testHandlers(apiHandler),
 	}
 
-	outbound := commandOutboundTarget(serviceConfig, apiHandler)
-	require.Equal(t, "custom-service", outbound.Name())
-	require.Empty(t, outbound.Service.ModuleUrl)
-	require.Empty(t, outbound.Service.HandlerDeps)
-	require.Len(t, outbound.Service.Handlers, 1)
-	handler := requireServiceHandler(t, outbound.Service, "api")
+	outbound := minimalOutboundService(serviceConfig, apiHandler)
+	require.Equal(t, "custom-service", outbound.Name)
+	require.Empty(t, outbound.ModuleUrl)
+	require.Empty(t, outbound.HandlerDeps)
+	require.Len(t, outbound.Handlers, 1)
+	handler := requireServiceHandler(t, outbound, "api")
 	require.Equal(t, apiHandler.Endpoint, handler.Endpoint)
 	require.Empty(t, handler.CommandDeps)
 }
 
 func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *testing.T) {
-	apiHandler := topologyConfig.Handler{
+	apiHandler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: "api",
 		Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
@@ -437,11 +451,13 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 						Type:      topologyConfig.ProxyType,
 						Name:      "default-name-proxy",
 						ModuleUrl: DefaultModuleUrl,
-						Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-							Type:     topologyConfig.SyncReplierType,
-							Category: handlers.DefaultHandlerCategory,
-							Endpoint: message.NewEndpoint(testEndpointID(t, "default-name-proxy"), 0),
-						}),
+						Handlers: []topologyConfig.Handler{
+							topologyConfig.IndependentHandler{
+								Type:     topologyConfig.SyncReplierType,
+								Category: handlers.DefaultHandlerCategory,
+								Endpoint: message.NewEndpoint(testEndpointID(t, "default-name-proxy"), 0),
+							},
+						},
 					}),
 				},
 			},
@@ -451,13 +467,13 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers:  topologyConfig.NewHandlerVariants(apiHandler),
+		Handlers: testHandlers(apiHandler),
 	}
 	entrypoint := topologyConfig.ServiceTarget(topologyConfig.Service{
 		Type:      topologyConfig.ProxyType,
 		Name:      "entrypoint",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
+		Handlers: testHandlers(topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: handlers.DefaultHandlerCategory,
 			Endpoint: message.NewEndpoint(testEndpointID(t, "entrypoint"), 0),
@@ -467,7 +483,7 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 		Type:      topologyConfig.ProxyType,
 		Name:      "audit",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
+		Handlers: testHandlers(topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: handlers.DefaultHandlerCategory,
 			Endpoint: message.NewEndpoint(testEndpointID(t, "audit"), 0),
@@ -478,19 +494,19 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 	independent := &Independent{}
 	outbound, commandOutbounds, err := independent.handlerDepProxyOutboundTargets(serviceConfig, apiHandler, proxies, 0, []string{"age-verification", "hello"})
 	require.NoError(t, err)
-	require.Equal(t, "audit", outbound.Name())
+	require.Equal(t, "audit", outbound.Name)
 	require.Empty(t, commandOutbounds)
 
 	outbound, commandOutbounds, err = independent.handlerDepProxyOutboundTargets(serviceConfig, apiHandler, proxies, 1, []string{"age-verification", "hello"})
 	require.NoError(t, err)
-	require.Equal(t, "custom-service", outbound.Name())
+	require.Equal(t, "custom-service", outbound.Name)
 	require.Len(t, commandOutbounds, 1)
-	require.Equal(t, "default-name-proxy", commandOutbounds["hello"].Name())
+	require.Equal(t, "default-name-proxy", commandOutbounds["hello"].Name)
 }
 
 func TestConfigureHandlerDepProxyConfigSetsRoutesOutboundsAndForwards(t *testing.T) {
 	proxyConfig := topologyConfig.ProxyHandler{
-		Handler: topologyConfig.Handler{
+		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: handlers.DefaultHandlerCategory,
 			Endpoint: message.NewEndpoint(testEndpointID(t, "entrypoint"), 0),
@@ -498,28 +514,32 @@ func TestConfigureHandlerDepProxyConfigSetsRoutesOutboundsAndForwards(t *testing
 		Routes:  []string{"stale"},
 		Forward: map[string]string{"stale": "old/main"},
 	}
-	serviceOutbound := topologyConfig.ServiceTarget(topologyConfig.Service{
+	serviceOutbound := topologyConfig.Service{
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-			Type:     topologyConfig.SyncReplierType,
-			Category: "api",
-			Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
-		}),
-	})
-	commandOutbound := topologyConfig.ServiceTarget(topologyConfig.Service{
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.IndependentHandler{
+				Type:     topologyConfig.SyncReplierType,
+				Category: "api",
+				Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
+			},
+		},
+	}
+	commandOutbound := topologyConfig.Service{
 		Type:      topologyConfig.ProxyType,
 		Name:      "default-name-proxy",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-			Type:     topologyConfig.SyncReplierType,
-			Category: handlers.DefaultHandlerCategory,
-			Endpoint: message.NewEndpoint(testEndpointID(t, "default-name-proxy"), 0),
-		}),
-	})
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.IndependentHandler{
+				Type:     topologyConfig.SyncReplierType,
+				Category: handlers.DefaultHandlerCategory,
+				Endpoint: message.NewEndpoint(testEndpointID(t, "default-name-proxy"), 0),
+			},
+		},
+	}
 
-	proxyConfig, changed, err := configureHandlerDepProxyConfig(proxyConfig, []string{"age-verification", "hello"}, serviceOutbound, map[string]topologyConfig.ServicePointer{
+	proxyConfig, changed, err := configureHandlerDepProxyConfig(proxyConfig, []string{"age-verification", "hello"}, serviceOutbound, map[string]topologyConfig.Service{
 		"hello": commandOutbound,
 	})
 	require.NoError(t, err)
@@ -531,16 +551,18 @@ func TestConfigureHandlerDepProxyConfigSetsRoutesOutboundsAndForwards(t *testing
 
 func TestEnsureProxyHandlerForwardSetsCommandOutboundRef(t *testing.T) {
 	proxyConfig := topologyConfig.ProxyHandler{}
-	outbound := topologyConfig.ServiceTarget(topologyConfig.Service{
+	outbound := topologyConfig.Service{
 		Type:      topologyConfig.IndependentType,
 		Name:      "next-proxy",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-			Type:     topologyConfig.SyncReplierType,
-			Category: "proxy-api",
-			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-api"), 0),
-		}),
-	})
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.IndependentHandler{
+				Type:     topologyConfig.SyncReplierType,
+				Category: "proxy-api",
+				Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-api"), 0),
+			},
+		},
+	}
 
 	proxyConfig, changed, err := ensureProxyHandlerForward(proxyConfig, "hello", outbound)
 	require.NoError(t, err)
@@ -717,7 +739,7 @@ func protocolProxyServiceWithInprocHandlers(t *testing.T, name string, protocol 
 func protocolProxyLikeServiceWithInprocHandlers(t *testing.T, name string, serviceType topologyConfig.Type, protocol string, inprocHandlers []string, outbounds ...topologyConfig.Service) topologyConfig.Service {
 	t.Helper()
 	proxyHandler := topologyConfig.ProxyHandler{
-		Handler: topologyConfig.Handler{
+		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: handlers.DefaultHandlerCategory,
 			Endpoint: protocolEndpoint(t, name, protocol),
@@ -725,7 +747,7 @@ func protocolProxyLikeServiceWithInprocHandlers(t *testing.T, name string, servi
 		Routes: []string{base.Any},
 	}
 	for _, outbound := range outbounds {
-		proxyHandler.Outbounds = append(proxyHandler.Outbounds, topologyConfig.ServiceTarget(outbound))
+		proxyHandler.Outbounds = append(proxyHandler.Outbounds, outbound)
 	}
 	return topologyConfig.Service{
 		Type:      serviceType,
@@ -737,8 +759,8 @@ func protocolProxyLikeServiceWithInprocHandlers(t *testing.T, name string, servi
 			}
 			return datatype.New().Set(topologyConfig.InprocHandlersParameter, inprocHandlers)
 		}(),
-		Handlers: []topologyConfig.HandlerVariant{
-			topologyConfig.NewProxyHandlerVariant(proxyHandler),
+		Handlers: []topologyConfig.Handler{
+			proxyHandler,
 		},
 	}
 }
@@ -749,11 +771,13 @@ func protocolOutboundService(t *testing.T, name string, serviceType topologyConf
 		Type:      serviceType,
 		Name:      name,
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-			Type:     topologyConfig.SyncReplierType,
-			Category: handlers.DefaultHandlerCategory,
-			Endpoint: protocolEndpoint(t, name, protocol),
-		}),
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.IndependentHandler{
+				Type:     topologyConfig.SyncReplierType,
+				Category: handlers.DefaultHandlerCategory,
+				Endpoint: protocolEndpoint(t, name, protocol),
+			},
+		},
 	}
 }
 
@@ -826,7 +850,7 @@ func TestAddHardcodedHandlerDepsToTopologyRejectsMissingService(t *testing.T) {
 }
 
 func TestAddHardcodedHandlersToTopologyAddsHandlersToDefaultService(t *testing.T) {
-	hardcodedMain := topologyConfig.Handler{
+	hardcodedMain := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: handlers.DefaultHandlerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "hardcoded-main"), 0),
@@ -841,17 +865,17 @@ func TestAddHardcodedHandlersToTopologyAddsHandlersToDefaultService(t *testing.T
 
 	serviceConfig, err := independent.topologyHandler.Service("custom-service")
 	require.NoError(t, err)
-	require.Equal(t, topologyConfig.NewHandlerVariants(hardcodedMain), serviceConfig.Handlers)
+	require.Equal(t, testHandlers(hardcodedMain), serviceConfig.Handlers)
 }
 
 func TestAddHardcodedHandlersToTopologyOverwritesExistingCategory(t *testing.T) {
 	configPath := testConfigPath(t)
-	existingMain := topologyConfig.Handler{
+	existingMain := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.ReplierType,
 		Category: handlers.DefaultHandlerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "existing-main"), 0),
 	}
-	hardcodedMain := topologyConfig.Handler{
+	hardcodedMain := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: handlers.DefaultHandlerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "hardcoded-main"), 0),
@@ -860,11 +884,11 @@ func TestAddHardcodedHandlersToTopologyOverwritesExistingCategory(t *testing.T) 
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers:  topologyConfig.NewHandlerVariants(existingMain),
+		Handlers:  testHandlers(existingMain),
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
-	require.NoError(t, appConfig.AddService(existingService))
+	require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
 	require.NoError(t, appConfig.Save())
 
 	independent, err := New("custom-service", configPath)
@@ -875,13 +899,13 @@ func TestAddHardcodedHandlersToTopologyOverwritesExistingCategory(t *testing.T) 
 
 	serviceConfig, err := independent.topologyHandler.Service("custom-service")
 	require.NoError(t, err)
-	require.Equal(t, topologyConfig.NewHandlerVariants(hardcodedMain), serviceConfig.Handlers)
+	require.Equal(t, testHandlers(hardcodedMain), serviceConfig.Handlers)
 }
 
 func TestAddHardcodedHandlersToTopologyRejectsMissingService(t *testing.T) {
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
-	require.NoError(t, independent.SetHandlerConfig(topologyConfig.Handler{
+	require.NoError(t, independent.SetHandlerConfig(topologyConfig.IndependentHandler{
 		Type:     topologyConfig.ReplierType,
 		Category: handlers.DefaultHandlerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "missing-service-main"), 0),
@@ -896,12 +920,12 @@ func TestAddHardcodedHandlersToTopologyRejectsMissingService(t *testing.T) {
 
 func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) {
 	configPath := testConfigPath(t)
-	mainHandler := topologyConfig.Handler{
+	mainHandler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.ReplierType,
 		Category: handlers.DefaultHandlerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "main"), 0),
 	}
-	managerHandler := topologyConfig.Handler{
+	managerHandler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: topology.ServiceManagerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "manager"), 0),
@@ -910,11 +934,11 @@ func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) 
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers:  topologyConfig.NewHandlerVariants(mainHandler, managerHandler),
+		Handlers:  testHandlers(mainHandler, managerHandler),
 	}
 	appConfig, err := topologyConfig.Load(configPath)
 	require.NoError(t, err)
-	require.NoError(t, appConfig.AddService(existingService))
+	require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
 	require.NoError(t, appConfig.Save())
 
 	independent, err := New("custom-service", configPath, managerHandler.Endpoint)
