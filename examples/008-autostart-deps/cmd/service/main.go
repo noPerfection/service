@@ -66,16 +66,16 @@ func main() {
 	}
 	if err := app.SetHandlerDeps(topologyConfig.DepService{
 		Name: handlers.DefaultHandlerCategory,
-		Proxies: []topologyConfig.ServicePointer{
-			topologyConfig.RefTarget(entrypointName),
+		Proxies: []topologyConfig.DepTarget{
+			topologyConfig.NewLinkTarget(fmt.Sprintf("pkg:$?var=services[name:%s]", entrypointName)),
 		},
 	}); err != nil {
 		panic(err)
 	}
 	if err := app.SetCommandDeps(topologyConfig.DepService{
 		Name: "hello",
-		Proxies: []topologyConfig.ServicePointer{
-			topologyConfig.RefTarget(defaultProxyName),
+		Proxies: []topologyConfig.DepTarget{
+			topologyConfig.NewLinkTarget(fmt.Sprintf("pkg:$?var=services[name:%s]", defaultProxyName)),
 		},
 	}); err != nil {
 		panic(err)

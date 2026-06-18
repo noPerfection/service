@@ -182,8 +182,60 @@ func (request ProxyRequest) Outbound() (Outbound, bool) {
 	return request.outbound, true
 }
 
+func outboundRefLink(serviceName, handlerCategory string) string {
+	if handlerCategory == "" {
+		handlerCategory = topologyConfig.DefaultCategory
+	}
+	if handlerCategory == topologyConfig.DefaultCategory {
+		return fmt.Sprintf("pkg:$?var=services[name:%s]", serviceName)
+	}
+	return fmt.Sprintf("pkg:$?var=services[name:%s].handlers[category:%s]", serviceName, handlerCategory)
+}
+
+func parseOutboundRef(ref string) (serviceName string, handlerCategory string, err error) {
+	if ref == "" {
+		return "", "", fmt.Errorf("outbound ref is empty")
+	}
+	if strings.HasPrefix(ref, "pkg:") {
+		namePrefix := "name:"
+		categoryPrefix := "category:"
+		nameStart := strings.Index(ref, namePrefix)
+		if nameStart < 0 {
+			return "", "", fmt.Errorf("outbound ref %q has no service name", ref)
+		}
+		nameStart += len(namePrefix)
+		nameEnd := strings.Index(ref[nameStart:], "]")
+		if nameEnd < 0 {
+			return "", "", fmt.Errorf("outbound ref %q has invalid service name", ref)
+		}
+		serviceName = ref[nameStart : nameStart+nameEnd]
+		categoryStart := strings.Index(ref, categoryPrefix)
+		if categoryStart < 0 {
+			return serviceName, topologyConfig.DefaultCategory, nil
+		}
+		categoryStart += len(categoryPrefix)
+		categoryEnd := strings.Index(ref[categoryStart:], "]")
+		if categoryEnd < 0 {
+			return "", "", fmt.Errorf("outbound ref %q has invalid handler category", ref)
+		}
+		return serviceName, ref[categoryStart : categoryStart+categoryEnd], nil
+	}
+
+	serviceName, handlerCategory, ok := strings.Cut(ref, "/")
+	if !ok {
+		return ref, "", nil
+	}
+	if serviceName == "" {
+		return "", "", fmt.Errorf("outbound service name is empty")
+	}
+	if handlerCategory == "" {
+		handlerCategory = topologyConfig.DefaultCategory
+	}
+	return serviceName, handlerCategory, nil
+}
+
 func (outbound Outbound) Ref() string {
-	return topologyConfig.RefTarget(outbound.ServiceName, outbound.HandlerCategory).Ref
+	return outboundRefLink(outbound.ServiceName, outbound.HandlerCategory)
 }
 
 func (outbound Outbound) MarshalJSON() ([]byte, error) {
@@ -193,15 +245,18 @@ func (outbound Outbound) MarshalJSON() ([]byte, error) {
 	if outbound.ServiceName == "" {
 		return nil, fmt.Errorf("serviceName is required")
 	}
-	return topologyConfig.RefTarget(outbound.ServiceName, outbound.HandlerCategory).MarshalJSON()
+	return json.Marshal(outboundRefLink(outbound.ServiceName, outbound.HandlerCategory))
 }
 
 func (outbound *Outbound) UnmarshalJSON(data []byte) error {
-	var pointer topologyConfig.ServicePointer
-	if err := pointer.UnmarshalJSON(data); err != nil {
+	var ref string
+	if err := json.Unmarshal(data, &ref); err != nil {
 		return err
 	}
-	serviceName, handlerCategory := pointer.RefPath()
+	serviceName, handlerCategory, err := parseOutboundRef(ref)
+	if err != nil {
+		return err
+	}
 	if serviceName == "" {
 		return fmt.Errorf("outbound serviceName is required")
 	}

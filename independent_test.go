@@ -302,7 +302,7 @@ func TestAddHardcodedServicesToTopologyAllowsHardcodedHandlersForOtherService(t 
 func TestAddHardcodedCommandDepsToTopologyAddsDepsToDefaultHandler(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:    "account",
-		Proxies: []topologyConfig.ServicePointer{topologyConfig.RefTarget("account-proxy")},
+		Proxies: []topologyConfig.DepTarget{linkTarget("account-proxy")},
 	}
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
@@ -326,7 +326,7 @@ func TestAddHardcodedCommandDepsToTopologyAddsDepsToExplicitHandlerAndService(t 
 	}
 	dep := topologyConfig.DepService{
 		Name:       "metrics",
-		Extensions: []topologyConfig.ServicePointer{topologyConfig.RefTarget("metrics-extension")},
+		Extensions: []topologyConfig.DepTarget{linkTarget("metrics-extension")},
 	}
 	serviceConfig := topologyConfig.Service{
 		Type:      topologyConfig.IndependentType,
@@ -446,8 +446,8 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 		CommandDeps: []topologyConfig.DepService{
 			{
 				Name: "hello",
-				Proxies: []topologyConfig.ServicePointer{
-					topologyConfig.ServiceTarget(topologyConfig.Service{
+				Proxies: []topologyConfig.DepTarget{
+					topologyConfig.NewInlineTarget(topologyConfig.Service{
 						Type:      topologyConfig.ProxyType,
 						Name:      "default-name-proxy",
 						ModuleUrl: DefaultModuleUrl,
@@ -469,7 +469,7 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 		ModuleUrl: DefaultModuleUrl,
 		Handlers: testHandlers(apiHandler),
 	}
-	entrypoint := topologyConfig.ServiceTarget(topologyConfig.Service{
+	entrypoint := topologyConfig.NewInlineTarget(topologyConfig.Service{
 		Type:      topologyConfig.ProxyType,
 		Name:      "entrypoint",
 		ModuleUrl: DefaultModuleUrl,
@@ -479,7 +479,7 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 			Endpoint: message.NewEndpoint(testEndpointID(t, "entrypoint"), 0),
 		}),
 	})
-	audit := topologyConfig.ServiceTarget(topologyConfig.Service{
+	audit := topologyConfig.NewInlineTarget(topologyConfig.Service{
 		Type:      topologyConfig.ProxyType,
 		Name:      "audit",
 		ModuleUrl: DefaultModuleUrl,
@@ -489,7 +489,7 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 			Endpoint: message.NewEndpoint(testEndpointID(t, "audit"), 0),
 		}),
 	})
-	proxies := []topologyConfig.ServicePointer{entrypoint, audit}
+	proxies := []topologyConfig.DepTarget{entrypoint, audit}
 
 	independent := &Independent{}
 	outbound, commandOutbounds, err := independent.handlerDepProxyOutboundTargets(serviceConfig, apiHandler, proxies, 0, []string{"age-verification", "hello"})
@@ -799,7 +799,7 @@ func protocolEndpoint(t *testing.T, name string, protocol string) message.Endpoi
 func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:    "account",
-		Proxies: []topologyConfig.ServicePointer{topologyConfig.RefTarget("account-proxy")},
+		Proxies: []topologyConfig.DepTarget{linkTarget("account-proxy")},
 	}
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
@@ -816,7 +816,7 @@ func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T)
 func TestAddHardcodedHandlerDepsToTopologyAddsDepsToExplicitService(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:       "metrics",
-		Extensions: []topologyConfig.ServicePointer{topologyConfig.RefTarget("metrics-extension")},
+		Extensions: []topologyConfig.DepTarget{linkTarget("metrics-extension")},
 	}
 	serviceConfig := topologyConfig.Service{
 		Type:      topologyConfig.IndependentType,
@@ -991,16 +991,17 @@ func TestNewRejectsInvalidParams(t *testing.T) {
 }
 
 func TestStartIpcServiceSkipsDuplicateRefs(t *testing.T) {
-	pointers := []topologyConfig.ServicePointer{
-		topologyConfig.RefTarget("entrypoint"),
-		topologyConfig.RefTarget("entrypoint"),
+	targets := []topologyConfig.DepTarget{
+		linkTarget("entrypoint"),
+		linkTarget("entrypoint"),
 	}
 	startedRefs := make(map[string]struct{})
-	for _, pointer := range pointers {
-		if pointer.Ref == "" {
+	for _, target := range targets {
+		if !target.IsLink() {
 			continue
 		}
-		serviceName, _ := pointer.RefPath()
+		const linkPrefix = "pkg:$?var=services[name:"
+		serviceName := strings.TrimSuffix(strings.TrimPrefix(target.Link, linkPrefix), "]")
 		if _, done := startedRefs[serviceName]; done {
 			continue
 		}
