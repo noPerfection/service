@@ -398,18 +398,18 @@ func TestEnsureProxyHandlerOutboundAddsRouteAndOutboundHandler(t *testing.T) {
 	}
 
 	proxyConfig.Routes = appendUnique(proxyConfig.Routes, "hello")
-	proxyConfig, changed := ensureProxyHandlerOutbound(proxyConfig, outbound)
+	changed := proxyConfig.SetOutbound(outbound)
 	require.True(t, changed)
 	require.ElementsMatch(t, []string{"existing", "hello"}, proxyConfig.Routes)
 	require.Len(t, proxyConfig.Outbounds, 1)
-	require.Empty(t, proxyConfig.Outbounds[0].ModuleUrl)
+	require.Equal(t, DefaultModuleUrl, proxyConfig.Outbounds[0].ModuleUrl)
 	require.Empty(t, proxyConfig.Outbounds[0].HandlerDeps)
 	handler := requireServiceHandler(t, proxyConfig.Outbounds[0], "web")
 	require.Empty(t, handler.CommandDeps)
 	_, err := proxyConfig.Outbounds[0].HandlerByCategory("api")
 	require.Error(t, err)
 
-	proxyConfig, changed = ensureProxyHandlerOutbound(proxyConfig, outbound)
+	changed = proxyConfig.SetOutbound(outbound)
 	require.False(t, changed)
 	require.Len(t, proxyConfig.Outbounds, 1)
 	require.Len(t, proxyConfig.Outbounds[0].Handlers, 1)

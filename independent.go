@@ -981,7 +981,7 @@ func (independent *Independent) syncInlineHandlerDepProxyOutbounds(serviceConfig
 	if err != nil {
 		return err
 	}
-	return applyProxyHandlerToManager(managerService, proxyConfig, updated)
+	return reloadProxy(managerService, proxyConfig, updated)
 }
 
 func (independent *Independent) syncInlineCommandProxyOutbound(serviceConfig *config.Service, command string, proxyPointer *config.ServicePointer, outbound config.Service) error {
@@ -992,14 +992,14 @@ func (independent *Independent) syncInlineCommandProxyOutbound(serviceConfig *co
 			updated = true
 		}
 		var updatedOutbound bool
-		proxyConfig, updatedOutbound = ensureProxyHandlerOutbound(proxyConfig, outbound)
+		updatedOutbound = proxyConfig.SetOutbound(outbound)
 		updated = updated || updatedOutbound
 		return proxyConfig, updated, nil
 	})
 	if err != nil {
 		return err
 	}
-	return applyProxyHandlerToManager(managerService, proxyConfig, updated)
+	return reloadProxy(managerService, proxyConfig, updated)
 }
 
 func (independent *Independent) syncReferencedHandlerDepProxyOutbounds(routes []string, proxyPointer config.ServicePointer, outbound config.Service, commandOutbounds map[string]config.Service) error {
@@ -1033,10 +1033,10 @@ func (independent *Independent) syncReferencedHandlerDepProxyOutbounds(routes []
 			return err
 		}
 	}
-	return applyProxyHandlerToManager(proxyService, proxyConfig, updated)
+	return reloadProxy(proxyService, proxyConfig, updated)
 }
 
-func (independent *Independent) syncReferencedCommandProxyOutbound(command string, proxyPointer config.ServicePointer, outbound config.Service) error {
+func (independent *Independent) syncReferencedCommandProxyOutbound(command string, proxyPointer config.ServicePointer, outboundService config.Service) error {
 	proxyServiceName, proxyHandlerCategory := proxyPointer.RefPath()
 	if proxyServiceName == "" {
 		return fmt.Errorf("proxy ref %q is invalid", proxyPointer.Ref)
@@ -1054,30 +1054,31 @@ func (independent *Independent) syncReferencedCommandProxyOutbound(command strin
 		return fmt.Errorf("proxy service %q handler %q: %w", proxyServiceName, proxyHandlerCategory, err)
 	}
 
-	proxyConfig, ok := proxyHandlerVariant.AsProxyHandler()
+	proxyHandler, ok := proxyHandlerVariant.AsProxyHandler()
 	if !ok {
 		return fmt.Errorf("proxy service %q handler %q is not a proxy handler", proxyServiceName, proxyHandlerCategory)
 	}
 	updated := false
-	if !containsString(proxyConfig.Routes, command) {
-		proxyConfig.Routes = append(proxyConfig.Routes, command)
+	if !containsString(proxyHandler.Routes, command) {
+		proxyHandler.Routes = append(proxyHandler.Routes, command)
 		updated = true
 	}
-	proxyConfig, updatedOutbound := ensureProxyHandlerOutbound(proxyConfig, outbound)
+	updatedOutbound := proxyHandler.SetOutbound(outboundService)
 	updated = updated || updatedOutbound
 	var updatedForward bool
-	proxyConfig, updatedForward, err = ensureProxyHandlerForward(proxyConfig, command, outbound)
+	proxyHandler, updatedForward, err = ensureProxyHandlerForward(proxyHandler, command, outboundService)
 	if err != nil {
 		return err
 	}
 	updated = updated || updatedForward
 
 	if updated {
-		if err := independent.persistProxyHandlerConfig(proxyService, proxyConfig); err != nil {
-			return err
+		proxyService.SetHandler(proxyHandler, true)
+		if err := independent.topology.SetService(proxyService); err != nil {
+			return fmt.Errorf("topologyClient.SetService('%s'): %w", proxyService.Name, err)
 		}
 	}
-	return applyProxyHandlerToManager(proxyService, proxyConfig, updated)
+	return reloadProxy(proxyService, proxyHandler, updated)
 }
 
 func firstProxyHandlerConfig(proxyService config.Service) (config.ProxyHandler, error) {
@@ -1117,64 +1118,6 @@ func (independent *Independent) persistProxyHandlerConfig(proxyService config.Se
 	return nil
 }
 
-func ensureProxyHandlerOutbound(proxyConfig config.ProxyHandler, outbound config.Service) (config.ProxyHandler, bool) {
-	outbound = minimalOutbound(outbound)
-	for i := range proxyConfig.Outbounds {
-		if proxyConfig.Outbounds[i].Name != outbound.Name {
-			continue
-		}
-		if servicesEqual(proxyConfig.Outbounds[i], outbound) {
-			return proxyConfig, false
-		}
-		proxyConfig.Outbounds[i] = outbound
-		return proxyConfig, true
-	}
-
-	proxyConfig.Outbounds = append(proxyConfig.Outbounds, outbound)
-	return proxyConfig, true
-}
-
-func minimalOutbound(outbound config.Service) config.Service {
-	if outbound.IsZero() || len(outbound.Handlers) == 0 {
-		return outbound
-	}
-	return minimalOutboundService(outbound, outbound.Handlers[0])
-}
-
-func servicesEqual(a config.Service, b config.Service) bool {
-	if a.Type != b.Type || a.Name != b.Name || a.ModuleUrl != b.ModuleUrl || a.StartCommand != b.StartCommand {
-		return false
-	}
-	if len(a.HandlerDeps) != 0 || len(b.HandlerDeps) != 0 {
-		return false
-	}
-	if len(a.Handlers) != len(b.Handlers) {
-		return false
-	}
-	for i := range a.Handlers {
-		if !handlersEqual(a.Handlers[i], b.Handlers[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func handlersEqual(a config.Handler, b config.Handler) bool {
-	baseA, ok := a.AsIndependentHandler()
-	if !ok {
-		return false
-	}
-	baseB, ok := b.AsIndependentHandler()
-	if !ok {
-		return false
-	}
-	return baseA.Type == baseB.Type &&
-		baseA.Category == baseB.Category &&
-		baseA.Endpoint == baseB.Endpoint &&
-		len(baseA.CommandDeps) == 0 &&
-		len(baseB.CommandDeps) == 0
-}
-
 func configureHandlerDepProxyConfig(proxyConfig config.ProxyHandler, routes []string, outbound config.Service, commandOutbounds map[string]config.Service) (config.ProxyHandler, bool, error) {
 	updated := false
 	if !stringSlicesEqual(proxyConfig.Routes, routes) {
@@ -1183,11 +1126,11 @@ func configureHandlerDepProxyConfig(proxyConfig config.ProxyHandler, routes []st
 	}
 
 	var updatedOutbound bool
-	proxyConfig, updatedOutbound = ensureProxyHandlerOutbound(proxyConfig, outbound)
+	updatedOutbound = proxyConfig.SetOutbound(outbound)
 	updated = updated || updatedOutbound
 
 	for _, commandOutbound := range commandOutbounds {
-		proxyConfig, updatedOutbound = ensureProxyHandlerOutbound(proxyConfig, commandOutbound)
+		updatedOutbound = proxyConfig.SetOutbound(commandOutbound)
 		updated = updated || updatedOutbound
 	}
 
@@ -1280,7 +1223,8 @@ func newProxyManagerClient(proxyService config.Service) (*clientSyncReplier.Clie
 	return client, nil
 }
 
-func applyProxyHandlerToManager(proxyService config.Service, proxyConfig config.ProxyHandler, updated bool) error {
+func reloadProxy(proxyService config.Service, proxyConfig config.ProxyHandler, updated bool) error {
+	return nil // TODO: implement hot reload later not from the outbound, but by handshake
 	if !updated {
 		return nil
 	}
