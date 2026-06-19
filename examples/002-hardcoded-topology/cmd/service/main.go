@@ -33,7 +33,7 @@ func main() {
 	if slow3000 {
 		port = 3000
 		handlerType = topologyConfig.SyncReplierType
-		if err := app.SetHandlerConfig(topologyConfig.Handler{
+		if err := app.SetHandlerConfig(topologyConfig.IndependentHandler{
 			Type:     handlerType,
 			Category: handlers.DefaultHandlerCategory,
 			Endpoint: message.NewEndpoint("localhost", port),

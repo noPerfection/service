@@ -79,7 +79,7 @@ func main() {
 if we launch our app on a new terminal tab we will see the greetings:
 `go run ./cmd/client/main.go`.
 
-See [examples/hello-world](./examples/hello-world) source code.
+See [examples/000-hello-world](./examples/000-hello-world) source code.
 
 ## Why noPerfection
 
