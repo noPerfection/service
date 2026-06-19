@@ -83,20 +83,21 @@ func proxyConfig(name string, moduleURL string, port uint64) topologyConfig.Serv
 		Type:      topologyConfig.ProxyType,
 		Name:      name,
 		ModuleUrl: moduleURL,
-		Handlers: []topologyConfig.HandlerVariant{
-			topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
-				Handler: topologyConfig.Handler{
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.ProxyHandler{
+				IndependentHandler: topologyConfig.IndependentHandler{
 					Type:     topologyConfig.SyncReplierType,
 					Category: proxyCategory,
 					Endpoint: message.NewEndpoint("localhost", port),
 				},
-			}),
+				Routes: []string{"hello", "age-verification"},
+			},
 		},
 	}
 }
 
 func proxyManagerConfig(port uint64) topologyConfig.Handler {
-	return topologyConfig.Handler{
+	return topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: topology.ServiceManagerCategory,
 		Endpoint: message.NewEndpoint("localhost", port),

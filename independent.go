@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -369,12 +370,12 @@ func (independent *Independent) Start() error {
 		independent.topology = nil
 	}()
 
-	if err = independent.syncHandlerDepOutbounds(); err != nil {
-		err = fmt.Errorf("syncHandlerDepOutbounds: %w", err)
-		goto errOccurred
-	}
 	if err = independent.syncCommandOutbounds(); err != nil {
 		err = fmt.Errorf("syncCommandOutbounds: %w", err)
+		goto errOccurred
+	}
+	if err = independent.syncHandlerDepOutbounds(); err != nil {
+		err = fmt.Errorf("syncHandlerDepOutbounds: %w", err)
 		goto errOccurred
 	}
 	if err = independent.validateProtocolOrders(); err != nil {
@@ -649,8 +650,40 @@ func dereferenceMushroomURL(url string) string {
 	return hypha.AsDereference().String()
 }
 
+func isServiceOnlyMushroomURL(mushroomURL string) bool {
+	return strings.Contains(mushroomURL, "services[name:") && !strings.Contains(mushroomURL, ".handlers[")
+}
+
+func handlerCategoryFromMushroomURL(mushroomURL string) string {
+	var soil mushroom.Soil
+	hypha, err := soil.Hypha(mushroomURL)
+	if err != nil || !hypha.URL {
+		return topology.DefaultCategory
+	}
+	if category := hypha.AdditionalProps["category"]; category != "" {
+		return category
+	}
+	return topology.DefaultCategory
+}
+
+func normalizeProxyHandlerOutbounds(handler config.Handler) config.Handler {
+	proxyHandler, ok := handler.AsProxyHandler()
+	if !ok || proxyHandler.Outbounds != nil {
+		return handler
+	}
+	proxyHandler.Outbounds = []string{}
+	return proxyHandler
+}
+
 func (independent *Independent) resolveTopologyHandler(mushroomURL string) (config.Handler, error) {
 	mushroomURL = dereferenceMushroomURL(mushroomURL)
+	if isServiceOnlyMushroomURL(mushroomURL) {
+		service, err := independent.topologyService(mushroomURL)
+		if err != nil {
+			return nil, fmt.Errorf("topologyService(%q): %w", mushroomURL, err)
+		}
+		return service.HandlerByCategory(handlerCategoryFromMushroomURL(mushroomURL))
+	}
 	if independent.topology != nil {
 		return independent.topology.Handler(mushroomURL)
 	}
@@ -936,17 +969,31 @@ func (independent *Independent) syncHandlerDepProxyOutbounds(routes []string, pr
 	if !ok {
 		return fmt.Errorf("dep %q is not a proxy handler", proxyHandlerUrl)
 	}
+	proxyHandler, ok = normalizeProxyHandlerOutbounds(proxyHandler).AsProxyHandler()
+	if !ok {
+		return fmt.Errorf("dep %q is not a proxy handler", proxyHandlerUrl)
+	}
 	updated := false
 	if !stringSlicesEqual(proxyHandler.Routes, routes) {
 		proxyHandler.Routes = append([]string(nil), routes...)
 		updated = true
 	}
-	updated = updated || proxyHandler.SetOutbound(outboundURL)
+	outbounds := append([]string(nil), proxyHandler.Outbounds...)
+	if outboundURL != "" {
+		outbounds = appendUnique(outbounds, outboundURL)
+	}
 	for command, commandOutboundURL := range commandOutbounds {
-		updated = updated || proxyHandler.SetOutbound(commandOutboundURL)
+		outbounds = appendUnique(outbounds, commandOutboundURL)
 		var updatedForward bool
 		proxyHandler, updatedForward = ensureProxyHandlerForward(proxyHandler, command, commandOutboundURL)
 		updated = updated || updatedForward
+	}
+	for _, forwardURL := range proxyHandler.Forward {
+		outbounds = appendUnique(outbounds, forwardURL)
+	}
+	if !stringSlicesEqual(proxyHandler.Outbounds, outbounds) {
+		proxyHandler.Outbounds = outbounds
+		updated = true
 	}
 	if updated {
 		if err := independent.setTopologyHandler(proxyHandler, proxyHandlerUrl); err != nil {
@@ -995,6 +1042,10 @@ func (independent *Independent) syncCommandProxyOutbound(command string, proxyHa
 	if !ok {
 		return fmt.Errorf("dep %q is not a proxy handler", proxyHandlerUrl)
 	}
+	proxyHandler, ok = normalizeProxyHandlerOutbounds(proxyHandler).AsProxyHandler()
+	if !ok {
+		return fmt.Errorf("dep %q is not a proxy handler", proxyHandlerUrl)
+	}
 	updated := false
 	if !containsString(proxyHandler.Routes, command) {
 		proxyHandler.Routes = append(proxyHandler.Routes, command)
@@ -1022,6 +1073,7 @@ func ensureProxyHandlerForward(proxyConfig config.ProxyHandler, command string, 
 		return proxyConfig, false
 	}
 	proxyConfig.Forward[command] = outboundURL
+	proxyConfig.SetOutbound(outboundURL)
 	return proxyConfig, true
 }
 

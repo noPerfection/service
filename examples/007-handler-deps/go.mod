@@ -1,6 +1,6 @@
 module github.com/noPerfection/service/examples/007-handler-deps
 
-go 1.19
+go 1.22
 
 require (
 	github.com/noPerfection/datatype v0.0.0
@@ -9,11 +9,12 @@ require (
 	github.com/noPerfection/protocol/handler v0.0.0
 	github.com/noPerfection/protocol/message v0.0.0
 	github.com/noPerfection/service v0.0.0
-	github.com/noPerfection/topology v0.0.0-20260602170203-c8fa84f22f77
+	github.com/noPerfection/topology v0.0.0-20260618053405-c0164a6cc6e0
 	github.com/noPerfection/topology/config v0.0.0
 )
 
 require (
+	github.com/ahmetson/mushroom v0.0.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/lipgloss v0.8.0 // indirect
 	github.com/charmbracelet/log v0.2.4 // indirect
@@ -34,6 +35,8 @@ require (
 )
 
 replace github.com/noPerfection/datatype => ../../../datatype
+
+replace github.com/ahmetson/mushroom => ../../../../ahmetson/mushroom
 
 replace github.com/noPerfection/log => ../../../log
 

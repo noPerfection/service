@@ -131,7 +131,14 @@ func (m *Manager) StartServiceByConfig(record config.Service) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("service %q manager handler is not independent", record.Name)
 	}
-	return m.startServiceOnManager(record.Name, handler.Endpoint)
+	id, err := m.startServiceOnManager(record.Name, handler.Endpoint)
+	if err != nil {
+		if m.topology == nil {
+			return "", err
+		}
+		return m.topology.StartService(record.Name)
+	}
+	return id, nil
 }
 
 func (m *Manager) IsServiceRunning(serviceURL string) (bool, error) {

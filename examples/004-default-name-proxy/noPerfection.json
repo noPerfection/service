@@ -1,48 +1,40 @@
 {
   "services": [
     {
-      "type": "Proxy",
-      "name": "default-name-proxy",
-      "module-url": "github.com/noPerfection/service/examples/004-default-name-proxy/cmd/proxy",
       "handlers": [
         {
-          "type": "SyncReplier",
           "category": "main",
           "endpoint": {
             "id": "localhost",
             "port": 8001
           },
+          "outbounds": [
+            "pkg:$?var=services[name:hello-world]\u0026category=main"
+          ],
           "routes": [
             "*"
           ],
-          "outbounds": [
-            "hello-world"
-          ]
-        },
-        {
-          "type": "SyncReplier",
-          "category": "manager",
-          "endpoint": {
-            "id": "default-name-proxy_proxy_manager",
-            "port": 0
-          }
+          "type": "SyncReplier"
         }
-      ]
+      ],
+      "module-url": "github.com/noPerfection/service/examples/004-default-name-proxy/cmd/proxy",
+      "name": "default-name-proxy",
+      "type": "Proxy"
     },
     {
-      "type": "Independent",
-      "name": "hello-world",
-      "module-url": "github.com/noPerfection/service",
       "handlers": [
         {
-          "type": "Replier",
           "category": "main",
           "endpoint": {
             "id": "localhost",
             "port": 8000
-          }
+          },
+          "type": "Replier"
         }
-      ]
+      ],
+      "module-url": "github.com/noPerfection/service",
+      "name": "hello-world",
+      "type": "Independent"
     }
   ]
 }
