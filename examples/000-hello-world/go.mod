@@ -1,4 +1,4 @@
-module github.com/noPerfection/service/examples/hello-world
+module github.com/noPerfection/service/examples/000-hello-world
 
 go 1.22
 
