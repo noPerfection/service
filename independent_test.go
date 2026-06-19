@@ -32,6 +32,16 @@ func testConfigPath(t *testing.T) string {
 	return filepath.Join(t.TempDir(), "noPerfection.json")
 }
 
+func requireNewIndependent(t *testing.T, serviceName, configPath string) *Independent {
+	t.Helper()
+	independent, err := New(serviceName, configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		closeTopologyHandler(t)
+	})
+	return independent
+}
+
 func closeTopologyHandler(t *testing.T) {
 	t.Helper()
 
@@ -225,17 +235,7 @@ func TestAddHardcodedServicesToTopologyAddsProxyService(t *testing.T) {
 					Category: "default-name",
 					Endpoint: message.NewEndpoint(testEndpointID(t, "proxy"), 8001),
 				},
-				Outbounds: []topologyConfig.Service{
-					{
-						Type: topologyConfig.IndependentType,
-						Name: "hello-world",
-						Handlers: testHandlers(topologyConfig.IndependentHandler{
-							Type:     topologyConfig.ReplierType,
-							Category: handlers.DefaultHandlerCategory,
-							Endpoint: message.NewEndpoint(testEndpointID(t, "hello-world"), 0),
-						}),
-					},
-				},
+				Outbounds: []string{outboundLink("hello-world", handlers.DefaultHandlerCategory)},
 			},
 		},
 	}
@@ -248,7 +248,7 @@ func TestAddHardcodedServicesToTopologyAddsProxyService(t *testing.T) {
 
 	actual, err := independent.topologyHandler.Service("default-name-proxy")
 	require.NoError(t, err)
-	require.Equal(t, proxyConfig, actual)
+	requireEqualPersistedService(t, proxyConfig, actual)
 }
 
 func TestAddHardcodedServicesToTopologyAddsServiceBeforeDefault(t *testing.T) {
@@ -272,7 +272,7 @@ func TestAddHardcodedServicesToTopologyAddsServiceBeforeDefault(t *testing.T) {
 
 	actual, err := independent.topologyHandler.Service("custom-service")
 	require.NoError(t, err)
-	require.Equal(t, serviceConfig, actual)
+	requireEqualPersistedService(t, serviceConfig, actual)
 }
 
 func TestAddHardcodedServicesToTopologyAllowsHardcodedHandlersForOtherService(t *testing.T) {
@@ -361,61 +361,34 @@ func TestAddHardcodedCommandDepsToTopologyRejectsMissingHandler(t *testing.T) {
 	require.Contains(t, err.Error(), "hardcoded command deps handler 'missing-handler'")
 }
 
-func TestEnsureProxyHandlerOutboundAddsRouteAndOutboundHandler(t *testing.T) {
+func TestEnsureProxyHandlerOutboundAddsRouteAndOutboundURL(t *testing.T) {
+	existingOutbound := outboundLink("custom-service", "api")
 	proxyConfig := topologyConfig.ProxyHandler{
 		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: handlers.DefaultHandlerCategory,
 			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy"), 0),
 		},
-		Routes: []string{"existing"},
-		Outbounds: []topologyConfig.Service{
-			{
-				Type:      topologyConfig.IndependentType,
-				Name:      "custom-service",
-				ModuleUrl: DefaultModuleUrl,
-				Handlers: []topologyConfig.Handler{
-					topologyConfig.IndependentHandler{
-						Type:     topologyConfig.ReplierType,
-						Category: "api",
-						Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
-					},
-				},
-			},
-		},
+		Routes:    []string{"existing"},
+		Outbounds: []string{existingOutbound},
 	}
-	outbound := topologyConfig.Service{
-		Type:      topologyConfig.IndependentType,
-		Name:      "custom-service",
-		ModuleUrl: DefaultModuleUrl,
-		Handlers: []topologyConfig.Handler{
-			topologyConfig.IndependentHandler{
-				Type:     topologyConfig.ReplierType,
-				Category: "web",
-				Endpoint: message.NewEndpoint(testEndpointID(t, "web"), 0),
-			},
-		},
-	}
+	newOutbound := outboundLink("custom-service", "web")
 
 	proxyConfig.Routes = appendUnique(proxyConfig.Routes, "hello")
-	changed := proxyConfig.SetOutbound(outbound)
+	changed := proxyConfig.SetOutbound(newOutbound)
 	require.True(t, changed)
 	require.ElementsMatch(t, []string{"existing", "hello"}, proxyConfig.Routes)
-	require.Len(t, proxyConfig.Outbounds, 1)
-	require.Equal(t, DefaultModuleUrl, proxyConfig.Outbounds[0].ModuleUrl)
-	require.Empty(t, proxyConfig.Outbounds[0].HandlerDeps)
-	handler := requireServiceHandler(t, proxyConfig.Outbounds[0], "web")
-	require.Empty(t, handler.CommandDeps)
-	_, err := proxyConfig.Outbounds[0].HandlerByCategory("api")
-	require.Error(t, err)
+	require.Len(t, proxyConfig.Outbounds, 2)
+	require.Contains(t, proxyConfig.Outbounds, existingOutbound)
+	require.Contains(t, proxyConfig.Outbounds, newOutbound)
 
-	changed = proxyConfig.SetOutbound(outbound)
+	changed = proxyConfig.SetOutbound(newOutbound)
 	require.False(t, changed)
-	require.Len(t, proxyConfig.Outbounds, 1)
-	require.Len(t, proxyConfig.Outbounds[0].Handlers, 1)
+	require.Len(t, proxyConfig.Outbounds, 2)
 }
 
-func TestCommandOutboundTargetUsesCommandHandler(t *testing.T) {
+func TestCommandOutboundTargetUsesFacadeURL(t *testing.T) {
+	configPath := testConfigPath(t)
 	apiHandler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: "api",
@@ -425,17 +398,18 @@ func TestCommandOutboundTargetUsesCommandHandler(t *testing.T) {
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: testHandlers(apiHandler),
+		Handlers:  testHandlers(apiHandler),
 	}
+	appConfig, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	require.NoError(t, appConfig.AddService(serviceConfig, rootServicesParent))
+	require.NoError(t, appConfig.Save())
 
-	outbound := minimalOutboundService(serviceConfig, apiHandler)
-	require.Equal(t, "custom-service", outbound.Name)
-	require.Empty(t, outbound.ModuleUrl)
-	require.Empty(t, outbound.HandlerDeps)
-	require.Len(t, outbound.Handlers, 1)
-	handler := requireServiceHandler(t, outbound, "api")
-	require.Equal(t, apiHandler.Endpoint, handler.Endpoint)
-	require.Empty(t, handler.CommandDeps)
+	independent, err := New("custom-service", configPath)
+	require.NoError(t, err)
+	outboundURL, err := independent.GetHandlerLink("api")
+	require.NoError(t, err)
+	require.Contains(t, outboundURL, "services[name:custom-service]&category=api")
 }
 
 func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *testing.T) {
@@ -465,7 +439,6 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 	} {
 		require.NoError(t, appConfig.AddService(svc, rootServicesParent))
 	}
-	require.NoError(t, appConfig.Save())
 
 	apiHandler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
@@ -484,96 +457,58 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 		ModuleUrl: DefaultModuleUrl,
 		Handlers:  testHandlers(apiHandler),
 	}
+	require.NoError(t, appConfig.AddService(serviceConfig, rootServicesParent))
+	require.NoError(t, appConfig.Save())
+
 	proxies := []string{linkTarget("entrypoint"), linkTarget("audit")}
 
 	independent, err := New("custom-service", configPath)
 	require.NoError(t, err)
-	outbound, commandOutbounds, err := independent.handlerDepProxyOutboundTargets(serviceConfig, apiHandler, proxies, 0, []string{"age-verification", "hello"})
+	outboundURL, commandOutbounds, err := independent.handlerDepProxyOutboundTargets(apiHandler, proxies, 0, []string{"age-verification", "hello"})
 	require.NoError(t, err)
-	require.Equal(t, "audit", outbound.Name)
+	require.Contains(t, outboundURL, "services[name:audit]&category="+handlers.DefaultHandlerCategory)
 	require.Empty(t, commandOutbounds)
 
-	outbound, commandOutbounds, err = independent.handlerDepProxyOutboundTargets(serviceConfig, apiHandler, proxies, 1, []string{"age-verification", "hello"})
+	outboundURL, commandOutbounds, err = independent.handlerDepProxyOutboundTargets(apiHandler, proxies, 1, []string{"age-verification", "hello"})
 	require.NoError(t, err)
-	require.Equal(t, "custom-service", outbound.Name)
+	require.Contains(t, outboundURL, "services[name:custom-service]&category=api")
 	require.Len(t, commandOutbounds, 1)
-	require.Equal(t, "default-name-proxy", commandOutbounds["hello"].Name)
+	require.Contains(t, commandOutbounds["hello"], "services[name:default-name-proxy]")
 }
 
-func TestConfigureHandlerDepProxyConfigSetsRoutesOutboundsAndForwards(t *testing.T) {
-	proxyConfig := topologyConfig.ProxyHandler{
-		IndependentHandler: topologyConfig.IndependentHandler{
-			Type:     topologyConfig.SyncReplierType,
-			Category: handlers.DefaultHandlerCategory,
-			Endpoint: message.NewEndpoint(testEndpointID(t, "entrypoint"), 0),
-		},
-		Routes:  []string{"stale"},
-		Forward: map[string]string{"stale": "old/main"},
-	}
-	serviceOutbound := topologyConfig.Service{
-		Type:      topologyConfig.IndependentType,
-		Name:      "custom-service",
-		ModuleUrl: DefaultModuleUrl,
-		Handlers: []topologyConfig.Handler{
-			topologyConfig.IndependentHandler{
-				Type:     topologyConfig.SyncReplierType,
-				Category: "api",
-				Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
-			},
-		},
-	}
-	commandOutbound := topologyConfig.Service{
-		Type:      topologyConfig.ProxyType,
-		Name:      "default-name-proxy",
-		ModuleUrl: DefaultModuleUrl,
-		Handlers: []topologyConfig.Handler{
-			topologyConfig.IndependentHandler{
-				Type:     topologyConfig.SyncReplierType,
-				Category: handlers.DefaultHandlerCategory,
-				Endpoint: message.NewEndpoint(testEndpointID(t, "default-name-proxy"), 0),
-			},
-		},
-	}
-
-	proxyConfig, changed, err := configureHandlerDepProxyConfig(proxyConfig, []string{"age-verification", "hello"}, serviceOutbound, map[string]topologyConfig.Service{
-		"hello": commandOutbound,
-	})
-	require.NoError(t, err)
-	require.True(t, changed)
-	require.Equal(t, []string{"age-verification", "hello"}, proxyConfig.Routes)
-	require.Equal(t, map[string]string{"hello": "default-name-proxy/main"}, proxyConfig.Forward)
-	require.Len(t, proxyConfig.Outbounds, 2)
-}
-
-func TestEnsureProxyHandlerForwardSetsCommandOutboundRef(t *testing.T) {
+func TestEnsureProxyHandlerForwardSetsCommandOutboundURL(t *testing.T) {
 	proxyConfig := topologyConfig.ProxyHandler{}
-	outbound := topologyConfig.Service{
-		Type:      topologyConfig.IndependentType,
-		Name:      "next-proxy",
-		ModuleUrl: DefaultModuleUrl,
-		Handlers: []topologyConfig.Handler{
-			topologyConfig.IndependentHandler{
-				Type:     topologyConfig.SyncReplierType,
-				Category: "proxy-api",
-				Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-api"), 0),
-			},
-		},
-	}
+	outboundURL := outboundLink("next-proxy", "proxy-api")
 
-	proxyConfig, changed, err := ensureProxyHandlerForward(proxyConfig, "hello", outbound)
-	require.NoError(t, err)
+	proxyConfig, changed := ensureProxyHandlerForward(proxyConfig, "hello", outboundURL)
 	require.True(t, changed)
-	require.Equal(t, map[string]string{"hello": "next-proxy/proxy-api"}, proxyConfig.Forward)
+	require.Equal(t, map[string]string{"hello": outboundURL}, proxyConfig.Forward)
 
-	proxyConfig, changed, err = ensureProxyHandlerForward(proxyConfig, "hello", outbound)
-	require.NoError(t, err)
+	proxyConfig, changed = ensureProxyHandlerForward(proxyConfig, "hello", outboundURL)
 	require.False(t, changed)
 }
 
 func TestValidateProtocolOrders(t *testing.T) {
+	serviceTCP := func(t *testing.T) topologyConfig.Service {
+		return protocolOutboundService(t, "service", topologyConfig.IndependentType, "tcp")
+	}
+	serviceInproc := func(t *testing.T) topologyConfig.Service {
+		return protocolOutboundService(t, "service", topologyConfig.IndependentType, "inproc")
+	}
+	serviceIPC := func(t *testing.T) topologyConfig.Service {
+		return protocolOutboundService(t, "service", topologyConfig.IndependentType, "ipc")
+	}
+	commandProxyIPC := func(t *testing.T) topologyConfig.Service {
+		return protocolProxyService(t, "command-proxy", "ipc")
+	}
+	commandProxyInproc := func(t *testing.T) topologyConfig.Service {
+		return protocolProxyService(t, "command-proxy", "inproc")
+	}
+
 	tests := []struct {
 		name    string
 		service topologyConfig.Service
+		fixture func(t *testing.T) []topologyConfig.Service
 		wantErr string
 	}{
 		{
@@ -582,8 +517,9 @@ func TestValidateProtocolOrders(t *testing.T) {
 				t,
 				"proxy",
 				"inproc",
-				protocolOutboundService(t, "service", topologyConfig.IndependentType, "tcp"),
+				protocolOutboundLink("service"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service { return []topologyConfig.Service{serviceTCP(t)} },
 		},
 		{
 			name: "ipc proxy to default tcp service passes",
@@ -591,8 +527,9 @@ func TestValidateProtocolOrders(t *testing.T) {
 				t,
 				"proxy",
 				"ipc",
-				protocolOutboundService(t, "service", topologyConfig.IndependentType, "tcp"),
+				protocolOutboundLink("service"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service { return []topologyConfig.Service{serviceTCP(t)} },
 		},
 		{
 			name: "ipc proxy to inproc service fails",
@@ -600,8 +537,9 @@ func TestValidateProtocolOrders(t *testing.T) {
 				t,
 				"proxy",
 				"ipc",
-				protocolOutboundService(t, "service", topologyConfig.IndependentType, "inproc"),
+				protocolOutboundLink("service"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service { return []topologyConfig.Service{serviceInproc(t)} },
 			wantErr: "can not access from ipc to inproc",
 		},
 		{
@@ -610,8 +548,9 @@ func TestValidateProtocolOrders(t *testing.T) {
 				t,
 				"proxy",
 				"inproc",
-				protocolOutboundService(t, "service", topologyConfig.IndependentType, "inproc"),
+				protocolOutboundLink("service"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service { return []topologyConfig.Service{serviceInproc(t)} },
 		},
 		{
 			name: "inproc proxy to ipc proxy to tcp service passes",
@@ -619,13 +558,14 @@ func TestValidateProtocolOrders(t *testing.T) {
 				t,
 				"proxy-a",
 				"inproc",
-				protocolProxyService(
-					t,
-					"proxy-b",
-					"ipc",
-					protocolOutboundService(t, "service", topologyConfig.IndependentType, "tcp"),
-				),
+				protocolOutboundLink("proxy-b"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service {
+				return []topologyConfig.Service{
+					protocolProxyService(t, "proxy-b", "ipc", protocolOutboundLink("service")),
+					serviceTCP(t),
+				}
+			},
 		},
 		{
 			name: "tcp proxy to inproc proxy to ipc service fails",
@@ -633,13 +573,14 @@ func TestValidateProtocolOrders(t *testing.T) {
 				t,
 				"proxy-a",
 				"tcp",
-				protocolProxyService(
-					t,
-					"proxy-b",
-					"inproc",
-					protocolOutboundService(t, "service", topologyConfig.IndependentType, "ipc"),
-				),
+				protocolOutboundLink("proxy-b"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service {
+				return []topologyConfig.Service{
+					protocolProxyService(t, "proxy-b", "inproc", protocolOutboundLink("service")),
+					serviceIPC(t),
+				}
+			},
 			wantErr: "can not access from tcp to inproc",
 		},
 		{
@@ -648,9 +589,12 @@ func TestValidateProtocolOrders(t *testing.T) {
 				t,
 				"handler-proxy",
 				"inproc",
-				protocolOutboundService(t, "command-proxy", topologyConfig.ProxyType, "ipc"),
-				protocolOutboundService(t, "service", topologyConfig.IndependentType, "ipc"),
+				protocolOutboundLink("command-proxy"),
+				protocolOutboundLink("service"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service {
+				return []topologyConfig.Service{commandProxyIPC(t), serviceIPC(t)}
+			},
 		},
 		{
 			name: "tcp handler proxy with ipc command proxy and inproc service fails at command proxy",
@@ -658,9 +602,12 @@ func TestValidateProtocolOrders(t *testing.T) {
 				t,
 				"handler-proxy",
 				"tcp",
-				protocolOutboundService(t, "command-proxy", topologyConfig.ProxyType, "ipc"),
-				protocolOutboundService(t, "service", topologyConfig.IndependentType, "inproc"),
+				protocolOutboundLink("command-proxy"),
+				protocolOutboundLink("service"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service {
+				return []topologyConfig.Service{commandProxyIPC(t), serviceInproc(t)}
+			},
 			wantErr: "can not access from tcp to ipc",
 		},
 		{
@@ -669,9 +616,12 @@ func TestValidateProtocolOrders(t *testing.T) {
 				t,
 				"handler-proxy",
 				"ipc",
-				protocolOutboundService(t, "command-proxy", topologyConfig.ProxyType, "ipc"),
-				protocolOutboundService(t, "service", topologyConfig.IndependentType, "inproc"),
+				protocolOutboundLink("command-proxy"),
+				protocolOutboundLink("service"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service {
+				return []topologyConfig.Service{commandProxyIPC(t), serviceInproc(t)}
+			},
 			wantErr: "can not access from ipc to inproc",
 		},
 		{
@@ -680,9 +630,12 @@ func TestValidateProtocolOrders(t *testing.T) {
 				t,
 				"handler-proxy",
 				"tcp",
-				protocolOutboundService(t, "command-proxy", topologyConfig.ProxyType, "inproc"),
-				protocolOutboundService(t, "service", topologyConfig.IndependentType, "inproc"),
+				protocolOutboundLink("command-proxy"),
+				protocolOutboundLink("service"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service {
+				return []topologyConfig.Service{commandProxyInproc(t), serviceInproc(t)}
+			},
 			wantErr: "can not access from tcp to inproc",
 		},
 		{
@@ -692,9 +645,12 @@ func TestValidateProtocolOrders(t *testing.T) {
 				"handler-proxy",
 				"tcp",
 				[]string{handlers.DefaultHandlerCategory},
-				protocolOutboundService(t, "command-proxy", topologyConfig.ProxyType, "inproc"),
-				protocolOutboundService(t, "service", topologyConfig.IndependentType, "inproc"),
+				protocolOutboundLink("command-proxy"),
+				protocolOutboundLink("service"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service {
+				return []topologyConfig.Service{commandProxyInproc(t), serviceInproc(t)}
+			},
 		},
 		{
 			name: "extension handler marked inproc can access inproc service",
@@ -704,14 +660,16 @@ func TestValidateProtocolOrders(t *testing.T) {
 				topologyConfig.ExtensionType,
 				"tcp",
 				[]string{handlers.DefaultHandlerCategory},
-				protocolOutboundService(t, "service", topologyConfig.IndependentType, "inproc"),
+				protocolOutboundLink("service"),
 			),
+			fixture: func(t *testing.T) []topologyConfig.Service { return []topologyConfig.Service{serviceInproc(t)} },
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := (&Independent{}).validateProtocolOrdersFor(tt.service)
+			independent := setupProtocolValidationIndependent(t, tt.fixture(t)...)
+			err := independent.validateProtocolOrdersFor(tt.service)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return
@@ -722,17 +680,17 @@ func TestValidateProtocolOrders(t *testing.T) {
 	}
 }
 
-func protocolProxyService(t *testing.T, name string, protocol string, outbounds ...topologyConfig.Service) topologyConfig.Service {
+func protocolProxyService(t *testing.T, name string, protocol string, outbounds ...string) topologyConfig.Service {
 	t.Helper()
 	return protocolProxyServiceWithInprocHandlers(t, name, protocol, nil, outbounds...)
 }
 
-func protocolProxyServiceWithInprocHandlers(t *testing.T, name string, protocol string, inprocHandlers []string, outbounds ...topologyConfig.Service) topologyConfig.Service {
+func protocolProxyServiceWithInprocHandlers(t *testing.T, name string, protocol string, inprocHandlers []string, outbounds ...string) topologyConfig.Service {
 	t.Helper()
 	return protocolProxyLikeServiceWithInprocHandlers(t, name, topologyConfig.ProxyType, protocol, inprocHandlers, outbounds...)
 }
 
-func protocolProxyLikeServiceWithInprocHandlers(t *testing.T, name string, serviceType topologyConfig.Type, protocol string, inprocHandlers []string, outbounds ...topologyConfig.Service) topologyConfig.Service {
+func protocolProxyLikeServiceWithInprocHandlers(t *testing.T, name string, serviceType topologyConfig.Type, protocol string, inprocHandlers []string, outbounds ...string) topologyConfig.Service {
 	t.Helper()
 	proxyHandler := topologyConfig.ProxyHandler{
 		IndependentHandler: topologyConfig.IndependentHandler{
@@ -740,15 +698,19 @@ func protocolProxyLikeServiceWithInprocHandlers(t *testing.T, name string, servi
 			Category: handlers.DefaultHandlerCategory,
 			Endpoint: protocolEndpoint(t, name, protocol),
 		},
-		Routes: []string{base.Any},
-	}
-	for _, outbound := range outbounds {
-		proxyHandler.Outbounds = append(proxyHandler.Outbounds, outbound)
+		Routes:    []string{base.Any},
+		Outbounds: append([]string(nil), outbounds...),
 	}
 	return topologyConfig.Service{
 		Type:      serviceType,
 		Name:      name,
 		ModuleUrl: DefaultModuleUrl,
+		StartCommand: func() string {
+			if protocol == "ipc" {
+				return "/bin/true"
+			}
+			return ""
+		}(),
 		Parameters: func() datatype.KeyValue {
 			if len(inprocHandlers) == 0 {
 				return nil
@@ -761,9 +723,13 @@ func protocolProxyLikeServiceWithInprocHandlers(t *testing.T, name string, servi
 	}
 }
 
+func protocolOutboundLink(name string) string {
+	return outboundLink(name, handlers.DefaultHandlerCategory)
+}
+
 func protocolOutboundService(t *testing.T, name string, serviceType topologyConfig.Type, protocol string) topologyConfig.Service {
 	t.Helper()
-	return topologyConfig.Service{
+	service := topologyConfig.Service{
 		Type:      serviceType,
 		Name:      name,
 		ModuleUrl: DefaultModuleUrl,
@@ -775,6 +741,36 @@ func protocolOutboundService(t *testing.T, name string, serviceType topologyConf
 			},
 		},
 	}
+	if protocol == "ipc" {
+		service.StartCommand = "/bin/true"
+	}
+	return service
+}
+
+func requireEqualPersistedService(t *testing.T, expected, actual topologyConfig.Service) {
+	t.Helper()
+	require.Equal(t, expected.Type, actual.Type)
+	require.Equal(t, expected.Name, actual.Name)
+	require.Equal(t, expected.ModuleUrl, actual.ModuleUrl)
+	require.Equal(t, expected.StartCommand, actual.StartCommand)
+	require.Equal(t, expected.HandlerDeps, actual.HandlerDeps)
+	require.Equal(t, expected.Parameters, actual.Parameters)
+	require.Equal(t, len(expected.Handlers), len(actual.Handlers))
+	for i := range expected.Handlers {
+		require.Equal(t, expected.Handlers[i], actual.Handlers[i])
+	}
+}
+
+func setupProtocolValidationIndependent(t *testing.T, fixtures ...topologyConfig.Service) *Independent {
+	t.Helper()
+	configPath := testConfigPath(t)
+	appConfig, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	for _, svc := range fixtures {
+		require.NoError(t, appConfig.AddService(svc, rootServicesParent))
+	}
+	require.NoError(t, appConfig.Save())
+	return requireNewIndependent(t, "protocol-test", configPath)
 }
 
 func protocolEndpoint(t *testing.T, name string, protocol string) message.Endpoint {

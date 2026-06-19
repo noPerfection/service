@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/noPerfection/datatype"
@@ -15,6 +16,20 @@ import (
 func TestProxyManagerOnProxyHandlerRunningForwardsToProxyHandlers(t *testing.T) {
 	serviceName := testEndpointID(t, "proxy")
 	category := "default-name"
+	outboundName := "outbound-" + category
+
+	startTestRuntimeHandler(t, topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      outboundName,
+		ModuleUrl: "github.com/noPerfection/service/manager/test",
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.IndependentHandler{
+				Type:     topologyConfig.SyncReplierType,
+				Category: handlers.DefaultHandlerCategory,
+				Endpoint: message.NewEndpoint(testEndpointID(t, outboundName), 0),
+			},
+		},
+	})
 
 	proxyHandlers := handlers.NewProxyHandlers(serviceName)
 	require.NoError(t, proxyHandlers.Route(base.Any, func(req handlers.ProxyRequest) handlers.ProxyReply {
@@ -98,19 +113,8 @@ func validManagerProxyHandlerConfig(t *testing.T, category string) topologyConfi
 			Endpoint: message.NewEndpoint(testEndpointID(t, category), 0),
 		},
 		Routes: []string{base.Any},
-		Outbounds: []topologyConfig.Service{
-			{
-				Type:      topologyConfig.IndependentType,
-				Name:      "outbound-" + category,
-				ModuleUrl: "github.com/noPerfection/service/manager/test",
-				Handlers: []topologyConfig.Handler{
-					topologyConfig.IndependentHandler{
-						Type:     topologyConfig.SyncReplierType,
-						Category: handlers.DefaultHandlerCategory,
-						Endpoint: message.NewEndpoint(testEndpointID(t, "outbound-"+category), 0),
-					},
-				},
-			},
+		Outbounds: []string{
+			fmt.Sprintf("pkg:$?var=services[name:%s]&category=%s", "outbound-"+category, handlers.DefaultHandlerCategory),
 		},
 	}
 }

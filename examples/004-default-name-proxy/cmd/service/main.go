@@ -82,17 +82,8 @@ func defaultNameProxyConfig() topologyConfig.Service {
 					Endpoint: message.NewEndpoint("localhost", 8001),
 				},
 				Routes: []string{base.Any},
-				Outbounds: []topologyConfig.Service{
-					{
-						Type:      topologyConfig.IndependentType,
-						Name:      serviceName,
-						ModuleUrl: "github.com/noPerfection/service/examples/004-default-name-proxy/cmd/service",
-						Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-							Type:     topologyConfig.ReplierType,
-							Category: "main",
-							Endpoint: message.NewEndpoint("localhost", 8000),
-						}),
-					},
+				Outbounds: []string{
+					fmt.Sprintf("pkg:$?var=services[name:%s]&category=main", serviceName),
 				},
 			}),
 		},

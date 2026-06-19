@@ -1,6 +1,11 @@
 package handlers
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,9 +16,134 @@ import (
 	"github.com/noPerfection/protocol/handler/control"
 	handlerPublisher "github.com/noPerfection/protocol/handler/publisher"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 	"github.com/stretchr/testify/require"
 )
+
+var testTopologyRuntime struct {
+	once    sync.Once
+	handler *topology.Handler
+	err     error
+}
+
+func testOutboundURL(serviceName, category string) string {
+	return fmt.Sprintf("pkg:$?var=services[name:%s]&category=%s", serviceName, category)
+}
+
+func parseTestOutboundURL(url string) (serviceName, category string, err error) {
+	const namePrefix = "name:"
+	nameStart := strings.Index(url, namePrefix)
+	if nameStart < 0 {
+		return "", "", fmt.Errorf("outbound url %q has no service name", url)
+	}
+	nameStart += len(namePrefix)
+	nameEnd := strings.Index(url[nameStart:], "]")
+	if nameEnd < 0 {
+		return "", "", fmt.Errorf("outbound url %q has invalid service name", url)
+	}
+	serviceName = url[nameStart : nameStart+nameEnd]
+
+	const categoryPrefix = "&category="
+	categoryStart := strings.Index(url, categoryPrefix)
+	if categoryStart < 0 {
+		return "", "", fmt.Errorf("outbound url %q has no handler category", url)
+	}
+	category = url[categoryStart+len(categoryPrefix):]
+	if cut, _, ok := strings.Cut(category, "&"); ok {
+		category = cut
+	}
+	if category == "" {
+		return "", "", fmt.Errorf("outbound url %q has empty handler category", url)
+	}
+	return serviceName, category, nil
+}
+
+func startTestTopologyHandler(t *testing.T) {
+	t.Helper()
+
+	testTopologyRuntime.once.Do(func() {
+		dir, err := os.MkdirTemp("", "handlers-proxy-test-*")
+		if err != nil {
+			testTopologyRuntime.err = err
+			return
+		}
+		appPath := filepath.Join(dir, "app.json")
+		appConfig, err := topologyConfig.Load(appPath)
+		if err != nil {
+			testTopologyRuntime.err = err
+			return
+		}
+		if err := appConfig.Save(); err != nil {
+			testTopologyRuntime.err = err
+			return
+		}
+
+		handler, err := topology.NewHandler(appPath)
+		if err != nil {
+			testTopologyRuntime.err = err
+			return
+		}
+		if err := handler.Start(); err != nil {
+			testTopologyRuntime.err = err
+			return
+		}
+		testTopologyRuntime.handler = handler
+	})
+	require.NoError(t, testTopologyRuntime.err)
+	require.NotNil(t, testTopologyRuntime.handler)
+}
+
+func addTestTopologyServices(t *testing.T, services ...topologyConfig.Service) {
+	t.Helper()
+	startTestTopologyHandler(t)
+
+	client, err := topology.NewClient()
+	require.NoError(t, err)
+	defer client.Close()
+	for _, service := range services {
+		require.NoError(t, client.AddService(service))
+	}
+}
+
+func outboundService(serviceName string, handlers ...topologyConfig.IndependentHandler) topologyConfig.Service {
+	handlerList := make([]topologyConfig.Handler, len(handlers))
+	for i, handler := range handlers {
+		handlerList[i] = handler
+	}
+	return topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      serviceName,
+		ModuleUrl: "github.com/noPerfection/service/handlers/test",
+		Handlers:  handlerList,
+	}
+}
+
+func registerProxyHandlerOutbounds(t *testing.T, proxyConfig topologyConfig.ProxyHandler) {
+	t.Helper()
+
+	byService := make(map[string][]topologyConfig.IndependentHandler)
+	for _, url := range proxyConfig.Outbounds {
+		serviceName, category, err := parseTestOutboundURL(url)
+		require.NoError(t, err)
+		byService[serviceName] = append(byService[serviceName], topologyConfig.IndependentHandler{
+			Type:     topologyConfig.SyncReplierType,
+			Category: category,
+			Endpoint: message.NewEndpoint(testEndpointID(t, "outbound-"+serviceName+"-"+category), 0),
+		})
+	}
+
+	services := make([]topologyConfig.Service, 0, len(byService))
+	for serviceName, handlers := range byService {
+		services = append(services, outboundService(serviceName, handlers...))
+	}
+	addTestTopologyServices(t, services...)
+}
+
+func registerOutboundHandlers(t *testing.T, serviceName string, handlers ...topologyConfig.IndependentHandler) {
+	t.Helper()
+	addTestTopologyServices(t, outboundService(serviceName, handlers...))
+}
 
 func handlersOf(handlers ...topologyConfig.IndependentHandler) []topologyConfig.Handler {
 	result := make([]topologyConfig.Handler, len(handlers))
@@ -68,21 +198,10 @@ func requireProxyManagerStatus(t *testing.T, managerControl *clientSyncReplier.C
 	}, 2*time.Second, 10*time.Millisecond)
 }
 
-func TestValidateProxyHandlerOutboundsRequiresInlineServiceWithHandler(t *testing.T) {
-	inlineService := topologyConfig.Service{
-		Type:      topologyConfig.IndependentType,
-		Name:      "api",
-		ModuleUrl: "github.com/noPerfection/service/handlers/test",
-		Handlers: handlersOf(topologyConfig.IndependentHandler{
-			Type:     topologyConfig.ReplierType,
-			Category: "main",
-			Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
-		}),
-	}
-
+func TestValidateProxyHandlerOutboundsRequiresURL(t *testing.T) {
 	tests := []struct {
 		name        string
-		outbounds   []topologyConfig.Service
+		outbounds   []string
 		expectedErr string
 	}{
 		{
@@ -91,23 +210,13 @@ func TestValidateProxyHandlerOutboundsRequiresInlineServiceWithHandler(t *testin
 			expectedErr: "not possible to send since no outbound yet",
 		},
 		{
-			name:        "missing service",
-			outbounds:   []topologyConfig.Service{{}},
-			expectedErr: "outbounds[0] service is required",
+			name:        "missing url",
+			outbounds:   []string{""},
+			expectedErr: "outbounds[0] url is required",
 		},
 		{
-			name: "service without handler",
-			outbounds: []topologyConfig.Service{
-				{
-					Type: topologyConfig.IndependentType,
-					Name: "api",
-				},
-			},
-			expectedErr: `outbounds[0] service "api" must have at least one handler`,
-		},
-		{
-			name:      "inline service with handler",
-			outbounds: []topologyConfig.Service{inlineService},
+			name:      "valid url",
+			outbounds: []string{testOutboundURL("api", "main")},
 		},
 	}
 
@@ -129,6 +238,7 @@ func TestProxyHandlersSetProxyHandler(t *testing.T) {
 	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-set"))
 	category := "api"
 	proxyConfig := validProxyHandlerConfig(t, category)
+	registerProxyHandlerOutbounds(t, proxyConfig)
 	require.NoError(t, manager.Route("hello", proxyOKRoute, category))
 
 	require.NoError(t, manager.Start())
@@ -151,7 +261,7 @@ func TestProxyHandlersSetProxyHandler(t *testing.T) {
 	require.Contains(t, reply.ErrorMessage(), "Can not convert 'config' to noPerfection/topology/config.ProxyHandler: ")
 
 	noOutbounds := proxyConfig
-	noOutbounds.Outbounds = []topologyConfig.Service{}
+	noOutbounds.Outbounds = []string{}
 	reply = proxyManagerRequest(t, client, SetProxyHandlerCommand, proxyManagerConfigParams(t, noOutbounds))
 	require.False(t, reply.IsOK())
 	require.Equal(t, "not possible to send since no outbound yet", reply.ErrorMessage())
@@ -222,6 +332,7 @@ func TestProxyHandlersStartStopProxyHandler(t *testing.T) {
 	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-start-stop"))
 	category := "api"
 	proxyConfig := validProxyHandlerConfig(t, category)
+	registerProxyHandlerOutbounds(t, proxyConfig)
 	proxyConfig.Routes = []string{base.Any}
 	require.NoError(t, manager.Route("hello", proxyOKRoute, category))
 	require.NoError(t, manager.Route(base.Any, proxyOKRoute, category))
@@ -306,6 +417,7 @@ func TestProxyHandlersHandleFuncWhitelistAndRouteFallback(t *testing.T) {
 
 	defaultConfig := validProxyHandlerConfig(t, "default-whitelist")
 	defaultConfig.Routes = nil
+	registerProxyHandlerOutbounds(t, defaultConfig)
 	requireStartedProxyConfig(t, managerClient, defaultConfig)
 	defaultClient := newProxyHandlerClient(t, defaultConfig)
 	requireProxyMessage(t, defaultClient, "anything", "Whitelisted default")
@@ -314,6 +426,7 @@ func TestProxyHandlersHandleFuncWhitelistAndRouteFallback(t *testing.T) {
 
 	handlerAnyConfig := validProxyHandlerConfig(t, "handler-any")
 	handlerAnyConfig.Routes = []string{base.Any}
+	registerProxyHandlerOutbounds(t, handlerAnyConfig)
 	requireStartedProxyConfig(t, managerClient, handlerAnyConfig)
 	handlerAnyClient := newProxyHandlerClient(t, handlerAnyConfig)
 	requireProxyMessage(t, handlerAnyClient, "something-random", "handler's default any is returned")
@@ -324,6 +437,7 @@ func TestProxyHandlersHandleFuncWhitelistAndRouteFallback(t *testing.T) {
 
 	managerHelloConfig := validProxyHandlerConfig(t, "manager-hello")
 	managerHelloConfig.Routes = nil
+	registerProxyHandlerOutbounds(t, managerHelloConfig)
 	requireStartedProxyConfig(t, managerClient, managerHelloConfig)
 	managerHelloClient := newProxyHandlerClient(t, managerHelloConfig)
 	requireProxyFailure(t, managerHelloClient, "bye", "can not find the proxy handler")
@@ -335,6 +449,7 @@ func TestProxyHandlersHandleFuncWhitelistAndRouteFallback(t *testing.T) {
 
 	managerAnyConfig := validProxyHandlerConfig(t, "manager-any")
 	managerAnyConfig.Routes = nil
+	registerProxyHandlerOutbounds(t, managerAnyConfig)
 	requireStartedProxyConfig(t, managerClient, managerAnyConfig)
 	managerAnyClient := newProxyHandlerClient(t, managerAnyConfig)
 	requireProxyMessage(t, managerAnyClient, "whatever", "manager any")
@@ -349,8 +464,8 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 	}
 	_, err := emptyManager.DeserializeRequest(message.MessageToEnvelope("", request.String()))
 	require.EqualError(t, err, "no proxified handlers")
-	_, err = emptyManager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "missing-service"))
-	require.EqualError(t, err, `outbound service "missing-service" not found`)
+	_, err = emptyManager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "pkg:$?var=services[name:missing]&category=main"))
+	require.EqualError(t, err, `outbound "pkg:$?var=services[name:missing]&category=main" not found`)
 
 	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-outbound"))
 	proxyConfig := validProxyHandlerConfig(t, "api")
@@ -362,28 +477,21 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 	raw, err := manager.DeserializeRequest(message.MessageToEnvelope("", request.String()))
 	require.NoError(t, err)
 	proxyRequest := raw.(*ProxyRequest)
-	outbound, exists := proxyRequest.Outbound()
-	require.True(t, exists)
-	require.Equal(t, "api", outbound.proxifiedHandler)
-	require.Equal(t, "outbound-api", outbound.ServiceName)
-	require.Equal(t, DefaultHandlerCategory, outbound.HandlerCategory)
+	require.Equal(t, "api", proxyRequest.proxifiedHandler)
+	require.Equal(t, proxyConfig.Outbounds[0], proxyRequest.outboundURL)
 
 	envelope, err := manager.SerializeRequest(proxyRequest)
 	require.NoError(t, err)
-	require.Equal(t, []string{"", request.String(), "pkg:$?var=services[name:outbound-api]"}, envelope)
+	require.Equal(t, []string{"", request.String(), proxyConfig.Outbounds[0]}, envelope)
 
-	raw, err = manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "outbound-api"))
+	raw, err = manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), proxyConfig.Outbounds[0]))
 	require.NoError(t, err)
 	proxyRequest = raw.(*ProxyRequest)
-	outbound, exists = proxyRequest.Outbound()
-	require.True(t, exists)
-	require.Equal(t, "api", outbound.proxifiedHandler)
-	require.Equal(t, "outbound-api", outbound.ServiceName)
-	require.Equal(t, DefaultHandlerCategory, outbound.HandlerCategory)
+	require.Equal(t, "api", proxyRequest.proxifiedHandler)
+	require.Equal(t, proxyConfig.Outbounds[0], proxyRequest.outboundURL)
 
-	envelope, err = manager.SerializeRequest(proxyRequest)
-	require.NoError(t, err)
-	require.Equal(t, []string{"", request.String(), "pkg:$?var=services[name:outbound-api]"}, envelope)
+	_, err = manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "missing-service"))
+	require.EqualError(t, err, `outbound "missing-service" not found`)
 }
 
 func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
@@ -396,23 +504,23 @@ func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
 		startForwardPublisher(t, serviceName, "publisher", "publisher reply"),
 	}
 
+	outboundURLs := make([]string, 0, len(outboundHandlers))
+	for _, handler := range outboundHandlers {
+		outboundURLs = append(outboundURLs, testOutboundURL(serviceName, handler.Category))
+	}
+	registerOutboundHandlers(t, serviceName, outboundHandlers...)
+
 	proxyConfig := topologyConfig.ProxyHandler{
 		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: "proxy",
 			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-forward"), 0),
 		},
-		Outbounds: []topologyConfig.Service{
-			topologyConfig.Service{
-				Type:      topologyConfig.IndependentType,
-				Name:      serviceName,
-				ModuleUrl: "github.com/noPerfection/service/handlers/test",
-				Handlers:  handlersOf(outboundHandlers...),
-			},
-		},
+		Outbounds: outboundURLs,
 	}
 
-	outboundClients, err := newOutboundClients(proxyConfig)
+	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-forward"))
+	outboundClients, err := manager.newOutboundClients(proxyConfig)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, closeOutboundClients(outboundClients))
@@ -420,7 +528,6 @@ func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
 	startOutboundSubscribers(outboundClients)
 	time.Sleep(50 * time.Millisecond)
 
-	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-forward"))
 	manager.proxifiedHandlers[Category(proxyConfig.Category)] = &ProxifiedHandler{
 		proxyConfig:     proxyConfig,
 		outboundClients: outboundClients,
@@ -454,7 +561,7 @@ func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
 	require.True(t, reply.IsOK(), reply.ErrorMessage())
 
 	_, err = proxyForwardRequest(manager, proxyConfig.Category, serviceName, "missing").Forward()
-	require.EqualError(t, err, `outbound ref "pkg:$?var=services[name:outbound-forward].handlers[category:missing]" is not connected`)
+	require.EqualError(t, err, `unsupported outbound client for "pkg:$?var=services[name:outbound-forward]&category=missing"`)
 }
 
 func TestProxyHandlerRouteForwardsToOutboundAcrossLifecycle(t *testing.T) {
@@ -462,21 +569,15 @@ func TestProxyHandlerRouteForwardsToOutboundAcrossLifecycle(t *testing.T) {
 	proxyCategory := "proxy-forward-route"
 	serviceName := "outbound-route-forward"
 	outboundHandler := startEchoOutboundHandler(t, "echo")
+	registerOutboundHandlers(t, serviceName, outboundHandler)
 	proxyConfig := topologyConfig.ProxyHandler{
 		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: proxyCategory,
 			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-route-forward"), 0),
 		},
-		Routes: []string{base.Any},
-		Outbounds: []topologyConfig.Service{
-			topologyConfig.Service{
-				Type:      topologyConfig.IndependentType,
-				Name:      serviceName,
-				ModuleUrl: "github.com/noPerfection/service/handlers/test",
-				Handlers:  handlersOf(outboundHandler),
-			},
-		},
+		Routes:    []string{base.Any},
+		Outbounds: []string{testOutboundURL(serviceName, "echo")},
 	}
 
 	require.NoError(t, manager.Route(base.Any, proxyForwardRoute, proxyCategory))
@@ -519,22 +620,18 @@ func TestProxyHandlerConfiguredForwardOverridesTailOutbound(t *testing.T) {
 	serviceName := "outbound-forward-config"
 	defaultHandler := startForwardOutboundHandler(t, handlerConfig.SyncReplierType, "default", "default reply")
 	configuredHandler := startForwardOutboundHandler(t, handlerConfig.SyncReplierType, DefaultHandlerCategory, "configured reply")
+	registerOutboundHandlers(t, serviceName, defaultHandler, configuredHandler)
+	defaultURL := testOutboundURL(serviceName, "default")
+	configuredURL := testOutboundURL(serviceName, DefaultHandlerCategory)
 	proxyConfig := topologyConfig.ProxyHandler{
 		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: proxyCategory,
 			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-forward-config"), 0),
 		},
-		Routes:  []string{"forward"},
-		Forward: map[string]string{"forward": serviceName},
-		Outbounds: []topologyConfig.Service{
-			topologyConfig.Service{
-				Type:      topologyConfig.IndependentType,
-				Name:      serviceName,
-				ModuleUrl: "github.com/noPerfection/service/handlers/test",
-				Handlers:  handlersOf(defaultHandler, configuredHandler),
-			},
-		},
+		Routes:    []string{"forward"},
+		Forward:   map[string]string{"forward": configuredURL},
+		Outbounds: []string{defaultURL, configuredURL},
 	}
 
 	require.NoError(t, manager.Route(base.Any, proxyForwardRoute, proxyCategory))
@@ -558,7 +655,7 @@ func TestProxyHandlerConfiguredForwardOverridesTailOutbound(t *testing.T) {
 		Command:    "forward",
 		Parameters: datatype.New(),
 	}
-	rawRequest, err := manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), serviceName+"/default"))
+	rawRequest, err := manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), defaultURL))
 	require.NoError(t, err)
 	reply = manager.handleFunc(rawRequest)
 	require.True(t, reply.IsOK(), reply.ErrorMessage())
@@ -671,37 +768,24 @@ func proxyForwardRequest(manager *ProxyHandlers, proxifiedCategory string, servi
 			Command:    "forward",
 			Parameters: datatype.New(),
 		},
-		outbound: Outbound{
-			proxifiedHandler: proxifiedCategory,
-			ServiceName:      serviceName,
-			HandlerCategory:  handlerCategory,
-		},
-		manager: manager,
+		proxifiedHandler: proxifiedCategory,
+		outboundURL:      testOutboundURL(serviceName, handlerCategory),
+		manager:          manager,
 	}
 }
 
 func validProxyHandlerConfig(t *testing.T, category string) topologyConfig.ProxyHandler {
 	t.Helper()
 
+	outboundName := testEndpointID(t, "outbound-"+category)
 	return topologyConfig.ProxyHandler{
 		IndependentHandler: topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
 			Category: category,
 			Endpoint: message.NewEndpoint(testEndpointID(t, category), 0),
 		},
-		Routes: []string{"hello"},
-		Outbounds: []topologyConfig.Service{
-			topologyConfig.Service{
-				Type:      topologyConfig.IndependentType,
-				Name:      "outbound-" + category,
-				ModuleUrl: "github.com/noPerfection/service/handlers/test",
-				Handlers: handlersOf(topologyConfig.IndependentHandler{
-					Type:     topologyConfig.SyncReplierType,
-					Category: DefaultHandlerCategory,
-					Endpoint: message.NewEndpoint(testEndpointID(t, "outbound-"+category), 0),
-				}),
-			},
-		},
+		Routes:    []string{"hello"},
+		Outbounds: []string{testOutboundURL(outboundName, DefaultHandlerCategory)},
 	}
 }
 

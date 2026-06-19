@@ -16,6 +16,10 @@ func linkTarget(serviceName string, handlerCategory ...string) string {
 	return link
 }
 
+func outboundLink(serviceName, category string) string {
+	return fmt.Sprintf("pkg:$?var=services[name:%s]&category=%s", serviceName, category)
+}
+
 func testHandlers(handlers ...topologyConfig.IndependentHandler) []topologyConfig.Handler {
 	result := make([]topologyConfig.Handler, len(handlers))
 	for i, h := range handlers {
