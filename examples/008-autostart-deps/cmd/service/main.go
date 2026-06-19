@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-
 	"runtime/debug"
 
 	"github.com/noPerfection/datatype"
@@ -26,8 +25,6 @@ const (
 	entrypointManager    = "tmp/entrypoint_proxy_manager"
 	defaultProxyPackage  = "github.com/noPerfection/service/examples/008-autostart-deps/cmd/proxy"
 	entrypointPackage    = "github.com/noPerfection/service/examples/008-autostart-deps/cmd/entrypoint"
-	// defaultProxyStartCommand = "go run ./cmd/proxy/main.go"
-	// entrypointStartCommand   = "go run ./cmd/entrypoint/main.go"
 	defaultProxyStartCommand = "./bin/proxy"
 	entrypointStartCommand   = "./bin/entrypoint"
 )
@@ -106,20 +103,21 @@ func proxyConfig(name string, moduleURL string, endpointID string, startCommand 
 		Name:         name,
 		ModuleUrl:    moduleURL,
 		StartCommand: startCommand,
-		Handlers: []topologyConfig.HandlerVariant{
-			topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
-				Handler: topologyConfig.Handler{
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.ProxyHandler{
+				IndependentHandler: topologyConfig.IndependentHandler{
 					Type:     topologyConfig.SyncReplierType,
 					Category: proxyCategory,
 					Endpoint: message.NewEndpoint(endpointID, 0),
 				},
-			}),
+				Routes: []string{"hello", "age-verification"},
+			},
 		},
 	}
 }
 
 func proxyManagerConfig(endpointID string) topologyConfig.Handler {
-	return topologyConfig.Handler{
+	return topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: topology.ServiceManagerCategory,
 		Endpoint: message.NewEndpoint(endpointID, 0),

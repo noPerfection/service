@@ -58,20 +58,21 @@ func defaultNameProxyConfig() topologyConfig.Service {
 		Type:      topologyConfig.ProxyType,
 		Name:      proxyName,
 		ModuleUrl: "github.com/noPerfection/service/examples/005-command-deps/cmd/proxy",
-		Handlers: []topologyConfig.HandlerVariant{
-			topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
-				Handler: topologyConfig.Handler{
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.ProxyHandler{
+				IndependentHandler: topologyConfig.IndependentHandler{
 					Type:     topologyConfig.SyncReplierType,
 					Category: proxyCategory,
 					Endpoint: message.NewEndpoint("localhost", 8001),
 				},
-			}),
+				Routes: []string{"hello"},
+			},
 		},
 	}
 }
 
 func proxyManagerConfig() topologyConfig.Handler {
-	return topologyConfig.Handler{
+	return topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: topology.ServiceManagerCategory,
 		Endpoint: message.NewEndpoint("localhost", 8002),

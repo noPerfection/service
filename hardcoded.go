@@ -204,6 +204,17 @@ func (independent *Independent) addHardcodedHandlersToTopology() error {
 		}
 
 		for _, handler := range handlers {
+			if serviceConfig.Type == config.ProxyType {
+				if base, ok := handler.AsIndependentHandler(); ok && base.Category == config.ServiceManagerCategory {
+					serviceConfig.SetHandler(handler, true)
+					continue
+				}
+				proxyHandler, ok := handler.AsProxyHandler()
+				if !ok {
+					continue
+				}
+				handler = normalizeProxyHandlerOutbounds(proxyHandler)
+			}
 			serviceConfig.SetHandler(handler, true)
 		}
 		if err := independent.topologyHandler.SetService(serviceConfig, serviceParentURL(mushroomURL)...); err != nil {

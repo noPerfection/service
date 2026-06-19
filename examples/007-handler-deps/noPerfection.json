@@ -12,53 +12,8 @@
             "id": "localhost",
             "port": 8001
           },
-          "routes": [
-            "hello"
-          ],
-          "outbounds": [
-            {
-              "type": "Independent",
-              "name": "hello-world",
-              "module-url": "github.com/noPerfection/service",
-              "handler-deps": [
-                {
-                  "name": "main",
-                  "proxies": [
-                    "entrypoint"
-                  ]
-                }
-              ],
-              "handlers": [
-                {
-                  "type": "Replier",
-                  "category": "main",
-                  "endpoint": {
-                    "id": "localhost",
-                    "port": 8000
-                  },
-                  "command-deps": [
-                    {
-                      "name": "hello",
-                      "proxies": [
-                        "default-name-proxy"
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ],
-          "forward": {
-            "hello": "hello-world/main"
-          }
-        },
-        {
-          "type": "SyncReplier",
-          "category": "manager",
-          "endpoint": {
-            "id": "localhost",
-            "port": 8002
-          }
+          "routes": ["hello"],
+          "outbounds": []
         }
       ]
     },
@@ -74,70 +29,8 @@
             "id": "localhost",
             "port": 8003
           },
-          "routes": [
-            "age-verification",
-            "hello"
-          ],
-          "outbounds": [
-            {
-              "type": "Independent",
-              "name": "hello-world",
-              "module-url": "github.com/noPerfection/service",
-              "handler-deps": [
-                {
-                  "name": "main",
-                  "proxies": [
-                    "entrypoint"
-                  ]
-                }
-              ],
-              "handlers": [
-                {
-                  "type": "Replier",
-                  "category": "main",
-                  "endpoint": {
-                    "id": "localhost",
-                    "port": 8000
-                  },
-                  "command-deps": [
-                    {
-                      "name": "hello",
-                      "proxies": [
-                        "default-name-proxy"
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "Proxy",
-              "name": "default-name-proxy",
-              "module-url": "github.com/noPerfection/service/examples/007-handler-deps/cmd/proxy",
-              "handlers": [
-                {
-                  "type": "SyncReplier",
-                  "category": "main",
-                  "endpoint": {
-                    "id": "localhost",
-                    "port": 8001
-                  },
-                  "outbounds": null
-                }
-              ]
-            }
-          ],
-          "forward": {
-            "hello": "default-name-proxy/main"
-          }
-        },
-        {
-          "type": "SyncReplier",
-          "category": "manager",
-          "endpoint": {
-            "id": "localhost",
-            "port": 8004
-          }
+          "routes": ["hello", "age-verification"],
+          "outbounds": []
         }
       ]
     },
@@ -148,9 +41,7 @@
       "handler-deps": [
         {
           "name": "main",
-          "proxies": [
-            "entrypoint"
-          ]
+          "proxies": ["pkg:$?var=services[name:entrypoint]"]
         }
       ],
       "handlers": [
@@ -164,9 +55,7 @@
           "command-deps": [
             {
               "name": "hello",
-              "proxies": [
-                "default-name-proxy"
-              ]
+              "proxies": ["pkg:$?var=services[name:default-name-proxy]"]
             }
           ]
         }

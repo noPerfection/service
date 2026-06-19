@@ -140,36 +140,8 @@ func (proxy *Proxy) addDefaultServiceToTopology() error {
 }
 
 func (proxy *Proxy) addServiceManagerToTopology() error {
-	// Our service's config in the topology.
-	serviceConfig, err := proxy.topologyHandler.Service(proxy.name)
-	if err != nil {
-		return fmt.Errorf("topologyHandler.Service('%s'): %w", proxy.name, err)
-	}
-
-	// Service manager's config in the handler config format.
-	managerConfig := proxy.manager.Config()
-	currentManager, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
-	if err == nil {
-		handler, ok := currentManager.AsIndependentHandler()
-		if ok && handler.Endpoint == managerConfig.Endpoint {
-			return nil
-		}
-	}
-	if managerConfig.Endpoint == DefaultServiceManagerEndpoint {
-		return nil
-	}
-
-	managerTopologyConfig := config.IndependentHandler{
-		Type:     config.HandlerType(managerConfig.Type),
-		Category: managerConfig.Category,
-		Endpoint: managerConfig.Endpoint,
-	}
-
-	serviceConfig.SetHandler(managerTopologyConfig, true)
-	if err := proxy.topologyHandler.SetService(serviceConfig); err != nil {
-		return fmt.Errorf("topologyHandler.SetService('%s'): %w", proxy.name, err)
-	}
-
+	// Proxy topology records only accept proxy handlers. The manager runs
+	// in-process via ProxyHandlers, not as a stored independent handler.
 	return nil
 }
 
