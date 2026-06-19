@@ -440,13 +440,13 @@ func (independent *Independent) syncHandlerDepOutbounds() error {
 		}
 
 		for proxyIndex := range dep.Proxies {
-			proxyPointer := &dep.Proxies[proxyIndex]
+			proxyURL := dep.Proxies[proxyIndex]
 			outbound, commandOutbounds, err := independent.handlerDepProxyOutboundTargets(serviceConfig, handler, dep.Proxies, proxyIndex, routes)
 			if err != nil {
-				return fmt.Errorf("handler %q proxy %q outbound: %w", dep.Name, depTargetName(*proxyPointer), err)
+				return fmt.Errorf("handler %q proxy %q outbound: %w", dep.Name, proxyURL, err)
 			}
-			if err := independent.syncHandlerDepProxyOutbounds(&serviceConfig, routes, proxyPointer, outbound, commandOutbounds); err != nil {
-				return fmt.Errorf("handler %q proxy %q: %w", dep.Name, depTargetName(*proxyPointer), err)
+			if err := independent.syncHandlerDepProxyOutbounds(routes, proxyURL, outbound, commandOutbounds); err != nil {
+				return fmt.Errorf("handler %q proxy %q: %w", dep.Name, proxyURL, err)
 			}
 		}
 	}
@@ -469,12 +469,12 @@ func (independent *Independent) startIpcServicesFor(serviceConfig config.Service
 	for _, dep := range serviceConfig.HandlerDeps {
 		for _, proxy := range dep.Proxies {
 			if err := independent.startIpcService(proxy, startedRefs); err != nil {
-				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, depTargetName(proxy), err)
+				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, proxy, err)
 			}
 		}
 		for _, extension := range dep.Extensions {
 			if err := independent.startIpcService(extension, startedRefs); err != nil {
-				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, depTargetName(extension), err)
+				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, extension, err)
 			}
 		}
 	}
@@ -487,12 +487,12 @@ func (independent *Independent) startIpcServicesFor(serviceConfig config.Service
 		for _, dep := range handler.CommandDeps {
 			for _, proxy := range dep.Proxies {
 				if err := independent.startIpcService(proxy, startedRefs); err != nil {
-					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, depTargetName(proxy), err)
+					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxy, err)
 				}
 			}
 			for _, extension := range dep.Extensions {
 				if err := independent.startIpcService(extension, startedRefs); err != nil {
-					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, depTargetName(extension), err)
+					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, extension, err)
 				}
 			}
 		}
@@ -501,70 +501,39 @@ func (independent *Independent) startIpcServicesFor(serviceConfig config.Service
 	return nil
 }
 
-func (independent *Independent) startIpcService(target config.DepTarget, startedRefs map[string]struct{}) error {
-	if target.IsLink() {
-		url := dereferenceMushroomURL(target.Link)
-		depService, err := independent.topologyService(url)
-		if err != nil {
-			return err
-		}
-		if _, done := startedRefs[depService.Name]; done {
-			return nil
-		}
-		startedRefs[depService.Name] = struct{}{}
-
-		if err := independent.startIpcServicesFor(depService, startedRefs); err != nil {
-			return fmt.Errorf("service %q ipc deps: %w", depService.Name, err)
-		}
-		if !depService.IsIpc() {
-			return nil
-		}
-		if len(depService.StartCommand) == 0 {
-			return fmt.Errorf("service '%s' has no start command given", depService.Name)
-		}
-
-		running, err := independent.manager.IsServiceRunning(depService.Name)
-		if err != nil {
-			return fmt.Errorf("manager.IsServiceRunning('%s'): %w", depService.Name, err)
-		}
-		if running {
-			return nil
-		}
-		if _, err := independent.manager.StartServiceByConfig(depService); err != nil {
-			return fmt.Errorf("manager.StartServiceByConfig('%s'): %w", depService.Name, err)
-		}
+func (independent *Independent) startIpcService(mushroomURL string, startedRefs map[string]struct{}) error {
+	if mushroomURL == "" {
+		return fmt.Errorf("dep mushroom url is empty")
+	}
+	url := dereferenceMushroomURL(mushroomURL)
+	depService, err := independent.topologyService(url)
+	if err != nil {
+		return err
+	}
+	if _, done := startedRefs[depService.Name]; done {
 		return nil
 	}
+	startedRefs[depService.Name] = struct{}{}
 
-	if !target.IsInline() {
-		return fmt.Errorf("dep target is empty")
+	if err := independent.startIpcServicesFor(depService, startedRefs); err != nil {
+		return fmt.Errorf("service %q ipc deps: %w", depService.Name, err)
 	}
-	if err := independent.startIpcServicesFor(target.Service, startedRefs); err != nil {
-		return fmt.Errorf("service %q ipc deps: %w", target.Service.Name, err)
-	}
-	if !target.Service.IsIpc() {
+	if !depService.IsIpc() {
 		return nil
 	}
-	if len(target.Service.StartCommand) == 0 {
-		return fmt.Errorf("service '%s' has no start command given", target.Service.Name)
+	if len(depService.StartCommand) == 0 {
+		return fmt.Errorf("service '%s' has no start command given", depService.Name)
 	}
-	managerHandler, err := target.Service.HandlerByCategory(topology.ServiceManagerCategory)
+
+	running, err := independent.manager.IsServiceRunning(depService.Name)
 	if err != nil {
-		return fmt.Errorf("service %q manager handler: %w", target.Service.Name, err)
-	}
-	handler, ok := managerHandler.AsIndependentHandler()
-	if !ok {
-		return fmt.Errorf("service %q manager handler is not an independent handler", target.Service.Name)
-	}
-	running, err := independent.manager.IsServiceRunningByManager(target.Service.Name, handler)
-	if err != nil {
-		return fmt.Errorf("manager.IsServiceRunningByManager('%s'): %w", target.Service.Name, err)
+		return fmt.Errorf("manager.IsServiceRunning('%s'): %w", depService.Name, err)
 	}
 	if running {
 		return nil
 	}
-	if _, err := independent.manager.StartServiceByConfig(target.Service); err != nil {
-		return fmt.Errorf("manager.StartServiceByConfig('%s'): %w", target.Service.Name, err)
+	if _, err := independent.manager.StartServiceByConfig(depService); err != nil {
+		return fmt.Errorf("manager.StartServiceByConfig('%s'): %w", depService.Name, err)
 	}
 	return nil
 }
@@ -603,23 +572,23 @@ func (independent *Independent) validateProtocolOrdersFor(serviceConfig config.S
 	}
 
 	for _, dep := range serviceConfig.HandlerDeps {
-		for _, proxyPointer := range dep.Proxies {
-			proxyService, _, err := independent.serviceAndHandlerFromTarget(proxyPointer)
+		for _, proxyURL := range dep.Proxies {
+			proxyService, _, err := independent.serviceAndHandlerFromURL(proxyURL)
 			if err != nil {
-				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, depTargetName(proxyPointer), err)
+				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, proxyURL, err)
 			}
 			if err := independent.validateProtocolOrdersFor(proxyService); err != nil {
-				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, depTargetName(proxyPointer), err)
+				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, proxyURL, err)
 			}
 		}
 
-		for _, extension := range dep.Extensions {
-			extensionService, _, err := independent.serviceAndHandlerFromTarget(extension)
+		for _, extensionURL := range dep.Extensions {
+			extensionService, _, err := independent.serviceAndHandlerFromURL(extensionURL)
 			if err != nil {
-				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, depTargetName(extension), err)
+				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, extensionURL, err)
 			}
 			if err := independent.validateProtocolOrdersFor(extensionService); err != nil {
-				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, depTargetName(extension), err)
+				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, extensionURL, err)
 			}
 		}
 	}
@@ -634,22 +603,22 @@ func (independent *Independent) validateProtocolOrdersFor(serviceConfig config.S
 		}
 
 		for _, dep := range handler.CommandDeps {
-			for _, proxyPointer := range dep.Proxies {
-				proxyService, _, err := independent.serviceAndHandlerFromTarget(proxyPointer)
+			for _, proxyURL := range dep.Proxies {
+				proxyService, _, err := independent.serviceAndHandlerFromURL(proxyURL)
 				if err != nil {
-					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, depTargetName(proxyPointer), err)
+					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxyURL, err)
 				}
 				if err := independent.validateProtocolOrdersFor(proxyService); err != nil {
-					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, depTargetName(proxyPointer), err)
+					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxyURL, err)
 				}
 			}
-			for _, extension := range dep.Extensions {
-				extensionService, _, err := independent.serviceAndHandlerFromTarget(extension)
+			for _, extensionURL := range dep.Extensions {
+				extensionService, _, err := independent.serviceAndHandlerFromURL(extensionURL)
 				if err != nil {
-					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, depTargetName(extension), err)
+					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, extensionURL, err)
 				}
 				if err := independent.validateProtocolOrdersFor(extensionService); err != nil {
-					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, depTargetName(extension), err)
+					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, extensionURL, err)
 				}
 			}
 		}
@@ -689,13 +658,6 @@ func dereferenceMushroomURL(url string) string {
 	return fmt.Sprintf("*pkg:$?var=services[name:%s]", url)
 }
 
-func depTargetName(target config.DepTarget) string {
-	if target.IsInline() {
-		return target.Service.Name
-	}
-	return target.Link
-}
-
 func (independent *Independent) resolveTopologyHandler(mushroomURL string) (config.Handler, error) {
 	if independent.topology != nil {
 		return independent.topology.Handler(mushroomURL)
@@ -706,44 +668,34 @@ func (independent *Independent) resolveTopologyHandler(mushroomURL string) (conf
 	return nil, fmt.Errorf("topology is nil")
 }
 
-func (independent *Independent) referencedProxyFromTarget(target config.DepTarget) (config.Service, config.ProxyHandler, error) {
-	if !target.IsLink() {
-		return config.Service{}, config.ProxyHandler{}, fmt.Errorf("dep target %q is not a link", depTargetName(target))
+func (independent *Independent) referencedProxyFromURL(mushroomURL string) (config.Service, config.ProxyHandler, error) {
+	if mushroomURL == "" {
+		return config.Service{}, config.ProxyHandler{}, fmt.Errorf("dep mushroom url is empty")
 	}
-	url := dereferenceMushroomURL(target.Link)
+	url := dereferenceMushroomURL(mushroomURL)
 	handler, err := independent.resolveTopologyHandler(url)
 	if err != nil {
-		return config.Service{}, config.ProxyHandler{}, fmt.Errorf("topology.Handler(%q): %w", target.Link, err)
+		return config.Service{}, config.ProxyHandler{}, fmt.Errorf("topology.Handler(%q): %w", mushroomURL, err)
 	}
 	proxyConfig, ok := handler.AsProxyHandler()
 	if !ok {
-		return config.Service{}, config.ProxyHandler{}, fmt.Errorf("dep target %q is not a proxy handler", target.Link)
+		return config.Service{}, config.ProxyHandler{}, fmt.Errorf("dep %q is not a proxy handler", mushroomURL)
 	}
 	service, err := independent.topologyService(url)
 	if err != nil {
-		return config.Service{}, config.ProxyHandler{}, fmt.Errorf("topology.Service(%q): %w", target.Link, err)
+		return config.Service{}, config.ProxyHandler{}, fmt.Errorf("topology.Service(%q): %w", mushroomURL, err)
 	}
 	return service, proxyConfig, nil
 }
 
-func (independent *Independent) serviceAndHandlerFromTarget(target config.DepTarget) (config.Service, config.Handler, error) {
-	if target.IsInline() {
-		if target.Service.IsZero() {
-			return config.Service{}, nil, fmt.Errorf("dep target is empty")
-		}
-		handler, err := firstOutboundHandler(target.Service)
-		if err != nil {
-			return config.Service{}, nil, err
-		}
-		return target.Service, handler, nil
+func (independent *Independent) serviceAndHandlerFromURL(mushroomURL string) (config.Service, config.Handler, error) {
+	if mushroomURL == "" {
+		return config.Service{}, nil, fmt.Errorf("dep mushroom url is empty")
 	}
-	if !target.IsLink() {
-		return config.Service{}, nil, fmt.Errorf("dep target is empty")
-	}
-	url := dereferenceMushroomURL(target.Link)
+	url := dereferenceMushroomURL(mushroomURL)
 	handler, err := independent.resolveTopologyHandler(url)
 	if err != nil {
-		return config.Service{}, nil, fmt.Errorf("topology.Handler(%q): %w", target.Link, err)
+		return config.Service{}, nil, fmt.Errorf("topology.Handler(%q): %w", mushroomURL, err)
 	}
 	service, err := independent.topologyService(url)
 	if err != nil {
@@ -823,20 +775,22 @@ func (independent *Independent) validateInprocServiceManagersFor(serviceConfig c
 	}
 
 	for _, dep := range serviceConfig.HandlerDeps {
-		for _, pointer := range dep.Proxies {
-			if !pointer.IsInline() {
-				continue
+		for _, link := range dep.Proxies {
+			depService, err := independent.topologyService(dereferenceMushroomURL(link))
+			if err != nil {
+				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, link, err)
 			}
-			if err := independent.validateInprocServiceManagersFor(pointer.Service, inprocServices); err != nil {
-				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, depTargetName(pointer), err)
+			if err := independent.validateInprocServiceManagersFor(depService, inprocServices); err != nil {
+				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, link, err)
 			}
 		}
-		for _, pointer := range dep.Extensions {
-			if !pointer.IsInline() {
-				continue
+		for _, link := range dep.Extensions {
+			depService, err := independent.topologyService(dereferenceMushroomURL(link))
+			if err != nil {
+				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, link, err)
 			}
-			if err := independent.validateInprocServiceManagersFor(pointer.Service, inprocServices); err != nil {
-				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, depTargetName(pointer), err)
+			if err := independent.validateInprocServiceManagersFor(depService, inprocServices); err != nil {
+				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, link, err)
 			}
 		}
 	}
@@ -847,20 +801,22 @@ func (independent *Independent) validateInprocServiceManagersFor(serviceConfig c
 			continue
 		}
 		for _, dep := range handler.CommandDeps {
-			for _, pointer := range dep.Proxies {
-				if !pointer.IsInline() {
-					continue
+			for _, link := range dep.Proxies {
+				depService, err := independent.topologyService(dereferenceMushroomURL(link))
+				if err != nil {
+					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, link, err)
 				}
-				if err := independent.validateInprocServiceManagersFor(pointer.Service, inprocServices); err != nil {
-					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, depTargetName(pointer), err)
+				if err := independent.validateInprocServiceManagersFor(depService, inprocServices); err != nil {
+					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, link, err)
 				}
 			}
-			for _, pointer := range dep.Extensions {
-				if !pointer.IsInline() {
-					continue
+			for _, link := range dep.Extensions {
+				depService, err := independent.topologyService(dereferenceMushroomURL(link))
+				if err != nil {
+					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, link, err)
 				}
-				if err := independent.validateInprocServiceManagersFor(pointer.Service, inprocServices); err != nil {
-					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, depTargetName(pointer), err)
+				if err := independent.validateInprocServiceManagersFor(depService, inprocServices); err != nil {
+					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, link, err)
 				}
 			}
 		}
@@ -901,13 +857,10 @@ func (independent *Independent) syncCommandOutbounds() error {
 		for depIndex := range handler.CommandDeps {
 			dep := &handler.CommandDeps[depIndex]
 			for proxyIndex := range dep.Proxies {
-				proxyPointer := &dep.Proxies[proxyIndex]
+				proxyURL := dep.Proxies[proxyIndex]
 				var outbound config.Service
-				// Get proxy target: either the next proxy or this service handler.
 				if proxyIndex+1 < len(dep.Proxies) {
-					var err error
-					// target is another proxy
-					targetService, targetHandler, err := independent.serviceAndHandlerFromTarget(dep.Proxies[proxyIndex+1])
+					targetService, targetHandler, err := independent.serviceAndHandlerFromURL(dep.Proxies[proxyIndex+1])
 					if err != nil {
 						return err
 					}
@@ -915,15 +868,8 @@ func (independent *Independent) syncCommandOutbounds() error {
 				} else {
 					outbound = minimalOutboundService(serviceConfig, handler)
 				}
-				// Sync command proxy config: referenced root proxy or inline proxy embedded in this service tree.
-				var err error
-				if proxyPointer.IsLink() {
-					err = independent.syncReferencedCommandProxyOutbound(dep.Name, *proxyPointer, outbound)
-				} else {
-					err = independent.syncInlineCommandProxyOutbound(&serviceConfig, dep.Name, proxyPointer, outbound)
-				}
-				if err != nil {
-					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, depTargetName(*proxyPointer), err)
+				if err := independent.syncCommandProxyOutbound(dep.Name, proxyURL, outbound); err != nil {
+					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxyURL, err)
 				}
 			}
 		}
@@ -932,9 +878,9 @@ func (independent *Independent) syncCommandOutbounds() error {
 	return nil
 }
 
-func (independent *Independent) handlerDepProxyOutboundTargets(serviceConfig config.Service, handlerConfig config.Handler, proxies []config.DepTarget, proxyIndex int, routes []string) (config.Service, map[string]config.Service, error) {
+func (independent *Independent) handlerDepProxyOutboundTargets(serviceConfig config.Service, handlerConfig config.Handler, proxies []string, proxyIndex int, routes []string) (config.Service, map[string]config.Service, error) {
 	if proxyIndex+1 < len(proxies) {
-		outbound, err := independent.proxyPointerOutboundTarget(proxies[proxyIndex+1])
+		outbound, err := independent.proxyOutboundTarget(proxies[proxyIndex+1])
 		return outbound, nil, err
 	}
 
@@ -944,7 +890,7 @@ func (independent *Independent) handlerDepProxyOutboundTargets(serviceConfig con
 		if !ok || len(commandDep.Proxies) == 0 {
 			continue
 		}
-		outbound, err := independent.proxyPointerOutboundTarget(commandDep.Proxies[0])
+		outbound, err := independent.proxyOutboundTarget(commandDep.Proxies[0])
 		if err != nil {
 			return config.Service{}, nil, fmt.Errorf("command %q first proxy: %w", route, err)
 		}
@@ -967,14 +913,21 @@ func commandDepByName(handlerConfig config.Handler, command string) (config.DepS
 	return config.DepService{}, false
 }
 
-func (independent *Independent) syncHandlerDepProxyOutbounds(serviceConfig *config.Service, routes []string, proxyPointer *config.DepTarget, outbound config.Service, commandOutbounds map[string]config.Service) error {
-	if proxyPointer.IsLink() {
-		return independent.syncReferencedHandlerDepProxyOutbounds(routes, *proxyPointer, outbound, commandOutbounds)
+func (independent *Independent) syncHandlerDepProxyOutbounds(routes []string, mushroomURL string, outbound config.Service, commandOutbounds map[string]config.Service) error {
+	proxyService, proxyConfig, err := independent.referencedProxyFromURL(mushroomURL)
+	if err != nil {
+		return err
 	}
-	if !proxyPointer.IsInline() {
-		return fmt.Errorf("proxy dep target is empty")
+	proxyConfig, updated, err := configureHandlerDepProxyConfig(proxyConfig, routes, outbound, commandOutbounds)
+	if err != nil {
+		return err
 	}
-	return independent.syncInlineHandlerDepProxyOutbounds(serviceConfig, routes, proxyPointer, outbound, commandOutbounds)
+	if updated {
+		if err := independent.persistProxyHandlerConfig(proxyService, proxyConfig); err != nil {
+			return err
+		}
+	}
+	return reloadProxy(proxyService, proxyConfig, updated)
 }
 
 func minimalOutboundService(serviceConfig config.Service, handlerConfig config.Handler) config.Service {
@@ -999,8 +952,8 @@ func minimalOutboundHandler(handlerConfig config.Handler) config.IndependentHand
 	}
 }
 
-func (independent *Independent) proxyPointerOutboundTarget(proxyPointer config.DepTarget) (config.Service, error) {
-	serviceConfig, handler, err := independent.serviceAndHandlerFromTarget(proxyPointer)
+func (independent *Independent) proxyOutboundTarget(mushroomURL string) (config.Service, error) {
+	serviceConfig, handler, err := independent.serviceAndHandlerFromURL(mushroomURL)
 	if err != nil {
 		return config.Service{}, err
 	}
@@ -1014,53 +967,8 @@ func firstOutboundHandler(serviceConfig config.Service) (config.Handler, error) 
 	return serviceConfig.Handlers[0], nil
 }
 
-func (independent *Independent) syncInlineHandlerDepProxyOutbounds(serviceConfig *config.Service, routes []string, proxyPointer *config.DepTarget, outbound config.Service, commandOutbounds map[string]config.Service) error {
-	managerService, proxyConfig, updated, err := independent.updateInlineProxyHandlerConfig(serviceConfig, proxyPointer, func(proxyConfig config.ProxyHandler) (config.ProxyHandler, bool, error) {
-		return configureHandlerDepProxyConfig(proxyConfig, routes, outbound, commandOutbounds)
-	})
-	if err != nil {
-		return err
-	}
-	return reloadProxy(managerService, proxyConfig, updated)
-}
-
-func (independent *Independent) syncInlineCommandProxyOutbound(serviceConfig *config.Service, command string, proxyPointer *config.DepTarget, outbound config.Service) error {
-	managerService, proxyConfig, updated, err := independent.updateInlineProxyHandlerConfig(serviceConfig, proxyPointer, func(proxyConfig config.ProxyHandler) (config.ProxyHandler, bool, error) {
-		updated := false
-		if !containsString(proxyConfig.Routes, command) {
-			proxyConfig.Routes = append(proxyConfig.Routes, command)
-			updated = true
-		}
-		var updatedOutbound bool
-		updatedOutbound = proxyConfig.SetOutbound(outbound)
-		updated = updated || updatedOutbound
-		return proxyConfig, updated, nil
-	})
-	if err != nil {
-		return err
-	}
-	return reloadProxy(managerService, proxyConfig, updated)
-}
-
-func (independent *Independent) syncReferencedHandlerDepProxyOutbounds(routes []string, target config.DepTarget, outbound config.Service, commandOutbounds map[string]config.Service) error {
-	proxyService, proxyConfig, err := independent.referencedProxyFromTarget(target)
-	if err != nil {
-		return err
-	}
-	proxyConfig, updated, err := configureHandlerDepProxyConfig(proxyConfig, routes, outbound, commandOutbounds)
-	if err != nil {
-		return err
-	}
-	if updated {
-		if err := independent.persistProxyHandlerConfig(proxyService, proxyConfig); err != nil {
-			return err
-		}
-	}
-	return reloadProxy(proxyService, proxyConfig, updated)
-}
-
-func (independent *Independent) syncReferencedCommandProxyOutbound(command string, target config.DepTarget, outboundService config.Service) error {
-	proxyService, proxyHandler, err := independent.referencedProxyFromTarget(target)
+func (independent *Independent) syncCommandProxyOutbound(command string, mushroomURL string, outboundService config.Service) error {
+	proxyService, proxyHandler, err := independent.referencedProxyFromURL(mushroomURL)
 	if err != nil {
 		return err
 	}
@@ -1085,35 +993,6 @@ func (independent *Independent) syncReferencedCommandProxyOutbound(command strin
 		}
 	}
 	return reloadProxy(proxyService, proxyHandler, updated)
-}
-
-func firstProxyHandlerConfig(proxyService config.Service) (config.ProxyHandler, error) {
-	for _, variant := range proxyService.Handlers {
-		proxyHandler, ok := variant.AsProxyHandler()
-		if ok {
-			return proxyHandler, nil
-		}
-	}
-	return config.ProxyHandler{}, fmt.Errorf("proxy service %q has no proxy handlers", proxyService.Name)
-}
-
-func (independent *Independent) updateInlineProxyHandlerConfig(serviceConfig *config.Service, proxyPointer *config.DepTarget, configure func(config.ProxyHandler) (config.ProxyHandler, bool, error)) (config.Service, config.ProxyHandler, bool, error) {
-	proxyConfig, err := firstProxyHandlerConfig(proxyPointer.Service)
-	if err != nil {
-		return config.Service{}, config.ProxyHandler{}, false, err
-	}
-	proxyConfig, updated, err := configure(proxyConfig)
-	if err != nil {
-		return config.Service{}, config.ProxyHandler{}, false, err
-	}
-
-	proxyPointer.Service.SetHandler(proxyConfig, true)
-	if updated {
-		if err := independent.topology.SetService(*serviceConfig); err != nil {
-			return config.Service{}, config.ProxyHandler{}, false, fmt.Errorf("topologyClient.SetService('%s'): %w", serviceConfig.Name, err)
-		}
-	}
-	return proxyPointer.Service, proxyConfig, updated, nil
 }
 
 func (independent *Independent) persistProxyHandlerConfig(proxyService config.Service, proxyConfig config.ProxyHandler) error {

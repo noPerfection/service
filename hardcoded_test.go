@@ -94,7 +94,7 @@ func TestSetCommandDepsReplacesExistingDepByName(t *testing.T) {
 	first := topologyConfig.DepService{Name: "account"}
 	second := topologyConfig.DepService{
 		Name: "account",
-		Proxies: []topologyConfig.DepTarget{
+		Proxies: []string{
 			linkTarget("proxy"),
 		},
 	}
@@ -128,7 +128,7 @@ func TestSetHandlerDepsReplacesExistingDepByName(t *testing.T) {
 	first := topologyConfig.DepService{Name: "account"}
 	second := topologyConfig.DepService{
 		Name:       "account",
-		Extensions: []topologyConfig.DepTarget{linkTarget("extension")},
+		Extensions: []string{linkTarget("extension")},
 	}
 
 	require.NoError(t, topologies.SetHandlerDeps(first))

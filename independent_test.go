@@ -302,7 +302,7 @@ func TestAddHardcodedServicesToTopologyAllowsHardcodedHandlersForOtherService(t 
 func TestAddHardcodedCommandDepsToTopologyAddsDepsToDefaultHandler(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:    "account",
-		Proxies: []topologyConfig.DepTarget{linkTarget("account-proxy")},
+		Proxies: []string{linkTarget("account-proxy")},
 	}
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
@@ -326,7 +326,7 @@ func TestAddHardcodedCommandDepsToTopologyAddsDepsToExplicitHandlerAndService(t 
 	}
 	dep := topologyConfig.DepService{
 		Name:       "metrics",
-		Extensions: []topologyConfig.DepTarget{linkTarget("metrics-extension")},
+		Extensions: []string{linkTarget("metrics-extension")},
 	}
 	serviceConfig := topologyConfig.Service{
 		Type:      topologyConfig.IndependentType,
@@ -439,27 +439,42 @@ func TestCommandOutboundTargetUsesCommandHandler(t *testing.T) {
 }
 
 func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *testing.T) {
+	configPath := testConfigPath(t)
+	proxyService := func(name, endpointID string) topologyConfig.Service {
+		return topologyConfig.Service{
+			Type:      topologyConfig.ProxyType,
+			Name:      name,
+			ModuleUrl: DefaultModuleUrl,
+			Handlers: []topologyConfig.Handler{
+				topologyConfig.ProxyHandler{
+					IndependentHandler: topologyConfig.IndependentHandler{
+						Type:     topologyConfig.SyncReplierType,
+						Category: handlers.DefaultHandlerCategory,
+						Endpoint: message.NewEndpoint(testEndpointID(t, endpointID), 0),
+					},
+				},
+			},
+		}
+	}
+	appConfig, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	for _, svc := range []topologyConfig.Service{
+		proxyService("entrypoint", "entrypoint"),
+		proxyService("audit", "audit"),
+		proxyService("default-name-proxy", "default-name-proxy"),
+	} {
+		require.NoError(t, appConfig.AddService(svc, rootServicesParent))
+	}
+	require.NoError(t, appConfig.Save())
+
 	apiHandler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: "api",
 		Endpoint: message.NewEndpoint(testEndpointID(t, "api"), 0),
 		CommandDeps: []topologyConfig.DepService{
 			{
-				Name: "hello",
-				Proxies: []topologyConfig.DepTarget{
-					topologyConfig.NewInlineTarget(topologyConfig.Service{
-						Type:      topologyConfig.ProxyType,
-						Name:      "default-name-proxy",
-						ModuleUrl: DefaultModuleUrl,
-						Handlers: []topologyConfig.Handler{
-							topologyConfig.IndependentHandler{
-								Type:     topologyConfig.SyncReplierType,
-								Category: handlers.DefaultHandlerCategory,
-								Endpoint: message.NewEndpoint(testEndpointID(t, "default-name-proxy"), 0),
-							},
-						},
-					}),
-				},
+				Name:    "hello",
+				Proxies: []string{linkTarget("default-name-proxy")},
 			},
 		},
 	}
@@ -467,31 +482,12 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 		Type:      topologyConfig.IndependentType,
 		Name:      "custom-service",
 		ModuleUrl: DefaultModuleUrl,
-		Handlers: testHandlers(apiHandler),
+		Handlers:  testHandlers(apiHandler),
 	}
-	entrypoint := topologyConfig.NewInlineTarget(topologyConfig.Service{
-		Type:      topologyConfig.ProxyType,
-		Name:      "entrypoint",
-		ModuleUrl: DefaultModuleUrl,
-		Handlers: testHandlers(topologyConfig.IndependentHandler{
-			Type:     topologyConfig.SyncReplierType,
-			Category: handlers.DefaultHandlerCategory,
-			Endpoint: message.NewEndpoint(testEndpointID(t, "entrypoint"), 0),
-		}),
-	})
-	audit := topologyConfig.NewInlineTarget(topologyConfig.Service{
-		Type:      topologyConfig.ProxyType,
-		Name:      "audit",
-		ModuleUrl: DefaultModuleUrl,
-		Handlers: testHandlers(topologyConfig.IndependentHandler{
-			Type:     topologyConfig.SyncReplierType,
-			Category: handlers.DefaultHandlerCategory,
-			Endpoint: message.NewEndpoint(testEndpointID(t, "audit"), 0),
-		}),
-	})
-	proxies := []topologyConfig.DepTarget{entrypoint, audit}
+	proxies := []string{linkTarget("entrypoint"), linkTarget("audit")}
 
-	independent := &Independent{}
+	independent, err := New("custom-service", configPath)
+	require.NoError(t, err)
 	outbound, commandOutbounds, err := independent.handlerDepProxyOutboundTargets(serviceConfig, apiHandler, proxies, 0, []string{"age-verification", "hello"})
 	require.NoError(t, err)
 	require.Equal(t, "audit", outbound.Name)
@@ -799,7 +795,7 @@ func protocolEndpoint(t *testing.T, name string, protocol string) message.Endpoi
 func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:    "account",
-		Proxies: []topologyConfig.DepTarget{linkTarget("account-proxy")},
+		Proxies: []string{linkTarget("account-proxy")},
 	}
 	independent, err := New("custom-service", testConfigPath(t))
 	require.NoError(t, err)
@@ -816,7 +812,7 @@ func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T)
 func TestAddHardcodedHandlerDepsToTopologyAddsDepsToExplicitService(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:       "metrics",
-		Extensions: []topologyConfig.DepTarget{linkTarget("metrics-extension")},
+		Extensions: []string{linkTarget("metrics-extension")},
 	}
 	serviceConfig := topologyConfig.Service{
 		Type:      topologyConfig.IndependentType,
@@ -991,17 +987,14 @@ func TestNewRejectsInvalidParams(t *testing.T) {
 }
 
 func TestStartIpcServiceSkipsDuplicateRefs(t *testing.T) {
-	targets := []topologyConfig.DepTarget{
+	urls := []string{
 		linkTarget("entrypoint"),
 		linkTarget("entrypoint"),
 	}
 	startedRefs := make(map[string]struct{})
-	for _, target := range targets {
-		if !target.IsLink() {
-			continue
-		}
+	for _, url := range urls {
 		const linkPrefix = "pkg:$?var=services[name:"
-		serviceName := strings.TrimSuffix(strings.TrimPrefix(target.Link, linkPrefix), "]")
+		serviceName := strings.TrimSuffix(strings.TrimPrefix(url, linkPrefix), "]")
 		if _, done := startedRefs[serviceName]; done {
 			continue
 		}
