@@ -1,12 +1,12 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/ahmetson/mushroom"
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
 	protocolClient "github.com/noPerfection/protocol/client"
@@ -23,6 +23,7 @@ import (
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/handler/worker"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 )
 
@@ -47,17 +48,12 @@ const (
 // Where is ProxyHandleFunc is concrete case of noPerfection/protocol/handler/base.HandleFunc
 type ProxyRequest struct {
 	message.Request
-	outbound Outbound
-	manager  *ProxyHandlers
+	proxifiedHandler string
+	outboundURL      string
+	manager          *ProxyHandlers
 }
 type ProxyReply struct {
 	message.Reply
-}
-
-type Outbound struct {
-	proxifiedHandler string
-	ServiceName      string
-	HandlerCategory  string `json:",omitempty"`
 }
 
 type ProxyHandleFunc func(req ProxyRequest) ProxyReply
@@ -66,7 +62,7 @@ type Category string
 
 type ProxifiedHandler struct {
 	handler         base.Interface
-	outboundClients map[string]map[string]outboundClient
+	outboundClients map[string]outboundClient
 	routes          map[string]ProxyHandleFunc  // command => handleFunc; user can do whatever he wants
 	proxyConfig     topologyConfig.ProxyHandler // handler's information
 	running         bool
@@ -98,25 +94,8 @@ var _ message.Packer = (*ProxyHandlers)(nil)
 
 // Proxy's Request functions
 func (request *ProxyRequest) Forward() (ProxyReply, error) {
-	outbound, exists := request.Outbound()
-	if !exists {
-		return ProxyReply{}, fmt.Errorf("outbound is not set")
-	}
-	if request.manager == nil {
-		return ProxyReply{}, fmt.Errorf("proxyHandlers is not set")
-	}
-	proxified := request.manager.proxifiedHandlers[Category(outbound.proxifiedHandler)]
-	if proxified == nil {
-		return ProxyReply{}, fmt.Errorf("proxified handler %q is not set", outbound.proxifiedHandler)
-	}
-	clients := proxified.outboundClients[outbound.ServiceName]
-	if len(clients) == 0 {
-		return ProxyReply{}, fmt.Errorf("outbound service %q is not connected", outbound.ServiceName)
-	}
-	client := clients[outbound.HandlerCategory]
-	if client == nil {
-		return ProxyReply{}, fmt.Errorf("outbound ref %q is not connected", outbound.Ref())
-	}
+	proxified := request.manager.proxifiedHandlers[Category(request.proxifiedHandler)]
+	client := proxified.outboundClients[request.outboundURL]
 
 	switch c := client.(type) {
 	case protocolClient.RequestInterface:
@@ -146,7 +125,7 @@ func (request *ProxyRequest) Forward() (ProxyReply, error) {
 	case protocolClient.ReceiveInterface:
 		return receiveProxyReply(c.Receive())
 	default:
-		return ProxyReply{}, fmt.Errorf("unsupported outbound client for ref %s", outbound.Ref())
+		return ProxyReply{}, fmt.Errorf("unsupported outbound client for %q", request.outboundURL)
 	}
 }
 
@@ -171,99 +150,6 @@ func receiveProxyReply(replies <-chan message.ReplyInterface) (ProxyReply, error
 	case <-timer.C:
 		return ProxyReply{}, fmt.Errorf("outbound receive timeout")
 	}
-}
-
-// Outbound returns the outbound for the proxy request.
-// If the outbound is not set, return false.
-func (request ProxyRequest) Outbound() (Outbound, bool) {
-	if request.outbound.ServiceName == "" {
-		return Outbound{}, false
-	}
-	return request.outbound, true
-}
-
-func outboundRefLink(serviceName, handlerCategory string) string {
-	if handlerCategory == "" {
-		handlerCategory = topologyConfig.DefaultCategory
-	}
-	if handlerCategory == topologyConfig.DefaultCategory {
-		return fmt.Sprintf("pkg:$?var=services[name:%s]", serviceName)
-	}
-	return fmt.Sprintf("pkg:$?var=services[name:%s].handlers[category:%s]", serviceName, handlerCategory)
-}
-
-func parseOutboundRef(ref string) (serviceName string, handlerCategory string, err error) {
-	if ref == "" {
-		return "", "", fmt.Errorf("outbound ref is empty")
-	}
-	if strings.HasPrefix(ref, "pkg:") {
-		namePrefix := "name:"
-		categoryPrefix := "category:"
-		nameStart := strings.Index(ref, namePrefix)
-		if nameStart < 0 {
-			return "", "", fmt.Errorf("outbound ref %q has no service name", ref)
-		}
-		nameStart += len(namePrefix)
-		nameEnd := strings.Index(ref[nameStart:], "]")
-		if nameEnd < 0 {
-			return "", "", fmt.Errorf("outbound ref %q has invalid service name", ref)
-		}
-		serviceName = ref[nameStart : nameStart+nameEnd]
-		categoryStart := strings.Index(ref, categoryPrefix)
-		if categoryStart < 0 {
-			return serviceName, topologyConfig.DefaultCategory, nil
-		}
-		categoryStart += len(categoryPrefix)
-		categoryEnd := strings.Index(ref[categoryStart:], "]")
-		if categoryEnd < 0 {
-			return "", "", fmt.Errorf("outbound ref %q has invalid handler category", ref)
-		}
-		return serviceName, ref[categoryStart : categoryStart+categoryEnd], nil
-	}
-
-	serviceName, handlerCategory, ok := strings.Cut(ref, "/")
-	if !ok {
-		return ref, "", nil
-	}
-	if serviceName == "" {
-		return "", "", fmt.Errorf("outbound service name is empty")
-	}
-	if handlerCategory == "" {
-		handlerCategory = topologyConfig.DefaultCategory
-	}
-	return serviceName, handlerCategory, nil
-}
-
-func (outbound Outbound) Ref() string {
-	return outboundRefLink(outbound.ServiceName, outbound.HandlerCategory)
-}
-
-func (outbound Outbound) MarshalJSON() ([]byte, error) {
-	if outbound.proxifiedHandler == "" {
-		return nil, fmt.Errorf("proxifiedHandler is required")
-	}
-	if outbound.ServiceName == "" {
-		return nil, fmt.Errorf("serviceName is required")
-	}
-	return json.Marshal(outboundRefLink(outbound.ServiceName, outbound.HandlerCategory))
-}
-
-func (outbound *Outbound) UnmarshalJSON(data []byte) error {
-	var ref string
-	if err := json.Unmarshal(data, &ref); err != nil {
-		return err
-	}
-	serviceName, handlerCategory, err := parseOutboundRef(ref)
-	if err != nil {
-		return err
-	}
-	if serviceName == "" {
-		return fmt.Errorf("outbound serviceName is required")
-	}
-
-	outbound.ServiceName = serviceName
-	outbound.HandlerCategory = handlerCategory
-	return nil
 }
 
 // Proxy's Reply functions
@@ -339,35 +225,24 @@ func (manager *ProxyHandlers) applyConfiguredForward(proxified *ProxifiedHandler
 		return nil
 	}
 
-	var outbound Outbound
-	rawRef, err := json.Marshal(ref)
-	if err != nil {
-		return fmt.Errorf("json.Marshal forward outbound ref: %w", err)
-	}
-	if err := outbound.UnmarshalJSON(rawRef); err != nil {
-		return fmt.Errorf("forward outbound ref: %w", err)
-	}
-	if outbound.HandlerCategory == "" {
-		outbound.HandlerCategory = DefaultHandlerCategory
-	}
-	resolved, err := proxified.resolveConfiguredForward(outbound)
+	resolvedHandler, resolvedURL, err := proxified.resolveConfiguredForward(ref)
 	if err != nil {
 		return fmt.Errorf("forward outbound %q: %w", ref, err)
 	}
-	request.outbound = resolved
+	request.proxifiedHandler = resolvedHandler
+	request.outboundURL = resolvedURL
 
 	return nil
 }
 
-func (proxified *ProxifiedHandler) resolveConfiguredForward(outbound Outbound) (Outbound, error) {
-	for _, service := range proxified.proxyConfig.Outbounds {
-		resolved, err := outboundFromService(proxified.proxyConfig.Category, service, outbound.ServiceName, outbound.HandlerCategory)
-		if err == nil {
-			return resolved, nil
+func (proxified *ProxifiedHandler) resolveConfiguredForward(forwardURL string) (string, string, error) {
+	for _, outboundURL := range proxified.proxyConfig.Outbounds {
+		if outboundURL == forwardURL {
+			return proxified.proxyConfig.Category, outboundURL, nil
 		}
 	}
 
-	return Outbound{}, fmt.Errorf("outbound service %q handler %q not found", outbound.ServiceName, outbound.HandlerCategory)
+	return "", "", fmt.Errorf("outbound %q not found", forwardURL)
 }
 
 func (manager *ProxyHandlers) proxifiedForCommand(command string) (*ProxifiedHandler, bool) {
@@ -617,7 +492,7 @@ func (manager *ProxyHandlers) startProxyHandler(proxified *ProxifiedHandler) err
 		return fmt.Errorf("proxified handler is already running")
 	}
 	if len(proxified.outboundClients) == 0 {
-		outboundClients, err := newOutboundClients(proxified.proxyConfig)
+		outboundClients, err := manager.newOutboundClients(proxified.proxyConfig)
 		if err != nil {
 			return fmt.Errorf("new outbound clients: %v", err)
 		}
@@ -731,7 +606,7 @@ func (manager *ProxyHandlers) onSetProxyHandler(req message.RequestInterface) me
 
 	proxified.handler = handler
 	proxified.proxyConfig = proxyConfig
-	proxified.outboundClients, err = newOutboundClients(proxyConfig)
+	proxified.outboundClients, err = manager.newOutboundClients(proxyConfig)
 	if err != nil {
 		return req.Fail(fmt.Sprintf("new outbound clients: %v", err))
 	}
@@ -745,43 +620,62 @@ func validateProxyHandlerOutbounds(proxyConfig topologyConfig.ProxyHandler) erro
 		return fmt.Errorf("not possible to send since no outbound yet")
 	}
 
-	for i, outbound := range proxyConfig.Outbounds {
-		if outbound.IsZero() {
-			return fmt.Errorf("outbounds[%d] service is required", i)
-		}
-		if len(outbound.Handlers) == 0 {
-			return fmt.Errorf("outbounds[%d] service %q must have at least one handler", i, outbound.Name)
-		}
-		if err := topologyConfig.ValidateOutboundService(outbound); err != nil {
-			return fmt.Errorf("outbounds[%d] service: %w", i, err)
+	for i, outboundURL := range proxyConfig.Outbounds {
+		if outboundURL == "" {
+			return fmt.Errorf("outbounds[%d] url is required", i)
 		}
 	}
 
 	return nil
 }
 
-func newOutboundClients(proxyConfig topologyConfig.ProxyHandler) (map[string]map[string]outboundClient, error) {
-	clients := make(map[string]map[string]outboundClient)
-	for i, outbound := range proxyConfig.Outbounds {
-		if outbound.IsZero() {
-			return nil, fmt.Errorf("outbounds[%d] service is required", i)
+func dereferenceOutboundURL(url string) string {
+	if url == "" {
+		return url
+	}
+	var soil mushroom.Soil
+	hypha, err := soil.Hypha(url)
+	if err != nil || !hypha.URL {
+		return url
+	}
+	return hypha.AsDereference().String()
+}
+
+func (manager *ProxyHandlers) resolveOutboundHandler(mushroomURL string) (topologyConfig.IndependentHandler, error) {
+	topologyClient, err := topology.NewClient()
+	if err != nil {
+		return topologyConfig.IndependentHandler{}, err
+	}
+	defer topologyClient.Close()
+
+	record, err := topologyClient.Handler(dereferenceOutboundURL(mushroomURL))
+	if err != nil {
+		return topologyConfig.IndependentHandler{}, err
+	}
+	handler, ok := record.AsIndependentHandler()
+	if !ok {
+		return topologyConfig.IndependentHandler{}, fmt.Errorf("outbound %q is not an independent handler", mushroomURL)
+	}
+	return handler, nil
+}
+
+func (manager *ProxyHandlers) newOutboundClients(proxyConfig topologyConfig.ProxyHandler) (map[string]outboundClient, error) {
+	clients := make(map[string]outboundClient)
+	for i, outboundURL := range proxyConfig.Outbounds {
+		if outboundURL == "" {
+			return nil, fmt.Errorf("outbounds[%d] url is required", i)
 		}
-		if clients[outbound.Name] == nil {
-			clients[outbound.Name] = make(map[string]outboundClient)
+		handler, err := manager.resolveOutboundHandler(outboundURL)
+		if err != nil {
+			_ = closeOutboundClients(clients)
+			return nil, fmt.Errorf("outbounds[%d] %q: %w", i, outboundURL, err)
 		}
-		for j, variant := range outbound.Handlers {
-			handler, ok := variant.AsIndependentHandler()
-			if !ok {
-				_ = closeOutboundClients(clients)
-				return nil, fmt.Errorf("outbounds[%d].handlers[%d] is not an independent handler", i, j)
-			}
-			client, err := newOutboundClient(handler)
-			if err != nil {
-				_ = closeOutboundClients(clients)
-				return nil, fmt.Errorf("outbounds[%d].handlers[%d]: %w", i, j, err)
-			}
-			clients[outbound.Name][handler.Category] = client
+		client, err := newOutboundClient(handler)
+		if err != nil {
+			_ = closeOutboundClients(clients)
+			return nil, fmt.Errorf("outbounds[%d] %q: %w", i, outboundURL, err)
 		}
+		clients[outboundURL] = client
 	}
 	return clients, nil
 }
@@ -822,84 +716,70 @@ func configureOutboundReceiver(client outboundClient) {
 	options.Attempt(proxyReceiveAttempt)
 }
 
-func closeOutboundClients(clients map[string]map[string]outboundClient) error {
-	for serviceName, serviceClients := range clients {
-		for category, client := range serviceClients {
-			if client == nil {
-				continue
-			}
-			if err := client.Close(); err != nil {
-				return fmt.Errorf("outbound client(%s/%s).Close: %w", serviceName, category, err)
-			}
+func closeOutboundClients(clients map[string]outboundClient) error {
+	for outboundURL, client := range clients {
+		if client == nil {
+			continue
+		}
+		if err := client.Close(); err != nil {
+			return fmt.Errorf("outbound client(%s).Close: %w", outboundURL, err)
 		}
 	}
 	return nil
 }
 
-func startOutboundSubscribers(clients map[string]map[string]outboundClient) {
-	for _, serviceClients := range clients {
-		for _, client := range serviceClients {
-			receiver, ok := client.(protocolClient.ReceiveInterface)
-			if !ok {
-				continue
-			}
-			go receiver.Receive()
+func startOutboundSubscribers(clients map[string]outboundClient) {
+	for _, client := range clients {
+		receiver, ok := client.(protocolClient.ReceiveInterface)
+		if !ok {
+			continue
 		}
+		go receiver.Receive()
 	}
 }
 
-// Requires length of tail to be 1, and converts the first frame to Outbound on success
-func (manager *ProxyHandlers) outboundFromTail(tail []string) (Outbound, error) {
-	rawRef, err := json.Marshal(tail[0])
-	if err != nil {
-		return Outbound{}, fmt.Errorf("json.Marshal outbound ref: %w", err)
-	}
-	var outbound Outbound
-	if err := outbound.UnmarshalJSON(rawRef); err != nil {
-		return Outbound{}, fmt.Errorf("outbound ref: %w", err)
-	}
-	return manager.resolveOutbound(outbound.ServiceName, outbound.HandlerCategory)
-}
-
-func (manager *ProxyHandlers) defaultOutbound() (Outbound, error) {
+func (manager *ProxyHandlers) defaultOutbound() (string, string, error) {
 	proxified, err := manager.firstProxifiedHandler()
 	if err != nil {
-		return Outbound{}, err
+		return "", "", err
 	}
 	if proxified.proxyConfig.Category == "" {
-		return Outbound{}, fmt.Errorf("first proxified handler has no proxy config")
+		return "", "", fmt.Errorf("first proxified handler has no proxy config")
 	}
 	if len(proxified.proxyConfig.Outbounds) == 0 {
-		return Outbound{}, fmt.Errorf("first proxified handler has no outbounds")
+		return "", "", fmt.Errorf("first proxified handler has no outbounds")
 	}
 
-	return outboundFromService(proxified.proxyConfig.Category, proxified.proxyConfig.Outbounds[0], "", "")
+	return proxified.proxyConfig.Category, proxified.proxyConfig.Outbounds[0], nil
 }
 
-func (manager *ProxyHandlers) resolveOutbound(serviceName string, handlerCategory string) (Outbound, error) {
+func (manager *ProxyHandlers) resolveOutboundRef(ref string) (string, string, error) {
+	if ref == "" {
+		return "", "", fmt.Errorf("outbound ref is empty")
+	}
+
+	for _, category := range manager.sortedProxifiedCategories() {
+		proxified := manager.proxifiedHandlers[Category(category)]
+		if proxified == nil {
+			continue
+		}
+		for _, outboundURL := range proxified.proxyConfig.Outbounds {
+			if outboundURL == ref {
+				return proxified.proxyConfig.Category, outboundURL, nil
+			}
+		}
+	}
+
+	return "", "", fmt.Errorf("outbound %q not found", ref)
+}
+
+func (manager *ProxyHandlers) sortedProxifiedCategories() []string {
 	categories := make([]string, 0, len(manager.proxifiedHandlers))
 	for category := range manager.proxifiedHandlers {
 		categories = append(categories, string(category))
 	}
 	sort.Strings(categories)
-
-	for _, category := range categories {
-		proxified := manager.proxifiedHandlers[Category(category)]
-		if proxified == nil || proxified.proxyConfig.Category == "" {
-			continue
-		}
-		for _, outbound := range proxified.proxyConfig.Outbounds {
-			resolved, err := outboundFromService(proxified.proxyConfig.Category, outbound, serviceName, handlerCategory)
-			if err == nil {
-				return resolved, nil
-			}
-		}
-	}
-
-	if handlerCategory == "" {
-		return Outbound{}, fmt.Errorf("outbound service %q not found", serviceName)
-	}
-	return Outbound{}, fmt.Errorf("outbound service %q handler %q not found", serviceName, handlerCategory)
+	return categories
 }
 
 func (manager *ProxyHandlers) firstProxifiedHandler() (*ProxifiedHandler, error) {
@@ -907,13 +787,7 @@ func (manager *ProxyHandlers) firstProxifiedHandler() (*ProxifiedHandler, error)
 		return nil, fmt.Errorf("no proxified handlers")
 	}
 
-	categories := make([]string, 0, len(manager.proxifiedHandlers))
-	for category := range manager.proxifiedHandlers {
-		categories = append(categories, string(category))
-	}
-	sort.Strings(categories)
-
-	for _, category := range categories {
+	for _, category := range manager.sortedProxifiedCategories() {
 		proxified := manager.proxifiedHandlers[Category(category)]
 		if proxified != nil && proxified.proxyConfig.Category != "" {
 			return proxified, nil
@@ -921,41 +795,6 @@ func (manager *ProxyHandlers) firstProxifiedHandler() (*ProxifiedHandler, error)
 	}
 
 	return nil, fmt.Errorf("no proxified handler configs")
-}
-
-func outboundFromService(proxifiedHandler string, service topologyConfig.Service, serviceName string, handlerCategory string) (Outbound, error) {
-	if service.IsZero() {
-		return Outbound{}, fmt.Errorf("outbound service is required")
-	}
-	if serviceName != "" && service.Name != serviceName {
-		return Outbound{}, fmt.Errorf("outbound service %q does not match %q", service.Name, serviceName)
-	}
-	if len(service.Handlers) == 0 {
-		return Outbound{}, fmt.Errorf("outbound service %q has no handlers", service.Name)
-	}
-
-	selectedHandler, ok := service.Handlers[0].AsIndependentHandler()
-	if !ok {
-		return Outbound{}, fmt.Errorf("outbound service %q first handler is not an independent handler", service.Name)
-	}
-	if handlerCategory != "" {
-		var err error
-		var variant topologyConfig.Handler
-		variant, err = service.HandlerByCategory(handlerCategory)
-		if err != nil {
-			return Outbound{}, err
-		}
-		selectedHandler, ok = variant.AsIndependentHandler()
-		if !ok {
-			return Outbound{}, fmt.Errorf("outbound service %q handler %q is not an independent handler", service.Name, handlerCategory)
-		}
-	}
-
-	return Outbound{
-		proxifiedHandler: proxifiedHandler,
-		ServiceName:      service.Name,
-		HandlerCategory:  selectedHandler.Category,
-	}, nil
 }
 
 func newProxyHandler(handlerType topologyConfig.HandlerType) (base.Interface, error) {
@@ -1004,20 +843,26 @@ func (manager *ProxyHandlers) DeserializeRequest(zmqEnvelope []string) (message.
 	}
 	request.SetConId(conId)
 
-	var outbound Outbound
+	var proxifiedHandler string
+	var outboundURL string
 	if len(tail) > 0 {
-		outbound, err = manager.outboundFromTail(tail)
+		proxifiedHandler, outboundURL, err = manager.resolveOutboundRef(tail[0])
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		outbound, err = manager.defaultOutbound()
+		proxifiedHandler, outboundURL, err = manager.defaultOutbound()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return &ProxyRequest{Request: request, outbound: outbound, manager: manager}, nil
+	return &ProxyRequest{
+		Request:          request,
+		proxifiedHandler: proxifiedHandler,
+		outboundURL:      outboundURL,
+		manager:          manager,
+	}, nil
 }
 
 func (manager *ProxyHandlers) DeserializeReply(zmqEnvelope []string) (message.ReplyInterface, error) {
@@ -1052,9 +897,8 @@ func (manager *ProxyHandlers) SerializeRequest(request message.RequestInterface)
 	}
 
 	if proxyRequest, ok := request.(*ProxyRequest); ok {
-		outbound, exists := proxyRequest.Outbound()
-		if exists {
-			return message.MessageToEnvelope(request.ConId(), str, outbound.Ref()), nil
+		if proxyRequest.outboundURL != "" {
+			return message.MessageToEnvelope(request.ConId(), str, proxyRequest.outboundURL), nil
 		}
 	}
 
