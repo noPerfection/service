@@ -1,0 +1,19 @@
+{
+  "services": [
+    {
+      "handlers": [
+        {
+          "category": "main",
+          "endpoint": {
+            "id": "localhost",
+            "port": 3000
+          },
+          "type": "SyncReplier"
+        }
+      ],
+      "module-url": "github.com/noPerfection/service/examples/002-hardcoded-topology",
+      "name": "hardcoded-topology",
+      "type": "Independent"
+    }
+  ]
+}
