@@ -31,8 +31,8 @@ func main() {
 	}
 	if err := app.SetCommandDeps(topologyConfig.DepService{
 		Name: "hello",
-		Proxies: []topologyConfig.DepTarget{
-			topologyConfig.NewLinkTarget(fmt.Sprintf("pkg:$?var=services[name:%s]", proxyName)),
+		Proxies: []string{
+			fmt.Sprintf("pkg:$?var=services[name:%s]", proxyName),
 		},
 	}); err != nil {
 		panic(err)

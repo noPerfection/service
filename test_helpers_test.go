@@ -8,12 +8,12 @@ import (
 
 const rootServicesParent = "*pkg:$?var=services"
 
-func linkTarget(serviceName string, handlerCategory ...string) topologyConfig.DepTarget {
+func linkTarget(serviceName string, handlerCategory ...string) string {
 	link := fmt.Sprintf("pkg:$?var=services[name:%s]", serviceName)
 	if len(handlerCategory) > 0 && handlerCategory[0] != "" {
-		link = fmt.Sprintf("pkg:$?var=services[name:%s].handlers[category:%s]", serviceName, handlerCategory[0])
+		link = fmt.Sprintf("pkg:$?var=services[name:%s]&category=%s", serviceName, handlerCategory[0])
 	}
-	return topologyConfig.NewLinkTarget(link)
+	return link
 }
 
 func testHandlers(handlers ...topologyConfig.IndependentHandler) []topologyConfig.Handler {
