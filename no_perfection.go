@@ -60,24 +60,22 @@ func Client(params ...any) (*client.Socket, error) {
 // RequestMsg builds a client request. parameters are optional.
 // Pass map[string]any{...} or datatype.KeyValue. Returns nil when parameters are invalid.
 func RequestMsg(cmd string, parameters ...any) RequestInterface {
-	params, err := requestParameters(parameters...)
-	if err != nil {
-		return nil
-	}
-	return &message.Request{
-		Command:    cmd,
-		Parameters: params,
-	}
-}
-
-func requestParameters(parameters ...any) (datatype.KeyValue, error) {
+	var err error
+	var kv datatype.KeyValue
 	if len(parameters) == 0 || parameters[0] == nil {
-		return datatype.New(), nil
+		kv = datatype.New()
 	}
 	switch params := parameters[0].(type) {
 	case datatype.KeyValue:
-		return params, nil
+		kv = params
 	default:
-		return datatype.NewFromInterface(params)
+		kv, err = datatype.NewFromInterface(params)
+		if err != nil {
+			return nil
+		}
+	}
+	return &message.Request{
+		Command:    cmd,
+		Parameters: kv,
 	}
 }
