@@ -20,9 +20,12 @@ package main
 import (
 	"fmt"
 
-	"github.com/noPerfection/datatype" // loaded indirectly with service module
-	"github.com/noPerfection/protocol/message" // loaded indirectly with service module
 	"github.com/noPerfection/service"
+)
+
+type (
+	RequestInterface = service.RequestInterface
+	ReplyInterface   = service.ReplyInterface
 )
 
 func main() {
@@ -37,10 +40,10 @@ func main() {
 	app.Wait()
 }
 
-func onHello(req message.RequestInterface) message.ReplyInterface {
+func onHello(req RequestInterface) ReplyInterface {
 	name, _ := req.RouteParameters().StringValue("name")
 
-	return req.Ok(datatype.New().Set("message", "hello "+name))
+	return req.Ok(map[string]interface{}{"message": "hello " + name})
 }
 ```
 
@@ -56,20 +59,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/protocol/client"
-	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service"
 )
 
 func main() {
-	c, _ := client.New("localhost", 8000, client.ReplierType)
+	c, _ := service.Client()
+	defer c.Close()
 
-	req := message.Request{
-		Command:    "hello",
-		Parameters: datatype.New().Set("name", "Jonny Dough"),
-	}
+	c.Timeout(time.Second).Attempt(1)
 
-	reply, _ := c.Request(&req)
+	reply, _ := c.Request(service.RequestMsg("hello", map[string]any{"name": "Jonny Dough"}))
 
 	msg, _ := reply.ReplyParameters().StringValue("message")
 	fmt.Println(msg)
@@ -84,14 +83,10 @@ See [examples/000-hello-world](./examples/000-hello-world) source code.
 ## Why noPerfection
 
 That's so far simple, but doesn't tell you its advantage.
-The service comes with a built-in admin panel thats available on a different port. 
+The service comes with a built-in handlers that allows to manage the service.
 
-You can manage it from other parts of the system by restarting a microservice, stopping it, or closing one of its handler threads.
-
-To do that, each service starts a manager. The manager is internal by default, available within a code.
-But lets change the manager's endpoint.
-
-Following the Hello World example, use a custom manager endpoint:
+By default it's internal, available right within the code where you launch the service.
+But we can change its endpoint to expose to the computer or remote connections.
 
 ```go
 package main
@@ -122,10 +117,10 @@ func onHello(req message.RequestInterface) message.ReplyInterface {
 }
 ```
 
-Then, create app will create two sockets.
-One to connect to the server, while second connects to the manager of service.
-I'll use `github.com/noPerfection/os/arg` package to add `--close` flag. Without it,
-client requests `hello`. With `--close`, it sends a signal to manager.
+Service's manager is accessible at port 8001, while by default main handler exposes itself at port 8000.
+
+I'll use `github.com/noPerfection/os/arg` package to add `--close` flag to the client. 
+With `--close`, client will talk to the service and a signal to close it.
 
 ```go
 package main

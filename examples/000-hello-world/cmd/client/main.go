@@ -4,25 +4,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/protocol/client"
-	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service"
 )
 
 func main() {
-	c, err := client.New("localhost", 8000, client.ReplierType)
+	c, err := service.Client()
 	if err != nil {
 		panic(err)
 	}
 	defer c.Close()
 
-	c.Timeout(time.Second)
-	c.Attempt(1)
+	c.Timeout(time.Second).Attempt(1)
 
-	reply, err := c.Request(&message.Request{
-		Command:    "hello",
-		Parameters: datatype.New().Set("name", "independent"),
-	})
+	reply, err := c.Request(service.RequestMsg("hello", map[string]any{"name": "independent"}))
 	if err != nil {
 		panic(err)
 	}

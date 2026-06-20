@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
 )
 
@@ -14,12 +12,12 @@ func main() {
 		panic(err)
 	}
 
-	err = app.Route("hello", func(req message.RequestInterface) message.ReplyInterface {
+	err = app.Route("hello", func(req service.RequestInterface) service.ReplyInterface {
 		name, err := req.RouteParameters().StringValue("name")
 		if err != nil || name == "" {
 			name = "world"
 		}
-		return req.Ok(datatype.New().Set("message", "hello "+name))
+		return req.Ok(map[string]any{"message": "hello " + name})
 	})
 	if err != nil {
 		panic(err)
