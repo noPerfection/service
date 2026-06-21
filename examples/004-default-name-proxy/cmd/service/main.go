@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
+	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 )
 
@@ -26,6 +26,17 @@ func main() {
 	if err := app.SetServiceConfig(defaultNameProxyConfig()); err != nil {
 		panic(err)
 	}
+	if err := app.SetHandlerConfig(proxyManagerConfig(), proxyName); err != nil {
+		panic(err)
+	}
+	if err := app.SetCommandDeps(topologyConfig.DepService{
+		Name: "hello",
+		Proxies: []string{
+			fmt.Sprintf("pkg:$?var=services[name:%s]", proxyName),
+		},
+	}); err != nil {
+		panic(err)
+	}
 
 	if err := app.Route("hello", onHello); err != nil {
 		panic(err)
@@ -37,39 +48,12 @@ func main() {
 	defer app.Stop()
 
 	fmt.Println("hello-world service listening on localhost:8000")
-	fmt.Println("default-name-proxy configured on localhost:8001")
+	fmt.Println("default-name-proxy dependency configured by command deps")
 
 	app.Wait()
 }
 
 func defaultNameProxyConfig() topologyConfig.Service {
-	// return topologyConfig.Service{
-	// 	Type:      topologyConfig.ProxyType,
-	// 	Name:      proxyName,
-	// 	ModuleUrl: "github.com/noPerfection/service/examples/004-default-name-proxy/cmd/proxy",
-	// 	Handlers: []topologyConfig.HandlerVariant{
-	// 		topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
-	// 			Handler: topologyConfig.Handler{
-	// 				Type:     topologyConfig.SyncReplierType,
-	// 				Category: proxyCategory,
-	// 				Endpoint: message.NewEndpoint("localhost", 8001),
-	// 			},
-	// 			Routes: []string{base.Any},
-	// 			Outbounds: []topologyConfig.ServicePointer{
-	// 				topologyConfig.ServiceTarget(topologyConfig.Service{
-	// 					Type:      topologyConfig.IndependentType,
-	// 					Name:      serviceName,
-	// 					ModuleUrl: "github.com/noPerfection/service/examples/004-default-name-proxy/cmd/service",
-	// 					Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-	// 						Type:     topologyConfig.ReplierType,
-	// 						Category: handlers.DefaultHandlerCategory,
-	// 						Endpoint: message.NewEndpoint("localhost", 8000),
-	// 					}),
-	// 				}),
-	// 			},
-	// 		}),
-	// 	},
-	// }
 	return topologyConfig.Service{
 		Type:      topologyConfig.ProxyType,
 		Name:      proxyName,
@@ -81,29 +65,19 @@ func defaultNameProxyConfig() topologyConfig.Service {
 					Category: proxyCategory,
 					Endpoint: message.NewEndpoint("localhost", 8001),
 				},
-				Routes: []string{base.Any},
-				Outbounds: []string{
-					fmt.Sprintf("pkg:$?var=services[name:%s]&category=main", serviceName),
-				},
+				Routes: []string{"hello"},
 			},
 		},
 	}
 }
 
-// func defaultNameProxyConfig2() topologyConfig.Service {
-// 	return topologyConfig.Service{
-// 		Type: topologyConfig.ProxyType,
-// 		Name: proxyName,
-// 	}
-// }
-
-// func defaultProxyManagerConfig2() topologyConfig.HandlerVariant {
-// 	return topologyConfig.NewHandlerVariant(topologyConfig.Handler{
-// 		Type:     topologyConfig.SyncReplierType,
-// 		Category: topology.ServiceManagerCategory,
-// 		Endpoint: message.NewEndpoint("localhost", 8002),
-// 	})
-// }
+func proxyManagerConfig() topologyConfig.Handler {
+	return topologyConfig.IndependentHandler{
+		Type:     topologyConfig.SyncReplierType,
+		Category: topology.ServiceManagerCategory,
+		Endpoint: message.NewEndpoint("localhost", 8002),
+	}
+}
 
 func onHello(req message.RequestInterface) message.ReplyInterface {
 	name, err := req.RouteParameters().StringValue("name")

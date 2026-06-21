@@ -278,6 +278,117 @@ func (independent *Independent) addHardcodedCommandDepsToTopology() error {
 	return nil
 }
 
+func (independent *Extension) addHardcodedServicesToTopology() error {
+	if independent == nil || independent.WithHardcodedTopology == nil {
+		return fmt.Errorf("service or WithHardcodedTopology is nil")
+	}
+
+	for mushroomURL, serviceConfig := range independent.serviceConfigs {
+		parent := serviceParentURL(mushroomURL)
+		_, err := independent.topologyHandler.Service(mushroomURL)
+		if err != nil {
+			if err := independent.topologyHandler.AddService(serviceConfig, parent...); err != nil {
+				if err := independent.topologyHandler.SetService(serviceConfig, parent...); err != nil {
+					return fmt.Errorf("topologyHandler.SetService(%q): %w", mushroomURL, err)
+				}
+			}
+			continue
+		}
+
+		if err := independent.topologyHandler.SetService(serviceConfig, parent...); err != nil {
+			return fmt.Errorf("topologyHandler.SetService(%q): %w", mushroomURL, err)
+		}
+	}
+
+	return nil
+}
+
+func (independent *Extension) addHardcodedHandlersToTopology() error {
+	if independent == nil || independent.WithHardcodedTopology == nil {
+		return fmt.Errorf("service or WithHardcodedTopology is nil")
+	}
+
+	for mushroomURL, handlers := range independent.handlerConfigs {
+		serviceConfig, err := independent.topologyHandler.Service(mushroomURL)
+		if err != nil {
+			return fmt.Errorf("hardcoded handlers for %q not found in topology: %w", mushroomURL, err)
+		}
+
+		for _, handler := range handlers {
+			if serviceConfig.Type == config.ProxyType {
+				if base, ok := handler.AsIndependentHandler(); ok && base.Category == config.ServiceManagerCategory {
+					serviceConfig.SetHandler(handler, true)
+					continue
+				}
+				proxyHandler, ok := handler.AsProxyHandler()
+				if !ok {
+					continue
+				}
+				handler = normalizeProxyHandlerOutbounds(proxyHandler)
+			}
+			serviceConfig.SetHandler(handler, true)
+		}
+		if err := independent.topologyHandler.SetService(serviceConfig, serviceParentURL(mushroomURL)...); err != nil {
+			return fmt.Errorf("topologyHandler.SetService(%q): %w", mushroomURL, err)
+		}
+	}
+
+	return nil
+}
+
+func (independent *Extension) addHardcodedHandlerDepsToTopology() error {
+	if independent == nil || independent.WithHardcodedTopology == nil {
+		return fmt.Errorf("service or WithHardcodedTopology is nil")
+	}
+
+	for mushroomURL, deps := range independent.handlerDeps {
+		serviceConfig, err := independent.topologyHandler.Service(mushroomURL)
+		if err != nil {
+			return fmt.Errorf("hardcoded handler deps for %q not found in topology: %w", mushroomURL, err)
+		}
+
+		for _, dep := range deps {
+			serviceConfig.HandlerDeps = setDepService(serviceConfig.HandlerDeps, dep)
+		}
+		if err := independent.topologyHandler.SetService(serviceConfig, serviceParentURL(mushroomURL)...); err != nil {
+			return fmt.Errorf("topologyHandler.SetService(%q): %w", mushroomURL, err)
+		}
+	}
+
+	return nil
+}
+
+func (independent *Extension) addHardcodedCommandDepsToTopology() error {
+	if independent == nil || independent.WithHardcodedTopology == nil {
+		return fmt.Errorf("service or WithHardcodedTopology is nil")
+	}
+
+	for mushroomURL, depsByHandler := range independent.commandDeps {
+		serviceConfig, err := independent.topologyHandler.Service(mushroomURL)
+		if err != nil {
+			return fmt.Errorf("hardcoded command deps for %q not found in topology: %w", mushroomURL, err)
+		}
+
+		for handlerCategory, deps := range depsByHandler {
+			handlerVariant, err := serviceConfig.HandlerByCategory(handlerCategory)
+			if err != nil {
+				return fmt.Errorf("hardcoded command deps handler '%s' in service %q: %w", handlerCategory, mushroomURL, err)
+			}
+
+			updatedHandler := handlerVariant
+			for _, dep := range deps {
+				updatedHandler = setHandlerCommandDep(updatedHandler, dep)
+			}
+			serviceConfig.SetHandler(updatedHandler, true)
+		}
+		if err := independent.topologyHandler.SetService(serviceConfig, serviceParentURL(mushroomURL)...); err != nil {
+			return fmt.Errorf("topologyHandler.SetService(%q): %w", mushroomURL, err)
+		}
+	}
+
+	return nil
+}
+
 func setHandlerCommandDep(handler config.Handler, dep config.DepService) config.Handler {
 	if proxyHandler, ok := handler.AsProxyHandler(); ok {
 		proxyHandler.CommandDeps = setDepService(proxyHandler.CommandDeps, dep)
