@@ -9,6 +9,7 @@ require (
 	github.com/noPerfection/protocol/handler v0.0.0
 	github.com/noPerfection/protocol/message v0.0.0
 	github.com/noPerfection/service v0.0.0
+	github.com/noPerfection/topology v0.0.0-20260618053405-c0164a6cc6e0
 	github.com/noPerfection/topology/config v0.0.0
 )
 
@@ -27,7 +28,6 @@ require (
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/noPerfection/log v0.0.0 // indirect
-	github.com/noPerfection/topology v0.0.0-20260618053405-c0164a6cc6e0 // indirect
 	github.com/pebbe/zmq4 v1.2.10 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect

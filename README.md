@@ -1,11 +1,12 @@
 # noPerfection/service
+
 Use this go module to turn your go app, package into a noPerfect microservice.
 
 > We omit the **micro** prefix from now on.
 
 Service at its core a collection of [zeromq](https://zeromq.org/) sockets called [handlers](https://github.com/noPerfection/protocol/handler).
 
-# Hello World
+# Tutorial 1: Hello World
 
 Install the module
 
@@ -14,6 +15,7 @@ go get github.com/noPerfection/service
 ```
 
 Write the main file at `cmd/server/main.go`
+
 ```go
 package main
 
@@ -21,11 +23,6 @@ import (
 	"fmt"
 
 	"github.com/noPerfection/service"
-)
-
-type (
-	RequestInterface = service.RequestInterface
-	ReplyInterface   = service.ReplyInterface
 )
 
 func main() {
@@ -40,7 +37,7 @@ func main() {
 	app.Wait()
 }
 
-func onHello(req RequestInterface) ReplyInterface {
+func onHello(req service.RequestInterface) service.ReplyInterface {
 	name, _ := req.RouteParameters().StringValue("name")
 
 	return req.Ok(map[string]interface{}{"message": "hello " + name})
@@ -57,8 +54,6 @@ package main
 
 import (
 	"fmt"
-	"time"
-
 	"github.com/noPerfection/service"
 )
 
@@ -66,9 +61,8 @@ func main() {
 	c, _ := service.Client()
 	defer c.Close()
 
-	c.Timeout(time.Second).Attempt(1)
-
-	reply, _ := c.Request(service.RequestMsg("hello", map[string]any{"name": "Jonny Dough"}))
+	req := service.RequestMsg("hello", map[string]any{"name": "Jonny Dough"})
+	reply, _ := c.Request(req)
 
 	msg, _ := reply.ReplyParameters().StringValue("message")
 	fmt.Println(msg)
@@ -78,31 +72,35 @@ func main() {
 if we launch our app on a new terminal tab we will see the greetings:
 `go run ./cmd/client/main.go`.
 
+The service is composed of the handlers that wraps the zeromq sockets.
+Its then starts to listen at 8000 port. Then, our client creates its own
+zeromq socket, and connects to the service. `c.Request(msg)` sends the message and returns a reply back.
+
 See [examples/000-hello-world](./examples/000-hello-world) source code.
 
-## Why noPerfection
+# Tutorial 2: Why noPerfection
 
-That's so far simple, but doesn't tell you its advantage.
-The service comes with a built-in handlers that allows to manage the service.
+The hello-world example didn't showcase the differentiator about it.
+The service has a built-in handler to manage the service itself.
 
-By default it's internal, available right within the code where you launch the service.
-But we can change its endpoint to expose to the computer or remote connections.
+By default it's internal, so its used accessed by the same process.
+But we can change its endpoint to expose to the computer or even for a remote control.
+To do that, we pass the three parameters to our service:
 
 ```go
 package main
 
 import (
-	"fmt"
-
-	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
 )
 
 func main() {
 	// Add the endpoint exposing on port 8001
-	managerEndpoint := message.NewEndpoint("localhost", 8001)
-	app, _ := service.New("close-service", "noPerfection.json", managerEndpoint)
+	controlEndpoint := service.Endpoint("localhost", 8001)
+        // Any name to identify  our service in the configuration
+        // Topology configuration path, must end with `.json`
+        // Manager endpoint if you want to access from other other processes
+	app, _ := service.New("my-service-name", "noPerfection.json", managerEndpoint)
 
 	app.Route("hello", onHello)
 
@@ -112,72 +110,56 @@ func main() {
 	app.Wait()
 }
 
-func onHello(req message.RequestInterface) message.ReplyInterface {
-	return req.Ok(datatype.New().Set("message", "hello and world"))
+func onHello(req service.RequestInterface) service.ReplyInterface {
+	return req.Ok(map[string]any{"message": "hello and world"})
 }
 ```
 
-Service's manager is accessible at port 8001, while by default main handler exposes itself at port 8000.
-
-I'll use `github.com/noPerfection/os/arg` package to add `--close` flag to the client. 
-With `--close`, client will talk to the service and a signal to close it.
+Now, by creating a connect to the client, we can manage our service:
+I'll use `github.com/noPerfection/os/arg` package to add `--close` flag to the client.
+If I pass `--close` flag to the client, then client will talk to its manager asking to close.
+Otherwise it works as in the hello world example.
 
 ```go
 package main
 
 import (
 	"fmt"
-	"time"
 
-	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/os/arg"
-	"github.com/noPerfection/protocol/client"
-	managerClient "github.com/noPerfection/protocol/client/sync_replier"
-	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service"
 	"github.com/noPerfection/service/manager"
 )
 
 func main() {
 	if arg.FlagExist("close") {
 		closeService()
-		return
+	} else {
+		callHello()
 	}
-
-	callHello()
 }
 
 func callHello() {
-	c, _ := client.New("localhost", 8000, client.ReplierType)
+	c, _ := service.Client()
 	defer c.Close()
 
-	c.Timeout(time.Second)
-	c.Attempt(1)
-
-	reply, err := c.Request(&message.Request{
-		Command:    "hello",
-		Parameters: datatype.New(),
-	})
-	if !reply.IsOK() {
-		panic(reply.ErrorMessage())
-	}
+	reply, _ := c.Request(service.RequestMsg("hello"))
 
 	message, _ := reply.ReplyParameters().StringValue("message")
 	fmt.Println(message)
 }
 
 func closeService() {
-	c, _ := managerClient.NewClient("localhost", 8001)
+	c, _ := service.Client("localhost", 8001)
 	defer c.Close()
 
-	reply, err := c.Request(&message.Request{
-		Command:    manager.StopService,
-		Parameters: datatype.New().Set("service", "close-service"),
-	})
-	if !reply.IsOK() {
-		panic(reply.ErrorMessage())
-	}
+	_, err := c.Request(
+		service.RequestMsg(manager.StopService, map[string]any{"service": "my-service-name"}),
+	)
 
-	fmt.Println("Service was closed")
+        if err != nil {
+	        fmt.Println("Service was closed")
+        }
 }
 ```
 
@@ -188,19 +170,23 @@ go run ./cmd/client
 go run ./cmd/client --close
 ```
 
-After `--close`, look back at the service terminal. The service should stop because the manager releases `app.Wait()`.
+After `--close`, switch back to the service terminal. The service should be stopped because the manager releases `app.Wait()`.
 
 See [examples/001-close-service](./examples/001-close-service) for the runnable example.
 
-## Tutorial 3: Custom handlers
+# Tutorial 3: Custom handlers
 
-By default, a service creates a `main` handler that is a classic server backend.
-It's run on the `tcp://localhost:8000` path.
+As the services use the names to identify them, so the handlers are have identifiers in the topology configuration.
 
-We can overwrite that handler before service starts.
-We can change the way how server replies by changing the socket type.
+They are called category, to group them. By default, a service creates a `main` handler. The managers are categorized as `manager`.
 
-Let's change `main` handler to:
+Remember that handlers are just wrappers around zeromq, as such we can change the default handler's data.
+
+Including its socket type, and endpoint.
+
+Just like service has two handlers for now, it can have multiple handlers. But that will be explained in a full documentation.
+
+For now, let's change `main` handler to:
 
 - handler type: `SyncReplier`
 - endpoint: `localhost:3000`
@@ -211,174 +197,149 @@ package main
 import (
 	"fmt"
 
-	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
-	topologyConfig "github.com/noPerfection/topology/config"
 )
 
 func main() {
-	handlerConf := topologyConfig.Handler{
-		Type:     topologyConfig.SyncReplierType,
-		Category: "main",
-		Endpoint: message.NewEndpoint("localhost", 3000),
+	handlerConf := service.IndependentHandler{
+                // identify which handler to set
+                Category: "main",
+		Type:     service.SyncReplierType, // Was asynchronous Replier, now became SyncReplier
+		Endpoint: service.Endpoint("localhost", 3000),
 	}
 
-	app, err := service.New()
+	app, _ := service.New()
 
 	// Define the config for the default "main" handler.
 	app.SetHandlerConfig(handlerConf)
-
-	// Other app logic and routings.
-	err = app.Route("hello", onHello)
+        app.Route("hello", onHello)
 
 	app.Start()
-	defer app.Stop()
+	defer app.Close()
 
 	fmt.Println("hello-world service listening on localhost:3000")
 	app.Wait()
 }
 
-func onHello(req message.RequestInterface) message.ReplyInterface {
+func onHello(req service.RequestInterface) service.ReplyInterface {
 	name, _ := req.RouteParameters().StringValue("name")
-	return req.Ok(datatype.New().Set("message", "hello "+name))
+	return req.Ok(map[string]any{"message": "hello "+name})
 }
 ```
+
+Besides, you can change the handler to act in a different way. As a `service.PublisherType`, as a `service.WorkerType`, as a `service.PairType`. Check out the full documentation how they work. Sync Replier means our handler queues the messages and handles them one at a time. It's useful for example if you want to work with the files, or database connections.
+
+If you call `SetHandlerConfig` after `Start()` it will be just keeping it in the queue, without affecting it. In order to affect it, you will use the service manager, by asking to restart the service.
 
 Because the handler type changed, the client should connect as a sync replier:
 
 ```go
-c, err := client.New("localhost", 3000, client.SyncReplierType)
+// our cmd/client/main.go
+c, _ := service.Client("localhost", 3000, service.SyncReplierType) 
 ```
-
-SyncReplier handles one request at a time. All requests are queued, and until service
-doesn't handle the current code, it will keep others in idle mode.
-There are other types of the handlers such as **Publisher**, **Worker**, **Pair** as well.
 
 ---
 
-Just like handlers, you can define service configs from code too. This lets you
-create a service config before startup, or overwrite parameters that would
-otherwise come from `noPerfection.json`.
+Just like handlers, you can define service configs from code too:
 
 ```go
-app.SetServiceConfig(topologyConfig.Service{
-	Type:      topologyConfig.IndependentType,
+app.SetServiceConfig(service.Config{
+	Type:      service.IndependentType,
 	Name:      "hello-world",
-	ModuleUrl: "github.com/noPerfection/service",
-	Parameters: datatype.New().Set("mode", "tutorial"),
+	ModuleUrl: "pkg:github.com/noPerfection/service",
+	Parameters: service.KeyValue().Set("mode", "tutorial"),
 })
 ```
 
-Call `SetServiceConfig` before `Start()`. Hardcoded handler configs are applied
-after hardcoded service configs, so handlers can be attached to services that
-were created in code.
+The `SetHandlerConfig` and `SetServiceConfig` are hardcoded configurations. Even if you edit the topology's `.json` file, the hardcoded configurations will be applied every time when you restart the service.
 
-If no services defined by a programmer, then service will create a default one with
-the name `main`.
+But in order to get the effect, you need to call them before start. Hardcoded handler configs are applied after hardcoded service configs, so handlers can be attached to services that were created in code.
 
-## Tutorial 4: Default name proxy
+With these handlers we just ensure the topology as it is. But for applications I recommend to use hardcoding minimally, instead manage it in the configuration or using its manager.
+
+> The `service.KeyValue()` is a constructor that returns noPerfection/datatype.KeyValue. It's a map[string]any with the additional methods around them. You already saw them in the examples when we looked at the return parameters such as `reply.RouteParameters().StringValue("message")`  is using the `StringValue` of the datatype.KeyValue.
+
+# Framework as a library
+
+Another thing that we haven't mentioned what makes this framework distinct is that `noPerfection` comes as a library. But framework usually implies an architectural decisions, on a way how your code is structured for a better scalability. Yet, **noPerfection — is a microservices framework as a library**. Some of the architecture decisions for scalability is already provided such as service names, and handler categories. Besides there are different sockets for each handler and our services consists of multiple handlers that we route our messages.
+
+Apps consists of multiple services, and library provides three types of the services to connect them.
+The one that we used so far is called `service.IndependentType` service. Besides them, we have proxies and extensions.
+
+The `noPerfection` app is what I call a reverse scorpio.
+
+noPerfection architecture
+
+Our tutorials so far covered the independent service. We can define other services as proxies and any route command will go through the series of one or many proxies before getting to the service.
+
+While, internally each service may access to the extensions that handles some job on their own threads.
+In `noPerfection` the service manages the topology. If needed it's the independent service's responsibility to keep proxies and extensions running.
+Note that each service, whether its extension or proxy can be a reverse scorpio internally. This nesting can go arbitrarily deep.
 
 Let's now create a proxy.
 
-We already have a `hello-world` service that receives the `name` parameter.
-The client will pass `--name=<name>`. When the flag is not given, or it is empty,
-we want to use the proxy's default name.
+## Tutorial 4: Proxy called `default-name-proxy`
 
-Why not change the service and put the default name there? Because the service
-should stay focused on the business rule: `hello` requires a name. Defaulting a
-client input is proxy behavior. Keeping it in the proxy keeps the service clean
-and avoids adding client-specific details to the service logic.
+Let's modify the hello-world service so it receives a name parameter and greets the caller..
+The client accepts an optional `--name=name` argument. The proxy supplies default name if its missing.
 
-First, create the service at `cmd/service/main.go`. It defines the proxy with
-`SetServiceConfig`, and the proxy handler forwards to the service's default
-`main` handler. The proxy listens on `localhost:8001`.
+This is a trivial example, but it demonstrates how a proxy can mutate request parameters before they reach the service.
+
+How we do wire up in two steps? First we declare in our topology that there is a proxy, and define its configuration. Then, we tell to our service that `hello` command depends on the proxy using `SetCommandDeps` method:
 
 ```go
 package main
 
 import (
-	"fmt"
-
-	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/protocol/handler/base"
-	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
-	"github.com/noPerfection/service/handlers"
-	topologyConfig "github.com/noPerfection/topology/config"
 )
 
 const (
 	configPath    = "noPerfection.json"
 	serviceName   = "hello-world"
 	proxyName     = "default-name-proxy"
-	proxyCategory = "default-name"
 )
 
 func main() {
-	app, err := service.New(serviceName, configPath)
-	if err != nil {
-		panic(err)
-	}
+	app, _ := service.New(serviceName, configPath)
 
-	err = app.SetServiceConfig(topologyConfig.Service{
-		Type:      topologyConfig.ProxyType,
+	// Tell to our topology about proxy service and where its endpoint to connect too.
+	app.Route("hello", onHello)
+
+	app.SetServiceConfig(service.Config{
+		Type:      service.ProxyType,
 		Name:      proxyName,
-		ModuleUrl: "github.com/noPerfection/service/examples/004-default-name-proxy",
-		Handlers: []topologyConfig.HandlerVariant{
-			topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
-				Handler: topologyConfig.Handler{
-					Type:     topologyConfig.SyncReplierType,
-					Category: proxyCategory,
+		Handlers: []service.Handler{
+			service.ProxyHandler{
+				Handler: service.Handler{
+					Type:     service.SyncReplierType,
+					Category: "main",
 					Endpoint: message.NewEndpoint("localhost", 8001),
 				},
-				Routes: []string{base.Any},
-				Outbounds: []topologyConfig.ServicePointer{
-					topologyConfig.ServiceTarget(topologyConfig.Service{
-						Type:      topologyConfig.IndependentType,
-						Name:      serviceName,
-						ModuleUrl: "github.com/noPerfection/service/examples/004-default-name-proxy",
-						Handlers: topologyConfig.NewHandlerVariants(topologyConfig.Handler{
-							Type:     topologyConfig.ReplierType,
-							Category: handlers.DefaultHandlerCategory,
-							Endpoint: message.NewEndpoint("localhost", 8000),
-						}),
-					}),
-				},
-			}),
+			},
 		},
 	})
-	if err != nil {
-		panic(err)
-	}
+	app.SetCommandDeps(service.DepService{
+		Name: "hello",
+		Proxies: []string{proxyName},
+	})
 
-	err = app.Route("hello", onHello)
-	if err != nil {
-		panic(err)
-	}
-
-	if err := app.Start(); err != nil {
-		panic(err)
-	}
+	app.Start()
 	defer app.Stop()
 
-	fmt.Println("hello-world service listening on localhost:8000")
 	app.Wait()
 }
 
-func onHello(req message.RequestInterface) message.ReplyInterface {
-	name, err := req.RouteParameters().StringValue("name")
-	if err != nil || name == "" {
-		return req.Fail("name is required")
-	}
+func onHello(req service.RequestInterface) service.ReplyInterface {
+	// Do not verify here, since proxy already did it for us.
+	name, _ := req.RouteParameters().StringValue("name")
 
 	return req.Ok(datatype.New().Set("message", "hello "+name))
 }
 ```
 
-Then create the proxy at `cmd/proxy/main.go`. It handles `base.Any`, sets
-`name` to `Medet Ahmetson` when the value is missing or empty, and forwards the
-request to the service.
+Once we have the service, we need to define our proxy. I'll do it in the `cmd/proxy/main.go`.
+It handles `service.AnyCmd`, sets `name` to `Medet Ahmetson` when the value is missing or empty, and forwards the request to the service.
 
 ```go
 package main
@@ -386,10 +347,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/noPerfection/protocol/handler/base"
-	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
-	"github.com/noPerfection/service/handlers"
 )
 
 func main() {
@@ -398,10 +356,7 @@ func main() {
 		panic(err)
 	}
 
-	err = app.Route(base.Any, onDefaultName, "default-name")
-	if err != nil {
-		panic(err)
-	}
+	app.Route(base.Any, onDefaultName, "default-name")
 
 	app.Start()
 	defer app.Stop()
@@ -410,7 +365,7 @@ func main() {
 	app.Wait()
 }
 
-func onDefaultName(req handlers.ProxyRequest) handlers.ProxyReply {
+func onDefaultName(req service.ProxyRequest) service.ProxyReply {
 	name, err := req.RouteParameters().StringValue("name")
 	if err != nil || name == "" {
 		req.RouteParameters().Set("name", "Medet Ahmetson")
@@ -418,7 +373,7 @@ func onDefaultName(req handlers.ProxyRequest) handlers.ProxyReply {
 
 	reply, err := req.Forward()
 	if err != nil {
-		return handlers.ProxyReply{Reply: *req.Fail(err.Error()).(*message.Reply)}
+		return req.Fail(err.Error())
 	}
 
 	return reply
@@ -434,36 +389,22 @@ package main
 
 import (
 	"fmt"
-	"time"
 
-	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/os/arg"
-	"github.com/noPerfection/protocol/client"
-	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service"
 )
 
 func main() {
-	params := datatype.New()
+	params := service.KeyValue()
 	if arg.FlagExist("name") {
 		params.Set("name", arg.FlagValue("name"))
 	}
 
-	c, err := client.New("localhost", 8001, client.SyncReplierType)
-	if err != nil {
-		panic(err)
-	}
+	// Connect to the proxy
+	c, _ := service.Client("localhost", 8001, service.SyncReplierType)
 	defer c.Close()
 
-	c.Timeout(time.Second)
-	c.Attempt(1)
-
-	reply, err := c.Request(&message.Request{
-		Command:    "hello",
-		Parameters: params,
-	})
-	if err != nil {
-		panic(err)
-	}
+	reply, _ := c.Request(service.RequestMsg("hello", params))
 	if !reply.IsOK() {
 		panic(reply.ErrorMessage())
 	}
@@ -482,131 +423,58 @@ go run ./cmd/client --name="Jonny Dough"
 go run ./cmd/client
 ```
 
+We run the service first, so that service writes the proxy topology.
+Since we specified to use the same topology, the proxy after starting will find out its location parameters itself.
+
 The first client call prints `hello Jonny Dough`. The second call omits the
 name, so the proxy fills it and the service returns `hello Medet Ahmetson`.
 
 See [examples/004-default-name-proxy](./examples/004-default-name-proxy) for the
 runnable example.
 
-## Tutorial 5: Proxy by command deps
+## Tutorial 5: Multiple proxies together
 
-In [Tutorial 4](#tutorial-4-default-name-proxy), we created a proxy handler with
-an outbound parameter pointing to the `hello-world` service. That works, but
-managing endpoints and keeping those outbounds synchronized is tiresome.
+Since scorpio tails are long, we can pipe arbitrary number of the proxies. We simply add the second service configuration, and add it into the proxys in the `SetCommandDeps`.
 
-Instead, we can make it dynamic with `SetCommandDeps`.
+Suppose we want to normalize names to title case:
 
-The proxy and client do not change. They stay the same as
-`cmd/proxy/main.go` and `cmd/client/main.go` from Tutorial 4. The service is
-almost identical too, but its topology is more fine grained.
+- `MEDET` becomes `Medet`
+- `MEDeT  aHMETSON` becomes `Medet Ahmetson`
 
-First, define the proxy service. It has a proxy handler on `localhost:8001`, but
-no outbound is written by hand:
+We call it `upper-case-names` service. 
+
+So, let's add its configuration into our hello world topology. Add the following piece before calling `SetCommandDeps`:
 
 ```go
-app.SetServiceConfig(topologyConfig.Service{
-	Type:      topologyConfig.ProxyType,
-	Name:      proxyName,
-	ModuleUrl: "github.com/noPerfection/service/examples/005-command-deps/cmd/proxy",
-	Handlers: []topologyConfig.HandlerVariant{
-		topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
-			Handler: topologyConfig.Handler{
-				Type:     topologyConfig.SyncReplierType,
-				Category: proxyCategory,
-				Endpoint: message.NewEndpoint("localhost", 8001),
+app.SetServiceConfig(service.Config{
+	Type:      service.ProxyType,
+	Name:      "upper-case-names",
+	Handlers: []service.Handler{
+		service.ProxyHandler{
+			Handler: service.Handler{
+				Type:     service.SyncReplierType,
+				Category: "main",
+				Endpoint: message.NewEndpoint("localhost", 8003),
 			},
-		}),
+		},
 	},
 })
 ```
 
-Then define the proxy manager endpoint. The service uses this endpoint to
-synchronize the command dependency with the proxy process:
+Then, modify the `SetCommandDeps` to have two proxies:
 
 ```go
-app.SetHandlerConfig(topologyConfig.Handler{
-	Type:     topologyConfig.SyncReplierType,
-	Category: topology.ServiceManagerCategory,
-	Endpoint: message.NewEndpoint("localhost", 8002),
-}, proxyName)
-```
-
-Finally, declare that the `hello` command should go through the proxy:
-
-```go
-app.SetCommandDeps(topologyConfig.DepService{
+app.SetCommandDeps(service.DepService{
 	Name: "hello",
-	Proxies: []topologyConfig.ServicePointer{
-		topologyConfig.RefTarget(proxyName),
-	},
+	Proxies: []string{proxyName, "upper-case-names"},
 })
 ```
 
-Now the service can synchronize the proxy handler route and outbound for the
-`hello` command. Run the service, proxy, and client in separate terminals:
+Proxies are chained in order. The client connects to the first proxy, which forwards to the next, until the last proxy forwards to the service.
 
-```bash
-go run ./cmd/service
-go run ./cmd/proxy
-go run ./cmd/client --name="Jonny Dough"
-go run ./cmd/client
-```
+The `upper-case-names` proxy implementation is in the examples source — the client and `default-name-proxy` are unchanged from tutorial 4.
 
-The first client call prints `hello Jonny Dough`. The second call omits the
-name, so the proxy fills it and the service returns `hello Medet Ahmetson`.
-
-See [examples/005-command-deps](./examples/005-command-deps) for the full
-example.
-
-## Tutorial 6: Multiple proxies together
-
-Command deps can also pipe several proxies together. The order is top to bottom:
-the first proxy in `Proxies` is the proxy the user sees, and each proxy forwards
-to the next one. The last proxy forwards to this service.
-
-Suppose names always need to be initialized after a name exists:
-
-* `MEDET` becomes `Medet`
-* `MEDeT  aHMETSON` becomes `Medet Ahmetson`
-
-We can keep the first proxy from Tutorial 5. It still fills a missing name. Then
-we add a second proxy named `upper-case-names` in `cmd/proxy2/main.go`. That
-proxy normalizes the name and forwards the request to the service.
-
-The client and first proxy stay the same as
-`examples/005-command-deps/cmd/client/main.go` and
-`examples/005-command-deps/cmd/proxy/main.go`.
-
-The service only needs to configure both proxy services, their main handlers,
-and their managers:
-
-```go
-app.SetServiceConfig(proxyConfig(defaultProxyName, defaultProxyPackage, 8001))
-app.SetHandlerConfig(proxyManagerConfig(8002), defaultProxyName)
-
-app.SetServiceConfig(proxyConfig(formatProxyName, formatProxyPackage, 8003))
-app.SetHandlerConfig(proxyManagerConfig(8004), formatProxyName)
-```
-
-Then declare the `hello` command proxy chain:
-
-```go
-app.SetCommandDeps(topologyConfig.DepService{
-	Name: "hello",
-	Proxies: []topologyConfig.ServicePointer{
-		topologyConfig.RefTarget(defaultProxyName),
-		topologyConfig.RefTarget(formatProxyName),
-	},
-})
-```
-
-With this order, requests flow like this:
-
-```text
-client -> default-name-proxy -> upper-case-names -> hello-world
-```
-
-Run the service and both proxies in separate terminals:
+Finally run in the terminals:
 
 ```bash
 go run ./cmd/service
@@ -619,45 +487,47 @@ go run ./cmd/client
 Both client calls print `hello Medet Ahmetson`. The first call formats the
 provided name. The second call fills the default name first, then formats it.
 
-See [examples/006-multiple-proxies](./examples/006-multiple-proxies) for the
+See [examples/005-multiple-proxies](./examples/005-multiple-proxies) for the
 full example.
 
-## Tutorial 7: Proxy by handler deps
+## Tutorial 6: Proxy by handler deps
 
-Command deps are useful when a single command needs a proxy. But sometimes the
-client should not need to know which socket belongs to which command.
+Command deps work well when individual commands need different proxy chains. Let's add another route to our hello world that doesn't need the command proxy.
+The `hello` command should use the `default-name` and `upper-case` proxies. But for the `age-verification` command they are redundant.
+Without handler deps, the client would need to know two sockets: one is the proxy for default names and one is the direct service endpoint. That forces the client to know about internal topology. Instead, we add an `entrypoint` proxy. The client calls only this entrypoint socket, and internally the entrypoint forwards each command to the right proxy.
 
-Suppose our service has two routes:
-
-* `hello`
-* `age-verification`
-
-The `hello` command should still use the default-name proxy from Tutorial 5.
-The `age-verification` command simply receives an integer `age` and returns a
-`passed` boolean. It does not need the default-name proxy.
-
-Without handler deps, the client would need to know two sockets: one for the
-default-name proxy and one for the service. That is tiresome. Instead, we add an
-`entrypoint` proxy. The client calls only this entrypoint socket, and internally
-the entrypoint forwards each command to the right next hop.
-
-First, configure both proxy services and their managers:
+Replace the previous `upper-case-names` proxy configuration with an entrypoint:
 
 ```go
-app.SetServiceConfig(proxyConfig(defaultProxyName, defaultProxyPackage, 8001))
-app.SetHandlerConfig(proxyManagerConfig(8002), defaultProxyName)
+app.SetServiceConfig(service.Config{
+	Type:      service.ProxyType,
+	Name:      "entrypoint",
+	Handlers: []service.Handler{
+		service.ProxyHandler{
+			Handler: service.Handler{
+				Type:     service.SyncReplierType,
+				Category: "main",
+				Endpoint: message.NewEndpoint("localhost", 8003),
+			},
+		},
+	},
+})
 
-app.SetServiceConfig(proxyConfig(entrypointName, entrypointPackage, 8003))
-app.SetHandlerConfig(proxyManagerConfig(8004), entrypointName)
+app.Route("age-verification", func(req service.RequestInterface) service.ReplyInterface {
+	age, _ := req.RequestParameters().IntValue("age")
+	if age >= 18 {
+		return req.Ok(map[string]any{"passed": true})
+	}
+	return req.Ok(map[string]any{"passed": false})
+})
 ```
 
-Then keep the command dep for `hello`:
+Then simplify the command dep for `hello` back to a single proxy:
 
 ```go
-app.SetCommandDeps(topologyConfig.DepService{
+app.SetCommandDeps(service.DepService{
 	Name: "hello",
-	Proxies: []topologyConfig.ServicePointer{
-		topologyConfig.RefTarget(defaultProxyName),
+	Proxies: []string{defaultProxyName},
 	},
 })
 ```
@@ -665,32 +535,31 @@ app.SetCommandDeps(topologyConfig.DepService{
 Finally, set the entrypoint as a handler dep for the service handler:
 
 ```go
-app.SetHandlerDeps(topologyConfig.DepService{
-	Name: handlers.DefaultHandlerCategory,
-	Proxies: []topologyConfig.ServicePointer{
-		topologyConfig.RefTarget(entrypointName),
-	},
+app.SetHandlerDeps(service.DepService{
+	Name: service.DefaultHandlerCategory,
+	Proxies: []string{"entrypoint"},
 })
 ```
 
-The entrypoint code is intentionally small. It just forwards whatever command it
-receives:
+Rename `proxy2` to `entrypoint` and replace its route handler with the following:
 
 ```go
-func onForward(req handlers.ProxyRequest) handlers.ProxyReply {
+func onForward(req service.ProxyRequest) service.ProxyReply {
 	reply, err := req.Forward()
 	if err != nil {
-		return handlers.ProxyReply{Reply: *req.Fail(err.Error()).(*message.Reply)}
+		return req.Fail(err.Error())
 	}
 
 	return reply
 }
+
+// Then in proxy routing:
+p.Route(service.AnyCmd, onForward)
 ```
 
-During startup, handler-dep sync whitelists the service handler route commands
-on the entrypoint. For commands that also have command deps, it configures a
-`forward` entry to the first command proxy. So `hello` goes through
-`default-name-proxy`, while `age-verification` goes directly to the service.
+As for the age verification, let it be a homework, and try to support `--age=<number>` and if its given the client should call the `age-verification` command with the `age` parameter.
+
+When we start the service, the handler dependency will create the correct topology and know to which service it needs to forward the incoming requests. The `hello` command goes through `default-name-proxy`, while `age-verification` goes directly to the service.
 
 Run the service, default-name proxy, entrypoint, and client:
 
@@ -702,151 +571,69 @@ go run ./cmd/client
 go run ./cmd/client --age=21
 ```
 
-The first client call prints `hello Medet Ahmetson`. The second prints `true`.
-Both calls use the same entrypoint socket.
+The first client call prints `hello Medet Ahmetson`. The second prints `true`. Both calls use the same entrypoint socket.
 
-See [examples/007-handler-deps](./examples/007-handler-deps) for the full
-example.
+See [examples/006-handler-deps](./examples/006-handler-deps) for the full example including the `age-verification` implementation.
 
-## Tutorial 8: Autostart deps on same machine
+The handler deps also provide a facade pattern in distributed systems. We can now reorder the command dep proxies, or later add authentication or name caching without touching the client.
 
-Now it is time to show the power of noPerfection. Our services are different
-apps that we usually run in multiple terminals for testing. That is tiresome.
-Instead, we can make them managed by the service itself.
+## Tutorial 7: Service that manages other services
 
-Every handler config has an endpoint with `id` and `port`. When a handler
-endpoint has `port: 0` and its `id` starts with `tmp`, noPerfection treats it as
-a local same-machine endpoint. That means the service can connect to that
-handler directly by its endpoint config, without a public TCP port.
+One of the differentiators of `noPerfection` is that a service can manage its own proxies and extensions in the same topology. This is arguably the second most powerful feature of `noPerfection`, after being a library.
 
-But connecting is not enough. The dependency process must be running too. So
-for each local dependency service, we also set `StartCommand`. That command is
-how the topology starts the dependency when the main service boots.
+But so far we were running them in separate terminals. This is because our services are running on TCP ports and the service doesn't know where other services are — it depends on hosting, cloud, and many other nuances. This is intentional.
 
-This example modifies the previous entrypoint/default-name-proxy example. The
-proxy and entrypoint `main.go` files stay the same. We only change the service
-that sets their config:
+Every endpoint is defined by a name and a port. When the port is a non-zero number, `noPerfection` uses TCP. But if we set it to `0` and use a name with the `tmp/` prefix, `noPerfection` treats it as a local same-machine endpoint and uses the IPC protocol. For IPC, the service configuration accepts another parameter called `StartCommand`. That's it — to launch a single terminal and let the service manage its own proxies, we simply update the endpoint and set the `StartCommand` parameter. Nothing else changes.
+
+The only thing we need to change are the two `SetServiceConfig` calls:
 
 ```go
-const (
-	serviceMainID            = "tmp/hello_world"
-	defaultProxyID           = "tmp/default_name_proxy"
-	entrypointID             = "tmp/entrypoint_proxy"
-	defaultProxyStartCommand = "go run ./cmd/proxy/main.go"
-	entrypointStartCommand   = "go run ./cmd/entrypoint/main.go"
-)
-
-app.SetHandlerConfig(topologyConfig.Handler{
-	Type:     topologyConfig.ReplierType,
-	Category: handlers.DefaultHandlerCategory,
-	Endpoint: message.NewEndpoint(serviceMainID, 0),
+var defaultnameStartCmd = "go run ./cmd/proxy/main.go"
+var defaultnameEndpoint = service.Endpoint("tmp/default_name_proxy", 0)
+app.SetServiceConfig(service.Config{
+	Type:         service.ProxyType,
+	Name:         "default-name-proxy",
+	StartCommand: defaultnameStartCmd, // added
+	Handlers: []service.Handler{
+		service.ProxyHandler{
+			Handler: service.Handler{
+				Type:     service.SyncReplierType,
+				Category: "main",
+				Endpoint: defaultnameEndpoint, // updated
+			},
+		},
+	},
 })
 
-defaultProxy := proxyConfig(
-	defaultProxyName,
-	defaultProxyPackage,
-	defaultProxyID,
-	defaultProxyStartCommand,
-)
-app.SetServiceConfig(defaultProxy)
-
-entrypoint := proxyConfig(
-	entrypointName,
-	entrypointPackage,
-	entrypointID,
-	entrypointStartCommand,
-)
-app.SetServiceConfig(entrypoint)
-```
-
-The proxy config stores both things: the local endpoint and the start command:
-
-```go
-func proxyConfig(name string, moduleURL string, endpointID string, startCommand string) topologyConfig.Service {
-	return topologyConfig.Service{
-		Type:         topologyConfig.ProxyType,
-		Name:         name,
-		ModuleUrl:    moduleURL,
-		StartCommand: startCommand,
-		Handlers: []topologyConfig.HandlerVariant{
-			topologyConfig.NewProxyHandlerVariant(topologyConfig.ProxyHandler{
-				Handler: topologyConfig.Handler{
-					Type:     topologyConfig.SyncReplierType,
-					Category: proxyCategory,
-					Endpoint: message.NewEndpoint(endpointID, 0),
-				},
-			}),
+var entrypointStartCmd = "go run ./cmd/entrypoint/main.go"
+var entrypointEndpoint = service.Endpoint("tmp/entrypoint_proxy", 0)
+app.SetServiceConfig(service.Config{
+	Type:         service.ProxyType,
+	Name:         "entrypoint",
+	StartCommand: entrypointStartCmd, // added
+	Handlers: []service.Handler{
+		service.ProxyHandler{
+			Handler: service.Handler{
+				Type:     service.SyncReplierType,
+				Category: "main",
+				Endpoint: entrypointEndpoint, // updated
+			},
 		},
-	}
-}
+	},
+})
 ```
 
-During startup, the service syncs proxy outbounds and then autostarts same-machine
-dependencies through the topology handler. You only need one terminal for the
-service.
+That's all — now only the service and client need their own terminal. During startup, the service syncs proxy outbounds and then autostarts same-machine dependencies through the topology handler.
 
-Remember from Tutorial 1 that services have managers? We can improve the client
-too. If the client is called with `--services`, it connects to the independent
-service manager and prints configured services with their running state:
+Remember from Tutorial 1 that services have managers? They are used by the services themselves to synchronize each other. We had the `close` command earlier, but here, with a topology managed by the service itself, we can talk to its manager and control the entire topology through it. The service will talk to other managers and deliver messages to the right destination.
 
-```go
-func listServices() {
-	c, err := newManagerClient()
-	if err != nil {
-		panic(err)
-	}
-	defer c.Close()
+The full source code and its readme include additional manager commands to start, stop, and check the status of the entrypoint and default-name proxy from the client with the following flags in the full example:
 
-	reply, err := c.Request(&message.Request{
-		Command:    manager.Services,
-		Parameters: datatype.New(),
-	})
-	if err != nil {
-		panic(err)
-	}
-	if !reply.IsOK() {
-		panic(reply.ErrorMessage())
-	}
-
-	rawServices, err := reply.ReplyParameters().NestedListValue("services")
-	if err != nil {
-		panic(err)
-	}
-
-	for _, rawService := range rawServices {
-		var service topologyConfig.Service
-		if err := rawService.Interface(&service); err != nil {
-			panic(err)
-		}
-		running, err := serviceRunning(c, service.Name)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("%s running=%t\n", service.Name, running)
-	}
-}
-
-func serviceRunning(c *managerClient.Client, serviceName string) (bool, error) {
-	reply, err := c.Request(&message.Request{
-		Command:    manager.IsServiceRunning,
-		Parameters: datatype.New().Set("service", serviceName),
-	})
-	if err != nil {
-		return false, err
-	}
-	if !reply.IsOK() {
-		return false, fmt.Errorf("%s", reply.ErrorMessage())
-	}
-	return reply.ReplyParameters().BoolValue("running")
-}
-```
-
-The client also supports:
-
-- `--help` to list all flags
-- `--status=<service-name>`
-- `--start=<service-name>`
-- `--stop=<service-name>`
+- `./client --help` &ndash; to list all flags &ndash; 
+- `./client --services` &ndash; prints the list of services in topology
+- `./client --status=<service-name>` &ndash; is service running or not
+- `./client --start=<service-name>` &ndash; start service, e.g: *./client --start=entrypoint*
+- `./client --stop=<service-name>` &ndash; stop service, e.g: *./client --stop=entrypoint*
 
 Run the service and client:
 
@@ -857,32 +644,58 @@ go run ./cmd/client --age=21
 go run ./cmd/client --services
 ```
 
-See [examples/008-autostart-deps](./examples/008-autostart-deps) for the full
-example.
+See [examples/007-autostart-deps](./examples/007-autostart-deps) for the full example.
 
+## Tutorial 8: Single process
 
-### Tutorial 9: Single Process Demo
+Services are isolated by state. All inter-service communication goes through ZeroMQ sockets, which means it's thread-safe to run multiple services in a single process:
 
-So far, our services were handled from multiple places: one command for the
-service, one command for each proxy, or a service process that autostarts its
-dependencies. We can also run the same topology from one Go package instead of
-scattering the runtime across several commands.
+```go
+package main
 
-This tutorial keeps the TCP endpoints, the `hello` command, the
-`age-verification` command, and the two proxies from the previous examples.
-The difference is that `cmd/demo` imports the reusable `hello`, `proxy`, and
-`entrypoint` packages, starts all three in one process, and then waits for all
-of them together.
+import (
+	"github.com/noPerfection/service"
+	"github.com/random-org/example"
+)
 
-Keep this example on TCP. If you switch the proxies to
-`tmp/...` IPC, they also need `start-command`, and then the topology manager may
-try to launch the same proxy apps that `cmd/demo` already started in this
-process. Depending on startup order and manager probes, the extra launch may be
-skipped or it may create duplicate processes that fight over the same IPC
-sockets. Use `tmp/` IPC with `start-command` for the multi-process autostart
-style, not this single-process one.
+const defaultProxyName = "default-name-proxy"
 
-Run the whole topology:
+func main() {
+	entrypoint, _ := service.NewProxy("entrypoint")
+	entrypoint.Route(service.AnyCmd, example.HandleEntrypoint)
+
+	p, _ := service.NewProxy(defaultProxyName)
+	p.Route(service.AnyCmd, example.HandleDefaultName)
+
+	app, _ := service.New()
+	app.Route("hello", example.HandleHello)
+	app.SetServiceConfig(example.EntrypointConfig)
+	app.SetServiceConfig(example.ProxyConfig)
+
+	app.SetCommandDeps(service.DepService{
+		Name: "hello",
+		Proxies: []string{defaultProxyName},
+	})
+	app.SetHandlerDeps(service.DepService{
+		Name: service.DefaultHandlerCategory,
+		Proxies: []string{"entrypoint"},
+	})
+
+	// Start app first to set the topology config for other services too
+	app.Start()
+	entrypoint.Start()
+	p.Start()
+
+	// Lock the app until user presses CTR+C
+	app.Wait()
+}
+```
+
+The example above assumes all endpoints use TCP, all started in a single process.
+
+What if you switch one of the endpoints to IPC by setting the port to `0` and prefixing the name with `tmp/`? Well, you start it yourself and the app tries to start it too. It's undefined behavior, so just don't. :)
+
+See [examples/008-single-process](./examples/008-single-process) for the full example. In the example, run the whole demo:
 
 ```bash
 go run ./cmd/demo
@@ -905,10 +718,6 @@ List configured services and their running state:
 ```bash
 go run ./cmd/client --services
 ```
-
-See [examples/009-single-process](./examples/009-single-process) for the full
-example.
-
 
 ### Tutorial 10: Inproc Handlers Parameter
 
@@ -945,35 +754,36 @@ the listed handler is treated as inproc for that validation path.
 See [examples/010-inproc-handlers](./examples/010-inproc-handlers) for the full
 example note.
 
-
 ## Contents
 
-* [Contents](#contents)
-* [Components](#components)
-* * [Service](#service)
-* * * [Independent](#independent)
-* * * [Extension](#extension)
-* * * [Proxy](#proxy)
-* * [Controller](#controller)
-* * * [SyncReplier](#syncreplier)
-* * * [Replier](#replier)
-* * * [Publisher](#publisher)
-* * * [Worker](#worker)
-* * * [Pair](#pair)
-* * [Configuration](#configuration)
-* [Further Reading](#further-reading)
+- [Contents](#contents)
+- [Components](#components)
+- - [Service](#service)
+- - - [Independent](#independent)
+- - - [Extension](#extension)
+- - - [Proxy](#proxy)
+- - [Controller](#controller)
+- - - [SyncReplier](#syncreplier)
+- - - [Replier](#replier)
+- - - [Publisher](#publisher)
+- - - [Worker](#worker)
+- - - [Pair](#pair)
+- - [Configuration](#configuration)
+- [Further Reading](#further-reading)
 
 ---
 
 ## Components
 
 ## Service
+
 A **service** is a solution for a one problem as an independent
 software. An **app** is an interconnection of the services. 
 
 There are three types of services: independent, extension and proxy.
 
 ### Independent
+
 Your app should have one independent service
 that keeps the core logic of your application.
 All app logic is defined as the functions that are bound to the command routes.
@@ -981,9 +791,11 @@ All app logic is defined as the functions that are bound to the command routes.
 Independent services will rarely be shared. So the source code could be private.
 
 ### Extension
+
 The extensions are the solutions that could be re-used by multiple projects.
 
 ### Proxy
+
 The proxy acts as a switch between a user/service and a user/service. Depending on 
 the proxy result the request will be forwarded or returned back to the client.
 
@@ -998,10 +810,13 @@ forwarding is applied when a whitelisted command in the proxy handler route is
 detected, and it overwrites the request outbound before `req.Forward()` is used.
 
 **Limitations**
-* proxy service names can not start with `tmp` since it makes the proxy as an ipc protocol for its handlers manager thread which is prohibited.
+
+- proxy service names can not start with `tmp` since it makes the proxy as an ipc protocol for its handlers manager thread which is prohibited.
 
 ---
+
 ## Handlers
+
 Since the services are the units of distributed system, services
 has to talk to each other. And services has to talk with the external world.
 
@@ -1011,29 +826,36 @@ This mechanism is implemented through handlers.
 A service may have multiple controllers each on its own socket. 
 
 ### SyncReplier
+
 A **SyncReplier** handles a one request at a time. All incoming requests are queued internally, until the current request is not executed.
 
 > The handler always return its result back to the client who called it.
 
 ### Replier
+
 A **Replier** handles many requests at a time.
+
 > The handler always return its result back to the client.
 
 ### Worker
+
 A **Worker** handles a one request at a time similar to Replier. 
 
 Workers will not respond back to the callee about the status. Its fire-and-forget.
 
 ### Publisher
+
 A **Publisher** broadcasts `message.ReplyInterface` to the subscribers. 
 To send a message to broadcast, use the publisher's control which has `broadcast` command.
 
 ### Pair
+
 A **Pair** connects server to one client. Client and handler both can exchange messages back and forth. To send a message to the client from a handler use the handler's's control.
 
 ---
 
 ## Configuration
+
 The services keep the topology of proxies and extensions as a json config.
 By default its kept as a `noPerfection.json` in the root.
 But you can over-write it's path on `service.New(serviceName, **YourPath**)
@@ -1043,4 +865,3 @@ are priority followed by the json config. So, you can stop, edit the ports and s
 
 Note, that each of the service could have it's own configuration, which means it
 can have its own extensions and proxies that it can manage by itself.
-
