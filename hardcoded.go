@@ -5,6 +5,7 @@ import (
 
 	"github.com/ahmetson/mushroom"
 	"github.com/noPerfection/service/handlers"
+	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/topology/config"
 )
 
@@ -204,11 +205,19 @@ func (independent *Independent) addHardcodedHandlersToTopology() error {
 		}
 
 		for _, handler := range handlers {
-			if serviceConfig.Type == config.ProxyType {
-				if base, ok := handler.AsIndependentHandler(); ok && base.Category == config.ServiceManagerCategory {
-					serviceConfig.SetHandler(handler, true)
+			if base, ok := handler.AsIndependentHandler(); ok && base.Category == config.ServiceManagerCategory {
+				managerConfig := independent.manager.Config()
+				if managerConfig.Endpoint == base.Endpoint {
 					continue
 				}
+				m, err := manager.New(mushroomURL, base.Endpoint)
+				if err != nil {
+					return fmt.Errorf("manager.New: %w", err)
+				}
+				independent.manager = m
+				continue
+			}
+			if serviceConfig.Type == config.ProxyType {
 				proxyHandler, ok := handler.AsProxyHandler()
 				if !ok {
 					continue
@@ -315,11 +324,19 @@ func (independent *Extension) addHardcodedHandlersToTopology() error {
 		}
 
 		for _, handler := range handlers {
-			if serviceConfig.Type == config.ProxyType {
-				if base, ok := handler.AsIndependentHandler(); ok && base.Category == config.ServiceManagerCategory {
-					serviceConfig.SetHandler(handler, true)
+			if base, ok := handler.AsIndependentHandler(); ok && base.Category == config.ServiceManagerCategory {
+				managerConfig := independent.manager.Config()
+				if managerConfig.Endpoint == base.Endpoint {
 					continue
 				}
+				m, err := manager.New(mushroomURL, base.Endpoint)
+				if err != nil {
+					return fmt.Errorf("manager.New: %w", err)
+				}
+				independent.manager = m
+				continue
+			}
+			if serviceConfig.Type == config.ProxyType {
 				proxyHandler, ok := handler.AsProxyHandler()
 				if !ok {
 					continue
