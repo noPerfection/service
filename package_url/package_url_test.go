@@ -1,10 +1,9 @@
-package service
+package package_url
 
 import (
 	"runtime/debug"
 	"testing"
 
-	"github.com/noPerfection/topology/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,30 +26,17 @@ func stubBuildInfo(t *testing.T, moduleURL string, ok bool) {
 
 func TestFillDefaultModuleURLUsesMainModulePath(t *testing.T) {
 	stubBuildInfo(t, "example.com/app", true)
-	service := config.Service{Name: "app"}
 
-	require.NoError(t, fillDefaultModuleURL(&service))
+	moduleURL, err := FillDefaultModuleURL()
+	require.NoError(t, err)
 
-	require.Equal(t, "example.com/app", service.ModuleUrl)
-}
-
-func TestFillDefaultModuleURLKeepsExplicitModuleURL(t *testing.T) {
-	stubBuildInfo(t, "example.com/app", true)
-	service := config.Service{
-		Name:      "app",
-		ModuleUrl: "example.com/explicit",
-	}
-
-	require.NoError(t, fillDefaultModuleURL(&service))
-
-	require.Equal(t, "example.com/explicit", service.ModuleUrl)
+	require.Equal(t, "example.com/app", moduleURL)
 }
 
 func TestFillDefaultModuleURLRequiresBuildInfo(t *testing.T) {
 	stubBuildInfo(t, "", false)
-	service := config.Service{Name: "app"}
 
-	err := fillDefaultModuleURL(&service)
+	_, err := FillDefaultModuleURL()
 
 	require.EqualError(t, err, moduleURLBuildInfoError)
 }
