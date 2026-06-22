@@ -812,6 +812,10 @@ func (independent *Independent) validateInprocServiceManagers() (int, error) {
 	if err := independent.validateInprocServiceManagersFor(serviceConfig, &inprocServices); err != nil {
 		return 0, err
 	}
+	// Its still incremented, but we don't count it
+	if serviceConfig.IsInproc() {
+		inprocServices--
+	}
 	return inprocServices, nil
 }
 

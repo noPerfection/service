@@ -695,16 +695,18 @@ func (independent *Extension) GetServiceFacade(mushroomURL string, command ...st
 
 // If service is inproc, it must have an inproc manager.
 func (independent *Extension) validateInprocServiceManagers() (int, error) {
-	services, err := independent.topology.Services()
+	serviceConfig, err := independent.topology.Service(independent.mushroomURL)
 	if err != nil {
 		return 0, err
 	}
 
 	inprocServices := 0
-	for _, serviceConfig := range services {
-		if err := independent.validateInprocServiceManagersFor(serviceConfig, &inprocServices); err != nil {
-			return 0, err
-		}
+	if err := independent.validateInprocServiceManagersFor(serviceConfig, &inprocServices); err != nil {
+		return 0, err
+	}
+	// Its still incremented, but we don't count it
+	if serviceConfig.IsInproc() {
+		inprocServices--
 	}
 	return inprocServices, nil
 }
