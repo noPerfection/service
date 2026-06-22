@@ -46,8 +46,7 @@ func onHello(req service.RequestInterface) service.ReplyInterface {
 
 Then, launch it `go run ./cmd/service/main.go`, it should be running.
 
-It's time to test by sending our name. Lets create a new app at
-`cmd/client/main.go`
+It's time to test by sending our name. Lets create a new app at`cmd/client/main.go`
 
 ```go
 package main
@@ -69,23 +68,16 @@ func main() {
 }
 ```
 
-if we launch our app on a new terminal tab we will see the greetings:
+if we launch our app on a new terminal tab we will see the greetings:  
 `go run ./cmd/client/main.go`.
-
-The service is composed of the handlers that wraps the zeromq sockets.
-Its then starts to listen at 8000 port. Then, our client creates its own
-zeromq socket, and connects to the service. `c.Request(msg)` sends the message and returns a reply back.
 
 See [examples/000-hello-world](./examples/000-hello-world) source code.
 
 # Tutorial 2: Why noPerfection
 
-The hello-world example didn't showcase the differentiator about it.
-The service has a built-in handler to manage the service itself.
+The hello-world example didn't showcase the differentiator about `noPerfection` framework. One of the differentiators is that the service has a built-in handler to manage the service itself remotely or by a code.
 
-By default it's internal, so its used accessed by the same process.
-But we can change its endpoint to expose to the computer or even for a remote control.
-To do that, we pass the three parameters to our service:
+By default it's internal accessible by the same process. But we can change its endpoint to expose to the computer or even for a remote control. To do that, we pass the three parameters to our service:
 
 ```go
 package main
@@ -97,10 +89,7 @@ import (
 func main() {
 	// Add the endpoint exposing on port 8001
 	controlEndpoint := service.Endpoint("localhost", 8001)
-        // Any name to identify  our service in the configuration
-        // Topology configuration path, must end with `.json`
-        // Manager endpoint if you want to access from other other processes
-	app, _ := service.New("my-service-name", "noPerfection.json", managerEndpoint)
+        app, _ := service.New("my-service-name", "noPerfection.json", managerEndpoint)
 
 	app.Route("hello", onHello)
 
@@ -115,10 +104,10 @@ func onHello(req service.RequestInterface) service.ReplyInterface {
 }
 ```
 
-Now, by creating a connect to the client, we can manage our service:
-I'll use `github.com/noPerfection/os/arg` package to add `--close` flag to the client.
-If I pass `--close` flag to the client, then client will talk to its manager asking to close.
-Otherwise it works as in the hello world example.
+The *"my-service-name"* is a service name to identify it in the topology configuration. The *"noPerfection.json"* is the topology configurations storage path. And last parameter is the handler endpoint.
+
+I'll change the client, to manage our service: I'll use `github.com/noPerfection/os/arg` package to add `--close` flag.
+If I pass `--close` flag to the as an argument, then client will talk to its manager asking to close itself. Otherwise it works as in the hello world example.
 
 ```go
 package main
@@ -176,17 +165,11 @@ See [examples/001-close-service](./examples/001-close-service) for the runnable 
 
 # Tutorial 3: Custom handlers
 
-As the services use the names to identify them, so the handlers are have identifiers in the topology configuration.
+Handlers are have identifiers in the topology configuration too. They are called category. By default, a service creates a `main` handler. The managers are categorized as `manager`.
 
-They are called category, to group them. By default, a service creates a `main` handler. The managers are categorized as `manager`.
+Services might have more handlers too but that will be explained in a full documentation.
 
-Remember that handlers are just wrappers around zeromq, as such we can change the default handler's data.
-
-Including its socket type, and endpoint.
-
-Just like service has two handlers for now, it can have multiple handlers. But that will be explained in a full documentation.
-
-For now, let's change `main` handler to:
+For now, let's change `main` handler configuration:
 
 - handler type: `SyncReplier`
 - endpoint: `localhost:3000`
@@ -227,9 +210,11 @@ func onHello(req service.RequestInterface) service.ReplyInterface {
 }
 ```
 
-Besides, you can change the handler to act in a different way. As a `service.PublisherType`, as a `service.WorkerType`, as a `service.PairType`. Check out the full documentation how they work. Sync Replier means our handler queues the messages and handles them one at a time. It's useful for example if you want to work with the files, or database connections.
+Besides, you can change the handler to act in a different way. As a `service.PublisherType`, as a `service.WorkerType`, as a `service.PairType`. Check out the full documentation how they work. 
 
-If you call `SetHandlerConfig` after `Start()` it will be just keeping it in the queue, without affecting it. In order to affect it, you will use the service manager, by asking to restart the service.
+SyncReplier means our handler queues the messages and handles them one at a time. It's useful for example if you want to work with the files, or database connections.
+
+If you call `SetHandlerConfig()` after `Start()` it will not have any effect, so call all service configurations before starting it.
 
 Because the handler type changed, the client should connect as a sync replier:
 
@@ -251,37 +236,36 @@ app.SetServiceConfig(service.Config{
 })
 ```
 
-The `SetHandlerConfig` and `SetServiceConfig` are hardcoded configurations. Even if you edit the topology's `.json` file, the hardcoded configurations will be applied every time when you restart the service.
+The `SetHandlerConfig()` and `SetServiceConfig()` are hardcoded configurations. Even if you edit the topology's `.json` file, the hardcoded configurations will be applied every time when you restart the service.
 
-But in order to get the effect, you need to call them before start. Hardcoded handler configs are applied after hardcoded service configs, so handlers can be attached to services that were created in code.
-
-With these handlers we just ensure the topology as it is. But for applications I recommend to use hardcoding minimally, instead manage it in the configuration or using its manager.
+I recommend to use hardcoded configurations minimally, instead edit the topology configuration to have dynamic parameters and then using the manager restart the app.
 
 > The `service.KeyValue()` is a constructor that returns noPerfection/datatype.KeyValue. It's a map[string]any with the additional methods around them. You already saw them in the examples when we looked at the return parameters such as `reply.RouteParameters().StringValue("message")`  is using the `StringValue` of the datatype.KeyValue.
 
 # Framework as a library
 
-Another thing that we haven't mentioned what makes this framework distinct is that `noPerfection` comes as a library. But framework usually implies an architectural decisions, on a way how your code is structured for a better scalability. Yet, **noPerfection — is a microservices framework as a library**. Some of the architecture decisions for scalability is already provided such as service names, and handler categories. Besides there are different sockets for each handler and our services consists of multiple handlers that we route our messages.
+Framework usually implies an architectural decisions, code layout in the file systems. Yet, **noPerfection — is a microservices framework as a library**. Topology, and service names, handler categories are providing basic form of architectural constraints.  Routing and handler's socket types are also adds a tiny constraints as well. But its all about the one service's logic.
 
 Apps consists of multiple services, and library provides three types of the services to connect them.
-The one that we used so far is called `service.IndependentType` service. Besides them, we have proxies and extensions.
+The one that we used so far is called `service.IndependentType` service. Then we have proxies and extensions.
 
 The `noPerfection` app is what I call a reverse scorpio.
 
 noPerfection architecture
 
-Our tutorials so far covered the independent service. We can define other services as proxies and any route command will go through the series of one or many proxies before getting to the service.
+Proxies handles the requests and can either forward to the next proxy, or to the independent service or retreive back.
 
-While, internally each service may access to the extensions that handles some job on their own threads.
-In `noPerfection` the service manages the topology. If needed it's the independent service's responsibility to keep proxies and extensions running.
-Note that each service, whether its extension or proxy can be a reverse scorpio internally. This nesting can go arbitrarily deep.
+The extensions handles some job on their own threads. 
 
-Let's now create a proxy.
+Another cool thing why to use `noPerfection` is each service manages the topology by itself. 
+
+Note that each service can be a reverse scorpio internally. This nesting can go arbitrarily deep.
 
 ## Tutorial 4: Proxy called `default-name-proxy`
 
-Let's modify the hello-world service so it receives a name parameter and greets the caller..
-The client accepts an optional `--name=name` argument. The proxy supplies default name if its missing.
+Let's modify the hello-world service so it receives a name parameter and greets the caller. But for the client we make it optional. If no name is passed, then service will have a proxy that can set the default name.
+
+ The client accepts an optional `--name=name` argument.
 
 This is a trivial example, but it demonstrates how a proxy can mutate request parameters before they reach the service.
 
@@ -719,6 +703,63 @@ List configured services and their running state:
 go run ./cmd/client --services
 ```
 
+# Multi-stage module progression with configuration change
+
+Why does noPerfection allow multiple services in a single process?
+
+If you set any endpoint's port to `0` and its endpoint's id to anything without the `tmp/` prefix, the service runs on the `inproc` protocol. Inproc is a ZeroMQ transport that allows threads to communicate within a single process. They cannot be reached from any other process. That makes inproc services both fast and secure by design.
+
+The service manager works the same way. As mentioned in tutorial 1, managers are inproc by default. This means the manager is only accessible from within the same process — unless you explicitly expose it on a TCP or IPC endpoint as shown in tutorial 2.
+
+TCP and IPC services are standalone. The calling service doesn't share or know anything about their source code. He needs to know their endpoint. Inproc services are the opposite: they run as threads compiled into the same process, so they require source code.
+
+And here comes the most powerful feature of `noPerfection`, its entire purpose why I made it:
+
+Your app is a collection of modules across directories and files. With noPerfection, each module can evolve on demand:
+
+- **Thread** — the module becomes an inproc service, scoped by its own state, runs as a concurrent thread inside your process. Whether it handles one message at a time, broadcasts, or runs concurrently is up to you, simply choose the socket for handlers.
+- **Binary** — as the service grows, you extract it into its own `main()` and binary. In the main application just switch its endpoint to IPC and it runs as a separate process on the same machine. The parent service no longer needs its source, but parent still manages its lifecycle so you dont have to worry about its consistency.
+- **Isolated machine** — as it grows further, switch to TCP and deploy it anywhere on the network. The topology handles the rest.
+- **Cluster** — as it scales, it gets its own topology with dozens if not hundreds of services, yet nothing changes on the main app logic except the configuration edits.
+
+This progression can also run in reverse. A cluster can be stripped to its core instance, moved back to the same machine, and eventually collapsed back into a thread bundled with the parent app and ultimately into a single package library.
+
+The common denominator across all of these is the package. Package is the shippable piece of code. Although in go, the names are reversed and package is a module. The package depending on the protocol can be used as a library, or used to build your app..
+
+`noPerfection` **handles multi-stage module (a.k.a microservice) progression with just a configuration change**. And its the entire purpose why I created it.
+
+## Tutorial 9: Inprocess services
+
+So let's see the progression using our hello world from tutorial 7: auto start the deps. Instead of IPC I want to make them inproc.
+
+All we need to do in `cmd/service/main.go` is change the configuration:
+
+```go
+var defaultnameModuleURL = "pkg:golang/github.com/noPerfection/service/examples/007-autostart-deps#cmd/proxy/main?root=examples/007-autostart-deps"
+var defaultnameEndpoint = service.Endpoint("default_name_proxy", 0)
+app.SetServiceConfig(service.Config{
+	Name:      "default-name-proxy",
+	ModuleURL: defaultnameModuleURL,
+	// other config
+})
+
+var entrypointModuleURL = "pkg:golang/github.com/noPerfection/service/examples/007-autostart-deps#cmd/entrypoint/main?root=examples/007-autostart-deps"
+var entrypointEndpoint = service.Endpoint("entrypoint_proxy", 0)
+app.SetServiceConfig(service.Config{
+	Name:      "entrypoint",
+	ModuleURL: entrypointModuleURL,
+	// other config
+})
+```
+
+All we did was two things. First we changed the endpoint by removing the `tmp/` prefix from the ids. Then we added a parameter called `ModuleURL`. Module URLs follow a MushroomURL format which is compatible with the package URL standard.
+
+With inproc protocols, we need to build twice. Let's run our code: `go run ./cmd/service`. As you can see, it didn't run — instead it made code edits. Run it again and it works, listening on the endpoints.
+
+In the first run it created `inproc_topology.go` in the main package. That file defines an extension with all inproc services. It also changed `main.go` to add the extension as belonging to the service manager. The service manager's proxies and extensions run first on startup.
+
+It also updated `go.mod` to include the path to our repository. But if you look at the proxy code, it is defined as `main`. So the first run also extracted the proxy code out of their `main` packages and stored the library versions in `examples/007-autostart-deps/services/entrypoint/service`. Finally it updated the `ModuleURL` in the source to point to the new location.
+
 ### Tutorial 10: Inproc Handlers Parameter
 
 Sometimes a proxy handler exposes a TCP or IPC endpoint, but the current process
@@ -753,6 +794,23 @@ the listed handler is treated as inproc for that validation path.
 
 See [examples/010-inproc-handlers](./examples/010-inproc-handlers) for the full
 example note.
+
+### Tutorial 11: security
+
+### Tutorial 12: cross-language
+
+Its cross-language actually, after all services are talking to each other
+using zeromq sockets, defining predefined protocol.
+
+So migrating existing code, and starting to make inter thread, and then use rust or C, or go/elixir without making it as an zeromq so its internal.
+
+### Tutorial 13: topology
+
+Topology is pre-built. But you can change it to other popular apps for deployment and management.
+
+#### Cascadefund tutorial 13.1:
+
+once you do it, share it to the people.
 
 ## Contents
 
