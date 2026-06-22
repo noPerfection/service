@@ -20,6 +20,7 @@ import (
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
+	"github.com/noPerfection/service/package_url"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
@@ -180,8 +181,13 @@ func (independent *Independent) addDefaultServiceToTopology() error {
 		Name:     independent.mushroomURL,
 		Handlers: []config.Handler{},
 	}
-	if err := fillDefaultModuleURL(&serviceConfig); err != nil {
-		return err
+
+	if serviceConfig.ModuleUrl == "" {
+		moduleURL, err := package_url.FillDefaultModuleURL()
+		if err != nil {
+			return err
+		}
+		serviceConfig.ModuleUrl = moduleURL
 	}
 	if err := independent.topologyHandler.AddService(serviceConfig, serviceParentURL(independent.mushroomURL)...); err != nil {
 		return fmt.Errorf("topologyHandler.AddService('%s'): %w", independent.mushroomURL, err)
