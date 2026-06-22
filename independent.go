@@ -39,6 +39,7 @@ type Independent struct {
 	mushroomURL     string
 	blocker         *sync.WaitGroup
 	manager         *manager.Manager // manage this service from other parts
+	logger          *log.Logger
 }
 
 // New returns an independent service instance.
@@ -128,6 +129,7 @@ func New(params ...any) (*Independent, error) {
 		topologyHandler:       topologyHandler,
 		mushroomURL:           mushroomURL,
 		manager:               m,
+		logger:                nil,
 	}
 
 	return independent, nil
@@ -139,6 +141,12 @@ func (independent *Independent) EnableLogger(enable bool) error {
 		if err := independent.Handlers.SetLogger(nil); err != nil {
 			return fmt.Errorf("handlers.SetLogger: %w", err)
 		}
+		if independent.manager != nil {
+			if err := independent.manager.SetLogger(nil); err != nil {
+				return fmt.Errorf("manager.SetLogger: %w", err)
+			}
+		}
+		independent.logger = nil
 		return nil
 	}
 
@@ -155,7 +163,7 @@ func (independent *Independent) EnableLogger(enable bool) error {
 			return fmt.Errorf("manager.SetLogger: %w", err)
 		}
 	}
-
+	independent.logger = logger
 	return nil
 }
 
@@ -796,16 +804,13 @@ func validateProtocolOrder(callerService config.Service, caller config.Handler, 
 
 // If service is inproc, it must have an inproc manager.
 func (independent *Independent) validateInprocServiceManagers() (int, error) {
-	services, err := independent.topology.Services()
+	inprocServices := 0
+	serviceConfig, err := independent.topology.Service(independent.mushroomURL)
 	if err != nil {
 		return 0, err
 	}
-
-	inprocServices := 0
-	for _, serviceConfig := range services {
-		if err := independent.validateInprocServiceManagersFor(serviceConfig, &inprocServices); err != nil {
-			return 0, err
-		}
+	if err := independent.validateInprocServiceManagersFor(serviceConfig, &inprocServices); err != nil {
+		return 0, err
 	}
 	return inprocServices, nil
 }

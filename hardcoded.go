@@ -215,6 +215,9 @@ func (independent *Independent) addHardcodedHandlersToTopology() error {
 					return fmt.Errorf("manager.New: %w", err)
 				}
 				independent.manager = m
+				if err := independent.manager.SetLogger(independent.logger); err != nil {
+					return fmt.Errorf("manager.SetLogger: %w", err)
+				}
 				continue
 			}
 			if serviceConfig.Type == config.ProxyType {
@@ -334,6 +337,9 @@ func (independent *Extension) addHardcodedHandlersToTopology() error {
 					return fmt.Errorf("manager.New: %w", err)
 				}
 				independent.manager = m
+				if err := independent.manager.SetLogger(independent.logger); err != nil {
+					return fmt.Errorf("manager.SetLogger: %w", err)
+				}
 				continue
 			}
 			if serviceConfig.Type == config.ProxyType {

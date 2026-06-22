@@ -25,6 +25,7 @@ type Extension struct {
 	mushroomURL     string
 	blocker         *sync.WaitGroup
 	manager         *manager.Manager // manage this service from other parts
+	logger          *log.Logger
 }
 
 // New returns an independent service instance.
@@ -114,6 +115,7 @@ func NewExt(params ...any) (*Extension, error) {
 		topologyHandler:       topologyHandler,
 		mushroomURL:           mushroomURL,
 		manager:               m,
+		logger:                nil,
 	}
 
 	return independent, nil
@@ -125,6 +127,12 @@ func (independent *Extension) EnableLogger(enable bool) error {
 		if err := independent.Handlers.SetLogger(nil); err != nil {
 			return fmt.Errorf("handlers.SetLogger: %w", err)
 		}
+		if independent.manager != nil {
+			if err := independent.manager.SetLogger(nil); err != nil {
+				return fmt.Errorf("manager.SetLogger: %w", err)
+			}
+		}
+		independent.logger = nil
 		return nil
 	}
 
@@ -142,6 +150,7 @@ func (independent *Extension) EnableLogger(enable bool) error {
 		}
 	}
 
+	independent.logger = logger
 	return nil
 }
 
