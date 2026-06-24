@@ -1,0 +1,87 @@
+{
+  "services": [
+    {
+      "handlers": [
+        {
+          "category": "main",
+          "endpoint": {
+            "id": "default-name-proxy",
+            "port": 0
+          },
+          "forward": {
+            "hello": "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=main"
+          },
+          "outbounds": [
+            "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=main"
+          ],
+          "routes": [
+            "hello"
+          ],
+          "type": "SyncReplier"
+        }
+      ],
+      "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#cmd/proxy",
+      "name": "default-name-proxy",
+      "start-command": "./bin/proxy",
+      "type": "Proxy"
+    },
+    {
+      "handlers": [
+        {
+          "category": "main",
+          "endpoint": {
+            "id": "entrypoint",
+            "port": 0
+          },
+          "forward": {
+            "hello": "pkg:json/.#noPerfection.json?var=services[name:default-name-proxy]\u0026category=main"
+          },
+          "outbounds": [
+            "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=main",
+            "pkg:json/.#noPerfection.json?var=services[name:default-name-proxy]\u0026category=main"
+          ],
+          "routes": [
+            "age-verification",
+            "hello"
+          ],
+          "type": "SyncReplier"
+        }
+      ],
+      "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#cmd/entrypoint",
+      "name": "entrypoint",
+      "start-command": "./bin/entrypoint",
+      "type": "Proxy"
+    },
+    {
+      "handler-deps": [
+        {
+          "name": "main",
+          "proxies": [
+            "pkg:$?var=services[name:entrypoint]"
+          ]
+        }
+      ],
+      "handlers": [
+        {
+          "category": "main",
+          "command-deps": [
+            {
+              "name": "hello",
+              "proxies": [
+                "pkg:$?var=services[name:default-name-proxy]"
+              ]
+            }
+          ],
+          "endpoint": {
+            "id": "hello-world",
+            "port": 0
+          },
+          "type": "SyncReplier"
+        }
+      ],
+      "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#/cmd/service?main=true\u0026root=/home/medet/noPerfection/service/examples/009-inproc-services",
+      "name": "hello-world",
+      "type": "Independent"
+    }
+  ]
+}

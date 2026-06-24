@@ -44,7 +44,7 @@ func NewProxy(name string, params ...interface{}) (*Proxy, error) {
 		}
 	}
 
-	topologyHandler, err := topology.NewHandler(configPath)
+	topologyHandler, err := newTopologyHandler(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewHandler: %w", err)
 	}

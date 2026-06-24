@@ -805,6 +805,48 @@ func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T)
 	require.Equal(t, []topologyConfig.DepService{dep}, serviceConfig.HandlerDeps)
 }
 
+func TestAddHardcodedServiceParamsToTopologyMergesParams(t *testing.T) {
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetServiceConfig(topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "custom-service",
+		ModuleUrl: DefaultModuleUrl,
+	}))
+	require.NoError(t, independent.SetServiceParams(datatype.New().Set("mode", "tutorial")))
+
+	require.NoError(t, independent.addHardcodedServicesToTopology())
+	require.NoError(t, independent.addHardcodedServiceParamsToTopology())
+
+	serviceConfig, err := independent.topologyHandler.Service("custom-service")
+	require.NoError(t, err)
+	require.Equal(t, "tutorial", serviceConfig.Parameters["mode"])
+}
+
+func TestAddAiExtensionRegistersBuiltinServiceAndManagerDep(t *testing.T) {
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetServiceConfig(topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "custom-service",
+		ModuleUrl: DefaultModuleUrl,
+	}))
+
+	require.NoError(t, independent.addHardcodedServicesToTopology())
+	require.NoError(t, independent.addAiExtension())
+
+	aiService, err := independent.topologyHandler.Service(AiServiceName)
+	require.NoError(t, err)
+	require.Equal(t, topologyConfig.ExtensionType, aiService.Type)
+	require.Equal(t, AiServiceName, aiService.Name)
+
+	serviceConfig, err := independent.topologyHandler.Service("custom-service")
+	require.NoError(t, err)
+	require.Len(t, serviceConfig.HandlerDeps, 1)
+	require.Equal(t, topologyConfig.ServiceManagerCategory, serviceConfig.HandlerDeps[0].Name)
+	require.Equal(t, []string{aiExtensionServiceLink()}, serviceConfig.HandlerDeps[0].Extensions)
+}
+
 func TestAddHardcodedHandlerDepsToTopologyAddsDepsToExplicitService(t *testing.T) {
 	dep := topologyConfig.DepService{
 		Name:       "metrics",

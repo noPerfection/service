@@ -3,6 +3,7 @@ package service
 import (
 	"testing"
 
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/message"
 	topologyConfig "github.com/noPerfection/topology/config"
 	"github.com/stretchr/testify/require"
@@ -69,6 +70,33 @@ func TestSetServiceConfigStoresByServiceName(t *testing.T) {
 	require.NoError(t, topologies.SetServiceConfig(serviceConfig, "other-service"))
 
 	require.Equal(t, serviceConfig, topologies.serviceConfigs["other-service"])
+}
+
+func TestSetServiceParamsStoresByDefaultService(t *testing.T) {
+	topologies := NewHardcodedTopologies("custom-service")
+
+	require.NoError(t, topologies.SetServiceParams(datatype.New().Set("api-key", "secret")))
+
+	require.Equal(t, "secret", topologies.serviceParams["custom-service"]["api-key"])
+}
+
+func TestSetServiceParamsStoresByExplicitService(t *testing.T) {
+	topologies := NewHardcodedTopologies("custom-service")
+
+	require.NoError(t, topologies.SetServiceParams(datatype.New().Set("model", "haiku"), "other-service"))
+
+	require.Equal(t, "haiku", topologies.serviceParams["other-service"]["model"])
+}
+
+func TestSetServiceParamsMergesExistingKeys(t *testing.T) {
+	topologies := NewHardcodedTopologies("custom-service")
+
+	require.NoError(t, topologies.SetServiceParams(datatype.New().Set("api-key", "first")))
+	require.NoError(t, topologies.SetServiceParams(datatype.New().Set("model", "haiku")))
+
+	params := topologies.serviceParams["custom-service"]
+	require.Equal(t, "first", params["api-key"])
+	require.Equal(t, "haiku", params["model"])
 }
 
 func TestSetCommandDepsStoresByDefaultHandlerAndService(t *testing.T) {

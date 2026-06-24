@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -93,7 +94,7 @@ func New(params ...any) (*Independent, error) {
 		}
 	}
 
-	topologyHandler, err := topology.NewHandler(configPath)
+	topologyHandler, err := newTopologyHandler(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewHandler: %w", err)
 	}
@@ -191,6 +192,31 @@ func (independent *Independent) addDefaultServiceToTopology() error {
 	}
 	if err := independent.topologyHandler.AddService(serviceConfig, serviceParentURL(independent.mushroomURL)...); err != nil {
 		return fmt.Errorf("topologyHandler.AddService('%s'): %w", independent.mushroomURL, err)
+	}
+
+	return nil
+}
+
+func (independent *Independent) addAiExtension() error {
+	_, err := independent.topologyHandler.Service(AiServiceName)
+	if err != nil {
+		if err := independent.topologyHandler.AddService(defaultAiExtensionServiceConfig()); err != nil {
+			return fmt.Errorf("topologyHandler.AddService(%q): %w", AiServiceName, err)
+		}
+	}
+
+	serviceConfig, err := independent.topologyHandler.Service(independent.mushroomURL)
+	if err != nil {
+		return fmt.Errorf("topologyHandler.Service(%q): %w", independent.mushroomURL, err)
+	}
+
+	serviceConfig.HandlerDeps = appendHandlerExtensionDep(
+		serviceConfig.HandlerDeps,
+		ServiceManagerCategory,
+		aiExtensionServiceLink(),
+	)
+	if err := independent.topologyHandler.SetService(serviceConfig, serviceParentURL(independent.mushroomURL)...); err != nil {
+		return fmt.Errorf("topologyHandler.SetService(%q): %w", independent.mushroomURL, err)
 	}
 
 	return nil
@@ -329,6 +355,11 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("lintDefaultTopology: %w", err)
 		goto errOccurred
 	}
+	// AI is built in extension
+	if err = independent.addAiExtension(); err != nil {
+		err = fmt.Errorf("addAiExtension: %w", err)
+		goto errOccurred
+	}
 	if err = independent.addHardcodedHandlersToTopology(); err != nil {
 		err = fmt.Errorf("addHardcodedHandlersToTopology: %w", err)
 		goto errOccurred
@@ -344,6 +375,10 @@ func (independent *Independent) Start() error {
 
 	if err = independent.addHardcodedHandlerDepsToTopology(); err != nil {
 		err = fmt.Errorf("addHardcodedHandlerDepsToTopology: %w", err)
+		goto errOccurred
+	}
+	if err = independent.addHardcodedServiceParamsToTopology(); err != nil {
+		err = fmt.Errorf("addHardcodedServiceParamsToTopology: %w", err)
 		goto errOccurred
 	}
 	if err = independent.addHardcodedCommandDepsToTopology(); err != nil {
@@ -401,7 +436,11 @@ func (independent *Independent) Start() error {
 		goto errOccurred
 	}
 	if inprocServices > 0 {
-		fmt.Printf("todo: implement inproc_topology for checking %d inproc managers\n", inprocServices)
+		if err = independent.setupInproc(); err != nil {
+			err = fmt.Errorf("setupInproc: %w", err)
+			goto errOccurred
+		}
+
 	} else {
 		fmt.Println("todo: inproc are 0, make sure that inproc_topology is not running at all")
 	}
@@ -421,6 +460,64 @@ errOccurred:
 	}
 
 	return err
+}
+
+func (independent *Independent) setupInproc() error {
+	serviceConfig, err := independent.topology.Service(independent.mushroomURL)
+	if err != nil {
+		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+	}
+	if serviceConfig.ModuleUrl == "" {
+		return fmt.Errorf("no mushroom url for service %q", independent.mushroomURL)
+	}
+
+	exists, err := package_url.IsFileExist(serviceConfig.ModuleUrl, "inproc_topology.go")
+
+	if err != nil || !exists {
+		fmt.Println("todo: generate an extension at inproc_topology.go")
+	} else {
+		fmt.Println("extension exists verify it")
+	}
+
+	services, err := independent.topology.Services()
+	if err != nil {
+		return fmt.Errorf("topology.Services: %w", err)
+	}
+	for _, service := range services {
+		if service.Name == serviceConfig.Name {
+			continue
+		}
+		if !service.IsInproc() {
+			continue
+		}
+		pkgInfo, err := package_url.New(service.ModuleUrl)
+		if err != nil {
+			return fmt.Errorf("package_url.New(%s): %w", service.ModuleUrl, err)
+		}
+		if pkgInfo.IsMain() {
+			packageName := package_url.ServiceNameToPackageName(service.Name)
+			moduleID := fmt.Sprintf("services/%s", packageName)
+			moduleFilename := path.Join(pkgInfo.Dir(), fmt.Sprintf("services/%s/service.go", packageName))
+			exists, err := pkgInfo.IsModuleExist(moduleID)
+			if err != nil {
+				return fmt.Errorf("package_url.IsModuleExist(%s): %w", moduleID, err)
+			}
+			moduleInfo := pkgInfo.NewModule(moduleID, moduleFilename)
+			if !exists {
+				fmt.Println("todo: using ai convert : ", pkgInfo.SourceFiles(), " to ", moduleInfo.SourceFiles(), " main module to ", moduleInfo.SourceFiles())
+			}
+			// Second we import it
+			fmt.Println("todo: import and update the inproc_topology.go to include the service: ", moduleInfo.MushroomLink().ModuleID)
+			fmt.Println("todo: find the main.go and update the module url to the new module: ", moduleInfo.MushroomLink().ModuleID)
+		} else {
+			fmt.Println("todo: make sure it exists")
+		}
+		// For now we work with one service only
+		fmt.Println("todo: remove break here")
+		break
+	}
+
+	return fmt.Errorf("Inproc detected, code edited instead of running, please rebuild the service")
 }
 
 func (independent *Independent) syncHandlerDepOutbounds() error {

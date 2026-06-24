@@ -79,7 +79,7 @@ func NewExt(params ...any) (*Extension, error) {
 		}
 	}
 
-	topologyHandler, err := topology.NewHandler(configPath)
+	topologyHandler, err := newTopologyHandler(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewHandler: %w", err)
 	}
@@ -314,6 +314,10 @@ func (independent *Extension) Start() error {
 
 	if err = independent.addHardcodedHandlerDepsToTopology(); err != nil {
 		err = fmt.Errorf("addHardcodedHandlerDepsToTopology: %w", err)
+		goto errOccurred
+	}
+	if err = independent.addHardcodedServiceParamsToTopology(); err != nil {
+		err = fmt.Errorf("addHardcodedServiceParamsToTopology: %w", err)
 		goto errOccurred
 	}
 	if err = independent.addHardcodedCommandDepsToTopology(); err != nil {

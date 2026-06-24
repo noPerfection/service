@@ -21,6 +21,32 @@ var (
 	DefaultAiManagerEndpoint = message.NewEndpoint(AiServiceName+"_manager", 0)
 )
 
+func aiExtensionServiceLink() string {
+	return "pkg:$?var=services[name:" + AiServiceName + "]"
+}
+
+func defaultAiExtensionServiceConfig() Config {
+	return Config{
+		Type:      ExtensionType,
+		Name:      AiServiceName,
+		ModuleUrl: "pkg:golang/github.com/noPerfection/service#service?func=NewAiService()",
+		Handlers: []Handler{
+			IndependentHandler{
+				Type:     SyncReplierType,
+				Category: ServiceManagerCategory,
+				Endpoint: DefaultAiManagerEndpoint,
+			},
+			ExtensionHandler{
+				IndependentHandler: IndependentHandler{
+					Type:     ReplierType,
+					Category: "main",
+					Endpoint: DefaultAiEndpoint,
+				},
+			},
+		},
+	}
+}
+
 // AiService is the noPerfection AI extension.
 type AiService struct {
 	*Extension
@@ -32,16 +58,24 @@ type AiService struct {
 
 // NewAiService returns an AI extension service.
 //
-// apiKey is required. model is optional; when omitted, defaultAiModel=claude-haiku-4-5-20251001 is used.
+// Optional arguments, in order:
+//  1. apiKey — supply from the caller after loading env (e.g. os.Getenv after env.LoadAnyEnv).
+//  2. model — when omitted, defaultAiModel is used.
+//
 // Check out the model in mozilla-ai/any-llm-go/providers/anthropic
-func NewAiService(apiKey string, model ...string) (*AiService, error) {
-	if apiKey == "" {
-		return nil, fmt.Errorf("api key is empty")
+func NewAiService(apiKeyAndModel ...string) (*AiService, error) {
+	if len(apiKeyAndModel) > 2 {
+		return nil, fmt.Errorf("too many arguments, expected api key and model")
+	}
+
+	apiKey := ""
+	if len(apiKeyAndModel) > 0 {
+		apiKey = apiKeyAndModel[0]
 	}
 
 	selectedModel := defaultAiModel
-	if len(model) > 0 && model[0] != "" {
-		selectedModel = model[0]
+	if len(apiKeyAndModel) > 1 && apiKeyAndModel[1] != "" {
+		selectedModel = apiKeyAndModel[1]
 	}
 
 	extension, err := NewExt(AiServiceName, DefaultConfigPath, DefaultAiManagerEndpoint)
@@ -49,18 +83,7 @@ func NewAiService(apiKey string, model ...string) (*AiService, error) {
 		return nil, err
 	}
 
-	err = extension.SetServiceConfig(Config{
-		Type:      ExtensionType,
-		Name:      AiServiceName,
-		ModuleUrl: "pkg:golang/github.com/noPerfection/service#service?object=AiService",
-		Handlers: []Handler{
-			IndependentHandler{
-				Type:     ReplierType,
-				Category: "main",
-				Endpoint: DefaultAiEndpoint,
-			},
-		},
-	})
+	err = extension.SetServiceConfig(defaultAiExtensionServiceConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -72,19 +95,41 @@ func NewAiService(apiKey string, model ...string) (*AiService, error) {
 		running:   false,
 	}
 
-	provider, err := ai.anthropicProvider()
-	if err != nil {
-		return nil, fmt.Errorf("ai failed: %w", err)
-	} else {
+	if apiKey != "" {
+		provider, err := ai.anthropicProvider()
+		if err != nil {
+			return nil, fmt.Errorf("ai failed: %w", err)
+		}
 		ai.provider = provider
 	}
 
 	return ai, nil
 }
 
+func (ai *AiService) ensureProvider() error {
+	if ai == nil {
+		return fmt.Errorf("ai service is nil")
+	}
+	if ai.provider != nil {
+		return nil
+	}
+	if ai.apiKey == "" {
+		return fmt.Errorf("api key is empty")
+	}
+	provider, err := ai.anthropicProvider()
+	if err != nil {
+		return fmt.Errorf("ai failed: %w", err)
+	}
+	ai.provider = provider
+	return nil
+}
+
 func (ai *AiService) anthropicProvider() (anyllm.Provider, error) {
 	if ai == nil {
 		return nil, fmt.Errorf("ai service is nil")
+	}
+	if ai.apiKey == "" {
+		return nil, fmt.Errorf("api key is empty")
 	}
 	return anthropic.New(anyllm.WithAPIKey(ai.apiKey))
 }
@@ -108,6 +153,10 @@ func (ai *AiService) Start() error {
 
 // CheckConnection verifies that the Anthropic API key can make a minimal completion.
 func (ai *AiService) CheckConnection() error {
+	if err := ai.ensureProvider(); err != nil {
+		return err
+	}
+
 	checkContent := "ara.foundation"
 	maxTokens := 1
 
@@ -141,6 +190,10 @@ func (ai *AiService) CheckConnection() error {
 }
 
 func (ai *AiService) GenerateComposeServiceBlock(repoName, serviceName, buildContext, dockerfile string) (string, error) {
+	if err := ai.ensureProvider(); err != nil {
+		return "", err
+	}
+
 	maxTokens := 1200
 	temperature := 0.0
 
