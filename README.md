@@ -812,6 +812,40 @@ Topology is pre-built. But you can change it to other popular apps for deploymen
 
 once you do it, share it to the people.
 
+## Substrates
+
+Topology configuration is stored as a [Mushroom](https://github.com/ahmetson/mushroom) mycelium. The topology package itself only germinates the **json** colony (`pkg:json`). Other mushroom types are resolved through **substrates** registered by the caller.
+
+The **service** package owns built-in substrates in [`substrates.go`](./substrates.go). When you call `service.New`, `service.NewExt`, or `service.NewProxy`, substrates are passed into `topology.NewHandler` → `config.Load` → `json_substrate.Root`. Topology stays minimal; it does not register substrates on its own.
+
+By default, the service layer supports three mushroom types:
+
+| Type | Module | Role |
+|------|--------|------|
+| `pkg:golang` | [`github.com/noPerfection/service/package_url`](./package_url/) | Resolves Go module and package links (`module-url`, inproc services, `func=` factories). |
+| `pkg:json` | [`github.com/ahmetson/mushroom/substrates/json_substrate`](https://github.com/ahmetson/mushroom/tree/main/substrates/json_substrate) | Loads and mutates topology JSON (`noPerfection.json`). Always used as the root colony. |
+| `pkg:os` | [`github.com/noPerfection/os`](https://github.com/noPerfection/os) | Resolves environment links (for example `*pkg:os#env?var=ANTHROPIC_API_KEY&env=.env&envArg=true` in service parameters). |
+
+### Register your own substrate
+
+If you want to add a substrate for another mushroom type, register it before the service loads topology:
+
+```go
+import (
+	"github.com/noPerfection/service"
+)
+
+func init() {
+	if err := service.RegisterBuiltinSubstrate(mySubstrate); err != nil {
+		panic(err)
+	}
+}
+```
+
+`RegisterBuiltinSubstrate` appends to the built-in list used by every `newTopologyHandler` call. Topology receives the combined list; it never imports your substrate package directly.
+
+Dereference links (`*pkg:…`) inside topology data are fruitized when services are read (for example during `config.Load` validation). Register substrates **before** `service.New` so those links can resolve.
+
 ## Contents
 
 - [Contents](#contents)
@@ -826,6 +860,7 @@ once you do it, share it to the people.
 - - - [Publisher](#publisher)
 - - - [Worker](#worker)
 - - - [Pair](#pair)
+- [Substrates](#substrates)
 - - [Configuration](#configuration)
 - [Further Reading](#further-reading)
 

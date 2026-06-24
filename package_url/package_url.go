@@ -6,9 +6,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"strings"
 
 	"github.com/ahmetson/mushroom"
+	ospath "github.com/noPerfection/os/path"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -23,9 +25,19 @@ type PackageInfo struct {
 	// Package path, in golang packages are called modules, but we use purl convention
 	pkg           string
 	mushroomHypha mushroom.Hypha
+	// source files
+	sourceFiles []string
 }
 
 const trimpathFlaggedError = "you run it with trimpath flag. To show full path please dont use it."
+
+// ServiceNameToPackageName normalizes a service name into a Go package name fragment.
+// It trims surrounding space, collapses internal whitespace, and replaces hyphens with underscores.
+func ServiceNameToPackageName(name string) string {
+	name = strings.TrimSpace(name)
+	name = strings.ReplaceAll(name, "-", "_")
+	return strings.Join(strings.Fields(name), "_")
+}
 
 // GetPackageInfo returns the package info for the current app
 // If you run it with trimpath flag, it will return an error.
@@ -62,6 +74,7 @@ func GetPackageInfo() (*PackageInfo, error) {
 		pkg:           mainPackage,
 		pkgDir:        goModDir,
 		mushroomHypha: hypha,
+		sourceFiles:   []string{mainFile},
 	}, nil
 }
 
@@ -76,8 +89,60 @@ func (info *PackageInfo) MushroomLink() mushroom.Hypha {
 	return info.mushroomHypha.AsLink()
 }
 
+func (info *PackageInfo) Dir() string {
+	return info.pkgDir
+}
+
+// IsModuleExist checks whether module exists under the same package root as info.
+// It rewrites the mushroom link module fragment, drops main=true, and resolves it with New.
+func (info *PackageInfo) IsModuleExist(module string) (bool, error) {
+	if info == nil {
+		return false, fmt.Errorf("package info is nil")
+	}
+
+	link := info.MushroomLink()
+	link.ModuleID = module
+	if link.AdditionalProps != nil {
+		delete(link.AdditionalProps, "main")
+	}
+
+	if _, err := New(link.String()); err != nil {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (info *PackageInfo) NewModule(module string, sourceFile string) *PackageInfo {
+	link := info.MushroomLink()
+	link.ModuleID = module
+	if link.AdditionalProps != nil {
+		delete(link.AdditionalProps, "main")
+	}
+
+	pkgInfo := &PackageInfo{
+		moduleDir:     module,
+		module:        info.module,
+		mainModule:    false,
+		pkg:           info.pkg,
+		pkgDir:        info.pkgDir,
+		mushroomHypha: link,
+		sourceFiles:   []string{sourceFile},
+	}
+	return pkgInfo
+}
+
 func (info *PackageInfo) String() string {
 	return info.mushroomHypha.String()
+}
+
+// Returns true if the package is the main module
+func (info *PackageInfo) IsMain() bool {
+	return info.mainModule
+}
+
+func (info *PackageInfo) SourceFiles() []string {
+	return info.sourceFiles
 }
 
 func FillDefaultModuleURL() (string, error) {
@@ -85,7 +150,7 @@ func FillDefaultModuleURL() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return moduleURL.module, nil
+	return moduleURL.String(), nil
 }
 
 func mainFile() (string, error) {
@@ -331,6 +396,21 @@ func New(mushroomURL string) (*PackageInfo, error) {
 	if pkg.Dir != "" && pkg.Dir != moduleDir {
 		return nil, fmt.Errorf("package directory %q does not match mushroom package directory %q", pkg.Dir, moduleDir)
 	}
+	if isMain {
+		hypha.AdditionalProps["main"] = "true"
+	} else {
+		delete(hypha.AdditionalProps, "main")
+	}
+
+	ignored := make(map[string]struct{}, len(pkg.IgnoredFiles))
+	for _, f := range pkg.IgnoredFiles {
+		ignored[f] = struct{}{}
+	}
+
+	sourceFiles := slices.DeleteFunc(append(pkg.GoFiles, pkg.EmbedFiles...), func(file string) bool {
+		_, skip := ignored[file]
+		return skip
+	})
 
 	return &PackageInfo{
 		moduleDir:     pkg.Dir,
@@ -339,6 +419,7 @@ func New(mushroomURL string) (*PackageInfo, error) {
 		pkg:           goModModule,
 		pkgDir:        root,
 		mushroomHypha: hypha,
+		sourceFiles:   sourceFiles,
 	}, nil
 }
 
@@ -401,4 +482,24 @@ func importPathFromNewHypha(hypha mushroom.Hypha) (importPath string, relFragmen
 	}
 
 	return hypha.PackageID + "/" + relFragment, relFragment, nil
+}
+
+// IsFileExist parses moduleURL into package metadata and checks whether filename
+// exists in the package directory (moduleDir).
+func IsFileExist(moduleURL, filename string) (bool, error) {
+	info, err := New(moduleURL)
+	if err != nil {
+		return false, err
+	}
+
+	path := filepath.Join(info.moduleDir, filename)
+	exist, err := ospath.FileExist(path)
+	if err != nil {
+		return false, err
+	}
+	if !exist {
+		return false, fmt.Errorf("%s doesn't exist", path)
+	}
+
+	return true, nil
 }

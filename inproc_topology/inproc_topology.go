@@ -1,6 +1,8 @@
 package inproc_topology
 
 import (
+	"fmt"
+
 	"github.com/noPerfection/service/package_url"
 )
 
@@ -13,6 +15,6 @@ func (topology *InprocTopology) Start() error {
 		return err
 	}
 
-	pkgInfo.Print()
+	fmt.Println(pkgInfo)
 	return nil
 }

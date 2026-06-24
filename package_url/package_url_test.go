@@ -70,3 +70,22 @@ func TestNewRejectsSymbolicURL(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "symbolic")
 }
+
+func TestServiceNameToPackageName(t *testing.T) {
+	require.Equal(t, "hello_world", ServiceNameToPackageName("  hello-world  "))
+	require.Equal(t, "default_name_proxy", ServiceNameToPackageName("default-name-proxy"))
+	require.Equal(t, "hello_world", ServiceNameToPackageName("hello   world"))
+}
+
+func TestIsFileExistMissingFile(t *testing.T) {
+	goModDir, err := filepath.Abs(filepath.Join("..", "examples", "009-inproc-services"))
+	require.NoError(t, err)
+
+	mainModule := "github.com/noPerfection/service/examples/009-inproc-services/cmd/service"
+	mainPackage := "github.com/noPerfection/service/examples/009-inproc-services"
+	mushroomURL := fmt.Sprintf("pkg:golang/%s#%s?root=%s&main=true", mainPackage, strings.ReplaceAll(mainModule, mainPackage, ""), goModDir)
+
+	_, err = IsFileExist(mushroomURL, "inproc_topology.go")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "doesn't exist")
+}
