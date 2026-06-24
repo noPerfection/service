@@ -8,6 +8,7 @@ import (
 	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
+	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 )
 
@@ -18,6 +19,7 @@ type (
 	ReplyInterface = message.ReplyInterface
 	// HandlerType is the client handler protocol to connect to.
 	HandlerType        = client.HandlerType
+	Handler            = topologyConfig.Handler
 	IndependentHandler = topologyConfig.IndependentHandler
 	ProxyHandler       = topologyConfig.ProxyHandler
 	ExtensionHandler   = topologyConfig.ExtensionHandler
@@ -33,14 +35,15 @@ const (
 	ProxyType       = topologyConfig.ProxyType
 	ExtensionType   = topologyConfig.ExtensionType
 	// Handler types
-	SyncReplierType = client.SyncReplierType
-	PublisherType   = client.PublisherType
-	ReplierType     = client.ReplierType
-	PairType        = client.PairType
-	WorkerType      = client.WorkerType
+	SyncReplierType = topologyConfig.SyncReplierType
+	PublisherType   = topologyConfig.PublisherType
+	ReplierType     = topologyConfig.ReplierType
+	PairType        = topologyConfig.PairType
+	WorkerType      = topologyConfig.WorkerType
 	//--
 	AnyCmd                 = base.Any
 	DefaultHandlerCategory = handlers.DefaultHandlerCategory
+	ServiceManagerCategory = topology.ServiceManagerCategory
 )
 
 // Create a new import. Alias for noPerfection/protocol/message.NewEndpoint
