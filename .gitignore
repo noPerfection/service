@@ -4,3 +4,4 @@ bin
 _db/mysql
 _vault/file
 .idea
+examples/009-inproc-services/.env
