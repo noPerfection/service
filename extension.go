@@ -15,8 +15,6 @@ import (
 	"github.com/noPerfection/topology/config"
 )
 
-var DefaultExtensionManagerEndpoint = message.NewEndpoint("ext_"+topology.ServiceManagerCategory, 0)
-
 // Extension keeps all necessary parameters of the independent service.
 type Extension struct {
 	*handlers.Handlers
@@ -27,6 +25,24 @@ type Extension struct {
 	blocker         *sync.WaitGroup
 	manager         *manager.Manager // manage this service from other parts
 	logger          *log.Logger
+}
+
+// Follows pkg:golang/github.com/noPerfection/service?object=Service&root=no_perfection.go
+func (extension *Extension) isService() {}
+
+func (extension *Extension) AsIndependent() (*Independent, bool) {
+	return nil, false
+}
+
+func (extension *Extension) AsProxy() (*Proxy, bool) {
+	return nil, false
+}
+
+func (extension *Extension) AsExtension() (*Extension, bool) {
+	if extension == nil {
+		return nil, false
+	}
+	return extension, true
 }
 
 // New returns an independent service instance.
@@ -41,7 +57,7 @@ type Extension struct {
 //
 //  3. managerEndpoint — highest-priority manager socket. Remote processes use this endpoint
 //     to start, stop, and probe the service. When omitted, the endpoint is taken from the
-//     service record in topology, then DefaultExtensionManagerEndpoint.
+//     service record in topology, then manager.DefaultExtensionManagerEndpoint.
 //
 // Examples:
 //
@@ -53,7 +69,6 @@ type Extension struct {
 func NewExt(params ...any) (*Extension, error) {
 	mushroomURL := DefaultName
 	configPath := DefaultConfigPath
-	managerEndpoint := DefaultExtensionManagerEndpoint
 
 	if len(params) > 3 {
 		return nil, fmt.Errorf("too many arguments, expected name, config path, and manager endpoint")
@@ -83,6 +98,8 @@ func NewExt(params ...any) (*Extension, error) {
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewHandler: %w", err)
 	}
+
+	managerEndpoint := manager.DefaultExtensionManagerEndpoint(mushroomURL)
 
 	// If user passes the manager endpoint, then use it,
 	// otherwise try to get it from the topology config.
@@ -200,10 +217,12 @@ func (independent *Extension) addDefaultHandlerToTopology() error {
 		return nil
 	}
 
-	defaultHandler := config.IndependentHandler{
-		Category: handlers.DefaultHandlerCategory,
-		Endpoint: handlers.DefaultHandlerEndpoint,
-		Type:     config.ReplierType,
+	defaultHandler := config.ExtensionHandler{
+		IndependentHandler: config.IndependentHandler{
+			Category: handlers.DefaultHandlerCategory,
+			Endpoint: handlers.DefaultHandlerEndpoint,
+			Type:     config.ReplierType,
+		},
 	}
 	serviceConfig.Handlers = []config.Handler{defaultHandler}
 	if err := independent.topologyHandler.SetService(serviceConfig, serviceParentURL(independent.mushroomURL)...); err != nil {
@@ -230,7 +249,7 @@ func (independent *Extension) addServiceManagerToTopology() error {
 			return nil
 		}
 	}
-	if managerConfig.Endpoint == DefaultExtensionManagerEndpoint {
+	if managerConfig.Endpoint == manager.DefaultExtensionManagerEndpoint(serviceConfig.Name) {
 		return nil
 	}
 
@@ -330,6 +349,19 @@ func (independent *Extension) Start() error {
 		goto errOccurred
 	}
 
+	if err = independent.topologyHandler.ValidateProtocolOrder(independent.mushroomURL); err != nil {
+		err = fmt.Errorf("topologyHandler.ValidateProtocolOrder: %w", err)
+		goto errOccurred
+	}
+	if err = independent.topologyHandler.ValidateInprocServiceManagers(); err != nil {
+		err = fmt.Errorf("topologyHandler.ValidateInprocServiceManagers: %w", err)
+		goto errOccurred
+	}
+	if inprocServices, err = independent.topologyHandler.InprocessDepNumber(independent.mushroomURL); err != nil {
+		err = fmt.Errorf("topologyHandler.InprocessDepNumber: %w", err)
+		goto errOccurred
+	}
+
 	if err = independent.topologyHandler.Start(); err != nil {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
@@ -353,10 +385,6 @@ func (independent *Extension) Start() error {
 		err = fmt.Errorf("topology.NewClient: %w", err)
 		goto errOccurred
 	}
-	defer func() {
-		_ = independent.topology.Close()
-		independent.topology = nil
-	}()
 
 	if err = independent.syncCommandOutbounds(); err != nil {
 		err = fmt.Errorf("syncCommandOutbounds: %w", err)
@@ -366,18 +394,8 @@ func (independent *Extension) Start() error {
 		err = fmt.Errorf("syncHandlerDepOutbounds: %w", err)
 		goto errOccurred
 	}
-	if err = independent.validateProtocolOrders(); err != nil {
-		err = fmt.Errorf("validateProtocolOrders: %w", err)
-		goto errOccurred
-	}
-	if inprocServices, err = independent.validateInprocServiceManagers(); err != nil {
-		err = fmt.Errorf("validateInprocServiceManagers: %w", err)
-		goto errOccurred
-	}
 	if inprocServices > 0 {
-		fmt.Printf("todo: implement inproc_topology for checking %d inproc managers\n", inprocServices)
-	} else {
-		fmt.Println("todo: inproc are 0, make sure that inproc_topology is not running at all")
+		fmt.Printf("todo: implement setupInproc() for extension only if its not running on main file\n")
 	}
 	if err = independent.startIpcServices(); err != nil {
 		err = fmt.Errorf("startIpcServices: %w", err)
@@ -386,6 +404,10 @@ func (independent *Extension) Start() error {
 
 errOccurred:
 	if err != nil {
+		if independent.topology != nil {
+			_ = independent.topology.Close()
+			independent.topology = nil
+		}
 		if independent.manager != nil && independent.manager.Running() {
 			closeErr := independent.manager.StopService(independent.mushroomURL)
 			if closeErr != nil {
@@ -520,98 +542,9 @@ func (independent *Extension) startIpcService(mushroomURL string, startedRefs ma
 	if running {
 		return nil
 	}
-	if _, err := independent.manager.StartServiceByConfig(depService); err != nil {
-		return fmt.Errorf("manager.StartServiceByConfig('%s'): %w", depService.Name, err)
+	if _, err := independent.manager.StartService(depService.Name); err != nil {
+		return fmt.Errorf("manager.StartService('%s'): %w", depService.Name, err)
 	}
-	return nil
-}
-
-// Validate protocol orders for all services and handlers in the topology:
-// tcp can forward to tcp, but not other protocols.
-// ipc can forward to ipc and tcp, but not inproc protocol.
-// inproc can forward to inproc only, but not ipc or tcp protocol.
-func (independent *Extension) validateProtocolOrders() error {
-	serviceConfig, err := independent.topologyService(independent.mushroomURL)
-	if err != nil {
-		return fmt.Errorf("service %q: %w", independent.mushroomURL, err)
-	}
-
-	return independent.validateProtocolOrdersFor(serviceConfig)
-}
-
-func (independent *Extension) validateProtocolOrdersFor(serviceConfig config.Service) error {
-	if serviceConfig.Type == config.ProxyType {
-		for _, variant := range serviceConfig.Handlers {
-			proxyHandler, _ := variant.AsProxyHandler()
-			if len(proxyHandler.Outbounds) == 0 {
-				continue
-			}
-
-			for _, outboundURL := range proxyHandler.Outbounds {
-				outboundService, outboundHandler, err := independent.serviceAndHandlerFromURL(outboundURL)
-				if err != nil {
-					return fmt.Errorf("proxy %q handler %q outbound %q: %w", serviceConfig.Name, proxyHandler.Category, outboundURL, err)
-				}
-				if err := validateProtocolOrder(serviceConfig, variant, outboundService, outboundHandler); err != nil {
-					return fmt.Errorf("proxy %q handler %q outbound %q: %w", serviceConfig.Name, proxyHandler.Category, outboundURL, err)
-				}
-			}
-		}
-	}
-
-	for _, dep := range serviceConfig.HandlerDeps {
-		for _, proxyURL := range dep.Proxies {
-			proxyService, _, err := independent.serviceAndHandlerFromURL(proxyURL)
-			if err != nil {
-				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, proxyURL, err)
-			}
-			if err := independent.validateProtocolOrdersFor(proxyService); err != nil {
-				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, proxyURL, err)
-			}
-		}
-
-		for _, extensionURL := range dep.Extensions {
-			extensionService, _, err := independent.serviceAndHandlerFromURL(extensionURL)
-			if err != nil {
-				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, extensionURL, err)
-			}
-			if err := independent.validateProtocolOrdersFor(extensionService); err != nil {
-				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, extensionURL, err)
-			}
-		}
-	}
-
-	for _, variant := range serviceConfig.Handlers {
-		handler, ok := variant.AsIndependentHandler()
-		if !ok {
-			continue
-		}
-		if handler.Category == topology.ServiceManagerCategory || len(handler.CommandDeps) == 0 {
-			continue
-		}
-
-		for _, dep := range handler.CommandDeps {
-			for _, proxyURL := range dep.Proxies {
-				proxyService, _, err := independent.serviceAndHandlerFromURL(proxyURL)
-				if err != nil {
-					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxyURL, err)
-				}
-				if err := independent.validateProtocolOrdersFor(proxyService); err != nil {
-					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxyURL, err)
-				}
-			}
-			for _, extensionURL := range dep.Extensions {
-				extensionService, _, err := independent.serviceAndHandlerFromURL(extensionURL)
-				if err != nil {
-					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, extensionURL, err)
-				}
-				if err := independent.validateProtocolOrdersFor(extensionService); err != nil {
-					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, extensionURL, err)
-				}
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -642,21 +575,6 @@ func (independent *Extension) resolveTopologyHandler(mushroomURL string) (config
 		return independent.topologyHandler.Handler(mushroomURL)
 	}
 	return nil, fmt.Errorf("topology is nil")
-}
-
-func (independent *Extension) serviceAndHandlerFromURL(mushroomURL string) (config.Service, config.Handler, error) {
-	if mushroomURL == "" {
-		return config.Service{}, nil, fmt.Errorf("dep mushroom url is empty")
-	}
-	handler, err := independent.resolveTopologyHandler(mushroomURL)
-	if err != nil {
-		return config.Service{}, nil, fmt.Errorf("topology.Handler(%q): %w", mushroomURL, err)
-	}
-	service, err := independent.topologyService(mushroomURL)
-	if err != nil {
-		return config.Service{}, nil, err
-	}
-	return service, handler, nil
 }
 
 func (independent *Extension) GetHandlerLink(handlerCategory string) (string, error) {
@@ -701,87 +619,6 @@ func (independent *Extension) GetServiceFacade(mushroomURL string, command ...st
 		return independent.topologyHandler.GetFacade(url, command...)
 	}
 	return "", fmt.Errorf("topology is nil")
-}
-
-// If service is inproc, it must have an inproc manager.
-func (independent *Extension) validateInprocServiceManagers() (int, error) {
-	serviceConfig, err := independent.topology.Service(independent.mushroomURL)
-	if err != nil {
-		return 0, err
-	}
-
-	inprocServices := 0
-	if err := independent.validateInprocServiceManagersFor(serviceConfig, &inprocServices); err != nil {
-		return 0, err
-	}
-	// Its still incremented, but we don't count it
-	if serviceConfig.IsInproc() {
-		inprocServices--
-	}
-	return inprocServices, nil
-}
-
-func (independent *Extension) validateInprocServiceManagersFor(serviceConfig config.Service, inprocServices *int) error {
-	if serviceConfig.IsInproc() {
-		endpoint, err := serviceManagerEndpoint(serviceConfig)
-		if err != nil {
-			return err
-		}
-		if !endpoint.IsInproc() {
-			return fmt.Errorf("service %q is inproc but manager endpoint %q is not inproc", serviceConfig.Name, endpoint.ClientUrl())
-		}
-		(*inprocServices)++
-	}
-
-	for _, dep := range serviceConfig.HandlerDeps {
-		for _, link := range dep.Proxies {
-			depService, err := independent.topologyService(link)
-			if err != nil {
-				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, link, err)
-			}
-			if err := independent.validateInprocServiceManagersFor(depService, inprocServices); err != nil {
-				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, link, err)
-			}
-		}
-		for _, link := range dep.Extensions {
-			depService, err := independent.topologyService(link)
-			if err != nil {
-				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, link, err)
-			}
-			if err := independent.validateInprocServiceManagersFor(depService, inprocServices); err != nil {
-				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, link, err)
-			}
-		}
-	}
-
-	for _, variant := range serviceConfig.Handlers {
-		handler, ok := variant.AsIndependentHandler()
-		if !ok {
-			continue
-		}
-		for _, dep := range handler.CommandDeps {
-			for _, link := range dep.Proxies {
-				depService, err := independent.topologyService(link)
-				if err != nil {
-					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, link, err)
-				}
-				if err := independent.validateInprocServiceManagersFor(depService, inprocServices); err != nil {
-					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, link, err)
-				}
-			}
-			for _, link := range dep.Extensions {
-				depService, err := independent.topologyService(link)
-				if err != nil {
-					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, link, err)
-				}
-				if err := independent.validateInprocServiceManagersFor(depService, inprocServices); err != nil {
-					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, link, err)
-				}
-			}
-		}
-	}
-
-	return nil
 }
 
 // For every proxy in a command’s chain, figure out who it forwards to,
@@ -949,6 +786,10 @@ func (independent *Extension) syncCommandProxyOutbound(command string, proxyHand
 }
 
 func (independent *Extension) Stop() error {
+	if independent.topology != nil {
+		_ = independent.topology.Close()
+		independent.topology = nil
+	}
 	return independent.manager.StopService(independent.mushroomURL)
 }
 

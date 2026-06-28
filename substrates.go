@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ahmetson/mushroom"
+	osSubstrate "github.com/noPerfection/os/substrate"
 	"github.com/noPerfection/topology"
 )
 
@@ -20,8 +21,9 @@ func RegisterBuiltinSubstrate(substrate mushroom.Substrate) error {
 }
 
 func substratesForTopology(extra ...mushroom.Substrate) []mushroom.Substrate {
-	all := make([]mushroom.Substrate, 0, len(builtinSubstrates)+len(extra))
+	all := make([]mushroom.Substrate, 0, 1+len(builtinSubstrates)+len(extra))
 	all = append(all, builtinSubstrates...)
+	all = append(all, osSubstrate.New())
 	all = append(all, extra...)
 	return all
 }

@@ -20,7 +20,7 @@
           "type": "SyncReplier"
         }
       ],
-      "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#cmd/proxy",
+      "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/proxy?root=/home/medet/noPerfection/service/examples/009-inproc-services",
       "name": "default-name-proxy",
       "start-command": "./bin/proxy",
       "type": "Proxy"
@@ -47,7 +47,7 @@
           "type": "SyncReplier"
         }
       ],
-      "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#cmd/entrypoint",
+      "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/entrypoint?root=/home/medet/noPerfection/service/examples/009-inproc-services",
       "name": "entrypoint",
       "start-command": "./bin/entrypoint",
       "type": "Proxy"
@@ -59,6 +59,38 @@
           "proxies": [
             "pkg:$?var=services[name:entrypoint]"
           ]
+        },
+        {
+          "extensions": [
+            "ai",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]",
+            "pkg:$?var=services[name:inproc-topology]"
+          ],
+          "name": "manager"
         }
       ],
       "handlers": [
@@ -82,6 +114,58 @@
       "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#/cmd/service?main=true\u0026root=/home/medet/noPerfection/service/examples/009-inproc-services",
       "name": "hello-world",
       "type": "Independent"
+    },
+    {
+      "handlers": [
+        {
+          "category": "manager",
+          "endpoint": {
+            "id": "ai_manager",
+            "port": 0
+          },
+          "type": "SyncReplier"
+        },
+        {
+          "category": "main",
+          "endpoint": {
+            "id": "ai",
+            "port": 0
+          },
+          "inbounds": null,
+          "type": "Replier"
+        }
+      ],
+      "module-url": "pkg:golang/github.com/noPerfection/service",
+      "name": "ai",
+      "parameters": {
+        "api-key": "*pkg:os/env?var=ANTHROPIC_API_KEY\u0026LoadAnyEnv=true",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "type": "Extension"
+    },
+    {
+      "handlers": [
+        {
+          "category": "manager",
+          "endpoint": {
+            "id": "inproc-topology_manager",
+            "port": 0
+          },
+          "type": "SyncReplier"
+        },
+        {
+          "category": "main",
+          "endpoint": {
+            "id": "inproc-topology",
+            "port": 0
+          },
+          "inbounds": null,
+          "type": "Replier"
+        }
+      ],
+      "module-url": "pkg:golang/github.com/noPerfection/service",
+      "name": "inproc-topology",
+      "type": "Extension"
     }
   ]
 }

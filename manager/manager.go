@@ -9,22 +9,30 @@ import (
 	"time"
 
 	"github.com/noPerfection/datatype"
+	"github.com/noPerfection/protocol/client"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	handlerControl "github.com/noPerfection/protocol/handler/control"
 	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
 
 const (
-	IsServiceRunning = topology.IsServiceRunning
-	StartService     = topology.StartService
-	StopService      = topology.StopService
-	Services         = topology.Services
+	IsServiceRunning          = topology.IsServiceRunning
+	StartService              = topology.StartService
+	StopService               = topology.StopService
+	Services                  = topology.Services
+	InprocTopologyServiceName = "inproc-topology"
 )
+
+// DefaultExtensionManagerEndpoint returns the default endpoint for a service's extension manager.
+func DefaultExtensionManagerEndpoint(serviceName string) message.Endpoint {
+	return message.NewEndpoint(serviceName+"_ext_"+topology.ServiceManagerCategory, 0)
+}
 
 var _ topology.NodeInterface = (*Manager)(nil)
 
@@ -108,37 +116,15 @@ func (m *Manager) StartService(serviceURL string) (string, error) {
 	if m.topology == nil {
 		return "", fmt.Errorf("topology is nil")
 	}
-	return m.topology.StartService(serviceURL)
-}
-
-func (m *Manager) StartServiceByConfig(record config.Service) (string, error) {
-	self, err := m.selfService()
-	if err != nil {
-		return "", err
-	}
-	if record.Equal(self) {
-		return strconv.Itoa(os.Getpid()), nil
-	}
-
-	managerHandler, err := record.HandlerByCategory(topology.ServiceManagerCategory)
-	if err != nil {
-		if m.topology == nil {
-			return "", fmt.Errorf("topology is nil")
-		}
-		return m.topology.StartService(record.Name)
-	}
-	handler, ok := managerHandler.AsIndependentHandler()
-	if !ok {
-		return "", fmt.Errorf("service %q manager handler is not independent", record.Name)
-	}
-	id, err := m.startServiceOnManager(record.Name, handler.Endpoint)
-	if err != nil {
-		if m.topology == nil {
+	record, err := m.topology.Service(serviceURL)
+	if err == nil && record.IsInproc() {
+		endpoint, handlerType, err := inprocTopologyExtensionEndpoint(m.topology)
+		if err != nil {
 			return "", err
 		}
-		return m.topology.StartService(record.Name)
+		return startInprocService(endpoint, handlerType, record.Name)
 	}
-	return id, nil
+	return m.topology.StartService(serviceURL)
 }
 
 func (m *Manager) IsServiceRunning(serviceURL string) (bool, error) {
@@ -155,56 +141,18 @@ func (m *Manager) IsServiceRunning(serviceURL string) (bool, error) {
 	return m.topology.IsServiceRunning(serviceURL)
 }
 
-func (m *Manager) IsServiceRunningByManager(serviceURL string, handler config.IndependentHandler) (bool, error) {
-	match, err := m.matchesSelf(serviceURL)
+// inprocTopologyEndpoint is the endpoint of the inproc topology extension service.
+func startInprocService(inprocTopologyEndpoint message.Endpoint, handlerType config.HandlerType, serviceName string) (string, error) {
+	socket, err := client.New(inprocTopologyEndpoint.Id, inprocTopologyEndpoint.Port, client.HandlerType(handlerType))
 	if err != nil {
-		return false, err
+		return "", fmt.Errorf("client.New: %w", err)
 	}
-	if match {
-		return m.running, nil
-	}
-	return m.isServiceRunningOnManager(serviceURL, handler.Endpoint)
-}
+	defer socket.Close()
 
-func (m *Manager) isServiceRunningOnManager(serviceName string, endpoint message.Endpoint) (bool, error) {
-	client, err := clientSyncReplier.NewClient(endpoint.Id, endpoint.Port)
-	if err != nil {
-		return false, fmt.Errorf("sync_replier.NewClient: %w", err)
-	}
-	defer client.Close()
+	socket.Timeout(time.Second)
+	socket.Attempt(3)
 
-	client.Timeout(100 * time.Millisecond)
-	client.Attempt(2)
-
-	reply, err := client.Request(&message.Request{
-		Command:    IsServiceRunning,
-		Parameters: datatype.New().Set("service", serviceName),
-	})
-	if err != nil {
-		return false, nil
-	}
-	if !reply.IsOK() {
-		return false, fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
-	}
-
-	running, err := reply.ReplyParameters().BoolValue("running")
-	if err != nil {
-		return false, fmt.Errorf("reply.Parameters.GetBoolean('running'): %w", err)
-	}
-	return running, nil
-}
-
-func (m *Manager) startServiceOnManager(serviceName string, endpoint message.Endpoint) (string, error) {
-	client, err := clientSyncReplier.NewClient(endpoint.Id, endpoint.Port)
-	if err != nil {
-		return "", fmt.Errorf("sync_replier.NewClient: %w", err)
-	}
-	defer client.Close()
-
-	client.Timeout(time.Second)
-	client.Attempt(3)
-
-	reply, err := client.Request(&message.Request{
+	reply, err := socket.Request(&message.Request{
 		Command:    StartService,
 		Parameters: datatype.New().Set("service", serviceName),
 	})
@@ -261,6 +209,25 @@ func (m *Manager) StopService(serviceURL string) error {
 	}
 
 	return nil
+}
+
+func inprocTopologyExtensionEndpoint(topologyClient *topology.Client) (message.Endpoint, config.HandlerType, error) {
+	if topologyClient == nil {
+		return message.Endpoint{}, "", fmt.Errorf("topology is nil")
+	}
+	record, err := topologyClient.Service(InprocTopologyServiceName)
+	if err != nil {
+		return message.Endpoint{}, "", fmt.Errorf("topology.Service(%q): %w", InprocTopologyServiceName, err)
+	}
+	extensionHandler, err := record.HandlerByCategory(handlers.DefaultHandlerCategory)
+	if err != nil {
+		return message.Endpoint{}, "", fmt.Errorf("inproc topology extension handler: %w", err)
+	}
+	handler, ok := extensionHandler.AsIndependentHandler()
+	if !ok {
+		return message.Endpoint{}, "", fmt.Errorf("inproc topology extension handler is not independent")
+	}
+	return handler.Endpoint, handler.Type, nil
 }
 
 // Close closes the manager, and service as well.

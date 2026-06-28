@@ -652,24 +652,13 @@ func TestValidateProtocolOrders(t *testing.T) {
 				return []topologyConfig.Service{commandProxyInproc(t), serviceInproc(t)}
 			},
 		},
-		{
-			name: "extension handler marked inproc can access inproc service",
-			service: protocolProxyLikeServiceWithInprocHandlers(
-				t,
-				"extension",
-				topologyConfig.ExtensionType,
-				"tcp",
-				[]string{handlers.DefaultHandlerCategory},
-				protocolOutboundLink("service"),
-			),
-			fixture: func(t *testing.T) []topologyConfig.Service { return []topologyConfig.Service{serviceInproc(t)} },
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			independent := setupProtocolValidationIndependent(t, tt.fixture(t)...)
-			err := independent.validateProtocolOrdersFor(tt.service)
+			services := append(tt.fixture(t), tt.service)
+			cfg := setupProtocolValidationConfig(t, services...)
+			err := cfg.ValidateProtocolOrdersFor(tt.service)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return
@@ -761,6 +750,21 @@ func requireEqualPersistedService(t *testing.T, expected, actual topologyConfig.
 	}
 }
 
+func setupProtocolValidationConfig(t *testing.T, fixtures ...topologyConfig.Service) *topologyConfig.NoPerfection {
+	t.Helper()
+	configPath := testConfigPath(t)
+	appConfig, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	for _, svc := range fixtures {
+		require.NoError(t, appConfig.AddService(svc, rootServicesParent))
+	}
+	require.NoError(t, appConfig.Save())
+
+	reloaded, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	return &reloaded
+}
+
 func setupProtocolValidationIndependent(t *testing.T, fixtures ...topologyConfig.Service) *Independent {
 	t.Helper()
 	configPath := testConfigPath(t)
@@ -823,28 +827,23 @@ func TestAddHardcodedServiceParamsToTopologyMergesParams(t *testing.T) {
 	require.Equal(t, "tutorial", serviceConfig.Parameters["mode"])
 }
 
-func TestAddAiExtensionRegistersBuiltinServiceAndManagerDep(t *testing.T) {
-	independent, err := New("custom-service", testConfigPath(t))
+func TestNewAiServiceRegistersInTopology(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "topology-test-key")
+
+	cfgPath := testConfigPath(t)
+	ai, err := NewAiService(cfgPath)
 	require.NoError(t, err)
-	require.NoError(t, independent.SetServiceConfig(topologyConfig.Service{
-		Type:      topologyConfig.IndependentType,
-		Name:      "custom-service",
-		ModuleUrl: DefaultModuleUrl,
-	}))
 
-	require.NoError(t, independent.addHardcodedServicesToTopology())
-	require.NoError(t, independent.addAiExtension())
+	topologyHandler, err := newTopologyHandler(cfgPath)
+	require.NoError(t, err)
 
-	aiService, err := independent.topologyHandler.Service(AiServiceName)
+	aiService, err := topologyHandler.Service(AiServiceName)
 	require.NoError(t, err)
 	require.Equal(t, topologyConfig.ExtensionType, aiService.Type)
 	require.Equal(t, AiServiceName, aiService.Name)
-
-	serviceConfig, err := independent.topologyHandler.Service("custom-service")
-	require.NoError(t, err)
-	require.Len(t, serviceConfig.HandlerDeps, 1)
-	require.Equal(t, topologyConfig.ServiceManagerCategory, serviceConfig.HandlerDeps[0].Name)
-	require.Equal(t, []string{aiExtensionServiceLink()}, serviceConfig.HandlerDeps[0].Extensions)
+	require.Equal(t, defaultAiModel, aiService.Parameters[aiModelParameter])
+	require.Equal(t, "topology-test-key", aiService.Parameters[aiAPIKeyParameter])
+	_ = ai
 }
 
 func TestAddHardcodedHandlerDepsToTopologyAddsDepsToExplicitService(t *testing.T) {

@@ -3,25 +3,12 @@ package main
 import (
 	"fmt"
 
-	"github.com/noPerfection/protocol/handler/base"
-	"github.com/noPerfection/protocol/message"
-	"github.com/noPerfection/service"
-	"github.com/noPerfection/service/handlers"
-)
-
-const (
-	configPath    = "noPerfection.json"
-	proxyName     = "entrypoint"
-	proxyCategory = "main"
+	"github.com/noPerfection/service/examples/009-inproc-services/services/entrypoint"
 )
 
 func main() {
-	app, err := service.NewProxy(proxyName, configPath)
+	app, err := entrypoint.New()
 	if err != nil {
-		panic(err)
-	}
-
-	if err := app.Route(base.Any, onForward, proxyCategory); err != nil {
 		panic(err)
 	}
 
@@ -33,13 +20,4 @@ func main() {
 	fmt.Println("entrypoint proxy listening on tmp/entrypoint_proxy")
 
 	app.Wait()
-}
-
-func onForward(req handlers.ProxyRequest) handlers.ProxyReply {
-	reply, err := req.Forward()
-	if err != nil {
-		return handlers.ProxyReply{Reply: *req.Fail(err.Error()).(*message.Reply)}
-	}
-
-	return reply
 }

@@ -18,6 +18,7 @@ replace github.com/noPerfection/os => ../os
 
 require (
 	github.com/ahmetson/mushroom v0.0.0
+	github.com/mozilla-ai/any-llm-go v0.9.0
 	github.com/noPerfection/datatype v0.0.0
 	github.com/noPerfection/log v0.0.0
 	github.com/noPerfection/os v0.0.0
@@ -35,7 +36,7 @@ replace github.com/noPerfection/topology => ../topology
 replace github.com/noPerfection/log => ../log
 
 require (
-	github.com/charmbracelet/lipgloss v0.8.0 // indirect
+	github.com/charmbracelet/lipgloss v0.8.0
 	github.com/charmbracelet/log v0.2.4 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
@@ -51,12 +52,19 @@ require (
 )
 
 require (
+	github.com/anthropics/anthropic-sdk-go v1.26.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
+	github.com/cakturk/go-netstat v0.0.0-20200220111822-e5b49efee7a5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/mozilla-ai/any-llm-go v0.9.0 // indirect
+	github.com/joho/godotenv v1.4.0 // indirect
 	github.com/pebbe/zmq4 v1.2.10 // indirect
+	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect

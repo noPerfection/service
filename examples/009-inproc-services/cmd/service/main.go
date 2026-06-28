@@ -2,35 +2,26 @@ package main
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/noPerfection/os/env"
 	"github.com/noPerfection/service"
-	// "github.com/noPerfection/service/inproc_topology"
 )
 
 const (
-	serviceName      = "hello-world"
-	defaultProxyName = "default-name-proxy"
-	entrypointName   = "entrypoint"
+	serviceName         = "hello-world"
+	defaultProxyName    = "default-name-proxy"
+	entrypointName      = "entrypoint"
+	proxyModuleUrl      = "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/proxy?root=/home/medet/noPerfection/service/examples/009-inproc-services"
+	entrypointModuleUrl = "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/entrypoint?root=/home/medet/noPerfection/service/examples/009-inproc-services"
 )
 
 func main() {
-	env.LoadAnyEnv()
-	aiService, err := service.NewAiService(os.Getenv("ANTHROPIC_API_KEY"))
+	aiService, err := service.NewAiService()
 	if err != nil {
 		panic(err)
 	}
-	if err := aiService.CheckConnection(); err != nil {
+	if err := aiService.Start(); err != nil {
 		panic(err)
-	} else {
-		fmt.Println("AI connection successful")
 	}
-
-	// topology := &inproc_topology.InprocTopology{}
-	// if err := topology.Start(); err != nil {
-	// 	panic(err)
-	// }
 
 	app, err := service.New(serviceName)
 	if err != nil {
@@ -48,7 +39,7 @@ func main() {
 	if err := app.SetServiceConfig(service.Config{
 		Type:         service.ProxyType,
 		Name:         defaultProxyName,
-		ModuleUrl:    "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#cmd/proxy",
+		ModuleUrl:    proxyModuleUrl,
 		StartCommand: "./bin/proxy",
 		Handlers: []service.Handler{
 			service.ProxyHandler{
@@ -67,7 +58,7 @@ func main() {
 	if err := app.SetServiceConfig(service.Config{
 		Type:         service.ProxyType,
 		Name:         entrypointName,
-		ModuleUrl:    "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#cmd/entrypoint",
+		ModuleUrl:    entrypointModuleUrl,
 		StartCommand: "./bin/entrypoint",
 		Handlers: []service.Handler{
 			service.ProxyHandler{
@@ -100,8 +91,18 @@ func main() {
 		panic(err)
 	}
 
+	if err := app.SetHandlerDeps(service.Dependency{
+		Name:       service.ServiceManagerCategory,
+		Extensions: []string{service.AiServiceName},
+	}); err != nil {
+		panic(err)
+	}
+
 	app.Route("hello", onHello)
 	app.Route("age-verification", onAgeVerification)
+	if err := startInprocTopology(); err != nil {
+		panic(err)
+	}
 
 	if err := app.Start(); err != nil {
 		panic(err)

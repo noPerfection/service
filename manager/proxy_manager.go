@@ -88,25 +88,27 @@ func (m *ProxyManager) SetLogger(logger *log.Logger) error {
 // For now, let's make it not starting. It just returns its own name.
 // Later it will just keep almost identical to Start() data.
 func (m *ProxyManager) StartService(serviceName string) (string, error) {
-	if serviceName != "" && serviceName != m.serviceName {
-		return "", fmt.Errorf("service name is not empty and not equal to the service name")
-	}
+	if serviceName == "" || serviceName == m.serviceName {
+		if err := m.ensureTopologyClient(); err != nil {
+			return "", err
+		}
+		if err := m.ensureProxyHandlersClient(); err != nil {
+			return "", err
+		}
+		if err := m.setProxyHandlers(); err != nil {
+			return "", fmt.Errorf("setProxyHandlers: %w", err)
+		}
+		if err := m.proxyHandlersRequest(handlers.StartProxyHandlersCommand); err != nil {
+			return "", err
+		}
 
-	if err := m.ensureTopologyClient(); err != nil {
-		return "", err
+		m.running = true
+		return strconv.Itoa(os.Getpid()), nil
 	}
-	if err := m.ensureProxyHandlersClient(); err != nil {
-		return "", err
+	if id, ok, err := m.startInprocServiceIfNeeded(serviceName); ok || err != nil {
+		return id, err
 	}
-	if err := m.setProxyHandlers(); err != nil {
-		return "", fmt.Errorf("setProxyHandlers: %w", err)
-	}
-	if err := m.proxyHandlersRequest(handlers.StartProxyHandlersCommand); err != nil {
-		return "", err
-	}
-
-	m.running = true
-	return strconv.Itoa(os.Getpid()), nil
+	return "", fmt.Errorf("service name is not empty and not equal to the service name")
 }
 
 // For now, lets just return manager.running.
@@ -114,35 +116,66 @@ func (m *ProxyManager) IsServiceRunning(serviceName string) (bool, error) {
 	if serviceName == "" || serviceName == m.serviceName {
 		return m.running, nil
 	}
-
-	return false, fmt.Errorf("service name is not empty and not equal to the service name")
+	if err := m.ensureTopologyClient(); err != nil {
+		return false, err
+	}
+	return m.topology.IsServiceRunning(serviceName)
 }
 
 func (m *ProxyManager) StopService(serviceName string) error {
-	if serviceName != "" && serviceName != m.serviceName {
-		return fmt.Errorf("service name is not empty and not equal to the service name")
-	}
+	if serviceName == "" || serviceName == m.serviceName {
+		if err := m.proxyHandlersRequest(handlers.StopProxyHandlersCommand); err != nil {
+			return err
+		}
+		if err := m.handlers.Close(); err != nil {
+			return fmt.Errorf("proxyHandlersClient.Close: %w", err)
+		}
+		m.handlers = nil
+		if m.topology != nil {
+			if err := m.topology.Close(); err != nil {
+				return fmt.Errorf("topologyClient.Close: %w", err)
+			}
+			m.topology = nil
+		}
 
-	if err := m.proxyHandlersRequest(handlers.StopProxyHandlersCommand); err != nil {
+		if m.running && m.blocker != nil && *m.blocker != nil {
+			(*m.blocker).Done()
+		}
+		m.running = false
+
+		return nil
+	}
+	if err := m.ensureTopologyClient(); err != nil {
 		return err
 	}
-	if err := m.handlers.Close(); err != nil {
-		return fmt.Errorf("proxyHandlersClient.Close: %w", err)
-	}
-	m.handlers = nil
-	if m.topology != nil {
-		if err := m.topology.Close(); err != nil {
-			return fmt.Errorf("topologyClient.Close: %w", err)
-		}
-		m.topology = nil
-	}
+	return m.topology.StopService(serviceName)
+}
 
-	if m.running && m.blocker != nil && *m.blocker != nil {
-		(*m.blocker).Done()
+func (m *ProxyManager) inprocServiceRecord(serviceName string) (topologyConfig.Service, bool, error) {
+	if err := m.ensureTopologyClient(); err != nil {
+		return topologyConfig.Service{}, false, err
 	}
-	m.running = false
+	record, err := m.topology.Service(serviceName)
+	if err != nil {
+		return topologyConfig.Service{}, false, nil
+	}
+	if !record.IsInproc() {
+		return topologyConfig.Service{}, false, nil
+	}
+	return record, true, nil
+}
 
-	return nil
+func (m *ProxyManager) startInprocServiceIfNeeded(serviceName string) (string, bool, error) {
+	record, ok, err := m.inprocServiceRecord(serviceName)
+	if err != nil || !ok {
+		return "", false, err
+	}
+	endpoint, handlerType, err := inprocTopologyExtensionEndpoint(m.topology)
+	if err != nil {
+		return "", true, err
+	}
+	id, err := startInprocService(endpoint, handlerType, record.Name)
+	return id, true, err
 }
 
 // Close closes the manager, and service as well.

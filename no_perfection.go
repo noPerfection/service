@@ -18,7 +18,7 @@ type (
 	// ReplyInterface is the reply returned from route handlers.
 	ReplyInterface = message.ReplyInterface
 	// HandlerType is the client handler protocol to connect to.
-	HandlerType        = client.HandlerType
+	HandlerType        = topologyConfig.HandlerType
 	Handler            = topologyConfig.Handler
 	IndependentHandler = topologyConfig.IndependentHandler
 	ProxyHandler       = topologyConfig.ProxyHandler
@@ -27,6 +27,22 @@ type (
 	Dependency         = topologyConfig.DepService
 	ProxyRequest       = handlers.ProxyRequest
 	ProxyReply         = handlers.ProxyReply
+)
+
+// Service can be Proxy, Independent, or Extension.
+type Service interface {
+	isService()
+	AsIndependent() (*Independent, bool)
+	AsProxy() (*Proxy, bool)
+	AsExtension() (*Extension, bool)
+	Start() error
+	Stop() error
+}
+
+var (
+	_ Service = (*Independent)(nil)
+	_ Service = (*Proxy)(nil)
+	_ Service = (*Extension)(nil)
 )
 
 const (
@@ -56,7 +72,7 @@ var KeyValue = datatype.New
 func Client(params ...any) (*client.Socket, error) {
 	id := handlers.DefaultHandlerEndpoint.Id
 	port := handlers.DefaultHandlerEndpoint.Port
-	handlerType := client.ReplierType
+	handlerType := ReplierType
 
 	for _, param := range params {
 		switch value := param.(type) {
@@ -78,7 +94,7 @@ func Client(params ...any) (*client.Socket, error) {
 		}
 	}
 
-	return client.New(id, port, handlerType)
+	return client.New(id, port, client.HandlerType(handlerType))
 }
 
 // RequestMsg builds a client request. parameters are optional.
@@ -88,14 +104,15 @@ func RequestMsg(cmd string, parameters ...any) RequestInterface {
 	var kv datatype.KeyValue
 	if len(parameters) == 0 || parameters[0] == nil {
 		kv = datatype.New()
-	}
-	switch params := parameters[0].(type) {
-	case datatype.KeyValue:
-		kv = params
-	default:
-		kv, err = datatype.NewFromInterface(params)
-		if err != nil {
-			return nil
+	} else {
+		switch params := parameters[0].(type) {
+		case datatype.KeyValue:
+			kv = params
+		default:
+			kv, err = datatype.NewFromInterface(params)
+			if err != nil {
+				return nil
+			}
 		}
 	}
 	return &message.Request{

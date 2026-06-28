@@ -49,8 +49,7 @@ func TestValidateInprocServiceManagers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			inprocServices := 0
-			err := (&Independent{}).validateInprocServiceManagersFor(tt.service, &inprocServices)
+			err := tt.service.ValidateInprocServiceManager()
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return
@@ -59,6 +58,66 @@ func TestValidateInprocServiceManagers(t *testing.T) {
 			require.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
+}
+
+func TestInprocessDepNumberIncludesManagerHandlerDep(t *testing.T) {
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetServiceConfig(inprocManagerIndependentService(
+		"custom-service",
+		message.NewEndpoint("main", 0),
+		message.NewEndpoint("custom-service_manager", 0),
+	)))
+	require.NoError(t, independent.addHardcodedServicesToTopology())
+	require.NoError(t, independent.topologyHandler.AddService(defaultAiExtensionServiceConfig()))
+	require.NoError(t, independent.SetHandlerDeps(topologyConfig.DepService{
+		Name:       topology.ServiceManagerCategory,
+		Extensions: []string{aiExtensionServiceLink()},
+	}))
+	require.NoError(t, independent.addHardcodedHandlerDepsToTopology())
+
+	inprocServices, err := independent.topologyHandler.InprocessDepNumber("custom-service")
+	require.NoError(t, err)
+	require.Equal(t, 1, inprocServices, "ai manager handler-dep is counted")
+}
+
+func TestInprocessDepNumberSkipsNonInprocManagerHandlerDep(t *testing.T) {
+	independent, err := New("custom-service", testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetServiceConfig(inprocManagerIndependentService(
+		"custom-service",
+		message.NewEndpoint("main", 0),
+		message.NewEndpoint("custom-service_manager", 0),
+	)))
+	require.NoError(t, independent.addHardcodedServicesToTopology())
+
+	remoteAI := defaultAiExtensionServiceConfig()
+	remoteAI.Handlers = []topologyConfig.Handler{
+		topologyConfig.IndependentHandler{
+			Type:     topologyConfig.SyncReplierType,
+			Category: topology.ServiceManagerCategory,
+			Endpoint: message.NewEndpoint("localhost", 9001),
+		},
+		topologyConfig.ExtensionHandler{
+			IndependentHandler: topologyConfig.IndependentHandler{
+				Type:     topologyConfig.ReplierType,
+				Category: "main",
+				Endpoint: message.NewEndpoint("localhost", 8001),
+			},
+		},
+	}
+	require.NoError(t, independent.topologyHandler.AddService(remoteAI))
+	require.False(t, remoteAI.IsInproc())
+
+	require.NoError(t, independent.SetHandlerDeps(topologyConfig.DepService{
+		Name:       topology.ServiceManagerCategory,
+		Extensions: []string{aiExtensionServiceLink()},
+	}))
+	require.NoError(t, independent.addHardcodedHandlerDepsToTopology())
+
+	inprocServices, err := independent.topologyHandler.InprocessDepNumber("custom-service")
+	require.NoError(t, err)
+	require.Equal(t, 0, inprocServices)
 }
 
 func inprocManagerProxyService(name string, handlerEndpoint message.Endpoint, inprocHandlers []string, managerEndpoint message.Endpoint) topologyConfig.Service {

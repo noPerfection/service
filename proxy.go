@@ -23,6 +23,24 @@ type Proxy struct {
 	manager         *manager.ProxyManager // manage this proxy from other parts
 }
 
+// Follows pkg:golang/github.com/noPerfection/service?object=Service&root=no_perfection.go
+func (proxy *Proxy) isService() {}
+
+func (proxy *Proxy) AsIndependent() (*Independent, bool) {
+	return nil, false
+}
+
+func (proxy *Proxy) AsProxy() (*Proxy, bool) {
+	if proxy == nil {
+		return nil, false
+	}
+	return proxy, true
+}
+
+func (proxy *Proxy) AsExtension() (*Extension, bool) {
+	return nil, false
+}
+
 // NewProxy returns a new proxy service.
 // Optional parameters are topology config path and manager endpoint.
 func NewProxy(name string, params ...interface{}) (*Proxy, error) {

@@ -16,6 +16,7 @@ require (
 	github.com/ahmetson/mushroom v0.0.0 // indirect
 	github.com/anthropics/anthropic-sdk-go v1.26.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
+	github.com/cakturk/go-netstat v0.0.0-20200220111822-e5b49efee7a5 // indirect
 	github.com/charmbracelet/lipgloss v0.8.0 // indirect
 	github.com/charmbracelet/log v0.2.4 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
@@ -32,6 +33,7 @@ require (
 	github.com/noPerfection/log v0.0.0 // indirect
 	github.com/noPerfection/topology v0.0.0-20260618053405-c0164a6cc6e0 // indirect
 	github.com/pebbe/zmq4 v1.2.10 // indirect
+	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
