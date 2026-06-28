@@ -533,7 +533,8 @@ func setHandlerCommandDep(handler config.Handler, dep config.DepService) config.
 func setDepService(deps []config.DepService, dep config.DepService) []config.DepService {
 	for i := range deps {
 		if deps[i].Name == dep.Name {
-			deps[i] = dep
+			deps[i].Proxies = mergeDepLinks(deps[i].Proxies, dep.Proxies)
+			deps[i].Extensions = mergeDepLinks(deps[i].Extensions, dep.Extensions)
 			return deps
 		}
 	}
@@ -541,21 +542,15 @@ func setDepService(deps []config.DepService, dep config.DepService) []config.Dep
 	return append(deps, dep)
 }
 
-// Adds the dependency extensions to deps if extenslink is not provided
-func appendHandlerExtensionDep(deps []config.DepService, handlerCategory, extensionLink string) []config.DepService {
-	for i, dep := range deps {
-		if dep.Name != handlerCategory {
-			continue
-		}
-		if slices.Contains(dep.Extensions, extensionLink) {
-			return deps
-		}
-		deps[i].Extensions = append(dep.Extensions, extensionLink)
-		return deps
+func mergeDepLinks(existing, incoming []string) []string {
+	if len(incoming) == 0 {
+		return existing
 	}
-
-	return append(deps, config.DepService{
-		Name:       handlerCategory,
-		Extensions: []string{extensionLink},
-	})
+	merged := append([]string(nil), existing...)
+	for _, link := range incoming {
+		if !slices.Contains(merged, link) {
+			merged = append(merged, link)
+		}
+	}
+	return merged
 }
