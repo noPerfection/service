@@ -426,6 +426,7 @@ func (independent *Independent) Start() error {
 		goto errOccurred
 	}
 	if inprocServices > 0 {
+		fmt.Println("setupInproc() for independent service amount: ", inprocServices)
 		if err = independent.setupInproc(); err != nil {
 			err = fmt.Errorf("setupInproc: %w", err)
 			goto errOccurred
@@ -474,6 +475,7 @@ func (independent *Independent) setupInproc() error {
 	}
 
 	needToImport := make([]config.Service, 0)
+	needToStart := make([]config.Service, 0)
 	services, err := independent.topology.Services()
 	if err != nil {
 		return fmt.Errorf("topology.Services: %w", err)
@@ -524,19 +526,14 @@ func (independent *Independent) setupInproc() error {
 			}
 		}
 
-		running, err := ProbeInprocServiceRunning(service)
-		if err != nil {
-			return fmt.Errorf("probe inproc service %q: %w", service.Name, err)
-		}
-		if !running {
-			if importErr := IsInprocIncludedInMain(serviceConfig.ModuleUrl, pkgInfo); importErr != nil {
-				if errors.Is(importErr, ErrNotImported) {
-					needToImport = append(needToImport, service)
-				} else {
-					return fmt.Errorf("IsInprocIncludedInMain(%q): %w", service.Name, importErr)
-				}
+		if importErr := IsInprocIncludedInMain(serviceConfig.ModuleUrl, pkgInfo); importErr != nil {
+			if errors.Is(importErr, ErrNotImported) {
+				needToImport = append(needToImport, service)
+				continue
 			}
+			return fmt.Errorf("IsInprocIncludedInMain(%q): %w", service.Name, importErr)
 		}
+		needToStart = append(needToStart, service)
 	}
 	if len(needToImport) > 0 {
 		if err := UpdateInprocTopology(serviceConfig.ModuleUrl, needToImport); err != nil {
@@ -576,6 +573,18 @@ func (independent *Independent) setupInproc() error {
 	case !mainEdited && len(needToImport) > 0:
 		return fmt.Errorf("imported inproc services into %s / %s; please re-run the code", serviceConfig.ModuleUrl, inprocTopologyFilename)
 	default:
+		for _, service := range needToStart {
+			if _, err := independent.manager.StartService(service.Name); err != nil {
+				return fmt.Errorf("manager.StartService(%q): %w", service.Name, err)
+			}
+			running, err := ProbeInprocServiceRunning(service)
+			if err != nil {
+				return fmt.Errorf("probe inproc service %q: %w", service.Name, err)
+			}
+			if !running {
+				return fmt.Errorf("inproc service %q is not running", service.Name)
+			}
+		}
 		return nil
 	}
 }
@@ -621,8 +630,11 @@ func (independent *Independent) addInprocTopologyExtension(serviceConfig *config
 			continue
 		}
 		for _, extension := range dep.Extensions {
-			svc, err := independent.topology.Service(extension)
-			if err == nil && svc.Name == InprocTopologyServiceName {
+			svc, err := independent.topology.Service(dereferenceMushroomURL(extension))
+			if err != nil {
+				return fmt.Errorf("topology.Service(%q): %w", extension, err)
+			}
+			if svc.Name == InprocTopologyServiceName {
 				return nil
 			}
 		}

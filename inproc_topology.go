@@ -124,24 +124,12 @@ func (t *InprocTopologyService) SetService(mushroomURL string, svc Service) erro
 	return nil
 }
 
-// Start starts the inproc topology extension and all registered inproc services.
+// Start starts the inproc topology extension.
 func (t *InprocTopologyService) Start() error {
 	if t == nil {
 		return fmt.Errorf("inproc topology is nil")
 	}
-	if err := t.Extension.Start(); err != nil {
-		return err
-	}
-	var err error
-	for name := range t.services {
-		if name == InprocTopologyServiceName {
-			continue
-		}
-		if _, startErr := t.startService(name); startErr != nil && err == nil {
-			err = fmt.Errorf("start inproc service %q: %w", name, startErr)
-		}
-	}
-	return err
+	return t.Extension.Start()
 }
 
 func (t *InprocTopologyService) startService(name string) (string, error) {
