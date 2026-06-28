@@ -163,7 +163,7 @@ func (ai *AiService) ensureProvider() (model string, err error) {
 		return "", fmt.Errorf("ai service is nil")
 	}
 
-	serviceConfig, err := ai.topologyService(ai.mushroomURL)
+	serviceConfig, err := ai.topology().Service(ai.mushroomURL)
 	if err != nil {
 		return "", err
 	}
