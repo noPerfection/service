@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ahmetson/mushroom"
 	"github.com/stretchr/testify/require"
 )
 
@@ -77,6 +78,37 @@ func TestServiceNameToPackageName(t *testing.T) {
 	require.Equal(t, "hello_world", ServiceNameToPackageName("hello   world"))
 }
 
+func TestImportClause(t *testing.T) {
+	rootPkg := &PackageInfo{
+		mushroomHypha: mushroom.Hypha{
+			URL:       true,
+			Type:      "golang",
+			PackageID: "github.com/noPerfection/service",
+		},
+	}
+	require.Equal(t, "github.com/noPerfection/service", rootPkg.ImportClause())
+
+	subPkg := &PackageInfo{
+		mushroomHypha: mushroom.Hypha{
+			URL:       true,
+			Type:      "golang",
+			PackageID: "github.com/noPerfection/service/examples/009-inproc-services",
+			ModuleID:  "cmd/service",
+		},
+	}
+	require.Equal(t, "github.com/noPerfection/service/examples/009-inproc-services/cmd/service", subPkg.ImportClause())
+
+	servicesPkg := &PackageInfo{
+		mushroomHypha: mushroom.Hypha{
+			URL:       true,
+			Type:      "golang",
+			PackageID: "github.com/noPerfection/service/examples/009-inproc-services",
+			ModuleID:  "services/default_name_proxy",
+		},
+	}
+	require.Equal(t, "github.com/noPerfection/service/examples/009-inproc-services/services/default_name_proxy", servicesPkg.ImportClause())
+}
+
 func TestIsFileExistMissingFile(t *testing.T) {
 	goModDir, err := filepath.Abs(filepath.Join("..", "examples", "009-inproc-services"))
 	require.NoError(t, err)
@@ -88,4 +120,51 @@ func TestIsFileExistMissingFile(t *testing.T) {
 	_, err = IsFileExist(mushroomURL, "inproc_topology.go")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "doesn't exist")
+}
+
+func TestNewResolvesThirdPartyModuleWithReplace(t *testing.T) {
+	goModDir, err := filepath.Abs(filepath.Join("..", "examples", "009-inproc-services"))
+	require.NoError(t, err)
+
+	mushroomURL := fmt.Sprintf("pkg:golang/github.com/noPerfection/service?root=%s", goModDir)
+	info, err := New(mushroomURL)
+	require.NoError(t, err)
+
+	require.True(t, info.IsThirdParty())
+	require.True(t, info.IsEditable())
+	require.Equal(t, "true", info.mushroomHypha.AdditionalProps[thirdPartyProp])
+	require.Contains(t, info.String(), "thirdparty=true")
+	require.NotEmpty(t, info.SourceFiles())
+	require.Equal(t, "github.com/noPerfection/service", info.pkg)
+}
+
+func TestNewThirdPartyWithoutReplaceIsNotEditable(t *testing.T) {
+	goMod := []byte(`module example.com/app
+
+go 1.25
+
+require github.com/noPerfection/service v0.0.0
+`)
+	require.Empty(t, parseReplaces(goMod, t.TempDir())["github.com/noPerfection/service"])
+
+	required, ok := findRequiredModule("github.com/noPerfection/service", parseRequires(goMod))
+	require.True(t, ok)
+	require.Equal(t, "github.com/noPerfection/service", required)
+}
+
+func TestEnsureEditableThirdPartyWithoutReplace(t *testing.T) {
+	hypha := mushroom.Hypha{
+		URL:       true,
+		Type:      "golang",
+		PackageID: "github.com/noPerfection/service",
+		AdditionalProps: map[string]string{
+			thirdPartyProp: "true",
+		},
+	}
+	info := newThirdPartyInfo(hypha, t.TempDir(), "github.com/noPerfection/service", "github.com/noPerfection/service")
+
+	require.False(t, info.IsEditable())
+	err := info.EnsureEditable()
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrThirdPartyNotEditable)
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/handler/worker"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 	"github.com/stretchr/testify/require"
@@ -440,4 +441,140 @@ func TestServiceNameValidation(t *testing.T) {
 	require.EqualError(t, err, "topology is nil")
 
 	require.EqualError(t, manager.StopService("other-service"), "topology is nil")
+}
+
+type recordingInprocTopologyExtension struct {
+	started map[string]bool
+}
+
+func newRecordingInprocTopologyExtension() *recordingInprocTopologyExtension {
+	return &recordingInprocTopologyExtension{
+		started: make(map[string]bool),
+	}
+}
+
+func startRecordingInprocTopologyExtension(t *testing.T, endpoint message.Endpoint) *recordingInprocTopologyExtension {
+	t.Helper()
+
+	recorder := newRecordingInprocTopologyExtension()
+	handler := replier.New()
+	handler.SetConfig(HandlerConfig(endpoint))
+	require.NoError(t, handler.Route(StartService, func(req message.RequestInterface) message.ReplyInterface {
+		serviceName, err := req.RouteParameters().StringValue("service")
+		if err != nil {
+			return req.Fail(err.Error())
+		}
+		recorder.started[serviceName] = true
+		return req.Ok(datatype.New().Set("id", "1"))
+	}))
+	require.NoError(t, handler.Start())
+	t.Cleanup(func() {
+		_ = closeHandler(handler)
+		_ = closeHandler(handler.Control)
+	})
+	return recorder
+}
+
+type recordingServiceManager struct {
+	stopped map[string]bool
+	probe   map[string]bool
+}
+
+func startRecordingServiceManager(t *testing.T, endpoint message.Endpoint) *recordingServiceManager {
+	t.Helper()
+
+	recorder := &recordingServiceManager{
+		stopped: make(map[string]bool),
+		probe:   make(map[string]bool),
+	}
+	handler := sync_replier.New()
+	handler.SetConfig(HandlerConfig(endpoint))
+	require.NoError(t, handler.Route(IsServiceRunning, func(req message.RequestInterface) message.ReplyInterface {
+		serviceName, err := req.RouteParameters().StringValue("service")
+		if err != nil {
+			return req.Fail(err.Error())
+		}
+		return req.Ok(datatype.New().Set("running", recorder.probe[serviceName]))
+	}))
+	require.NoError(t, handler.Route(StopService, func(req message.RequestInterface) message.ReplyInterface {
+		serviceName, err := req.RouteParameters().StringValue("service")
+		if err != nil {
+			return req.Fail(err.Error())
+		}
+		recorder.stopped[serviceName] = true
+		recorder.probe[serviceName] = false
+		return req.Ok(datatype.New())
+	}))
+	require.NoError(t, handler.Start())
+	t.Cleanup(func() {
+		_ = closeHandler(handler)
+		_ = closeHandler(handler.Control)
+	})
+	return recorder
+}
+
+func TestManagerDelegatesInprocStartStop(t *testing.T) {
+	inprocTopologyExtension := message.NewEndpoint(testEndpointID(t, "inproc-topology-extension"), 0)
+	inprocRecorder := startRecordingInprocTopologyExtension(t, inprocTopologyExtension)
+	inprocTopologyManager := message.NewEndpoint(testEndpointID(t, "inproc-topology-manager"), 0)
+	inprocTopology := topologyConfig.Service{
+		Type:      topologyConfig.ExtensionType,
+		Name:      InprocTopologyServiceName,
+		ModuleUrl: "github.com/noPerfection/service/manager/test",
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.IndependentHandler{
+				Type:     topologyConfig.SyncReplierType,
+				Category: topology.ServiceManagerCategory,
+				Endpoint: inprocTopologyManager,
+			},
+			topologyConfig.ExtensionHandler{
+				IndependentHandler: topologyConfig.IndependentHandler{
+					Type:     topologyConfig.ReplierType,
+					Category: handlers.DefaultHandlerCategory,
+					Endpoint: inprocTopologyExtension,
+				},
+			},
+		},
+	}
+
+	hostManager := message.NewEndpoint(testEndpointID(t, "host-manager"), 0)
+	host := fakeServiceConfig("host", hostManager)
+
+	childManager := message.NewEndpoint(testEndpointID(t, "child-manager"), 0)
+	childRecorder := startRecordingServiceManager(t, childManager)
+	childRecorder.probe["child"] = true
+
+	child := topologyConfig.Service{
+		Type:      topologyConfig.ProxyType,
+		Name:      "child",
+		ModuleUrl: "github.com/noPerfection/service/manager/test",
+		Handlers: []topologyConfig.Handler{
+			topologyConfig.ProxyHandler{
+				IndependentHandler: topologyConfig.IndependentHandler{
+					Type:     topologyConfig.SyncReplierType,
+					Category: "main",
+					Endpoint: message.NewEndpoint(testEndpointID(t, "child"), 0),
+				},
+			},
+			topologyConfig.IndependentHandler{
+				Type:     topologyConfig.SyncReplierType,
+				Category: topology.ServiceManagerCategory,
+				Endpoint: childManager,
+			},
+		},
+	}
+	startTestRuntimeHandler(t, host, inprocTopology, child)
+
+	manager := newTestManager(t, host, hostManager)
+	id, err := manager.StartService("child")
+	require.NoError(t, err)
+	require.Equal(t, "1", id)
+	require.True(t, inprocRecorder.started["child"])
+
+	running, err := manager.IsServiceRunning("child")
+	require.NoError(t, err)
+	require.True(t, running)
+
+	require.NoError(t, manager.StopService("child"))
+	require.True(t, childRecorder.stopped["child"])
 }

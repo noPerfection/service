@@ -72,7 +72,24 @@ func (topologies *WithHardcodedTopology) SetServiceConfig(service config.Service
 	return nil
 }
 
-// SetServiceParams stores service parameters to merge into topology on start.
+// SetServiceParams stores service parameters to merge into topology on Start.
+//
+// mushroomURL identifies which topology service record receives the parameters.
+// It is the mushroom URL of that service — usually the service name passed to
+// New or NewExt (for example "hello-world"), or a topology link such as
+// "*pkg:$?var=services[name:ai]". When mushroomURL is omitted, the URL of the
+// receiver is used (the name given when the service was constructed).
+//
+// Example — parameters for the service you constructed:
+//
+//	s, _ := service.New()
+//	s.SetServiceParams(service.KeyValue().Set("key", "value"))
+//
+// Example — parameters for another service in the topology:
+//
+//	s.SetServiceParams(service.KeyValue().Set("api-key", "secret"), "ai")
+//
+// Repeated calls merge keys; a later value overrides an earlier one for the same key.
 func (topologies *WithHardcodedTopology) SetServiceParams(params datatype.KeyValue, mushroomURL ...string) error {
 	if topologies == nil {
 		return fmt.Errorf("hardcoded topologies is nil")

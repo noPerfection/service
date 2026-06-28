@@ -732,7 +732,7 @@ The common denominator across all of these is the package. Package is the shippa
 
 So let's see the progression using our hello world from tutorial 7: auto start the deps. Instead of IPC I want to make them inproc.
 
-All we need to do in `cmd/service/main.go` is change the configuration:
+We need to change endpoint parameters to the inproc way in our the `cmd/service/main.go`:
 
 ```go
 var defaultnameModuleURL = "pkg:golang/github.com/noPerfection/service/examples/007-autostart-deps#cmd/proxy/main?root=examples/007-autostart-deps"
@@ -753,6 +753,20 @@ app.SetServiceConfig(service.Config{
 ```
 
 All we did was two things. First we changed the endpoint by removing the `tmp/` prefix from the ids. Then we added a parameter called `ModuleURL`. Module URLs follow a MushroomURL format which is compatible with the package URL standard.
+
+But it won't work now, if we try to run, because it needs the inproc services to be running as well.
+Luckily we can do it automatically using ai. So to generate the code we also need to set the ai extension, add the following to our main() function before we start our service.
+
+```go
+ai, _ := service.NewAiService()
+// Set the ANTHROPIC_API_KEY in the .env or pass it as a command argument
+ai.Start()
+// We are setting ai extension to our service manager.
+app.SetHandlerDeps(service.DepService{
+	Name: service.ServiceManagerCategory,
+	Proxies: []string{service.AiServiceName},
+})
+```
 
 With inproc protocols, we need to build twice. Let's run our code: `go run ./cmd/service`. As you can see, it didn't run — instead it made code edits. Run it again and it works, listening on the endpoints.
 
@@ -822,9 +836,9 @@ By default, the service layer supports three mushroom types:
 
 | Type | Module | Role |
 |------|--------|------|
-| `pkg:golang` | [`github.com/noPerfection/service/package_url`](./package_url/) | Resolves Go module and package links (`module-url`, inproc services, `func=` factories). |
-| `pkg:json` | [`github.com/ahmetson/mushroom/substrates/json_substrate`](https://github.com/ahmetson/mushroom/tree/main/substrates/json_substrate) | Loads and mutates topology JSON (`noPerfection.json`). Always used as the root colony. |
-| `pkg:os` | [`github.com/noPerfection/os`](https://github.com/noPerfection/os) | Resolves environment links (for example `*pkg:os#env?var=ANTHROPIC_API_KEY&env=.env&envArg=true` in service parameters). |
+| `pkg:golang` | [github.com/noPerfection/service/package_url](./package_url/) | Resolves Go module and package links (`module-url`, inproc services, `func=` factories). |
+| `pkg:json` | [github.com/ahmetson/mushroom/substrates/json_substrate](https://github.com/ahmetson/mushroom/tree/main/substrates/json_substrate) | Loads and mutates topology JSON (`noPerfection.json`). Always used as the root colony. |
+| `pkg:os` | [github.com/noPerfection/os/substrate](https://github.com/noPerfection/os/tree/main/substrate) | Resolves environment links (for example `*pkg:os#env?var=ANTHROPIC_API_KEY&env=.env&envArg=true` in service parameters). Wired automatically via `ossubstrate.New()` in [`substrates.go`](./substrates.go). |
 
 ### Register your own substrate
 
@@ -845,6 +859,35 @@ func init() {
 `RegisterBuiltinSubstrate` appends to the built-in list used by every `newTopologyHandler` call. Topology receives the combined list; it never imports your substrate package directly.
 
 Dereference links (`*pkg:…`) inside topology data are fruitized when services are read (for example during `config.Load` validation). Register substrates **before** `service.New` so those links can resolve.
+
+### Built-in AI extension (`ai`)
+
+`Independent.Start()` registers the built-in `ai` extension under the service manager when it is missing from topology. The factory is `NewAiService(configPath ...string)` — only the topology JSON path is passed in; the service record is read from topology.
+
+Service **parameters**:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `api-key` | `*pkg:os/env?var=ANTHROPIC_API_KEY` | Anthropic API key. Stored as a dereference link; mushroom embeds the resolved value when the service is read from topology. |
+| `model` | `claude-haiku-4-5-20251001` | Anthropic model id (see `mozilla-ai/any-llm-go/providers/anthropic`). |
+
+`AiService` reads these parameters from topology whenever it needs them (for example on `CheckConnection` or completion calls), so `SetServiceParams` changes take effect without reconstructing the extension.
+
+```go
+env.LoadAnyEnv() // or env.LoadAnyEnv(".env")
+
+app.SetServiceParams(datatype.New().
+    Set("api-key", "*pkg:os/env?var=ANTHROPIC_API_KEY&env=.env"),
+    service.AiServiceName,
+)
+```
+
+Or construct the extension directly (uses `DefaultConfigPath` when the path is omitted):
+
+```go
+ai, err := service.NewAiService()
+// ai, err := service.NewAiService("noPerfection.json")
+```
 
 ## Contents
 
