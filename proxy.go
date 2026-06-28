@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/protocol/message"
@@ -18,6 +19,7 @@ type Proxy struct {
 	*handlers.ProxyHandlers
 	*WithHardcodedTopology
 	topologyHandler *topology.Handler // topology handles the configuration and dependencies
+	topologyClient  *topology.Client
 	name            string
 	blocker         *sync.WaitGroup
 	manager         *manager.ProxyManager // manage this proxy from other parts
@@ -39,6 +41,16 @@ func (proxy *Proxy) AsProxy() (*Proxy, bool) {
 
 func (proxy *Proxy) AsExtension() (*Extension, bool) {
 	return nil, false
+}
+
+func (proxy *Proxy) topology() topology.TopologyInterface {
+	if proxy == nil {
+		return nil
+	}
+	if proxy.topologyClient != nil {
+		return proxy.topologyClient
+	}
+	return proxy.topologyHandler
 }
 
 // NewProxy returns a new proxy service.
@@ -138,7 +150,8 @@ func (proxy *Proxy) Type() config.Type {
 }
 
 func (proxy *Proxy) addDefaultServiceToTopology() error {
-	serviceConfig, err := proxy.topologyHandler.Service(proxy.name)
+	tp := proxy.topology()
+	serviceConfig, err := tp.Service(proxy.name)
 	if err == nil {
 		return nil
 	}
@@ -156,8 +169,8 @@ func (proxy *Proxy) addDefaultServiceToTopology() error {
 		serviceConfig.ModuleUrl = moduleURL
 	}
 
-	if err := proxy.topologyHandler.AddService(serviceConfig); err != nil {
-		return fmt.Errorf("topologyHandler.AddService('%s'): %w", proxy.name, err)
+	if err := tp.AddService(serviceConfig); err != nil {
+		return fmt.Errorf("topology.AddService('%s'): %w", proxy.name, err)
 	}
 
 	return nil
@@ -173,6 +186,10 @@ func (proxy *Proxy) addServiceManagerToTopology() error {
 func (proxy *Proxy) Start() error {
 	var err error
 
+	if err = proxy.connectTopologyClientIfRunning(); err != nil {
+		err = fmt.Errorf("connectTopologyClientIfRunning: %w", err)
+		goto errOccurred
+	}
 	if err = proxy.addDefaultServiceToTopology(); err != nil {
 		err = fmt.Errorf("addDefaultServiceToTopology: %w", err)
 		goto errOccurred
@@ -212,7 +229,31 @@ errOccurred:
 	return err
 }
 
+func (proxy *Proxy) connectTopologyClientIfRunning() error {
+	if proxy == nil || proxy.topologyClient != nil {
+		return nil
+	}
+	client, err := topology.NewClient()
+	if err != nil {
+		return fmt.Errorf("topology.NewClient: %w", err)
+	}
+	client.Timeout(50 * time.Millisecond)
+	client.Attempt(1)
+	running, err := client.IsRunning()
+	if err != nil || !running {
+		_ = client.Close()
+		return nil
+	}
+	client.Attempt(2)
+	proxy.topologyClient = client
+	return nil
+}
+
 func (proxy *Proxy) Stop() error {
+	if proxy.topologyClient != nil {
+		_ = proxy.topologyClient.Close()
+		proxy.topologyClient = nil
+	}
 	if proxy.manager == nil {
 		return proxy.ProxyHandlers.Close()
 	}
