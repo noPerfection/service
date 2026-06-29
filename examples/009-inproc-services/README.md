@@ -12,13 +12,13 @@ automatically. Only one terminal is needed for the service.
 Start the service:
 
 ```bash
-go run ./cmd/service
+GOWORK=off go run ./cmd/service
 ```
 
 Call `hello` through the entrypoint:
 
 ```bash
-go run ./cmd/client
+GOWORK=off go run ./cmd/client
 ```
 
 Expected output:
@@ -30,7 +30,7 @@ hello Medet Ahmetson
 Call `age-verification` through the same entrypoint:
 
 ```bash
-go run ./cmd/client --age=21
+GOWORK=off go run ./cmd/client --age=21
 ```
 
 Expected output:
@@ -42,19 +42,19 @@ true
 List configured services and running state through the service manager:
 
 ```bash
-go run ./cmd/client --services
+GOWORK=off go run ./cmd/client --services
 ```
 
 Check, start, or stop a dependency service:
 
 ```bash
-go run ./cmd/client --status=default-name-proxy
-go run ./cmd/client --stop=entrypoint
-go run ./cmd/client --start=entrypoint
+GOWORK=off go run ./cmd/client --status=default-name-proxy
+GOWORK=off go run ./cmd/client --stop=entrypoint
+GOWORK=off go run ./cmd/client --start=entrypoint
 ```
 
 Show all client flags:
 
 ```bash
-go run ./cmd/client --help
+GOWORK=off go run ./cmd/client --help
 ```
