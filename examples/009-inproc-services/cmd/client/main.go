@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	entrypointEndpoint = "tmp/entrypoint_proxy"
-	serviceManagerPort = 8001
+	entrypointEndpoint = "tmp/entrypoint"
 )
 
 func main() {
@@ -57,7 +56,7 @@ func printHelp() {
 }
 
 func newManagerClient() (*managerClient.Client, error) {
-	client, err := managerClient.NewClient("localhost", serviceManagerPort)
+	client, err := managerClient.NewClient("manager", 0)
 	if err != nil {
 		return nil, err
 	}

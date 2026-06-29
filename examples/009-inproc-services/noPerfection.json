@@ -30,7 +30,7 @@
         {
           "category": "main",
           "endpoint": {
-            "id": "entrypoint",
+            "id": "tmp/entrypoint",
             "port": 0
           },
           "forward": {
@@ -49,6 +49,11 @@
       ],
       "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/entrypoint?root=/home/medet/noPerfection/service/examples/009-inproc-services",
       "name": "entrypoint",
+      "parameters": {
+        "inproc-handlers": [
+          "main"
+        ]
+      },
       "start-command": "./bin/entrypoint",
       "type": "Proxy"
     },

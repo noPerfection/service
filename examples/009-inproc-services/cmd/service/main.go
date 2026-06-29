@@ -10,6 +10,7 @@ const (
 	serviceName         = "hello-world"
 	defaultProxyName    = "default-name-proxy"
 	entrypointName      = "entrypoint"
+	entrypointUrl       = "tmp/entrypoint"
 	proxyModuleUrl      = "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/proxy?root=/home/medet/noPerfection/service/examples/009-inproc-services"
 	entrypointModuleUrl = "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/entrypoint?root=/home/medet/noPerfection/service/examples/009-inproc-services"
 )
@@ -65,11 +66,15 @@ func main() {
 				IndependentHandler: service.IndependentHandler{
 					Type:     service.SyncReplierType,
 					Category: "main",
-					Endpoint: service.Endpoint(entrypointName, 0),
+					Endpoint: service.Endpoint(entrypointUrl, 0),
 				},
 				Routes: []string{service.AnyCmd},
 			},
 		},
+		Parameters: service.KeyValue().Set(
+			"inproc-handlers",
+			[]string{"main"},
+		),
 	}, "*pkg:$?var=services[name:"+entrypointName+"]"); err != nil {
 		panic(err)
 	}

@@ -732,19 +732,22 @@ The common denominator across all of these is the package. Package is the shippa
 
 So let's see the progression using our hello world from tutorial 7: auto start the deps. Instead of IPC I want to make them inproc.
 
-We need to change endpoint parameters to the inproc way in our the `cmd/service/main.go`:
+We need to change endpoint parameters to the inproc protocol in the `cmd/service/main.go`.
+Let's add the following then:
 
 ```go
-var defaultnameModuleURL = "pkg:golang/github.com/noPerfection/service/examples/007-autostart-deps#cmd/proxy/main?root=examples/007-autostart-deps"
-var defaultnameEndpoint = service.Endpoint("default_name_proxy", 0)
+var defaultnameModuleURL := "pkg:golang/github.com/noPerfection/service/examples/007-autostart-deps#cmd/proxy/main?root=examples/007-autostart-deps"
+// Change tmp/default_name_proxy to default_name_proxy
+var defaultnameEndpoint := service.Endpoint("default_name_proxy", 0)
 app.SetServiceConfig(service.Config{
 	Name:      "default-name-proxy",
 	ModuleURL: defaultnameModuleURL,
 	// other config
 })
 
-var entrypointModuleURL = "pkg:golang/github.com/noPerfection/service/examples/007-autostart-deps#cmd/entrypoint/main?root=examples/007-autostart-deps"
-var entrypointEndpoint = service.Endpoint("entrypoint_proxy", 0)
+var entrypointModuleURL := "pkg:golang/github.com/noPerfection/service/examples/007-autostart-deps#cmd/entrypoint/main?root=examples/007-autostart-deps"
+// Change tmp/entrypoint to entrypoint
+var entrypointEndpoint := service.Endpoint("entrypoint", 0)
 app.SetServiceConfig(service.Config{
 	Name:      "entrypoint",
 	ModuleURL: entrypointModuleURL,
@@ -752,59 +755,51 @@ app.SetServiceConfig(service.Config{
 })
 ```
 
-All we did was two things. First we changed the endpoint by removing the `tmp/` prefix from the ids. Then we added a parameter called `ModuleURL`. Module URLs follow a MushroomURL format which is compatible with the package URL standard.
-
-But it won't work now, if we try to run, because it needs the inproc services to be running as well.
-Luckily we can do it automatically using ai. So to generate the code we also need to set the ai extension, add the following to our main() function before we start our service.
+But just changing the configuration is not enough. Because our proxy and entrypoint packages are standalone apps with it's own main function. So we need to transform main packages to library. Luckily `noPerfection` can detect the package type, and if it's main package can create it's library mode in the `services/<package name>/service.go`. For that it needs to have `ai` extension which is avialble from noPerfection:
 
 ```go
 ai, _ := service.NewAiService()
 // Set the ANTHROPIC_API_KEY in the .env or pass it as a command argument
 ai.Start()
+
 // We are setting ai extension to our service manager.
 app.SetHandlerDeps(service.DepService{
 	Name: service.ServiceManagerCategory,
-	Proxies: []string{service.AiServiceName},
+	Extensions: []string{service.AiServiceName},
 })
 ```
 
-With inproc protocols, we need to build twice. Let's run our code: `go run ./cmd/service`. As you can see, it didn't run — instead it made code edits. Run it again and it works, listening on the endpoints.
+Let's run now: `go run ./cmd/service`. It panicked. Run it again and it works. In the first run, the app called the ai to generate the module. Then, it generated the `inproc_topology.go` script to import our services. And finally it added them. On top of that it also changed our hardcoded module paths to a right destination. This
 
-In the first run it created `inproc_topology.go` in the main package. That file defines an extension with all inproc services. It also changed `main.go` to add the extension as belonging to the service manager. The service manager's proxies and extensions run first on startup.
-
-It also updated `go.mod` to include the path to our repository. But if you look at the proxy code, it is defined as `main`. So the first run also extracted the proxy code out of their `main` packages and stored the library versions in `examples/007-autostart-deps/services/entrypoint/service`. Finally it updated the `ModuleURL` in the source to point to the new location.
-
-### Tutorial 10: Inproc Handlers Parameter
-
-Sometimes a proxy handler exposes a TCP or IPC endpoint, but the current process
-owns that handler as part of an embedded, single-process topology. In that case
-the handler should be treated as in-process for protocol-order validation, even
-though its endpoint is remote-capable.
-
-Mark those handler categories in the service parameters:
-
-```json
-{
-  "type": "Proxy",
-  "name": "entrypoint",
-  "parameters": {
-    "inproc-handlers": ["main"]
-  }
-}
+```go
+var entrypointModuleURL := "pkg:golang/github.com/noPerfection/service/examples/007-autostart-deps#cmd/entrypoint"
 ```
 
-`inproc-handlers` does not change the socket endpoint. It only tells the service
-startup validation that the listed handler categories are owned by the current
-process. This lets an embedded entrypoint bind TCP or IPC while still forwarding
-to hidden inproc command proxies and services.
+turned into this:
 
-This parameter is only valid on `Proxy` and `Extension` services. `Independent`
-services reject it because they are the top-level service boundary, not an
-embedded proxy or extension handler.
+```go
+var entrypointModuleURL := "pkg:golang/github.com/noPerfection/service/examples/007-autostart-deps#services/entrypoint"
+```
 
-Without this parameter, a TCP or IPC proxy handler can not forward into an
-inproc handler because inproc endpoints are process-local. With the parameter,
-the listed handler is treated as inproc for that validation path.
+### Tutorial 10: Service parameters: `inproc-handlers`
+
+But its not tested yet, and it won't be. Since our entry point is inproc, only code itself can call it. We want our client to be calling it. How we do it? We can turn our entry point back to IPC protocol but treat it as inproc so its bundled as another thread. Our service configuration supports additional parameter to tell noPerfection treat it the handlers as inproc:
+
+```go
+var entrypointEndpoint := service.Endpoint("tmp/entrypoint")
+app.SetServiceConfig(service.Config{
+	Name:      "entrypoint",
+	ModuleURL: entrypointModuleURL,
+	Parameters: service.KeyValue().Set(
+		"inproc-handlers", 
+		[]string{"main"},
+	)
+	// other config
+})
+
+We even don't have to change our client to send greetings, since our entry point already runs on IPC protocol.
+
+Launch our service, and then launch our client and it should work. As a matter of exercise try to make the service manager to work on client too.
 
 See [examples/010-inproc-handlers](./examples/010-inproc-handlers) for the full
 example note.
