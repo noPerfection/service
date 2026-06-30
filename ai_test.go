@@ -35,7 +35,10 @@ func TestAiParametersFromConfigReadsEmbeddedAPIKey(t *testing.T) {
 }
 
 func TestNewAiServiceReadsParametersFromTopology(t *testing.T) {
-	configPath := testConfigPath(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	configPath := DefaultConfigPath
 	handler, err := newTopologyHandler(configPath)
 	require.NoError(t, err)
 
@@ -45,8 +48,9 @@ func TestNewAiServiceReadsParametersFromTopology(t *testing.T) {
 		Set(aiModelParameter, "claude-test")
 	require.NoError(t, handler.AddService(serviceConfig))
 
-	ai, err := NewAiService(configPath)
+	ai, err := NewAiService()
 	require.NoError(t, err)
+	require.NoError(t, ai.ensureTopologyHandler())
 	require.NotNil(t, ai)
 	model, err := ai.ensureProvider()
 	require.NoError(t, err)

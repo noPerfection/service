@@ -77,7 +77,7 @@ See [examples/000-hello-world](./examples/000-hello-world) source code.
 
 The hello-world example didn't showcase the differentiator about `noPerfection` framework. One of the differentiators is that the service has a built-in handler to manage the service itself remotely or by a code.
 
-By default it's internal accessible by the same process. But we can change its endpoint to expose to the computer or even for a remote control. To do that, we pass the three parameters to our service:
+By default it's internal accessible by the same process. But we can change its endpoint to expose to the computer or even for a remote control. Pass the service name to `New`, optionally set the topology file with `SetTopologyParams`, then set the manager endpoint with `SetEndpoint`:
 
 ```go
 package main
@@ -87,9 +87,13 @@ import (
 )
 
 func main() {
-	// Add the endpoint exposing on port 8001
-	controlEndpoint := service.Endpoint("localhost", 8001)
-        app, _ := service.New("my-service-name", "noPerfection.json", managerEndpoint)
+	app, _ := service.New("my-service-name")
+
+	// Optional: use a custom topology JSON path (default is noPerfection.json at Start).
+	_ = app.SetTopologyParams(map[string]any{"filepath": "noPerfection.json"})
+
+	// Expose the manager on localhost:8001.
+	app.SetEndpoint(service.Endpoint("localhost", 8001), service.ServiceManagerCategory)
 
 	app.Route("hello", onHello)
 
@@ -104,7 +108,7 @@ func onHello(req service.RequestInterface) service.ReplyInterface {
 }
 ```
 
-The *"my-service-name"* is a service name to identify it in the topology configuration. The *"noPerfection.json"* is the topology configurations storage path. And last parameter is the handler endpoint.
+The *"my-service-name"* is a service name to identify it in the topology configuration. Topology storage defaults to *"noPerfection.json"* when you call `Start()` without `SetTopologyParams`. `SetEndpoint` stores the manager socket under the `manager` handler category.
 
 I'll change the client, to manage our service: I'll use `github.com/noPerfection/os/arg` package to add `--close` flag.
 If I pass `--close` flag to the as an argument, then client will talk to its manager asking to close itself. Otherwise it works as in the hello world example.
@@ -212,9 +216,21 @@ func onHello(req service.RequestInterface) service.ReplyInterface {
 
 Besides, you can change the handler to act in a different way. As a `service.PublisherType`, as a `service.WorkerType`, as a `service.PairType`. Check out the full documentation how they work. 
 
+When you only need to change a handler socket, use `SetEndpoint` instead of replacing the whole handler config:
+
+```go
+app.SetEndpoint(service.Endpoint("localhost", 3000), "main")
+```
+
+For the service manager:
+
+```go
+app.SetEndpoint(service.Endpoint("localhost", 8001), service.ServiceManagerCategory)
+```
+
 SyncReplier means our handler queues the messages and handles them one at a time. It's useful for example if you want to work with the files, or database connections.
 
-If you call `SetHandlerConfig()` after `Start()` it will not have any effect, so call all service configurations before starting it.
+If you call `SetHandlerConfig()` or `SetEndpoint()` after `Start()` it will not have any effect, so call all service configurations before starting it.
 
 Because the handler type changed, the client should connect as a sync replier:
 
@@ -236,7 +252,7 @@ app.SetServiceConfig(service.Config{
 })
 ```
 
-The `SetHandlerConfig()` and `SetServiceConfig()` are hardcoded configurations. Even if you edit the topology's `.json` file, the hardcoded configurations will be applied every time when you restart the service.
+The `SetHandlerConfig()`, `SetServiceConfig()`, and `SetEndpoint()` calls are hardcoded configurations. Even if you edit the topology's `.json` file, the hardcoded configurations will be applied every time when you restart the service.
 
 I recommend to use hardcoded configurations minimally, instead edit the topology configuration to have dynamic parameters and then using the manager restart the app.
 
@@ -279,13 +295,12 @@ import (
 )
 
 const (
-	configPath    = "noPerfection.json"
 	serviceName   = "hello-world"
 	proxyName     = "default-name-proxy"
 )
 
 func main() {
-	app, _ := service.New(serviceName, configPath)
+	app, _ := service.New(serviceName)
 
 	// Tell to our topology about proxy service and where its endpoint to connect too.
 	app.Route("hello", onHello)
@@ -335,7 +350,7 @@ import (
 )
 
 func main() {
-	app, err := service.NewProxy("default-name-proxy", "noPerfection.json")
+	app, err := service.NewProxy("default-name-proxy")
 	if err != nil {
 		panic(err)
 	}
@@ -817,16 +832,14 @@ Our default names are inproc and bundled to the service.
 
 To make it, we change the entrypoint, by simply removing the `*pkg:golang/github.com/noPerfection/service/009-inproc-services#cmd/service/main.go?obj=app.SetServiceConfig[name:entrypoint].parameters.inproc-handlers`. 
 
-Instead we define the hanlder manager for our entrypoint:
+Instead set the manager endpoint for the entrypoint service:
 
 ```go
-// SetServiceConfig
-service.IndependentHandler{
-				Type:     service.SyncReplierType,
-				Category: service.ServiceManagerCategory,
-				Endpoint: service.Endpoint(entrypointUrl+"_manager", 0),
-			}
-//...
+app.SetEndpoint(
+	service.Endpoint(entrypointUrl+"_manager", 0),
+	service.ServiceManagerCategory,
+	"entrypoint",
+)
 ```
 So, now our entrypoint is IPC. But ipc can not connect to the inproc default name? 
 Its possible to set both default name and hello worl services as an ipc with the inproc-parmaeter.
@@ -929,7 +942,7 @@ once you do it, share it to the people.
 
 Topology configuration is stored as a [Mushroom](https://github.com/ahmetson/mushroom) mycelium. The topology package itself only germinates the **json** colony (`pkg:json`). Other mushroom types are resolved through **substrates** registered by the caller.
 
-The **service** package owns built-in substrates in [`substrates.go`](./substrates.go). When you call `service.New`, `service.NewExt`, or `service.NewProxy`, substrates are passed into `topology.NewHandler` → `config.Load` → `json_substrate.Root`. Topology stays minimal; it does not register substrates on its own.
+The **service** package owns built-in substrates in [`substrates.go`](./substrates.go). When you call `SetTopologyParams` or when `Start` creates the default topology handler, substrates are passed into `topology.NewHandler` → `config.Load` → `json_substrate.Root`. Topology stays minimal; it does not register substrates on its own.
 
 By default, the service layer supports three mushroom types:
 
@@ -957,11 +970,11 @@ func init() {
 
 `RegisterBuiltinSubstrate` appends to the built-in list used by every `newTopologyHandler` call. Topology receives the combined list; it never imports your substrate package directly.
 
-Dereference links (`*pkg:…`) inside topology data are fruitized when services are read (for example during `config.Load` validation). Register substrates **before** `service.New` so those links can resolve.
+Dereference links (`*pkg:…`) inside topology data are fruitized when services are read (for example during `config.Load` validation). Register substrates **before** `Start` so those links can resolve.
 
 ### Built-in AI extension (`ai`)
 
-`Independent.Start()` registers the built-in `ai` extension under the service manager when it is missing from topology. The factory is `NewAiService(configPath ...string)` — only the topology JSON path is passed in; the service record is read from topology.
+`Independent.Start()` registers the built-in `ai` extension under the service manager when it is missing from topology. The factory is `NewAiService()` — the service record is read from topology. Use `SetTopologyParams` before `Start` to point at a custom JSON file.
 
 Service **parameters**:
 
@@ -981,11 +994,11 @@ app.SetServiceParams(datatype.New().
 )
 ```
 
-Or construct the extension directly (uses `DefaultConfigPath` when the path is omitted):
+Or construct the extension directly:
 
 ```go
 ai, err := service.NewAiService()
-// ai, err := service.NewAiService("noPerfection.json")
+// ai.SetTopologyParams(map[string]any{"filepath": "noPerfection.json"})
 ```
 
 ## Contents
@@ -1093,9 +1106,9 @@ A **Pair** connects server to one client. Client and handler both can exchange m
 
 The services keep the topology of proxies and extensions as a json config.
 By default its kept as a `noPerfection.json` in the root.
-But you can over-write it's path on `service.New(serviceName, **YourPath**)
+Call `SetTopologyParams(map[string]any{"filepath": "your-path.json"})` before `Start` to use a different file; if you omit it, `Start` uses `DefaultConfigPath` (`noPerfection.json`).
 
-The hardcoded config of handlers and services set by `SetHandlerConfig` and `SetServiceConfig`
+The hardcoded config of handlers, endpoints, and services set by `SetHandlerConfig`, `SetEndpoint`, and `SetServiceConfig`
 are priority followed by the json config. So, you can stop, edit the ports and start service again.
 
 Note, that each of the service could have it's own configuration, which means it

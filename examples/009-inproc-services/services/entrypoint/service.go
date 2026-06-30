@@ -14,7 +14,7 @@ const (
 )
 
 func New() (*service.Proxy, error) {
-	app, err := service.NewProxy(entrypointName, configPath)
+	app, err := service.NewProxy(entrypointName)
 	if err != nil {
 		return nil, err
 	}

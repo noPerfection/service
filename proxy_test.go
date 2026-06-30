@@ -9,7 +9,9 @@ import (
 
 func TestProxyAddDefaultServiceToTopologyFillsModuleURL(t *testing.T) {
 	stubBuildInfo(t, "example.com/app", true)
-	proxy, err := NewProxy("default-name-proxy", testConfigPath(t))
+	proxy, err := NewProxy("default-name-proxy")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, proxy, testConfigPath(t))
 	require.NoError(t, err)
 
 	require.NoError(t, proxy.addDefaultServiceToTopology())

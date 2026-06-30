@@ -61,7 +61,9 @@ func TestValidateInprocServiceManagers(t *testing.T) {
 }
 
 func TestInprocessDepNumberIncludesManagerHandlerDep(t *testing.T) {
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetServiceConfig(inprocManagerIndependentService(
 		"custom-service",
@@ -82,7 +84,9 @@ func TestInprocessDepNumberIncludesManagerHandlerDep(t *testing.T) {
 }
 
 func TestInprocessDepNumberSkipsNonInprocManagerHandlerDep(t *testing.T) {
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetServiceConfig(inprocManagerIndependentService(
 		"custom-service",

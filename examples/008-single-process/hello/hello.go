@@ -13,16 +13,17 @@ const (
 )
 
 func New(configPath string) (*npservice.Independent, error) {
-	app, err := npservice.New(ServiceName, configPath)
+	app, err := npservice.New(ServiceName)
 	if err != nil {
 		return nil, err
 	}
+	if configPath != "" {
+		if err := app.SetTopologyParams(map[string]any{npservice.TopologyParamFilepath: configPath}); err != nil {
+			return nil, err
+		}
+	}
 
-	if err := app.SetHandlerConfig(topologyConfig.IndependentHandler{
-		Type:     topologyConfig.SyncReplierType,
-		Category: topologyConfig.ServiceManagerCategory,
-		Endpoint: message.NewEndpoint("localhost", ServiceManagerPort),
-	}); err != nil {
+	if err := app.SetEndpoint(message.NewEndpoint("localhost", ServiceManagerPort), topologyConfig.ServiceManagerCategory); err != nil {
 		return nil, err
 	}
 

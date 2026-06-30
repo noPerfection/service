@@ -2,7 +2,7 @@
 
 This example extends Hello World with a manager endpoint. The service route uses the default `localhost:8000`, and the manager listens on `localhost:8001`.
 
-The client can call the service normally, or send `--close` to ask the manager to stop the service.
+The service sets the manager socket with `SetEndpoint` before `Start()`. The client can call the service normally, or send `--close` to ask the manager to stop the service.
 
 ## Run
 

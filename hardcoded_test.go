@@ -133,6 +133,35 @@ func TestSetCommandDepsReplacesExistingDepByName(t *testing.T) {
 	require.Equal(t, []topologyConfig.DepService{second}, topologies.commandDeps["custom-service"]["main"])
 }
 
+func TestSetEndpointStoresByDefaultHandlerAndService(t *testing.T) {
+	topologies := NewHardcodedTopologies("custom-service")
+	endpoint := message.NewEndpoint(testEndpointID(t, "main"), 0)
+
+	require.NoError(t, topologies.SetEndpoint(endpoint))
+
+	require.Equal(t, endpoint, topologies.endpoints["custom-service"]["main"])
+}
+
+func TestSetEndpointStoresByExplicitHandlerAndService(t *testing.T) {
+	topologies := NewHardcodedTopologies("custom-service")
+	endpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
+
+	require.NoError(t, topologies.SetEndpoint(endpoint, topologyConfig.ServiceManagerCategory, "other-service"))
+
+	require.Equal(t, endpoint, topologies.endpoints["other-service"][topologyConfig.ServiceManagerCategory])
+}
+
+func TestSetEndpointReplacesExistingCategory(t *testing.T) {
+	topologies := NewHardcodedTopologies("custom-service")
+	first := message.NewEndpoint(testEndpointID(t, "first"), 0)
+	second := message.NewEndpoint(testEndpointID(t, "second"), 0)
+
+	require.NoError(t, topologies.SetEndpoint(first))
+	require.NoError(t, topologies.SetEndpoint(second))
+
+	require.Equal(t, second, topologies.endpoints["custom-service"]["main"])
+}
+
 func TestSetHandlerDepsStoresByDefaultService(t *testing.T) {
 	topologies := NewHardcodedTopologies("custom-service")
 	dep := topologyConfig.DepService{Name: "account"}
@@ -166,7 +195,9 @@ func TestSetHandlerDepsReplacesExistingDepByName(t *testing.T) {
 }
 
 func TestNewEmbedsHardcodedTopologies(t *testing.T) {
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NotNil(t, independent.WithHardcodedTopology)
 	require.Equal(t, "custom-service", independent.WithHardcodedTopology.mushroomURL)

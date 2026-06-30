@@ -78,9 +78,10 @@ type AiService struct {
 
 // NewAiService returns an AI extension service.
 //
-// configPath is the topology JSON path (for example noPerfection.json). When omitted,
-// DefaultConfigPath is used. The ai service record is registered in topology when
-// missing; parameters are read from topology whenever the provider is used.
+// The topology JSON path defaults to DefaultConfigPath on Start. To use a different
+// file, call SetTopologyParams before Start. The ai service record is registered in
+// topology on Start when missing; parameters are read from topology whenever the
+// provider is used.
 //
 // To set api-key or model before Start:
 //
@@ -99,29 +100,17 @@ type AiService struct {
 //   - model — "claude-haiku-4-5-20251001"
 //
 // Models: mozilla-ai/any-llm-go/providers/anthropic
-func NewAiService(configPath ...string) (*AiService, error) {
-	path := DefaultConfigPath
-	if len(configPath) > 0 {
-		path = configPath[0]
-	}
-
-	extension, err := NewExt(AiServiceName, path)
+func NewAiService() (*AiService, error) {
+	extension, err := NewExt(AiServiceName)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := extension.SetHandlerConfig(IndependentHandler{
-		Type:     SyncReplierType,
-		Category: ServiceManagerCategory,
-		Endpoint: DefaultAiManagerEndpoint,
-	}); err != nil {
-		return nil, fmt.Errorf("SetHandlerConfig: %w", err)
+	if err := extension.SetEndpoint(DefaultAiManagerEndpoint, ServiceManagerCategory); err != nil {
+		return nil, fmt.Errorf("SetEndpoint: %w", err)
 	}
 
 	ai := &AiService{Extension: extension}
-	if err := ai.registerInTopology(); err != nil {
-		return nil, err
-	}
 	if err := ai.registerRoutes(); err != nil {
 		return nil, err
 	}
@@ -153,8 +142,11 @@ func (ai *AiService) registerRoutes() error {
 }
 
 func (ai *AiService) registerInTopology() error {
-	if ai == nil || ai.topologyHandler == nil {
-		return fmt.Errorf("ai service or topology handler is nil")
+	if ai == nil {
+		return fmt.Errorf("ai service is nil")
+	}
+	if err := ai.ensureTopologyHandler(); err != nil {
+		return err
 	}
 	_, err := ai.topologyHandler.Service(AiServiceName)
 	if err == nil {
@@ -196,6 +188,9 @@ func (ai *AiService) Start() error {
 	}
 	if ai.running {
 		return fmt.Errorf("ai service is already running")
+	}
+	if err := ai.registerInTopology(); err != nil {
+		return err
 	}
 
 	ai.running = true

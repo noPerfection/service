@@ -55,10 +55,13 @@ func ipcProxyService(name string) Config {
 
 func TestStartServiceRejectsNonInproc(t *testing.T) {
 	path := writeInprocExtensionTopology(t, ipcProxyService("ipc-proxy"))
-	ext, err := NewInprocExtension(path)
+	ext, err := NewInprocExtension()
 	require.NoError(t, err)
+	requireTopologyFilepath(t, ext, path)
 
-	proxy, err := NewProxy("ipc-proxy", path)
+	proxy, err := NewProxy("ipc-proxy")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, proxy, path)
 	require.NoError(t, err)
 
 	require.NoError(t, ext.SetService("ipc-proxy", proxy))
@@ -85,18 +88,25 @@ func TestSetServiceAcceptsRegisteredTypes(t *testing.T) {
 			},
 		},
 	)
-	ext, err := NewInprocExtension(path)
+	ext, err := NewInprocExtension()
 	require.NoError(t, err)
+	requireTopologyFilepath(t, ext, path)
 
-	proxy, err := NewProxy("inproc-proxy", path)
+	proxy, err := NewProxy("inproc-proxy")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, proxy, path)
 	require.NoError(t, err)
 	require.NoError(t, ext.SetService("inproc-proxy", proxy))
 
-	independent, err := New("host", path)
+	independent, err := New("host")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, path)
 	require.NoError(t, err)
 	require.NoError(t, ext.SetService("host", independent))
 
-	extension, err := NewExt(InprocTopologyServiceName, path)
+	extension, err := NewExt(InprocTopologyServiceName)
+	require.NoError(t, err)
+	requireTopologyFilepath(t, extension, path)
 	require.NoError(t, err)
 	require.NoError(t, ext.SetService(InprocTopologyServiceName, extension))
 
@@ -106,10 +116,13 @@ func TestSetServiceAcceptsRegisteredTypes(t *testing.T) {
 
 func TestInprocTopologyRegistryLifecycle(t *testing.T) {
 	path := writeInprocExtensionTopology(t, inprocProxyService("child"))
-	ext, err := NewInprocExtension(path)
+	ext, err := NewInprocExtension()
 	require.NoError(t, err)
+	requireTopologyFilepath(t, ext, path)
 
-	proxy, err := NewProxy("child", path)
+	proxy, err := NewProxy("child")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, proxy, path)
 	require.NoError(t, err)
 	require.NoError(t, ext.SetService("child", proxy))
 

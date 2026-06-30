@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	app, err := service.New("hello-world", "noPerfection.json")
+	app, err := service.New("hello-world")
 	if err != nil {
 		panic(err)
 	}

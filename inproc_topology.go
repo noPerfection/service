@@ -63,23 +63,15 @@ func defaultInprocTopologyExtensionServiceConfig() Config {
 }
 
 // NewInprocExtension returns an inproc topology extension service.
-func NewInprocExtension(configPath ...string) (*InprocTopologyService, error) {
-	path := DefaultConfigPath
-	if len(configPath) > 0 {
-		path = configPath[0]
-	}
-
-	extension, err := NewExt(InprocTopologyServiceName, path)
+// Call SetTopologyParams before Start to configure the topology JSON path.
+func NewInprocExtension() (*InprocTopologyService, error) {
+	extension, err := NewExt(InprocTopologyServiceName)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := extension.SetHandlerConfig(IndependentHandler{
-		Type:     SyncReplierType,
-		Category: ServiceManagerCategory,
-		Endpoint: DefaultInprocTopologyManagerEndpoint,
-	}); err != nil {
-		return nil, fmt.Errorf("SetHandlerConfig: %w", err)
+	if err := extension.SetEndpoint(DefaultInprocTopologyManagerEndpoint, ServiceManagerCategory); err != nil {
+		return nil, fmt.Errorf("SetEndpoint: %w", err)
 	}
 
 	inprocTopology := &InprocTopologyService{

@@ -28,6 +28,8 @@ func substratesForTopology(extra ...mushroom.Substrate) []mushroom.Substrate {
 	return all
 }
 
+const TopologyParamFilepath = "filepath"
+
 func newTopologyHandler(configPath string, extra ...mushroom.Substrate) (*topology.Handler, error) {
 	return topology.NewHandler(configPath, substratesForTopology(extra...)...)
 }
