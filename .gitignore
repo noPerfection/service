@@ -5,3 +5,4 @@ _db/mysql
 _vault/file
 .idea
 examples/009-inproc-services/.env
+examples/010-self-optimizing/.env
