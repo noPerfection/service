@@ -23,7 +23,7 @@ func main() {
 		}
 	}
 
-	app, err := service.New("hardcoded-topology", configPath)
+	app, err := service.New("hardcoded-topology")
 	if err != nil {
 		panic(err)
 	}

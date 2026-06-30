@@ -16,7 +16,7 @@ const (
 )
 
 func main() {
-	app, err := service.NewProxy(proxyName, configPath)
+	app, err := service.NewProxy(proxyName)
 	if err != nil {
 		panic(err)
 	}

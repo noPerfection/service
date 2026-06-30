@@ -40,32 +40,22 @@ func main() {
 	mainPackage := info.Path
 	fmt.Println("Module URL:", moduleURL, "Module Version:", moduleVersion, "Main Package:", mainPackage)
 
-	app, err := service.New(serviceName, configPath)
+	app, err := service.New(serviceName)
 	if err != nil {
 		panic(err)
 	}
 
-	if err := app.SetHandlerConfig(topologyConfig.IndependentHandler{
-		Type:     topologyConfig.SyncReplierType,
-		Category: topology.ServiceManagerCategory,
-		Endpoint: message.NewEndpoint("localhost", serviceManagerPort),
-	}); err != nil {
+	if err := app.SetEndpoint(message.NewEndpoint("localhost", serviceManagerPort), topology.ServiceManagerCategory); err != nil {
 		panic(err)
 	}
 
-	defaultProxy := proxyConfig(defaultProxyName, defaultProxyPackage, defaultProxyEndpoint, defaultProxyStartCommand)
+	defaultProxy := proxyConfig(defaultProxyName, defaultProxyPackage, defaultProxyEndpoint, defaultProxyStartCommand, defaultProxyManager)
 	if err := app.SetServiceConfig(defaultProxy); err != nil {
 		panic(err)
 	}
-	if err := app.SetHandlerConfig(proxyManagerConfig(defaultProxyManager), defaultProxyName); err != nil {
-		panic(err)
-	}
 
-	entrypoint := proxyConfig(entrypointName, entrypointPackage, entrypointEndpoint, entrypointStartCommand)
+	entrypoint := proxyConfig(entrypointName, entrypointPackage, entrypointEndpoint, entrypointStartCommand, entrypointManager)
 	if err := app.SetServiceConfig(entrypoint); err != nil {
-		panic(err)
-	}
-	if err := app.SetHandlerConfig(proxyManagerConfig(entrypointManager), entrypointName); err != nil {
 		panic(err)
 	}
 	if err := app.SetHandlerDeps(topologyConfig.DepService{
@@ -104,7 +94,7 @@ func main() {
 	app.Wait()
 }
 
-func proxyConfig(name string, moduleURL string, endpointID string, startCommand string) topologyConfig.Service {
+func proxyConfig(name string, moduleURL string, endpointID string, startCommand string, managerEndpointID string) topologyConfig.Service {
 	return topologyConfig.Service{
 		Type:         topologyConfig.ProxyType,
 		Name:         name,
@@ -119,15 +109,12 @@ func proxyConfig(name string, moduleURL string, endpointID string, startCommand 
 				},
 				Routes: []string{"hello", "age-verification"},
 			},
+			topologyConfig.IndependentHandler{
+				Type:     topologyConfig.SyncReplierType,
+				Category: topology.ServiceManagerCategory,
+				Endpoint: message.NewEndpoint(managerEndpointID, 0),
+			},
 		},
-	}
-}
-
-func proxyManagerConfig(endpointID string) topologyConfig.Handler {
-	return topologyConfig.IndependentHandler{
-		Type:     topologyConfig.SyncReplierType,
-		Category: topology.ServiceManagerCategory,
-		Endpoint: message.NewEndpoint(endpointID, 0),
 	}
 }
 

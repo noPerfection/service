@@ -34,12 +34,21 @@ func testConfigPath(t *testing.T) string {
 
 func requireNewIndependent(t *testing.T, serviceName, configPath string) *Independent {
 	t.Helper()
-	independent, err := New(serviceName, configPath)
+	independent, err := New(serviceName)
 	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, configPath)
 	t.Cleanup(func() {
 		closeTopologyHandler(t)
 	})
 	return independent
+}
+
+func requireTopologyFilepath(t *testing.T, setter interface{ SetTopologyParams(map[string]any) error }, configPath string) {
+	t.Helper()
+	if configPath == "" {
+		return
+	}
+	require.NoError(t, setter.SetTopologyParams(map[string]any{TopologyParamFilepath: configPath}))
 }
 
 func closeTopologyHandler(t *testing.T) {
@@ -68,8 +77,9 @@ func requireServiceHandler(t *testing.T, service topologyConfig.Service, categor
 }
 
 func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) {
-	independent, err := New(nil, testConfigPath(t))
+	independent, err := New(nil)
 	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.Equal(t, DefaultName, independent.WithHardcodedTopology.mushroomURL)
 
 	require.NoError(t, independent.addDefaultServiceToTopology())
@@ -97,7 +107,9 @@ func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) 
 
 func TestAddDefaultServiceToTopologyFillsModuleURL(t *testing.T) {
 	stubBuildInfo(t, "example.com/app", true)
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 
 	require.NoError(t, independent.addDefaultServiceToTopology())
@@ -120,7 +132,9 @@ func TestEnsureServiceManagerUsesEndpointFromConfig(t *testing.T) {
 		require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
 		require.NoError(t, appConfig.Save())
 
-		independent, err := New("custom-service", configPath)
+		independent, err := New("custom-service")
+		require.NoError(t, err)
+		requireTopologyFilepath(t, independent, configPath)
 		require.NoError(t, err)
 		require.NoError(t, independent.ensureServiceManager())
 		require.Equal(t, DefaultServiceManagerEndpoint, independent.manager.Config().Endpoint)
@@ -144,7 +158,9 @@ func TestEnsureServiceManagerUsesEndpointFromConfig(t *testing.T) {
 		require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
 		require.NoError(t, appConfig.Save())
 
-		independent, err := New("custom-service", configPath)
+		independent, err := New("custom-service")
+		require.NoError(t, err)
+		requireTopologyFilepath(t, independent, configPath)
 		require.NoError(t, err)
 		require.NoError(t, independent.ensureServiceManager())
 		require.Equal(t, configuredEndpoint, independent.manager.Config().Endpoint)
@@ -176,7 +192,9 @@ func TestEnsureServiceManagerUsesExistingManagerFromTopology(t *testing.T) {
 	require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
 	require.NoError(t, appConfig.Save())
 
-	independent, err := New("custom-service", configPath)
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, configPath)
 	require.NoError(t, err)
 
 	require.NoError(t, independent.ensureServiceManager())
@@ -207,7 +225,9 @@ func TestLintDefaultTopologyKeepsExistingDefaultHandlerConfig(t *testing.T) {
 	require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
 	require.NoError(t, appConfig.Save())
 
-	independent, err := New("custom-service", configPath)
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, configPath)
 	require.NoError(t, err)
 
 	require.NoError(t, independent.addDefaultServiceToTopology())
@@ -226,7 +246,9 @@ func TestAddDefaultHandlerToTopologySkipsWhenHardcodedHandlersWereAdded(t *testi
 		Category: handlers.DefaultHandlerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "hardcoded-main"), 0),
 	}
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetHandlerConfig(hardcodedMain))
 
@@ -255,7 +277,9 @@ func TestAddHardcodedServicesToTopologyAddsProxyService(t *testing.T) {
 			},
 		},
 	}
-	independent, err := New("hello-world", testConfigPath(t))
+	independent, err := New("hello-world")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetServiceConfig(proxyConfig))
 
@@ -279,7 +303,9 @@ func TestAddHardcodedServicesToTopologyAddsServiceBeforeDefault(t *testing.T) {
 		ModuleUrl: "github.com/noPerfection/custom-service",
 		Handlers:  testHandlers(hardcodedMain),
 	}
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetServiceConfig(serviceConfig))
 
@@ -302,7 +328,9 @@ func TestAddHardcodedServicesToTopologyAllowsHardcodedHandlersForOtherService(t 
 		Name:      "other-service",
 		ModuleUrl: DefaultModuleUrl,
 	}
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetServiceConfig(serviceConfig))
 	require.NoError(t, independent.SetHandlerConfig(hardcodedHandler, "other-service"))
@@ -320,7 +348,9 @@ func TestAddHardcodedCommandDepsToTopologyAddsDepsToDefaultHandler(t *testing.T)
 		Name:    "account",
 		Proxies: []string{linkTarget("account-proxy")},
 	}
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetCommandDeps(dep))
 
@@ -332,6 +362,66 @@ func TestAddHardcodedCommandDepsToTopologyAddsDepsToDefaultHandler(t *testing.T)
 	require.NoError(t, err)
 	mainHandler := requireServiceHandler(t, serviceConfig, handlers.DefaultHandlerCategory)
 	require.Equal(t, []topologyConfig.DepService{dep}, mainHandler.CommandDeps)
+}
+
+func TestAddHardcodedEndpointsToTopologyUpdatesDefaultHandlerEndpoint(t *testing.T) {
+	configPath := testConfigPath(t)
+	endpoint := message.NewEndpoint(testEndpointID(t, "main"), 0)
+	existingService := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "custom-service",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers: testHandlers(topologyConfig.IndependentHandler{
+			Type:     topologyConfig.ReplierType,
+			Category: handlers.DefaultHandlerCategory,
+			Endpoint: handlers.DefaultHandlerEndpoint,
+		}),
+	}
+	appConfig, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
+	require.NoError(t, appConfig.Save())
+
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, configPath)
+	require.NoError(t, err)
+	require.NoError(t, independent.SetEndpoint(endpoint))
+	require.NoError(t, independent.addHardcodedEndpointsToTopology())
+
+	serviceConfig, err := independent.topologyHandler.Service("custom-service")
+	require.NoError(t, err)
+	mainHandler := requireServiceHandler(t, serviceConfig, handlers.DefaultHandlerCategory)
+	require.Equal(t, endpoint, mainHandler.Endpoint)
+}
+
+func TestAddHardcodedEndpointsToTopologyUpdatesExplicitHandlerAndService(t *testing.T) {
+	handler := topologyConfig.IndependentHandler{
+		Type:     topologyConfig.ReplierType,
+		Category: topologyConfig.ServiceManagerCategory,
+		Endpoint: message.NewEndpoint(testEndpointID(t, "old-manager"), 0),
+	}
+	endpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
+	serviceConfig := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "other-service",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers:  testHandlers(handler),
+	}
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
+	require.NoError(t, err)
+	require.NoError(t, independent.SetServiceConfig(serviceConfig))
+	require.NoError(t, independent.SetEndpoint(endpoint, topologyConfig.ServiceManagerCategory, "other-service"))
+
+	require.NoError(t, independent.addHardcodedServicesToTopology())
+	require.NoError(t, independent.addHardcodedEndpointsToTopology())
+
+	actual, err := independent.topologyHandler.Service("other-service")
+	require.NoError(t, err)
+	managerHandler := requireServiceHandler(t, actual, topologyConfig.ServiceManagerCategory)
+	require.Equal(t, endpoint, managerHandler.Endpoint)
 }
 
 func TestAddHardcodedCommandDepsToTopologyAddsDepsToExplicitHandlerAndService(t *testing.T) {
@@ -350,7 +440,9 @@ func TestAddHardcodedCommandDepsToTopologyAddsDepsToExplicitHandlerAndService(t 
 		ModuleUrl: DefaultModuleUrl,
 		Handlers:  testHandlers(handler),
 	}
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetServiceConfig(serviceConfig))
 	require.NoError(t, independent.SetCommandDeps(dep, "api", "other-service"))
@@ -366,7 +458,9 @@ func TestAddHardcodedCommandDepsToTopologyAddsDepsToExplicitHandlerAndService(t 
 
 func TestAddHardcodedCommandDepsToTopologyRejectsMissingHandler(t *testing.T) {
 	dep := topologyConfig.DepService{Name: "account"}
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetCommandDeps(dep, "missing-handler"))
 
@@ -421,7 +515,9 @@ func TestCommandOutboundTargetUsesFacadeURL(t *testing.T) {
 	require.NoError(t, appConfig.AddService(serviceConfig, rootServicesParent))
 	require.NoError(t, appConfig.Save())
 
-	independent, err := New("custom-service", configPath)
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, configPath)
 	require.NoError(t, err)
 	outboundURL, err := independent.GetHandlerLink("api")
 	require.NoError(t, err)
@@ -478,7 +574,9 @@ func TestHandlerDepProxyOutboundTargetsUsesNextProxyThenCommandProxyForwards(t *
 
 	proxies := []string{linkTarget("entrypoint"), linkTarget("audit")}
 
-	independent, err := New("custom-service", configPath)
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, configPath)
 	require.NoError(t, err)
 	outboundURL, commandOutbounds, err := independent.handlerDepProxyOutboundTargets(apiHandler, proxies, 0, []string{"age-verification", "hello"})
 	require.NoError(t, err)
@@ -862,7 +960,9 @@ func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T)
 		Name:    "account",
 		Proxies: []string{linkTarget("account-proxy")},
 	}
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetHandlerDeps(dep))
 
@@ -875,7 +975,9 @@ func TestAddHardcodedHandlerDepsToTopologyAddsDepsToDefaultService(t *testing.T)
 }
 
 func TestAddHardcodedServiceParamsToTopologyMergesParams(t *testing.T) {
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetServiceConfig(topologyConfig.Service{
 		Type:      topologyConfig.IndependentType,
@@ -895,11 +997,14 @@ func TestAddHardcodedServiceParamsToTopologyMergesParams(t *testing.T) {
 func TestNewAiServiceRegistersInTopology(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "topology-test-key")
 
-	cfgPath := testConfigPath(t)
-	ai, err := NewAiService(cfgPath)
-	require.NoError(t, err)
+	dir := t.TempDir()
+	t.Chdir(dir)
 
-	topologyHandler, err := newTopologyHandler(cfgPath)
+	ai, err := NewAiService()
+	require.NoError(t, err)
+	require.NoError(t, ai.registerInTopology())
+
+	topologyHandler, err := newTopologyHandler(DefaultConfigPath)
 	require.NoError(t, err)
 
 	aiService, err := topologyHandler.Service(AiServiceName)
@@ -921,7 +1026,9 @@ func TestAddHardcodedHandlerDepsToTopologyAddsDepsToExplicitService(t *testing.T
 		Name:      "other-service",
 		ModuleUrl: DefaultModuleUrl,
 	}
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetServiceConfig(serviceConfig))
 	require.NoError(t, independent.SetHandlerDeps(dep, "other-service"))
@@ -936,7 +1043,9 @@ func TestAddHardcodedHandlerDepsToTopologyAddsDepsToExplicitService(t *testing.T
 
 func TestAddHardcodedHandlerDepsToTopologyRejectsMissingService(t *testing.T) {
 	dep := topologyConfig.DepService{Name: "account"}
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetHandlerDeps(dep, "missing-service"))
 
@@ -953,7 +1062,9 @@ func TestAddHardcodedHandlersToTopologyAddsHandlersToDefaultService(t *testing.T
 		Category: handlers.DefaultHandlerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "hardcoded-main"), 0),
 	}
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetHandlerConfig(hardcodedMain))
 
@@ -989,7 +1100,9 @@ func TestAddHardcodedHandlersToTopologyOverwritesExistingCategory(t *testing.T) 
 	require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
 	require.NoError(t, appConfig.Save())
 
-	independent, err := New("custom-service", configPath)
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, configPath)
 	require.NoError(t, err)
 	require.NoError(t, independent.SetHandlerConfig(hardcodedMain))
 
@@ -1001,7 +1114,9 @@ func TestAddHardcodedHandlersToTopologyOverwritesExistingCategory(t *testing.T) 
 }
 
 func TestAddHardcodedHandlersToTopologyRejectsMissingService(t *testing.T) {
-	independent, err := New("custom-service", testConfigPath(t))
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 	require.NoError(t, err)
 	require.NoError(t, independent.SetHandlerConfig(topologyConfig.IndependentHandler{
 		Type:     topologyConfig.ReplierType,
@@ -1039,7 +1154,9 @@ func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) 
 	require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
 	require.NoError(t, appConfig.Save())
 
-	independent, err := New("custom-service", configPath)
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, configPath)
 	require.NoError(t, err)
 
 	require.NoError(t, independent.addTopologyHandlersToHandlers())
@@ -1049,11 +1166,9 @@ func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) 
 }
 
 func TestStartCreatesDefaultHandlerAndStartsManager(t *testing.T) {
-	independent, err := New(
-		"custom-service",
-		testConfigPath(t),
-	)
+	independent, err := New("custom-service")
 	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, testConfigPath(t))
 
 	require.NoError(t, independent.Start())
 	t.Cleanup(func() {
@@ -1075,13 +1190,21 @@ func TestStartCreatesDefaultHandlerAndStartsManager(t *testing.T) {
 
 func TestNewRejectsInvalidParams(t *testing.T) {
 	_, err := New("service", testConfigPath(t), "extra")
-	require.EqualError(t, err, "too many arguments, expected name and config path")
+	require.EqualError(t, err, "too many arguments, expected at most one service name")
 
 	_, err = New(10)
 	require.EqualError(t, err, "name argument must be string")
+}
 
-	_, err = New("service", 10)
-	require.EqualError(t, err, "config path argument must be string")
+func TestSetTopologyParamsRejectsInvalidParams(t *testing.T) {
+	independent, err := New("service")
+	require.NoError(t, err)
+
+	err = independent.SetTopologyParams(map[string]any{TopologyParamFilepath: 10})
+	require.EqualError(t, err, `topology param "filepath" must be string`)
+
+	err = independent.SetTopologyParams(map[string]any{"other": "x"})
+	require.EqualError(t, err, `unsupported topology param "other"`)
 }
 
 func TestStartIpcServiceSkipsDuplicateRefs(t *testing.T) {

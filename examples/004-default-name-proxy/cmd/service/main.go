@@ -18,7 +18,7 @@ const (
 )
 
 func main() {
-	app, err := service.New(serviceName, configPath)
+	app, err := service.New(serviceName)
 	if err != nil {
 		panic(err)
 	}

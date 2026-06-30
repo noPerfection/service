@@ -57,24 +57,21 @@ func (independent *Extension) topology() topology.TopologyInterface {
 
 // NewExt returns an extension service instance.
 //
-// Optional parameters, in order:
+// Optional parameter:
 //
 //  1. mushroomURL — service identity in the configuration. A plain symbol is treated as the
 //     service name at the root of the topology (e.g. "main" → services[name:main]). Full
 //     mushroom paths are accepted but not validated yet.
 //
-//  2. configPath — topology JSON file for this process (default "noPerfection.json").
+// Use SetTopologyParams before Start to configure the topology JSON path.
 //
-// Examples:
-//
-//	// Root service "main" with default config path.
-//	app, err := NewExt("main", "noPerfection.json")
+//	// Root service "main".
+//	app, err := NewExt("main")
 func NewExt(params ...any) (*Extension, error) {
 	mushroomURL := DefaultName
-	configPath := DefaultConfigPath
 
-	if len(params) > 2 {
-		return nil, fmt.Errorf("too many arguments, expected name and config path")
+	if len(params) > 1 {
+		return nil, fmt.Errorf("too many arguments, expected at most one service name")
 	}
 
 	if len(params) > 0 && params[0] != nil {
@@ -87,30 +84,61 @@ func NewExt(params ...any) (*Extension, error) {
 		}
 	}
 
-	if len(params) > 1 && params[1] != nil {
-		configPathArg, ok := params[1].(string)
-		if !ok {
-			return nil, fmt.Errorf("config path argument must be string")
-		}
-		if len(configPathArg) > 0 {
-			configPath = configPathArg
-		}
-	}
-
-	topologyHandler, err := newTopologyHandler(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("topology.NewHandler: %w", err)
-	}
-
 	independent := &Extension{
 		Handlers:              handlers.NewHandlers(),
 		WithHardcodedTopology: NewHardcodedTopologies(mushroomURL),
-		topologyHandler:       topologyHandler,
 		mushroomURL:           mushroomURL,
 		logger:                nil,
 	}
 
 	return independent, nil
+}
+
+// SetTopologyParams configures the local topology handler before Start.
+// Supported keys: "filepath" — topology JSON path (default DefaultConfigPath).
+func (extension *Extension) SetTopologyParams(params map[string]any) error {
+	if extension == nil {
+		return fmt.Errorf("extension is nil")
+	}
+	if extension.topologyHandler != nil {
+		return fmt.Errorf("topology handler already configured")
+	}
+	if params == nil {
+		params = map[string]any{}
+	}
+	for key := range params {
+		if key != TopologyParamFilepath {
+			return fmt.Errorf("unsupported topology param %q", key)
+		}
+	}
+	configPath := DefaultConfigPath
+	if v, ok := params[TopologyParamFilepath]; ok && v != nil {
+		filepath, ok := v.(string)
+		if !ok {
+			return fmt.Errorf("topology param %q must be string", TopologyParamFilepath)
+		}
+		if filepath != "" {
+			configPath = filepath
+		}
+	}
+	h, err := newTopologyHandler(configPath)
+	if err != nil {
+		return err
+	}
+	extension.topologyHandler = h
+	return nil
+}
+
+func (extension *Extension) ensureTopologyHandler() error {
+	if extension.topologyHandler != nil {
+		return nil
+	}
+	h, err := newTopologyHandler(DefaultConfigPath)
+	if err != nil {
+		return err
+	}
+	extension.topologyHandler = h
+	return nil
 }
 
 // EnableLogger toggles the optional service logger.
@@ -286,6 +314,10 @@ func (independent *Extension) Start() error {
 		err = fmt.Errorf("connectTopologyClientIfRunning: %w", err)
 		goto errOccurred
 	}
+	if err = independent.ensureTopologyHandler(); err != nil {
+		err = fmt.Errorf("ensureTopologyHandler: %w", err)
+		goto errOccurred
+	}
 	topologySnapshot, err = independent.topology().Snapshot()
 	if err != nil {
 		err = fmt.Errorf("topology.Snapshot: %w", err)
@@ -314,6 +346,10 @@ func (independent *Extension) Start() error {
 	}
 	if err = independent.addHardcodedServiceParamsToTopology(); err != nil {
 		err = fmt.Errorf("addHardcodedServiceParamsToTopology: %w", err)
+		goto errOccurred
+	}
+	if err = independent.addHardcodedEndpointsToTopology(); err != nil {
+		err = fmt.Errorf("addHardcodedEndpointsToTopology: %w", err)
 		goto errOccurred
 	}
 
