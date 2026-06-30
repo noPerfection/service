@@ -792,6 +792,7 @@ func (independent *Extension) connectTopologyClientIfRunning() error {
 		return nil
 	}
 	client.Attempt(2)
+	client.Timeout(time.Second)
 	independent.topologyClient = client
 	return nil
 }
