@@ -135,7 +135,7 @@ func TestNewUsesManagerEndpointFromConfigWhenEndpointNotPassed(t *testing.T) {
 	require.Equal(t, configuredEndpoint, independent.manager.Config().Endpoint)
 }
 
-func TestLintManagerTopologyOverwritesExistingManagerConfig(t *testing.T) {
+func TestLintManagerTopologyKeepsExistingManagerConfig(t *testing.T) {
 	configPath := testConfigPath(t)
 	existingManager := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
@@ -163,6 +163,7 @@ func TestLintManagerTopologyOverwritesExistingManagerConfig(t *testing.T) {
 	managerEndpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
 	independent, err := New("custom-service", configPath, managerEndpoint)
 	require.NoError(t, err)
+	require.Equal(t, managerEndpoint, independent.manager.Config().Endpoint)
 
 	require.NoError(t, independent.addServiceManagerToTopology())
 
@@ -170,7 +171,8 @@ func TestLintManagerTopologyOverwritesExistingManagerConfig(t *testing.T) {
 	require.NoError(t, err)
 	managerHandler := requireServiceHandler(t, serviceConfig, topology.ServiceManagerCategory)
 	require.Equal(t, topologyConfig.SyncReplierType, managerHandler.Type)
-	require.Equal(t, managerEndpoint, managerHandler.Endpoint)
+	require.Equal(t, DefaultServiceManagerEndpoint, managerHandler.Endpoint)
+	require.Equal(t, DefaultServiceManagerEndpoint, independent.manager.Config().Endpoint)
 }
 
 func TestLintDefaultTopologyKeepsExistingDefaultHandlerConfig(t *testing.T) {

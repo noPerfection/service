@@ -259,7 +259,11 @@ func (independent *Independent) addDefaultHandlerToTopology() error {
 }
 
 // addServiceManagerToTopology stores a non-default manager handler.
-// If topology already has the same manager endpoint, then do nothing.
+// It's goal is to store manager handler that user passed in the constructor.
+//
+// The hardcoded service parameters or handler parameters are in priority over constructor.
+// If its given, then it will set them here.
+// Otherwise it will set the constructor argument to the topology.
 func (independent *Independent) addServiceManagerToTopology() error {
 	tp := independent.topology()
 	serviceConfig, err := tp.Service(independent.mushroomURL)
@@ -267,14 +271,24 @@ func (independent *Independent) addServiceManagerToTopology() error {
 		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
 	}
 
-	// Service manager's config in the handler config format.
+	// Service manager's config in the handler config format matching?
+	// Use it as priority over what was passed on the
 	managerConfig := independent.manager.Config()
 	currentManager, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
 	if err == nil {
-		handler, ok := currentManager.AsIndependentHandler()
-		if ok && handler.Endpoint == managerConfig.Endpoint {
+		handler := currentManager.(config.IndependentHandler)
+		if handler.Endpoint == managerConfig.Endpoint {
 			return nil
 		}
+		m, err := manager.New(independent.mushroomURL, handler.Endpoint)
+		if err != nil {
+			return fmt.Errorf("manager.New: %w", err)
+		}
+		independent.manager = m
+		if err := independent.manager.SetLogger(independent.logger); err != nil {
+			return fmt.Errorf("manager.SetLogger: %w", err)
+		}
+		return nil
 	}
 	if managerConfig.Endpoint == DefaultServiceManagerEndpoint {
 		return nil
@@ -355,9 +369,16 @@ func (independent *Independent) addTopologyHandlersToHandlers() error {
 func (independent *Independent) Start() error {
 	var err error
 	var inprocServices int
+	var needToStart []config.Service
+	var topologySnapshot string = ""
 	var tp topology.TopologyInterface
 	if err = independent.connectTopologyClientIfRunning(); err != nil {
 		err = fmt.Errorf("connectTopologyClientIfRunning: %w", err)
+		goto errOccurred
+	}
+	topologySnapshot, err = independent.topology().Snapshot()
+	if err != nil {
+		err = fmt.Errorf("topology.Snapshot: %w", err)
 		goto errOccurred
 	}
 	if err = independent.addHardcodedServicesToTopology(); err != nil {
@@ -376,10 +397,6 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("addDefaultHandlerToTopology: %w", err)
 		goto errOccurred
 	}
-	if err = independent.addServiceManagerToTopology(); err != nil {
-		err = fmt.Errorf("lintManagerTopology: %w", err)
-		goto errOccurred
-	}
 
 	if err = independent.addHardcodedHandlerDepsToTopology(); err != nil {
 		err = fmt.Errorf("addHardcodedHandlerDepsToTopology: %w", err)
@@ -389,6 +406,14 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("addHardcodedServiceParamsToTopology: %w", err)
 		goto errOccurred
 	}
+
+	// We call it after hardcoded stuff, just in case if user passed hardcoded manager data.
+	// In that case that becomes the hardcoded manager data as well.
+	if err = independent.addServiceManagerToTopology(); err != nil {
+		err = fmt.Errorf("lintManagerTopology: %w", err)
+		goto errOccurred
+	}
+
 	if err = independent.addHardcodedCommandDepsToTopology(); err != nil {
 		err = fmt.Errorf("addHardcodedCommandDepsToTopology: %w", err)
 		goto errOccurred
@@ -396,20 +421,6 @@ func (independent *Independent) Start() error {
 
 	if err = independent.addTopologyHandlersToHandlers(); err != nil {
 		err = fmt.Errorf("addTopologyHandlers: %w", err)
-		goto errOccurred
-	}
-
-	tp = independent.topology()
-	if err = tp.ValidateProtocolOrder(independent.mushroomURL); err != nil {
-		err = fmt.Errorf("topology.ValidateProtocolOrder: %w", err)
-		goto errOccurred
-	}
-	if err = tp.ValidateInprocServiceManagers(); err != nil {
-		err = fmt.Errorf("topology.ValidateInprocServiceManagers: %w", err)
-		goto errOccurred
-	}
-	if inprocServices, err = tp.InprocessDepNumber(independent.mushroomURL); err != nil {
-		err = fmt.Errorf("topology.InprocessDepNumber: %w", err)
 		goto errOccurred
 	}
 
@@ -444,14 +455,32 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("syncHandlerDepOutbounds: %w", err)
 		goto errOccurred
 	}
+
+	tp = independent.topology()
+	if err = tp.ValidateProtocolOrder(independent.mushroomURL); err != nil {
+		err = fmt.Errorf("topology.ValidateProtocolOrder: %w", err)
+		goto errOccurred
+	}
+	if err = tp.ValidateInprocServiceManagers(); err != nil {
+		err = fmt.Errorf("topology.ValidateInprocServiceManagers: %w", err)
+		goto errOccurred
+	}
+	if inprocServices, err = tp.InprocessDepNumber(independent.mushroomURL); err != nil {
+		err = fmt.Errorf("topology.InprocessDepNumber: %w", err)
+		goto errOccurred
+	}
+
 	if inprocServices > 0 {
-		fmt.Println("setupInproc() for independent service amount: ", inprocServices)
-		if err = independent.setupInproc(); err != nil {
+		needToStart, err = independent.setupInproc()
+		if err != nil {
 			err = fmt.Errorf("setupInproc: %w", err)
 			goto errOccurred
 		}
 	}
-	fmt.Println("todo: add independent.cleanupInproc(), to make sure to remove unused inproc services, and if no inproc at all it removes the inproc_topology.go as well")
+	if err = independent.cleanupInproc(needToStart); err != nil {
+		err = fmt.Errorf("cleanupInproc: %w", err)
+		goto errOccurred
+	}
 	if err = independent.startIpcServices(); err != nil {
 		err = fmt.Errorf("startIpcServices: %w", err)
 		goto errOccurred
@@ -459,6 +488,11 @@ func (independent *Independent) Start() error {
 
 errOccurred:
 	if err != nil {
+		if !IsNeedToRerunErr(err) && topologySnapshot != "" {
+			if rollbackErr := independent.topology().Rollback(topologySnapshot); rollbackErr != nil {
+				err = fmt.Errorf("%w: topology.Rollback: %v", err, rollbackErr)
+			}
+		}
 		if independent.topologyClient != nil {
 			_ = independent.topologyClient.Close()
 			independent.topologyClient = nil
@@ -474,7 +508,7 @@ errOccurred:
 	return err
 }
 
-func (independent *Independent) setupInproc() error {
+func (independent *Independent) cleanupInproc(needToStart []config.Service) error {
 	tp := independent.topology()
 	serviceConfig, err := tp.Service(independent.mushroomURL)
 	if err != nil {
@@ -484,21 +518,111 @@ func (independent *Independent) setupInproc() error {
 		return fmt.Errorf("no mushroom url for service %q", independent.mushroomURL)
 	}
 
-	if _, err := tp.Service(InprocTopologyServiceName); err != nil {
-		if err := tp.AddService(defaultInprocTopologyExtensionServiceConfig()); err != nil {
-			return fmt.Errorf("topology.AddService(%q): %w", InprocTopologyServiceName, err)
+	registered, err := getInprocServices(serviceConfig.ModuleUrl)
+	if err != nil {
+		return fmt.Errorf("getInprocServices: %w", err)
+	}
+
+	wantNames := make(map[string]struct{}, len(needToStart))
+	for _, svc := range needToStart {
+		wantNames[svc.Name] = struct{}{}
+	}
+
+	needToRemove := make([]string, 0)
+	for _, name := range registered {
+		if name == "" {
+			continue
+		}
+		svc, err := tp.Service(name)
+		if err != nil {
+			needToRemove = append(needToRemove, name)
+			continue
+		}
+		if _, ok := wantNames[svc.Name]; !ok {
+			needToRemove = append(needToRemove, svc.Name)
 		}
 	}
 
-	if err := independent.addInprocTopologyExtension(&serviceConfig); err != nil {
-		return err
+	if len(needToRemove) == 0 {
+		return nil
+	}
+
+	inprocTopologyBackup, inprocTopologyFileExisted, err := readInprocTopologyFileContent(serviceConfig.ModuleUrl)
+	if err != nil {
+		return fmt.Errorf("readInprocTopologyFileContent: %w", err)
+	}
+
+	edited, err := RemoveInprocTopologyServices(serviceConfig.ModuleUrl, needToRemove)
+	if err != nil {
+		return fmt.Errorf("RemoveInprocTopologyServices: %w", err)
+	}
+	if !edited {
+		return nil
+	}
+
+	remaining, err := getInprocServices(serviceConfig.ModuleUrl)
+	if err != nil {
+		return fmt.Errorf("getInprocServices: %w", err)
+	}
+	if len(remaining) == 0 {
+		var failErr error
+
+		inprocTopology, err := tp.Service(InprocTopologyServiceName)
+		if err != nil {
+			return fmt.Errorf("topology.Service(%q): %w", InprocTopologyServiceName, err)
+		}
+		topologyRunning, err := ProbeInprocServiceRunning(inprocTopology)
+		if err != nil {
+			return fmt.Errorf("probe inproc topology: %w", err)
+		}
+		if topologyRunning {
+			if err := tp.StopService(InprocTopologyServiceName); err != nil {
+				return fmt.Errorf("topology.StopService(%q): %w", InprocTopologyServiceName, err)
+			}
+		}
+
+		if failErr = independent.removeInprocTopologyExtension(&serviceConfig); failErr != nil {
+			goto rollbackInprocTeardown
+		}
+
+		if failErr = tp.RemoveService(InprocTopologyServiceName); failErr != nil {
+			goto rollbackInprocTeardown
+		}
+
+		if failErr = DeleteInprocTopologyFile(serviceConfig.ModuleUrl); failErr != nil {
+			goto rollbackInprocTeardown
+		}
+
+		if _, failErr = RemoveStartInprocTopologyCall(serviceConfig.ModuleUrl); failErr != nil {
+			goto rollbackInprocTeardown
+		}
+		return NeedToRerun("removed %s and inproc-topology wiring; please rebuild and re-run", inprocTopologyFilename)
+
+	rollbackInprocTeardown:
+		if err := restoreInprocTopologyFileContent(serviceConfig.ModuleUrl, inprocTopologyBackup, inprocTopologyFileExisted); err != nil {
+			return fmt.Errorf("%w: rollback restoreInprocTopologyFileContent: %w", failErr, err)
+		}
+		return failErr
+	}
+	return NeedToRerun("reconciled %s; please rebuild and re-run", inprocTopologyFilename)
+}
+
+func (independent *Independent) setupInproc() ([]config.Service, error) {
+	tp := independent.topology()
+	// serviceConfig is used to ensure ai extension, or to find the path to the inproc_topology.go
+	serviceConfig, err := tp.Service(independent.mushroomURL)
+	if err != nil {
+		return nil, fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+	}
+	if serviceConfig.ModuleUrl == "" {
+		return nil, fmt.Errorf("no mushroom url for service %q", independent.mushroomURL)
 	}
 
 	needToImport := make([]config.Service, 0)
 	needToStart := make([]config.Service, 0)
 	services, err := tp.Services()
 	if err != nil {
-		return fmt.Errorf("topology.Services: %w", err)
+		return nil, fmt.Errorf("topology.Services: %w", err)
 	}
 	for _, service := range services {
 		if service.Name == serviceConfig.Name {
@@ -512,37 +636,37 @@ func (independent *Independent) setupInproc() error {
 		}
 		pkgInfo, err := package_url.New(service.ModuleUrl)
 		if err != nil {
-			return fmt.Errorf("package_url.New(%s): %w", service.ModuleUrl, err)
+			return nil, fmt.Errorf("package_url.New(%s): %w", service.ModuleUrl, err)
 		}
 		if pkgInfo.IsMain() {
 			if err := pkgInfo.EnsureEditable(); err != nil {
 				if errors.Is(err, package_url.ErrThirdPartyNotEditable) {
-					return fmt.Errorf("%w: fork %q and add a replace directive in go.mod to edit it locally", err, pkgInfo.ImportClause())
+					return nil, fmt.Errorf("%w: fork %q and add a replace directive in go.mod to edit it locally", err, pkgInfo.ImportClause())
 				}
-				return err
+				return nil, err
 			}
 			asLibInfo, exists, err := MainPackageToLibraryPackage(pkgInfo)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if !exists {
 				if err := independent.ensureAiExtension(serviceConfig); err != nil {
-					return err
+					return nil, err
 				}
 				if err := MainPackageToLibraryAI(independent.aiClient, pkgInfo, asLibInfo); err != nil {
-					return fmt.Errorf("ai main package to library: %w", err)
+					return nil, fmt.Errorf("ai main package to library: %w", err)
 				}
 			}
 
 			service.ModuleUrl = asLibInfo.String()
 			if err := tp.SetService(service); err != nil {
-				return fmt.Errorf("topology.SetService(%q): %w", service.Name, err)
+				return nil, fmt.Errorf("topology.SetService(%q): %w", service.Name, err)
 			}
 			pkgInfo = asLibInfo
 
 			// Find the main module, and update the hardcode module url to the library package url
 			if err := SetHardcodedModuleURL(serviceConfig.ModuleUrl, service.Name, asLibInfo); err != nil {
-				return fmt.Errorf("SetHardcodedModuleURL(%q): %w: update module-url for %q to %q yourself in the host main package", service.Name, err, service.Name, asLibInfo.String())
+				return nil, fmt.Errorf("SetHardcodedModuleURL(%q): %w: update module-url for %q to %q yourself in the host main package", service.Name, err, service.Name, asLibInfo.String())
 			}
 		}
 
@@ -551,63 +675,110 @@ func (independent *Independent) setupInproc() error {
 				needToImport = append(needToImport, service)
 				continue
 			}
-			return fmt.Errorf("IsInprocIncludedInMain(%q): %w", service.Name, importErr)
+			return nil, fmt.Errorf("IsInprocIncludedInMain(%q): %w", service.Name, importErr)
 		}
 		needToStart = append(needToStart, service)
 	}
+	if len(needToStart) == 0 && len(needToImport) == 0 {
+		return nil, nil
+	}
+
+	if _, err := tp.Service(InprocTopologyServiceName); err != nil {
+		if err := tp.AddService(defaultInprocTopologyExtensionServiceConfig()); err != nil {
+			return needToStart, fmt.Errorf("topology.AddService(%q): %w", InprocTopologyServiceName, err)
+		}
+	}
+	if err := independent.addInprocTopologyExtension(&serviceConfig); err != nil {
+		return needToStart, err
+	}
+
 	if len(needToImport) > 0 {
 		if err := UpdateInprocTopology(serviceConfig.ModuleUrl, needToImport); err != nil {
-			return fmt.Errorf("UpdateInprocTopology: %w", err)
+			return needToStart, fmt.Errorf("UpdateInprocTopology: %w", err)
 		}
 	}
 
 	inprocTopology, err := tp.Service(InprocTopologyServiceName)
 	if err != nil {
-		return fmt.Errorf("topology.Service(%q): %w", InprocTopologyServiceName, err)
+		return needToStart, fmt.Errorf("topology.Service(%q): %w", InprocTopologyServiceName, err)
 	}
 	topologyRunning, err := ProbeInprocServiceRunning(inprocTopology)
 	if err != nil {
-		return fmt.Errorf("probe inproc topology: %w", err)
+		return needToStart, fmt.Errorf("probe inproc topology: %w", err)
 	}
 
 	mainEdited := false
 	if !topologyRunning {
 		contains, err := HostMainSourceContains(serviceConfig.ModuleUrl, startInprocTopologyCall)
 		if err != nil {
-			return fmt.Errorf("HostMainSourceContains: %w", err)
+			return needToStart, fmt.Errorf("HostMainSourceContains: %w", err)
 		}
 		if contains {
-			return fmt.Errorf("%w: did you change %s?", ErrInprocTopologyPresentNotRunning, inprocTopologyFilename)
+			return needToStart, fmt.Errorf("%w: did you change %s?", ErrInprocTopologyPresentNotRunning, inprocTopologyFilename)
 		}
 		mainEdited, err = EnsureStartInprocTopologyCall(serviceConfig.ModuleUrl, serviceConfig.Name)
 		if err != nil {
-			return fmt.Errorf("EnsureStartInprocTopologyCall: %w", err)
+			return needToStart, fmt.Errorf("EnsureStartInprocTopologyCall: %w", err)
 		}
 	}
 
 	switch {
 	case mainEdited && len(needToImport) > 0:
-		return fmt.Errorf("imported inproc services, generated %s, and added startInprocTopology() in %s; please rebuild and re-run", inprocTopologyFilename, serviceConfig.ModuleUrl)
+		return needToStart, NeedToRerun("imported inproc services, generated %s, and added startInprocTopology() in %s; please rebuild and re-run", inprocTopologyFilename, serviceConfig.ModuleUrl)
 	case mainEdited && len(needToImport) == 0:
-		return fmt.Errorf("all inproc services are valid; added startInprocTopology() in %s; please rebuild and re-run", serviceConfig.ModuleUrl)
+		return needToStart, NeedToRerun("all inproc services are valid; added startInprocTopology() in %s; please rebuild and re-run", serviceConfig.ModuleUrl)
 	case !mainEdited && len(needToImport) > 0:
-		return fmt.Errorf("imported inproc services into %s / %s; please re-run the code", serviceConfig.ModuleUrl, inprocTopologyFilename)
+		return needToStart, NeedToRerun("imported inproc services into %s / %s; please re-run the code", serviceConfig.ModuleUrl, inprocTopologyFilename)
 	default:
-		fmt.Println("starting inproc services: ", len(needToStart))
 		for _, service := range needToStart {
 			if _, err := independent.manager.StartService(service.Name); err != nil {
-				return fmt.Errorf("manager.StartService(%q): %w", service.Name, err)
+				return needToStart, fmt.Errorf("manager.StartService(%q): %w", service.Name, err)
 			}
 			running, err := ProbeInprocServiceRunning(service)
 			if err != nil {
-				return fmt.Errorf("probe inproc service %q: %w", service.Name, err)
+				return needToStart, fmt.Errorf("probe inproc service %q: %w", service.Name, err)
 			}
 			if !running {
-				return fmt.Errorf("inproc service %q is not running", service.Name)
+				return needToStart, fmt.Errorf("inproc service %q is not running", service.Name)
 			}
+		}
+		return needToStart, nil
+	}
+}
+
+func (independent *Independent) removeInprocTopologyExtension(serviceConfig *config.Service) error {
+	if serviceConfig == nil {
+		return fmt.Errorf("service config is nil")
+	}
+	tp := independent.topology()
+	updated := false
+	for i, dep := range serviceConfig.HandlerDeps {
+		if dep.Name != topology.ServiceManagerCategory {
+			continue
+		}
+		filtered := make([]string, 0, len(dep.Extensions))
+		for _, extension := range dep.Extensions {
+			svc, err := tp.Service(dereferenceMushroomURL(extension))
+			if err != nil {
+				filtered = append(filtered, extension)
+				continue
+			}
+			if svc.Name == InprocTopologyServiceName {
+				updated = true
+				continue
+			}
+			filtered = append(filtered, extension)
+		}
+		if !updated {
+			return nil
+		}
+		serviceConfig.HandlerDeps[i].Extensions = filtered
+		if err := tp.SetService(*serviceConfig); err != nil {
+			return fmt.Errorf("topology.SetService(%q): %w", independent.mushroomURL, err)
 		}
 		return nil
 	}
+	return nil
 }
 
 // ensureAiExtension ensures that the ai extension is running and connected.

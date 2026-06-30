@@ -781,7 +781,7 @@ turned into this:
 var entrypointModuleURL := "pkg:golang/github.com/noPerfection/service/examples/007-autostart-deps#services/entrypoint"
 ```
 
-### Tutorial 10: Service parameters: `inproc-handlers`
+### Service parameters: `inproc-handlers`
 
 But its not tested yet, and it won't be. Since our entry point is inproc, only code itself can call it. We want our client to be calling it. How we do it? We can turn our entry point back to IPC protocol but treat it as inproc so its bundled as another thread. Our service configuration supports additional parameter to tell noPerfection treat it the handlers as inproc:
 
@@ -796,6 +796,7 @@ app.SetServiceConfig(service.Config{
 	)
 	// other config
 })
+```
 
 We even don't have to change our client to send greetings, since our entry point already runs on IPC protocol.
 
@@ -804,7 +805,110 @@ Launch our service, and then launch our client and it should work. As a matter o
 See [examples/010-inproc-handlers](./examples/010-inproc-handlers) for the full
 example note.
 
-### Tutorial 11: security
+Lastly, it's not working properly too. 
+
+## Tutorial 10: Self optimizing
+
+Our AI is used only once when we need to convert standalone apps into libraries.
+It's only one time job so now we can remove it.
+
+Let's now say, we want to separate the entrypoint from the main app.
+Our default names are inproc and bundled to the service.
+
+To make it, we change the entrypoint, by simply removing the `*pkg:golang/github.com/noPerfection/service/009-inproc-services#cmd/service/main.go?obj=app.SetServiceConfig[name:entrypoint].parameters.inproc-handlers`. 
+
+Instead we define the hanlder manager for our entrypoint:
+
+```go
+// SetServiceConfig
+service.IndependentHandler{
+				Type:     service.SyncReplierType,
+				Category: service.ServiceManagerCategory,
+				Endpoint: service.Endpoint(entrypointUrl+"_manager", 0),
+			}
+//...
+```
+So, now our entrypoint is IPC. But ipc can not connect to the inproc default name? 
+Its possible to set both default name and hello worl services as an ipc with the inproc-parmaeter.
+But I don't want to expose the processes because I'm too much paranoid with the safety.
+
+To give minimal stuff, I want all things to move from entrypoint to the default name proxy.
+So I move out default name from command deps to the handler deps, and set it ipc and inproc handler like. Remove the following code in our service:
+
+```go
+// cmd/service/main.go
+if err := app.SetCommandDeps(service.Dependency{
+		Name: "hello",
+		Proxies: []string{
+			fmt.Sprintf("pkg:$?var=services[name:%s]", defaultProxyName),
+		},
+}); err != nil {
+		panic(err)
+}
+```
+
+Instead add the defaultNameProxy as the handler deps:
+
+```go
+if err := app.SetHandlerDeps(service.Dependency{
+		Name: service.DefaultHandlerCategory,
+		Proxies: []string{
+			fmt.Sprintf("pkg:$?var=services[name:%s]", entrypointName),
+			defaultProxyName,	// added
+		},
+}); err != nil {
+		panic(err)
+}
+```
+
+Then, I change default name proxy as ipc but treat it as inproc for a code:
+
+```go
+// default name proxy setting in cmd/service/main.go
+//...SetServiceConfig{
+// ...
+					Endpoint: service.Endpoint("tmp/"+defaultProxyName, 0),
+// ...
+Parameters: service.KeyValue().Set(
+			"inproc-handlers",
+			[]string{"main"},
+),
+//}
+```
+
+Lastly, we need to add a forward to our default name, since now it may receive age-verification too. In that case we forward it without applying any proxy check.
+
+Let's change our  onDefaultName handler prefix:
+
+```go
+// services/proxy/service.go
+// func onDefaultName(req handlers.ProxyRequest) handlers.ProxyReply {
+	if req.Command != "hello" {
+		reply, err := req.Forward()
+		if err != nil {
+			return handlers.ProxyReply{Reply: *req.Fail(err.Error()).(*message.Reply)}
+		}
+		return reply
+	}
+	// remaining part of the function
+```
+
+Now, let's try to launch our app again. We don't have to change the manager at all at this case
+
+Try to run again, and service works. That is you simply build and run with 3 attempts at most, and our app will be building itself by cleaning up the code.
+
+### Changing ipc to inproc only with the configuration.
+
+Try it, and it should work.
+If we want to change our app from ipc back to inproc, we simply remove the tmp service manager and add the inproc handlers to our entrypoint. We run twice and our code works. If we want to return back we simply set the manager, and remove the parameter from our config. And it will be reversed. All only by changing the configuration.
+
+### Complete removal of the inprocess
+Lets now, remove the inproc-handlers in our default name, since I want it to be single for all packages.
+Now, I need to add the manager in tmp, but also make my own service to be inproc as well.
+
+Once you edit the set service configs, and set handler configs in the code, it sees that there is no inproc services left so it will remove the inproc_topology file itself as well.
+
+## Tutorial 11: security
 
 ### Tutorial 12: cross-language
 
