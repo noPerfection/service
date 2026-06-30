@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/noPerfection/log"
-	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/package_url"
@@ -54,15 +53,15 @@ func (proxy *Proxy) topology() topology.TopologyInterface {
 }
 
 // NewProxy returns a new proxy service.
-// Optional parameters are topology config path and manager endpoint.
+// Optional parameter is topology config path.
 func NewProxy(name string, params ...interface{}) (*Proxy, error) {
 	if name == "" {
 		return nil, fmt.Errorf("name argument is required")
 	}
 
 	configPath := DefaultConfigPath
-	if len(params) > 2 {
-		return nil, fmt.Errorf("too many arguments, expected name, config path, and manager endpoint")
+	if len(params) > 1 {
+		return nil, fmt.Errorf("too many arguments, expected name and config path")
 	}
 	if len(params) > 0 && params[0] != nil {
 		configPathArg, ok := params[0].(string)
@@ -79,37 +78,11 @@ func NewProxy(name string, params ...interface{}) (*Proxy, error) {
 		return nil, fmt.Errorf("topology.NewHandler: %w", err)
 	}
 
-	managerEndpoint := manager.DefaultProxyManagerEndpoint(name)
-	if len(params) > 1 && params[1] != nil {
-		managerEndpointArg, ok := params[1].(message.Endpoint)
-		if !ok {
-			return nil, fmt.Errorf("manager endpoint argument must be message.Endpoint")
-		}
-		managerEndpoint = managerEndpointArg
-	} else {
-		serviceConfig, err := topologyHandler.Service(name)
-		if err == nil {
-			managerHandler, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
-			if err == nil {
-				handler, ok := managerHandler.AsIndependentHandler()
-				if ok {
-					managerEndpoint = handler.Endpoint
-				}
-			}
-		}
-	}
-
-	m, err := manager.NewProxyManager(name, managerEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("manager.NewProxyManager: %w", err)
-	}
-
 	return &Proxy{
 		ProxyHandlers:         handlers.NewProxyHandlers(name),
 		WithHardcodedTopology: NewHardcodedTopologies(name),
 		topologyHandler:       topologyHandler,
 		name:                  name,
-		manager:               m,
 	}, nil
 }
 
@@ -176,9 +149,83 @@ func (proxy *Proxy) addDefaultServiceToTopology() error {
 	return nil
 }
 
-func (proxy *Proxy) addServiceManagerToTopology() error {
-	// Proxy topology records only accept proxy handlers. The manager runs
-	// in-process via ProxyHandlers, not as a stored independent handler.
+func (proxy *Proxy) addHardcodedServicesToTopology() error {
+	if proxy == nil || proxy.WithHardcodedTopology == nil {
+		return fmt.Errorf("proxy or WithHardcodedTopology is nil")
+	}
+	tp := proxy.topology()
+
+	for mushroomURL, serviceConfig := range proxy.serviceConfigs {
+		parent := serviceParentURL(mushroomURL)
+		_, err := tp.Service(mushroomURL)
+		if err != nil {
+			if err := tp.AddService(serviceConfig, parent...); err != nil {
+				return fmt.Errorf("topology.AddService(%q): %w", mushroomURL, err)
+			}
+			continue
+		}
+
+		if err := tp.SetService(serviceConfig, parent...); err != nil {
+			return fmt.Errorf("topology.SetService(%q): %w", mushroomURL, err)
+		}
+	}
+
+	return nil
+}
+
+func (proxy *Proxy) addHardcodedHandlersToTopology() error {
+	if proxy == nil || proxy.WithHardcodedTopology == nil {
+		return fmt.Errorf("proxy or WithHardcodedTopology is nil")
+	}
+	handlers, ok := proxy.handlerConfigs[proxy.name]
+	if !ok || len(handlers) == 0 {
+		return nil
+	}
+
+	tp := proxy.topology()
+	serviceConfig, err := tp.Service(proxy.name)
+	if err != nil {
+		return fmt.Errorf("hardcoded handlers for %q not found in topology: %w", proxy.name, err)
+	}
+
+	for _, handler := range handlers {
+		if proxyHandler, ok := handler.AsProxyHandler(); ok {
+			handler = normalizeProxyHandlerOutbounds(proxyHandler)
+		}
+		serviceConfig.SetHandler(handler, true)
+	}
+	if err := tp.SetService(serviceConfig, serviceParentURL(proxy.name)...); err != nil {
+		return fmt.Errorf("topology.SetService(%q): %w", proxy.name, err)
+	}
+
+	return nil
+}
+
+// ensureServiceManager creates the proxy manager from topology configuration.
+// When the service record has a manager handler, that endpoint is used;
+// otherwise manager.DefaultProxyManagerEndpoint is used.
+func (proxy *Proxy) ensureServiceManager() error {
+	tp := proxy.topology()
+	serviceConfig, err := tp.Service(proxy.name)
+	if err != nil {
+		return fmt.Errorf("topology.Service('%s'): %w", proxy.name, err)
+	}
+
+	managerEndpoint := manager.DefaultProxyManagerEndpoint(proxy.name)
+	currentManager, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
+	if err == nil {
+		handler, ok := currentManager.AsIndependentHandler()
+		if ok {
+			managerEndpoint = handler.Endpoint
+		}
+	}
+
+	m, err := manager.NewProxyManager(proxy.name, managerEndpoint)
+	if err != nil {
+		return fmt.Errorf("manager.NewProxyManager: %w", err)
+	}
+	proxy.manager = m
+
 	return nil
 }
 
@@ -196,12 +243,20 @@ func (proxy *Proxy) Start() error {
 		err = fmt.Errorf("topology.Snapshot: %w", err)
 		goto errOccurred
 	}
+	if err = proxy.addHardcodedServicesToTopology(); err != nil {
+		err = fmt.Errorf("addHardcodedServicesToTopology: %w", err)
+		goto errOccurred
+	}
 	if err = proxy.addDefaultServiceToTopology(); err != nil {
 		err = fmt.Errorf("addDefaultServiceToTopology: %w", err)
 		goto errOccurred
 	}
-	if err = proxy.addServiceManagerToTopology(); err != nil {
-		err = fmt.Errorf("addServiceManagerToTopology: %w", err)
+	if err = proxy.addHardcodedHandlersToTopology(); err != nil {
+		err = fmt.Errorf("addHardcodedHandlersToTopology: %w", err)
+		goto errOccurred
+	}
+	if err = proxy.ensureServiceManager(); err != nil {
+		err = fmt.Errorf("ensureServiceManager: %w", err)
 		goto errOccurred
 	}
 	if err = proxy.topologyHandler.Start(); err != nil {

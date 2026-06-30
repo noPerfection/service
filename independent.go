@@ -83,24 +83,16 @@ func (independent *Independent) AsExtension() (*Extension, bool) {
 //
 //  2. configPath — topology JSON file for this process (default "noPerfection.json").
 //
-//  3. managerEndpoint — highest-priority manager socket. Remote processes use this endpoint
-//     to start, stop, and probe the service. When omitted, the endpoint is taken from the
-//     service record in topology, then DefaultServiceManagerEndpoint.
-//
 // Examples:
 //
-//	// Root service "main", default config and manager from topology.
+//	// Root service "main" with default config path.
 //	app, err := New("main", "noPerfection.json")
-//
-//	// Same service, remote manager endpoint overrides topology.
-//	app, err := New("main", "noPerfection.json", message.NewEndpoint("manager", 9100))
 func New(params ...any) (*Independent, error) {
 	mushroomURL := DefaultName
 	configPath := DefaultConfigPath
-	managerEndpoint := DefaultServiceManagerEndpoint
 
-	if len(params) > 3 {
-		return nil, fmt.Errorf("too many arguments, expected name, config path, and manager endpoint")
+	if len(params) > 2 {
+		return nil, fmt.Errorf("too many arguments, expected name and config path")
 	}
 
 	if len(params) > 0 && params[0] != nil {
@@ -128,38 +120,11 @@ func New(params ...any) (*Independent, error) {
 		return nil, fmt.Errorf("topology.NewHandler: %w", err)
 	}
 
-	// If user passes the manager endpoint, then use it,
-	// otherwise try to get it from the topology config.
-	if len(params) > 2 && params[2] != nil {
-		managerEndpointArg, ok := params[2].(message.Endpoint)
-		if !ok {
-			return nil, fmt.Errorf("manager endpoint argument must be message.Endpoint")
-		}
-		managerEndpoint = managerEndpointArg
-	} else {
-		serviceConfig, err := topologyHandler.Service(mushroomURL)
-		if err == nil {
-			managerHandler, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
-			if err == nil {
-				handler, ok := managerHandler.AsIndependentHandler()
-				if ok {
-					managerEndpoint = handler.Endpoint
-				}
-			}
-		}
-	}
-
-	m, err := manager.New(mushroomURL, managerEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("manager.New: %w", err)
-	}
-
 	independent := &Independent{
 		Handlers:              handlers.NewHandlers(),
 		WithHardcodedTopology: NewHardcodedTopologies(mushroomURL),
 		topologyHandler:       topologyHandler,
 		mushroomURL:           mushroomURL,
-		manager:               m,
 		logger:                nil,
 	}
 
@@ -258,52 +223,30 @@ func (independent *Independent) addDefaultHandlerToTopology() error {
 	return nil
 }
 
-// addServiceManagerToTopology stores a non-default manager handler.
-// It's goal is to store manager handler that user passed in the constructor.
-//
-// The hardcoded service parameters or handler parameters are in priority over constructor.
-// If its given, then it will set them here.
-// Otherwise it will set the constructor argument to the topology.
-func (independent *Independent) addServiceManagerToTopology() error {
+// ensureServiceManager creates the service manager from topology configuration.
+// When the service record has a manager handler, that endpoint is used;
+// otherwise DefaultServiceManagerEndpoint is used.
+func (independent *Independent) ensureServiceManager() error {
 	tp := independent.topology()
 	serviceConfig, err := tp.Service(independent.mushroomURL)
 	if err != nil {
 		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
 	}
 
-	// Service manager's config in the handler config format matching?
-	// Use it as priority over what was passed on the
-	managerConfig := independent.manager.Config()
+	managerEndpoint := DefaultServiceManagerEndpoint
 	currentManager, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
 	if err == nil {
 		handler := currentManager.(config.IndependentHandler)
-		if handler.Endpoint == managerConfig.Endpoint {
-			return nil
-		}
-		m, err := manager.New(independent.mushroomURL, handler.Endpoint)
-		if err != nil {
-			return fmt.Errorf("manager.New: %w", err)
-		}
-		independent.manager = m
-		if err := independent.manager.SetLogger(independent.logger); err != nil {
-			return fmt.Errorf("manager.SetLogger: %w", err)
-		}
-		return nil
-	}
-	if managerConfig.Endpoint == DefaultServiceManagerEndpoint {
-		return nil
+		managerEndpoint = handler.Endpoint
 	}
 
-	// Converting from the handler config format to the topology's config format.
-	managerTopologyConfig := config.IndependentHandler{
-		Type:     config.HandlerType(managerConfig.Type),
-		Category: managerConfig.Category,
-		Endpoint: managerConfig.Endpoint,
+	m, err := manager.New(independent.mushroomURL, managerEndpoint)
+	if err != nil {
+		return fmt.Errorf("manager.New: %w", err)
 	}
-
-	serviceConfig.SetHandler(managerTopologyConfig, true)
-	if err := tp.SetService(serviceConfig, serviceParentURL(independent.mushroomURL)...); err != nil {
-		return fmt.Errorf("topology.SetService('%s'): %w", independent.mushroomURL, err)
+	independent.manager = m
+	if err := independent.manager.SetLogger(independent.logger); err != nil {
+		return fmt.Errorf("manager.SetLogger: %w", err)
 	}
 
 	return nil
@@ -408,9 +351,8 @@ func (independent *Independent) Start() error {
 	}
 
 	// We call it after hardcoded stuff, just in case if user passed hardcoded manager data.
-	// In that case that becomes the hardcoded manager data as well.
-	if err = independent.addServiceManagerToTopology(); err != nil {
-		err = fmt.Errorf("lintManagerTopology: %w", err)
+	if err = independent.ensureServiceManager(); err != nil {
+		err = fmt.Errorf("ensureServiceManager: %w", err)
 		goto errOccurred
 	}
 

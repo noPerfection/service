@@ -69,9 +69,17 @@ func NewInprocExtension(configPath ...string) (*InprocTopologyService, error) {
 		path = configPath[0]
 	}
 
-	extension, err := NewExt(InprocTopologyServiceName, path, DefaultInprocTopologyManagerEndpoint)
+	extension, err := NewExt(InprocTopologyServiceName, path)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := extension.SetHandlerConfig(IndependentHandler{
+		Type:     SyncReplierType,
+		Category: ServiceManagerCategory,
+		Endpoint: DefaultInprocTopologyManagerEndpoint,
+	}); err != nil {
+		return nil, fmt.Errorf("SetHandlerConfig: %w", err)
 	}
 
 	inprocTopology := &InprocTopologyService{

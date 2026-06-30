@@ -6,12 +6,23 @@ import (
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
+	"github.com/noPerfection/topology"
+	topologyConfig "github.com/noPerfection/topology/config"
 )
 
+const serviceManagerPort = 8001
+
 func main() {
-	managerEndpoint := message.NewEndpoint("localhost", 8001)
-	app, err := service.New("close-service", "noPerfection.json", managerEndpoint)
+	app, err := service.New("close-service", "noPerfection.json")
 	if err != nil {
+		panic(err)
+	}
+
+	if err := app.SetHandlerConfig(topologyConfig.IndependentHandler{
+		Type:     topologyConfig.SyncReplierType,
+		Category: topology.ServiceManagerCategory,
+		Endpoint: message.NewEndpoint("localhost", serviceManagerPort),
+	}); err != nil {
 		panic(err)
 	}
 

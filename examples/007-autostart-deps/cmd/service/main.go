@@ -40,9 +40,16 @@ func main() {
 	mainPackage := info.Path
 	fmt.Println("Module URL:", moduleURL, "Module Version:", moduleVersion, "Main Package:", mainPackage)
 
-	managerEndpoint := message.NewEndpoint("localhost", serviceManagerPort)
-	app, err := service.New(serviceName, configPath, managerEndpoint)
+	app, err := service.New(serviceName, configPath)
 	if err != nil {
+		panic(err)
+	}
+
+	if err := app.SetHandlerConfig(topologyConfig.IndependentHandler{
+		Type:     topologyConfig.SyncReplierType,
+		Category: topology.ServiceManagerCategory,
+		Endpoint: message.NewEndpoint("localhost", serviceManagerPort),
+	}); err != nil {
 		panic(err)
 	}
 
