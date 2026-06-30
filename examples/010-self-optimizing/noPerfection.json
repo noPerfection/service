@@ -1,0 +1,133 @@
+{
+  "services": [
+    {
+      "handlers": [
+        {
+          "category": "main",
+          "endpoint": {
+            "id": "tmp/default-name-proxy",
+            "port": 0
+          },
+          "outbounds": [
+            "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=main"
+          ],
+          "routes": [
+            "age-verification",
+            "hello"
+          ],
+          "type": "SyncReplier"
+        },
+        {
+          "category": "manager",
+          "endpoint": {
+            "id": "tmp/default-name-proxy_manager",
+            "port": 0
+          },
+          "type": "SyncReplier"
+        }
+      ],
+      "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/proxy?root=/home/medet/noPerfection/service/examples/010-self-optimizing",
+      "name": "default-name-proxy",
+      "start-command": "./bin/proxy",
+      "type": "Proxy"
+    },
+    {
+      "handlers": [
+        {
+          "category": "main",
+          "endpoint": {
+            "id": "tmp/entrypoint",
+            "port": 0
+          },
+          "outbounds": [
+            "pkg:json/.#noPerfection.json?var=services[name:default-name-proxy]\u0026category=main"
+          ],
+          "routes": [
+            "age-verification",
+            "hello"
+          ],
+          "type": "SyncReplier"
+        },
+        {
+          "category": "manager",
+          "endpoint": {
+            "id": "tmp/entrypoint_manager",
+            "port": 0
+          },
+          "type": "SyncReplier"
+        }
+      ],
+      "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/entrypoint?root=/home/medet/noPerfection/service/examples/010-self-optimizing",
+      "name": "entrypoint",
+      "start-command": "./bin/entrypoint",
+      "type": "Proxy"
+    },
+    {
+      "handler-deps": [
+        {
+          "name": "main",
+          "proxies": [
+            "pkg:$?var=services[name:entrypoint]",
+            "pkg:$?var=services[name:default-name-proxy]"
+          ]
+        },
+        {
+          "extensions": [
+            "ai"
+          ],
+          "name": "manager"
+        }
+      ],
+      "handlers": [
+        {
+          "category": "main",
+          "endpoint": {
+            "id": "tmp/hello-world",
+            "port": 0
+          },
+          "type": "SyncReplier"
+        },
+        {
+          "category": "manager",
+          "endpoint": {
+            "id": "tmp/hello-world_manager",
+            "port": 0
+          },
+          "type": "SyncReplier"
+        }
+      ],
+      "module-url": "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#cmd/service?root=/home/medet/noPerfection/service/examples/010-self-optimizing",
+      "name": "hello-world",
+      "start-command": "./bin/service",
+      "type": "Independent"
+    },
+    {
+      "handlers": [
+        {
+          "category": "manager",
+          "endpoint": {
+            "id": "ai_manager",
+            "port": 0
+          },
+          "type": "SyncReplier"
+        },
+        {
+          "category": "main",
+          "endpoint": {
+            "id": "ai",
+            "port": 0
+          },
+          "inbounds": null,
+          "type": "Replier"
+        }
+      ],
+      "module-url": "pkg:golang/github.com/noPerfection/service",
+      "name": "ai",
+      "parameters": {
+        "api-key": "*pkg:os/env?var=ANTHROPIC_API_KEY\u0026LoadAnyEnv=true",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "type": "Extension"
+    }
+  ]
+}

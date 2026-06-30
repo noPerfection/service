@@ -325,9 +325,15 @@ func (independent *Extension) addTopologyHandlersToHandlers() error {
 func (independent *Extension) Start() error {
 	var err error
 	var inprocServices int
+	var topologySnapshot string
 	var tp topology.TopologyInterface
 	if err = independent.connectTopologyClientIfRunning(); err != nil {
 		err = fmt.Errorf("connectTopologyClientIfRunning: %w", err)
+		goto errOccurred
+	}
+	topologySnapshot, err = independent.topology().Snapshot()
+	if err != nil {
+		err = fmt.Errorf("topology.Snapshot: %w", err)
 		goto errOccurred
 	}
 	if err = independent.addHardcodedServicesToTopology(); err != nil {
@@ -424,6 +430,11 @@ func (independent *Extension) Start() error {
 
 errOccurred:
 	if err != nil {
+		if topologySnapshot != "" {
+			if rollbackErr := independent.topology().Rollback(topologySnapshot); rollbackErr != nil {
+				err = fmt.Errorf("%w: topology.Rollback: %v", err, rollbackErr)
+			}
+		}
 		if independent.topologyClient != nil {
 			_ = independent.topologyClient.Close()
 			independent.topologyClient = nil

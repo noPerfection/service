@@ -53,7 +53,7 @@ func ipcProxyService(name string) Config {
 	}
 }
 
-func TestSetServiceRejectsNonInproc(t *testing.T) {
+func TestStartServiceRejectsNonInproc(t *testing.T) {
 	path := writeInprocExtensionTopology(t, ipcProxyService("ipc-proxy"))
 	ext, err := NewInprocExtension(path)
 	require.NoError(t, err)
@@ -61,7 +61,9 @@ func TestSetServiceRejectsNonInproc(t *testing.T) {
 	proxy, err := NewProxy("ipc-proxy", path)
 	require.NoError(t, err)
 
-	err = ext.SetService("ipc-proxy", proxy)
+	require.NoError(t, ext.SetService("ipc-proxy", proxy))
+
+	_, err = ext.startService("ipc-proxy")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not inproc")
 }

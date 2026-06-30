@@ -227,9 +227,7 @@ func (independent *Independent) addHardcodedServicesToTopology() error {
 		_, err := tp.Service(mushroomURL)
 		if err != nil {
 			if err := tp.AddService(serviceConfig, parent...); err != nil {
-				if err := tp.SetService(serviceConfig, parent...); err != nil {
-					return fmt.Errorf("topology.SetService(%q): %w", mushroomURL, err)
-				}
+				return fmt.Errorf("topology.AddService(%q): %w", mushroomURL, err)
 			}
 			continue
 		}

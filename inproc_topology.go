@@ -108,16 +108,14 @@ func (t *InprocTopologyService) SetService(mushroomURL string, svc Service) erro
 	if mushroomURL == "" {
 		return fmt.Errorf("mushroom url is empty")
 	}
-	if t.topologyHandler == nil {
-		return fmt.Errorf("topology handler is nil")
+	tp := t.topology()
+	if tp == nil {
+		return fmt.Errorf("topology is nil")
 	}
 
-	serviceConfig, err := t.topologyHandler.Service(mushroomURL)
+	serviceConfig, err := tp.Service(mushroomURL)
 	if err != nil {
-		return fmt.Errorf("topologyHandler.Service(%q): %w", mushroomURL, err)
-	}
-	if !serviceConfig.IsInproc() {
-		return fmt.Errorf("service %q is not inproc", serviceConfig.Name)
+		return fmt.Errorf("topology.Service(%q): %w", mushroomURL, err)
 	}
 
 	t.services[serviceConfig.Name] = svc
@@ -137,6 +135,17 @@ func (t *InprocTopologyService) startService(name string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("inproc service %q is not registered", name)
 	}
+	tp := t.topology()
+	if tp == nil {
+		return "", fmt.Errorf("topology is nil")
+	}
+	serviceConfig, err := tp.Service(name)
+	if err != nil {
+		return "", fmt.Errorf("topology.Service(%q): %w", name, err)
+	}
+	if !serviceConfig.IsInproc() {
+		return "", fmt.Errorf("cannot start service %q: not inproc", serviceConfig.Name)
+	}
 	if err := svc.Start(); err != nil {
 		return "", err
 	}
@@ -154,7 +163,35 @@ var (
 	ErrDynamicServiceName = errors.New("host service name is not a static string")
 	// ErrInprocTopologyPresentNotRunning is returned when startInprocTopology appears in main but topology is not running.
 	ErrInprocTopologyPresentNotRunning = errors.New("startInprocTopology is present in main but inproc topology is not running")
+	// ErrNeedToRerun marks intentional staged exits (rebuild/re-run) that must not roll back topology.
+	ErrNeedToRerun = errors.New("need to rerun")
 )
+
+// NeedToRerunErr is returned when source or topology was updated and the process must be rebuilt or re-run.
+type NeedToRerunErr struct {
+	Message string
+}
+
+func (e *NeedToRerunErr) Error() string {
+	if e == nil {
+		return ErrNeedToRerun.Error()
+	}
+	return e.Message
+}
+
+func (e *NeedToRerunErr) Is(target error) bool {
+	return target == ErrNeedToRerun
+}
+
+// NeedToRerun formats an intentional rebuild/re-run exit.
+func NeedToRerun(format string, args ...any) error {
+	return &NeedToRerunErr{Message: fmt.Sprintf(format, args...)}
+}
+
+// IsNeedToRerunErr reports whether err is or wraps ErrNeedToRerun.
+func IsNeedToRerunErr(err error) bool {
+	return errors.Is(err, ErrNeedToRerun)
+}
 
 // IsInprocIncludedInMain reports whether hostModuleURL's main package imports inprocPkg.
 func IsInprocIncludedInMain(hostModuleURL string, inprocPkg *package_url.PackageInfo) error {

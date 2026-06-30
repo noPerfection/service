@@ -836,6 +836,398 @@ func startInprocTopology() error {
 }
 `
 
+// getInprocServices returns resolved SetService names from the host's inproc_topology.go.
+func getInprocServices(hostModuleURL string) ([]string, error) {
+	if hostModuleURL == "" {
+		return nil, fmt.Errorf("host module url is empty")
+	}
+	host, err := loadHostPackage(hostModuleURL)
+	if err != nil {
+		return nil, fmt.Errorf("loadHostPackage: %w", err)
+	}
+	filePath := filepath.Join(hostPackageDir(host), inprocTopologyFilename)
+	if _, err := os.Stat(filePath); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("stat %q: %w", filePath, err)
+	}
+	file, err := parser.ParseFile(host.fset, filePath, nil, parser.ParseComments)
+	if err != nil {
+		return nil, fmt.Errorf("parser.ParseFile(%q): %w", filePath, err)
+	}
+	fn := findFuncDecl(file, "startInprocTopology")
+	if fn == nil {
+		return nil, fmt.Errorf("%q: startInprocTopology not found", filePath)
+	}
+	registrations := listInprocTopologyRegistrations(fn, host)
+	names := make([]string, 0, len(registrations))
+	for _, reg := range registrations {
+		if reg.name == "" {
+			continue
+		}
+		names = append(names, reg.name)
+	}
+	return names, nil
+}
+
+// RemoveInprocTopologyServices removes SetService wiring and service constructors for serviceNames.
+func RemoveInprocTopologyServices(hostModuleURL string, serviceNames []string) (edited bool, err error) {
+	if hostModuleURL == "" {
+		return false, fmt.Errorf("host module url is empty")
+	}
+	if len(serviceNames) == 0 {
+		return false, nil
+	}
+	wantNames := make(map[string]struct{}, len(serviceNames))
+	for _, name := range serviceNames {
+		if name == "" {
+			continue
+		}
+		wantNames[name] = struct{}{}
+	}
+	if len(wantNames) == 0 {
+		return false, nil
+	}
+
+	host, err := loadHostPackage(hostModuleURL)
+	if err != nil {
+		return false, fmt.Errorf("loadHostPackage: %w", err)
+	}
+	file, filePath, err := loadInprocTopologyFile(host)
+	if err != nil {
+		return false, err
+	}
+	fn := findFuncDecl(file, "startInprocTopology")
+	if fn == nil || fn.Body == nil {
+		return false, fmt.Errorf("%q: startInprocTopology not found", filePath)
+	}
+	removeVars := serviceVarsForNames(fn, host, wantNames)
+	if len(removeVars) == 0 {
+		return false, nil
+	}
+	before := len(fn.Body.List)
+	removeServiceVarsFromFn(fn, removeVars)
+	if len(fn.Body.List) == before {
+		return false, nil
+	}
+	pruneUnusedImportsInFile(file, fn)
+	if err := writeGoFile(host.fset, file, filePath); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func serviceVarsForNames(fn *ast.FuncDecl, host *hostPackageAST, serviceNames map[string]struct{}) map[string]struct{} {
+	removeVars := make(map[string]struct{})
+	for _, reg := range listInprocTopologyRegistrations(fn, host) {
+		if reg.serviceVar == "" {
+			continue
+		}
+		if _, ok := serviceNames[reg.name]; ok {
+			removeVars[reg.serviceVar] = struct{}{}
+		}
+	}
+	return removeVars
+}
+
+func removeServiceVarsFromFn(fn *ast.FuncDecl, removeVars map[string]struct{}) {
+	if fn == nil || fn.Body == nil || len(removeVars) == 0 {
+		return
+	}
+	filtered := make([]ast.Stmt, 0, len(fn.Body.List))
+	for i := 0; i < len(fn.Body.List); i++ {
+		stmt := fn.Body.List[i]
+		if setServiceIfUsesVar(stmt, removeVars) {
+			continue
+		}
+		if assignDefinesRemovedVar(stmt, removeVars) {
+			if i+1 < len(fn.Body.List) && isErrReturnIf(stmt, fn.Body.List[i+1]) {
+				i++
+			}
+			continue
+		}
+		filtered = append(filtered, stmt)
+	}
+	fn.Body.List = filtered
+}
+
+func setServiceIfUsesVar(stmt ast.Stmt, removeVars map[string]struct{}) bool {
+	ifStmt, ok := stmt.(*ast.IfStmt)
+	if !ok || ifStmt.Init == nil {
+		return false
+	}
+	assign, ok := ifStmt.Init.(*ast.AssignStmt)
+	if !ok || len(assign.Rhs) != 1 {
+		return false
+	}
+	call, ok := assign.Rhs[0].(*ast.CallExpr)
+	if setServiceCallExpr(call) == nil || len(call.Args) < 2 {
+		return false
+	}
+	ident, ok := call.Args[1].(*ast.Ident)
+	if !ok {
+		return false
+	}
+	_, remove := removeVars[ident.Name]
+	return remove
+}
+
+func assignDefinesRemovedVar(stmt ast.Stmt, removeVars map[string]struct{}) bool {
+	assign, ok := stmt.(*ast.AssignStmt)
+	if !ok || len(assign.Lhs) == 0 {
+		return false
+	}
+	ident, ok := assign.Lhs[0].(*ast.Ident)
+	if !ok {
+		return false
+	}
+	_, remove := removeVars[ident.Name]
+	return remove
+}
+
+func isErrReturnIf(assignStmt, ifStmt ast.Stmt) bool {
+	if _, ok := assignStmt.(*ast.AssignStmt); !ok {
+		return false
+	}
+	ifStmtNode, ok := ifStmt.(*ast.IfStmt)
+	if !ok || ifStmtNode.Init != nil || ifStmtNode.Body == nil || len(ifStmtNode.Body.List) != 1 {
+		return false
+	}
+	ret, ok := ifStmtNode.Body.List[0].(*ast.ReturnStmt)
+	if !ok || len(ret.Results) != 1 {
+		return false
+	}
+	retIdent, ok := ret.Results[0].(*ast.Ident)
+	return ok && retIdent.Name == "err"
+}
+
+func pruneUnusedImportsInFile(file *ast.File, fn *ast.FuncDecl) {
+	if file == nil || fn == nil || fn.Body == nil {
+		return
+	}
+	used := make(map[string]struct{})
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.IMPORT {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			importSpec, ok := spec.(*ast.ImportSpec)
+			if !ok || importSpec.Path == nil {
+				continue
+			}
+			pathValue, err := strconv.Unquote(importSpec.Path.Value)
+			if err != nil || pathValue != "github.com/noPerfection/service" {
+				continue
+			}
+			localName := path.Base(pathValue)
+			if importSpec.Name != nil {
+				localName = importSpec.Name.Name
+			}
+			used[localName] = struct{}{}
+		}
+	}
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		sel, ok := node.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		if ident, ok := sel.X.(*ast.Ident); ok {
+			used[ident.Name] = struct{}{}
+		}
+		return true
+	})
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.IMPORT {
+			continue
+		}
+		filtered := make([]ast.Spec, 0, len(gen.Specs))
+		for _, spec := range gen.Specs {
+			importSpec, ok := spec.(*ast.ImportSpec)
+			if !ok || importSpec.Path == nil {
+				continue
+			}
+			pathValue, err := strconv.Unquote(importSpec.Path.Value)
+			if err != nil {
+				filtered = append(filtered, spec)
+				continue
+			}
+			if pathValue == "github.com/noPerfection/service" {
+				filtered = append(filtered, spec)
+				continue
+			}
+			localName := path.Base(pathValue)
+			if importSpec.Name != nil {
+				localName = importSpec.Name.Name
+			}
+			if _, ok := used[localName]; ok {
+				filtered = append(filtered, spec)
+			}
+		}
+		gen.Specs = filtered
+	}
+}
+
+type inprocTopologyRegistration struct {
+	name       string
+	serviceVar string
+}
+
+func listInprocTopologyRegistrations(fn *ast.FuncDecl, host *hostPackageAST) []inprocTopologyRegistration {
+	if fn == nil || fn.Body == nil {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	var registrations []inprocTopologyRegistration
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		call := setServiceCallFromNode(node)
+		if call == nil || len(call.Args) < 2 {
+			return true
+		}
+		name, err := evalStringExpr(call.Args[0], host.consts)
+		if err != nil || name == "" {
+			return true
+		}
+		if _, ok := seen[name]; ok {
+			return true
+		}
+		seen[name] = struct{}{}
+		serviceVar := ""
+		if ident, ok := call.Args[1].(*ast.Ident); ok {
+			serviceVar = ident.Name
+		}
+		registrations = append(registrations, inprocTopologyRegistration{name: name, serviceVar: serviceVar})
+		return true
+	})
+	return registrations
+}
+
+// WriteInprocTopologyFile regenerates inproc_topology.go from the managed skeleton and services.
+func WriteInprocTopologyFile(hostModuleURL string, services []config.Service) error {
+	if hostModuleURL == "" {
+		return fmt.Errorf("host module url is empty")
+	}
+	host, err := loadHostPackage(hostModuleURL)
+	if err != nil {
+		return fmt.Errorf("loadHostPackage: %w", err)
+	}
+	filePath := filepath.Join(hostPackageDir(host), inprocTopologyFilename)
+	file, err := parser.ParseFile(host.fset, filePath, inprocTopologySkeleton, parser.ParseComments)
+	if err != nil {
+		return fmt.Errorf("parser.ParseFile(%q skeleton): %w", filePath, err)
+	}
+	fn := findFuncDecl(file, "startInprocTopology")
+	if fn == nil || fn.Body == nil {
+		return fmt.Errorf("%q: startInprocTopology not found", filePath)
+	}
+	inprocVar := inprocTopologyVarName(fn)
+	if inprocVar == "" {
+		inprocVar = "inprocTopology"
+	}
+	if err := appendInprocTopologyServices(file, fn, host, inprocVar, services); err != nil {
+		return err
+	}
+	return writeGoFile(host.fset, file, filePath)
+}
+
+// readInprocTopologyFileContent returns the on-disk inproc_topology.go bytes before mutation.
+func readInprocTopologyFileContent(hostModuleURL string) (content []byte, existed bool, err error) {
+	if hostModuleURL == "" {
+		return nil, false, fmt.Errorf("host module url is empty")
+	}
+	host, err := loadHostPackage(hostModuleURL)
+	if err != nil {
+		return nil, false, fmt.Errorf("loadHostPackage: %w", err)
+	}
+	filePath := filepath.Join(hostPackageDir(host), inprocTopologyFilename)
+	content, err = os.ReadFile(filePath)
+	if os.IsNotExist(err) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("read %q: %w", filePath, err)
+	}
+	return content, true, nil
+}
+
+// restoreInprocTopologyFileContent puts inproc_topology.go back to its pre-mutation state.
+func restoreInprocTopologyFileContent(hostModuleURL string, content []byte, existed bool) error {
+	if hostModuleURL == "" {
+		return fmt.Errorf("host module url is empty")
+	}
+	host, err := loadHostPackage(hostModuleURL)
+	if err != nil {
+		return fmt.Errorf("loadHostPackage: %w", err)
+	}
+	filePath := filepath.Join(hostPackageDir(host), inprocTopologyFilename)
+	if !existed {
+		if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove %q: %w", filePath, err)
+		}
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+		return fmt.Errorf("mkdir %q: %w", filepath.Dir(filePath), err)
+	}
+	if err := os.WriteFile(filePath, content, 0o644); err != nil {
+		return fmt.Errorf("write %q: %w", filePath, err)
+	}
+	return nil
+}
+
+// DeleteInprocTopologyFile removes the managed inproc_topology.go from the host main package.
+func DeleteInprocTopologyFile(hostModuleURL string) error {
+	if hostModuleURL == "" {
+		return fmt.Errorf("host module url is empty")
+	}
+	host, err := loadHostPackage(hostModuleURL)
+	if err != nil {
+		return fmt.Errorf("loadHostPackage: %w", err)
+	}
+	filePath := filepath.Join(hostPackageDir(host), inprocTopologyFilename)
+	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove %q: %w", filePath, err)
+	}
+	return nil
+}
+
+// RemoveStartInprocTopologyCall removes the startInprocTopology() call from host main.go.
+func RemoveStartInprocTopologyCall(hostModuleURL string) (mainEdited bool, err error) {
+	if hostModuleURL == "" {
+		return false, fmt.Errorf("host module url is empty")
+	}
+	host, err := loadHostPackage(hostModuleURL)
+	if err != nil {
+		return false, fmt.Errorf("loadHostPackage: %w", err)
+	}
+	file, mainFn := findMainFile(host)
+	if mainFn == nil || mainFn.Body == nil {
+		return false, nil
+	}
+	if !mainBodyCallsStartInprocTopology(mainFn) {
+		return false, nil
+	}
+	mainPath := host.fset.File(file.Pos()).Name()
+	filtered := make([]ast.Stmt, 0, len(mainFn.Body.List))
+	for _, stmt := range mainFn.Body.List {
+		if stmtReferencesStartInprocTopology(stmt) {
+			mainEdited = true
+			continue
+		}
+		filtered = append(filtered, stmt)
+	}
+	if !mainEdited {
+		return false, nil
+	}
+	mainFn.Body.List = filtered
+	if err := writeGoFile(host.fset, file, mainPath); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // UpdateInprocTopology adds imports, service constructors, and SetService calls
 // to the host main package's inproc_topology.go for each listed inproc service.
 func UpdateInprocTopology(hostModuleURL string, services []config.Service) error {
@@ -866,6 +1258,26 @@ func UpdateInprocTopology(hostModuleURL string, services []config.Service) error
 		inprocVar = "inprocTopology"
 	}
 
+	added := false
+	for _, svc := range services {
+		if inprocTopologyHasSetService(fn, svc.Name, host) {
+			continue
+		}
+		if err := appendInprocTopologyServices(file, fn, host, inprocVar, []config.Service{svc}); err != nil {
+			return err
+		}
+		added = true
+	}
+	if !added {
+		return nil
+	}
+	return writeGoFile(host.fset, file, filePath)
+}
+
+func appendInprocTopologyServices(file *ast.File, fn *ast.FuncDecl, host *hostPackageAST, inprocVar string, services []config.Service) error {
+	if file == nil || fn == nil || fn.Body == nil {
+		return fmt.Errorf("inproc topology function is nil")
+	}
 	var newStmts []ast.Stmt
 	var setServiceStmts []ast.Stmt
 	reservedVars := inprocServiceVarNames(fn)
@@ -874,7 +1286,6 @@ func UpdateInprocTopology(hostModuleURL string, services []config.Service) error
 		if inprocTopologyHasSetService(fn, svc.Name, host) {
 			continue
 		}
-
 		pkgInfo, err := package_url.New(svc.ModuleUrl)
 		if err != nil {
 			return fmt.Errorf("package_url.New(%q): %w", svc.ModuleUrl, err)
@@ -883,32 +1294,71 @@ func UpdateInprocTopology(hostModuleURL string, services []config.Service) error
 		if importPath == "" {
 			return fmt.Errorf("service %q has empty import clause", svc.Name)
 		}
-
 		localName := ensureImportInFile(file, importPath)
 		varName, err := nextInprocServiceVarName(localName, reservedVars)
 		if err != nil {
 			return fmt.Errorf("nextInprocServiceVarName(%q): %w", svc.Name, err)
 		}
 		reservedVars[varName] = struct{}{}
-
 		serviceNameExpr, err := findServiceNameExpr(host, svc.Name)
 		if err != nil {
 			return fmt.Errorf("findServiceNameExpr(%q): %w", svc.Name, err)
 		}
-
 		newStmts = append(newStmts, buildInprocServiceNewStmts(localName, varName)...)
 		setServiceStmts = append(setServiceStmts, buildInprocSetServiceStmt(inprocVar, serviceNameExpr, varName))
 	}
-
 	if len(newStmts) == 0 && len(setServiceStmts) == 0 {
 		return nil
 	}
-
 	insertAt := insertIndexBeforeSetService(fn, inprocVar)
 	combined := append(newStmts, setServiceStmts...)
 	fn.Body.List = append(fn.Body.List[:insertAt], append(combined, fn.Body.List[insertAt:]...)...)
+	return nil
+}
 
-	return writeGoFile(host.fset, file, filePath)
+func listInprocTopologyServiceNames(fn *ast.FuncDecl, host *hostPackageAST) []string {
+	if fn == nil || fn.Body == nil {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	var names []string
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		call := setServiceCallFromNode(node)
+		if call == nil || len(call.Args) < 1 {
+			return true
+		}
+		name, err := evalStringExpr(call.Args[0], host.consts)
+		if err != nil || name == "" {
+			return true
+		}
+		if _, ok := seen[name]; ok {
+			return true
+		}
+		seen[name] = struct{}{}
+		names = append(names, name)
+		return true
+	})
+	return names
+}
+
+func stmtReferencesStartInprocTopology(stmt ast.Stmt) bool {
+	if stmt == nil {
+		return false
+	}
+	found := false
+	ast.Inspect(stmt, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		ident, ok := call.Fun.(*ast.Ident)
+		if ok && ident.Name == "startInprocTopology" {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 func loadInprocTopologyFile(host *hostPackageAST) (*ast.File, string, error) {

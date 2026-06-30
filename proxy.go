@@ -185,9 +185,15 @@ func (proxy *Proxy) addServiceManagerToTopology() error {
 // Start starts the proxy and its service manager.
 func (proxy *Proxy) Start() error {
 	var err error
+	var topologySnapshot string
 
 	if err = proxy.connectTopologyClientIfRunning(); err != nil {
 		err = fmt.Errorf("connectTopologyClientIfRunning: %w", err)
+		goto errOccurred
+	}
+	topologySnapshot, err = proxy.topology().Snapshot()
+	if err != nil {
+		err = fmt.Errorf("topology.Snapshot: %w", err)
 		goto errOccurred
 	}
 	if err = proxy.addDefaultServiceToTopology(); err != nil {
@@ -218,6 +224,15 @@ func (proxy *Proxy) Start() error {
 
 errOccurred:
 	if err != nil {
+		if topologySnapshot != "" {
+			if rollbackErr := proxy.topology().Rollback(topologySnapshot); rollbackErr != nil {
+				err = fmt.Errorf("%w: topology.Rollback: %v", err, rollbackErr)
+			}
+		}
+		if proxy.topologyClient != nil {
+			_ = proxy.topologyClient.Close()
+			proxy.topologyClient = nil
+		}
 		if proxy.manager != nil && proxy.manager.Running() {
 			closeErr := proxy.manager.StopService(proxy.name)
 			if closeErr != nil {

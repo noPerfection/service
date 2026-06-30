@@ -475,3 +475,212 @@ func main() {
 	require.Contains(t, got, "// if err := startInprocTopology(); err != nil {")
 	require.Contains(t, got, "if err := startInprocTopology(); err != nil {")
 }
+
+func TestGetInprocServices_ParsesSetService(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/inproc-host\n\ngo 1.25\n"), 0o644))
+	mainDir := filepath.Join(dir, "cmd", "host")
+	require.NoError(t, os.MkdirAll(mainDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(mainDir, "main.go"), []byte(`package main
+
+const (
+	proxyName = "default-name-proxy"
+	entrypointName = "entrypoint"
+)
+
+func main() {}
+`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(mainDir, "inproc_topology.go"), []byte(`package main
+
+import (
+	"github.com/noPerfection/service"
+	"example.com/inproc-host/services/proxy"
+	"example.com/inproc-host/services/entrypoint"
+)
+
+func startInprocTopology() error {
+	inprocTopology, err := service.NewInprocExtension()
+	if err != nil {
+		return err
+	}
+	proxy1, err := proxy.New()
+	if err != nil {
+		return err
+	}
+	entrypoint1, err := entrypoint.New()
+	if err != nil {
+		return err
+	}
+	if err := inprocTopology.SetService(entrypointName, entrypoint1); err != nil {
+		return err
+	}
+	if err := inprocTopology.SetService(proxyName, proxy1); err != nil {
+		return err
+	}
+	return inprocTopology.Start()
+}
+`), 0o644))
+
+	hostURL := fmt.Sprintf("pkg:golang/example.com/inproc-host#/cmd/host?root=%s&main=true", dir)
+	got, err := getInprocServices(hostURL)
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	require.Equal(t, "entrypoint", got[0])
+	require.Equal(t, "default-name-proxy", got[1])
+}
+
+func TestRemoveInprocTopologyServices_RemovesStaleService(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/inproc-host\n\ngo 1.25\n"), 0o644))
+	mainDir := filepath.Join(dir, "cmd", "host")
+	require.NoError(t, os.MkdirAll(mainDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(mainDir, "main.go"), []byte(`package main
+
+import "github.com/noPerfection/service"
+
+const (
+	proxyName = "default-name-proxy"
+	entrypointName = "entrypoint"
+)
+
+func main() {
+	app, _ := service.New("hello-world")
+	_ = app.SetServiceConfig(service.Config{Name: proxyName})
+	_ = app.SetServiceConfig(service.Config{Name: entrypointName})
+}
+`), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "services", "entrypoint"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "services", "entrypoint", "service.go"), []byte(`package entrypoint
+
+type Service struct{}
+
+func New() (*Service, error) { return &Service{}, nil }
+`), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "services", "proxy"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "services", "proxy", "service.go"), []byte(`package proxy
+
+type Service struct{}
+
+func New() (*Service, error) { return &Service{}, nil }
+`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(mainDir, "inproc_topology.go"), []byte(`package main
+
+import (
+	"github.com/noPerfection/service"
+	"example.com/inproc-host/services/proxy"
+	"example.com/inproc-host/services/entrypoint"
+)
+
+func startInprocTopology() error {
+	inprocTopology, err := service.NewInprocExtension()
+	if err != nil {
+		return err
+	}
+	proxy1, err := proxy.New()
+	if err != nil {
+		return err
+	}
+	entrypoint1, err := entrypoint.New()
+	if err != nil {
+		return err
+	}
+	if err := inprocTopology.SetService(entrypointName, entrypoint1); err != nil {
+		return err
+	}
+	if err := inprocTopology.SetService(proxyName, proxy1); err != nil {
+		return err
+	}
+	return inprocTopology.Start()
+}
+`), 0o644))
+
+	hostURL := fmt.Sprintf("pkg:golang/example.com/inproc-host#/cmd/host?root=%s&main=true", dir)
+
+	edited, err := RemoveInprocTopologyServices(hostURL, []string{"default-name-proxy"})
+	require.NoError(t, err)
+	require.True(t, edited)
+
+	content, err := os.ReadFile(filepath.Join(mainDir, "inproc_topology.go"))
+	require.NoError(t, err)
+	got := string(content)
+	require.Contains(t, got, "entrypoint1, err := entrypoint.New()")
+	require.NotContains(t, got, "proxy.New()")
+	require.NotContains(t, got, "services/proxy")
+}
+
+func TestGetInprocServices_EmptyWhenMissing(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/inproc-host\n\ngo 1.25\n"), 0o644))
+	mainDir := filepath.Join(dir, "cmd", "host")
+	require.NoError(t, os.MkdirAll(mainDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(mainDir, "main.go"), []byte(`package main
+
+func main() {}
+`), 0o644))
+
+	hostURL := fmt.Sprintf("pkg:golang/example.com/inproc-host#/cmd/host?root=%s&main=true", dir)
+	got, err := getInprocServices(hostURL)
+	require.NoError(t, err)
+	require.Empty(t, got)
+}
+
+func TestRemoveInprocTopologyServices_RemovesAllSetServices(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/inproc-host\n\ngo 1.25\n"), 0o644))
+	mainDir := filepath.Join(dir, "cmd", "host")
+	require.NoError(t, os.MkdirAll(mainDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(mainDir, "main.go"), []byte(`package main
+
+import "github.com/noPerfection/service"
+
+func main() {
+	app, _ := service.New("hello-world")
+	if err := startInprocTopology(); err != nil {
+		panic(err)
+	}
+	_ = app.Start()
+}
+`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(mainDir, "inproc_topology.go"), []byte(`package main
+
+import (
+	"github.com/noPerfection/service"
+	"example.com/inproc-host/services/entrypoint"
+)
+
+func startInprocTopology() error {
+	inprocTopology, err := service.NewInprocExtension()
+	if err != nil {
+		return err
+	}
+	entrypoint1, err := entrypoint.New()
+	if err != nil {
+		return err
+	}
+	if err := inprocTopology.SetService("entrypoint", entrypoint1); err != nil {
+		return err
+	}
+	return inprocTopology.Start()
+}
+`), 0o644))
+
+	hostURL := fmt.Sprintf("pkg:golang/example.com/inproc-host#/cmd/host?root=%s&main=true", dir)
+
+	edited, err := RemoveInprocTopologyServices(hostURL, []string{"entrypoint"})
+	require.NoError(t, err)
+	require.True(t, edited)
+
+	remaining, err := getInprocServices(hostURL)
+	require.NoError(t, err)
+	require.Empty(t, remaining)
+}
+
+func TestNeedToRerunErr(t *testing.T) {
+	err := NeedToRerun("added %s; please rebuild", inprocTopologyFilename)
+	require.True(t, IsNeedToRerunErr(err))
+	require.Contains(t, err.Error(), inprocTopologyFilename)
+
+	wrapped := fmt.Errorf("setupInproc: %w", err)
+	require.True(t, IsNeedToRerunErr(wrapped))
+	require.False(t, IsNeedToRerunErr(fmt.Errorf("other: %w", fmt.Errorf("plain"))))
+}
