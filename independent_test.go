@@ -654,6 +654,35 @@ func TestValidateProtocolOrders(t *testing.T) {
 				return []topologyConfig.Service{commandProxyInproc(t), serviceInproc(t)}
 			},
 		},
+		{
+			name: "tcp handler marked ipc can access ipc command proxy and ipc service",
+			service: protocolProxyServiceWithIpcHandlers(
+				t,
+				"handler-proxy",
+				"tcp",
+				[]string{handlers.DefaultHandlerCategory},
+				protocolOutboundLink("command-proxy"),
+				protocolOutboundLink("service"),
+			),
+			fixture: func(t *testing.T) []topologyConfig.Service {
+				return []topologyConfig.Service{commandProxyIPC(t), serviceIPC(t)}
+			},
+		},
+		{
+			name: "tcp handler marked ipc fails when accessing inproc service",
+			service: protocolProxyServiceWithIpcHandlers(
+				t,
+				"handler-proxy",
+				"tcp",
+				[]string{handlers.DefaultHandlerCategory},
+				protocolOutboundLink("command-proxy"),
+				protocolOutboundLink("service"),
+			),
+			fixture: func(t *testing.T) []topologyConfig.Service {
+				return []topologyConfig.Service{commandProxyIPC(t), serviceInproc(t)}
+			},
+			wantErr: "can not access from ipc to inproc",
+		},
 	}
 
 	for _, tt := range tests {
@@ -678,10 +707,20 @@ func protocolProxyService(t *testing.T, name string, protocol string, outbounds 
 
 func protocolProxyServiceWithInprocHandlers(t *testing.T, name string, protocol string, inprocHandlers []string, outbounds ...string) topologyConfig.Service {
 	t.Helper()
-	return protocolProxyLikeServiceWithInprocHandlers(t, name, topologyConfig.ProxyType, protocol, inprocHandlers, outbounds...)
+	return protocolProxyLikeServiceWithHandlerParameters(t, name, topologyConfig.ProxyType, protocol, inprocHandlers, nil, outbounds...)
+}
+
+func protocolProxyServiceWithIpcHandlers(t *testing.T, name string, protocol string, ipcHandlers []string, outbounds ...string) topologyConfig.Service {
+	t.Helper()
+	return protocolProxyLikeServiceWithHandlerParameters(t, name, topologyConfig.ProxyType, protocol, nil, ipcHandlers, outbounds...)
 }
 
 func protocolProxyLikeServiceWithInprocHandlers(t *testing.T, name string, serviceType topologyConfig.Type, protocol string, inprocHandlers []string, outbounds ...string) topologyConfig.Service {
+	t.Helper()
+	return protocolProxyLikeServiceWithHandlerParameters(t, name, serviceType, protocol, inprocHandlers, nil, outbounds...)
+}
+
+func protocolProxyLikeServiceWithHandlerParameters(t *testing.T, name string, serviceType topologyConfig.Type, protocol string, inprocHandlers, ipcHandlers []string, outbounds ...string) topologyConfig.Service {
 	t.Helper()
 	proxyHandler := topologyConfig.ProxyHandler{
 		IndependentHandler: topologyConfig.IndependentHandler{
@@ -700,13 +739,23 @@ func protocolProxyLikeServiceWithInprocHandlers(t *testing.T, name string, servi
 			if protocol == "ipc" {
 				return "/bin/true"
 			}
+			if len(ipcHandlers) > 0 {
+				return "/bin/true"
+			}
 			return ""
 		}(),
 		Parameters: func() datatype.KeyValue {
-			if len(inprocHandlers) == 0 {
+			if len(inprocHandlers) == 0 && len(ipcHandlers) == 0 {
 				return nil
 			}
-			return datatype.New().Set(topologyConfig.InprocHandlersParameter, inprocHandlers)
+			params := datatype.New()
+			if len(inprocHandlers) > 0 {
+				params = params.Set(topologyConfig.InprocHandlersParameter, inprocHandlers)
+			}
+			if len(ipcHandlers) > 0 {
+				params = params.Set(topologyConfig.IpcHandlersParameter, ipcHandlers)
+			}
+			return params
 		}(),
 		Handlers: []topologyConfig.Handler{
 			proxyHandler,
