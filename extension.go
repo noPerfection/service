@@ -8,7 +8,6 @@ import (
 	"github.com/ahmetson/mushroom"
 	"github.com/noPerfection/log"
 	handlerConfig "github.com/noPerfection/protocol/handler/config"
-	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/package_url"
@@ -56,7 +55,7 @@ func (independent *Extension) topology() topology.TopologyInterface {
 	return independent.topologyHandler
 }
 
-// New returns an independent service instance.
+// NewExt returns an extension service instance.
 //
 // Optional parameters, in order:
 //
@@ -66,23 +65,16 @@ func (independent *Extension) topology() topology.TopologyInterface {
 //
 //  2. configPath — topology JSON file for this process (default "noPerfection.json").
 //
-//  3. managerEndpoint — highest-priority manager socket. Remote processes use this endpoint
-//     to start, stop, and probe the service. When omitted, the endpoint is taken from the
-//     service record in topology, then manager.DefaultExtensionManagerEndpoint.
-//
 // Examples:
 //
-//	// Root service "main", default config and manager from topology.
-//	app, err := New("main", "noPerfection.json")
-//
-//	// Same service, remote manager endpoint overrides topology.
-//	app, err := New("main", "noPerfection.json", message.NewEndpoint("manager", 9100))
+//	// Root service "main" with default config path.
+//	app, err := NewExt("main", "noPerfection.json")
 func NewExt(params ...any) (*Extension, error) {
 	mushroomURL := DefaultName
 	configPath := DefaultConfigPath
 
-	if len(params) > 3 {
-		return nil, fmt.Errorf("too many arguments, expected name, config path, and manager endpoint")
+	if len(params) > 2 {
+		return nil, fmt.Errorf("too many arguments, expected name and config path")
 	}
 
 	if len(params) > 0 && params[0] != nil {
@@ -110,40 +102,11 @@ func NewExt(params ...any) (*Extension, error) {
 		return nil, fmt.Errorf("topology.NewHandler: %w", err)
 	}
 
-	managerEndpoint := manager.DefaultExtensionManagerEndpoint(mushroomURL)
-
-	// If user passes the manager endpoint, then use it,
-	// otherwise try to get it from the topology config.
-	if len(params) > 2 && params[2] != nil {
-		managerEndpointArg, ok := params[2].(message.Endpoint)
-		if !ok {
-			return nil, fmt.Errorf("manager endpoint argument must be message.Endpoint")
-		}
-		managerEndpoint = managerEndpointArg
-	} else {
-		serviceConfig, err := topologyHandler.Service(mushroomURL)
-		if err == nil {
-			managerHandler, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
-			if err == nil {
-				handler, ok := managerHandler.AsIndependentHandler()
-				if ok {
-					managerEndpoint = handler.Endpoint
-				}
-			}
-		}
-	}
-
-	m, err := manager.New(mushroomURL, managerEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("manager.New: %w", err)
-	}
-
 	independent := &Extension{
 		Handlers:              handlers.NewHandlers(),
 		WithHardcodedTopology: NewHardcodedTopologies(mushroomURL),
 		topologyHandler:       topologyHandler,
 		mushroomURL:           mushroomURL,
-		manager:               m,
 		logger:                nil,
 	}
 
@@ -245,38 +208,30 @@ func (independent *Extension) addDefaultHandlerToTopology() error {
 	return nil
 }
 
-// addServiceManagerToTopology stores a non-default manager handler.
-// If topology already has the same manager endpoint, then do nothing.
-func (independent *Extension) addServiceManagerToTopology() error {
+// ensureServiceManager creates the service manager from topology configuration.
+// When the service record has a manager handler, that endpoint is used;
+// otherwise manager.DefaultExtensionManagerEndpoint is used.
+func (independent *Extension) ensureServiceManager() error {
 	tp := independent.topology()
 	serviceConfig, err := tp.Service(independent.mushroomURL)
 	if err != nil {
 		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
 	}
 
-	// Service manager's config in the handler config format.
-	managerConfig := independent.manager.Config()
+	managerEndpoint := manager.DefaultExtensionManagerEndpoint(independent.mushroomURL)
 	currentManager, err := serviceConfig.HandlerByCategory(topology.ServiceManagerCategory)
 	if err == nil {
-		handler, ok := currentManager.AsIndependentHandler()
-		if ok && handler.Endpoint == managerConfig.Endpoint {
-			return nil
-		}
-	}
-	if managerConfig.Endpoint == manager.DefaultExtensionManagerEndpoint(serviceConfig.Name) {
-		return nil
+		handler := currentManager.(config.IndependentHandler)
+		managerEndpoint = handler.Endpoint
 	}
 
-	// Converting from the handler config format to the topology's config format.
-	managerTopologyConfig := config.IndependentHandler{
-		Type:     config.HandlerType(managerConfig.Type),
-		Category: managerConfig.Category,
-		Endpoint: managerConfig.Endpoint,
+	m, err := manager.New(independent.mushroomURL, managerEndpoint)
+	if err != nil {
+		return fmt.Errorf("manager.New: %w", err)
 	}
-
-	serviceConfig.SetHandler(managerTopologyConfig, true)
-	if err := tp.SetService(serviceConfig, serviceParentURL(independent.mushroomURL)...); err != nil {
-		return fmt.Errorf("topology.SetService('%s'): %w", independent.mushroomURL, err)
+	independent.manager = m
+	if err := independent.manager.SetLogger(independent.logger); err != nil {
+		return fmt.Errorf("manager.SetLogger: %w", err)
 	}
 
 	return nil
@@ -352,10 +307,6 @@ func (independent *Extension) Start() error {
 		err = fmt.Errorf("addDefaultHandlerToTopology: %w", err)
 		goto errOccurred
 	}
-	if err = independent.addServiceManagerToTopology(); err != nil {
-		err = fmt.Errorf("lintManagerTopology: %w", err)
-		goto errOccurred
-	}
 
 	if err = independent.addHardcodedHandlerDepsToTopology(); err != nil {
 		err = fmt.Errorf("addHardcodedHandlerDepsToTopology: %w", err)
@@ -365,6 +316,12 @@ func (independent *Extension) Start() error {
 		err = fmt.Errorf("addHardcodedServiceParamsToTopology: %w", err)
 		goto errOccurred
 	}
+
+	if err = independent.ensureServiceManager(); err != nil {
+		err = fmt.Errorf("ensureServiceManager: %w", err)
+		goto errOccurred
+	}
+
 	if err = independent.addHardcodedCommandDepsToTopology(); err != nil {
 		err = fmt.Errorf("addHardcodedCommandDepsToTopology: %w", err)
 		goto errOccurred

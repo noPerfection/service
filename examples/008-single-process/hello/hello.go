@@ -4,6 +4,7 @@ import (
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/message"
 	npservice "github.com/noPerfection/service"
+	topologyConfig "github.com/noPerfection/topology/config"
 )
 
 const (
@@ -12,8 +13,16 @@ const (
 )
 
 func New(configPath string) (*npservice.Independent, error) {
-	app, err := npservice.New(ServiceName, configPath, message.NewEndpoint("localhost", ServiceManagerPort))
+	app, err := npservice.New(ServiceName, configPath)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := app.SetHandlerConfig(topologyConfig.IndependentHandler{
+		Type:     topologyConfig.SyncReplierType,
+		Category: topologyConfig.ServiceManagerCategory,
+		Endpoint: message.NewEndpoint("localhost", ServiceManagerPort),
+	}); err != nil {
 		return nil, err
 	}
 

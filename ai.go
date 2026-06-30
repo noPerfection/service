@@ -105,9 +105,17 @@ func NewAiService(configPath ...string) (*AiService, error) {
 		path = configPath[0]
 	}
 
-	extension, err := NewExt(AiServiceName, path, DefaultAiManagerEndpoint)
+	extension, err := NewExt(AiServiceName, path)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := extension.SetHandlerConfig(IndependentHandler{
+		Type:     SyncReplierType,
+		Category: ServiceManagerCategory,
+		Endpoint: DefaultAiManagerEndpoint,
+	}); err != nil {
+		return nil, fmt.Errorf("SetHandlerConfig: %w", err)
 	}
 
 	ai := &AiService{Extension: extension}
