@@ -182,7 +182,7 @@ func (manager *ProxyHandlers) handleFunc(request message.RequestInterface) messa
 
 	proxified, allowed := manager.proxifiedForCommand(request.CommandName())
 	if !allowed {
-		return request.Fail("access-denied")
+		return request.Fail("unavailable-route")
 	}
 
 	var handleFunc ProxyHandleFunc
