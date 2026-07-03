@@ -16,7 +16,6 @@ import (
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	clientWorker "github.com/noPerfection/protocol/client/worker"
 	"github.com/noPerfection/protocol/handler/base"
-	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/pair"
 	"github.com/noPerfection/protocol/handler/publisher"
 	"github.com/noPerfection/protocol/handler/replier"
@@ -163,12 +162,7 @@ func NewProxyHandlers(serviceName string) *ProxyHandlers {
 		panic("serviceName can not start with tmp, since it will turn handler into ipc protocol please change it")
 	}
 	manager := sync_replier.New()
-	manager.SetConfig(handlerConfig.New(
-		handlerConfig.SyncReplierType,
-		serviceName+ProxyHandlersCategory,
-		ProxyHandlersCategory,
-		0,
-	))
+	manager.SetEndpoint(message.NewEndpoint(serviceName+ProxyHandlersCategory, 0))
 
 	return &ProxyHandlers{
 		Interface:         manager,
@@ -588,12 +582,7 @@ func (manager *ProxyHandlers) onSetProxyHandler(req message.RequestInterface) me
 	if err != nil {
 		return req.Fail(fmt.Sprintf("newProxyHandler('%s'): %v", proxyConfig.Type, err))
 	}
-	handler.SetConfig(handlerConfig.New(
-		handlerConfig.HandlerType(proxyConfig.Type),
-		proxyConfig.Endpoint.Id,
-		proxyConfig.Category,
-		proxyConfig.Endpoint.Port,
-	))
+	handler.SetEndpoint(proxyConfig.Endpoint)
 	handler.SetPacker(manager)
 	if manager.logger != nil {
 		if err := handler.SetLogger(manager.logger); err != nil {
@@ -820,40 +809,48 @@ func newProxyHandler(handlerType topologyConfig.HandlerType) (base.Interface, er
  * With the packers we can add a tail to them and within the structs like this ProxyHandler,
 ****************************************************************************/
 
-func (manager *ProxyHandlers) DeserializeRequest(zmqEnvelope []string) (message.RequestInterface, error) {
+func (manager *ProxyHandlers) DeserializeRequest(zmqEnvelope []string) (message.RequestInterface, string, error) {
+	return manager.deserializeProxyRequest(zmqEnvelope)
+}
+
+func (manager *ProxyHandlers) deserializeProxyRequest(zmqEnvelope []string) (message.RequestInterface, string, error) {
 	if err := message.ValidEnvelope(zmqEnvelope); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	conId, msg, tail := message.EnvelopeToMessage(zmqEnvelope)
+	hmacHash, outboundRef, err := manager.parseProxyRequestTail(tail)
+	if err != nil {
+		return nil, "", err
+	}
 
 	data, err := datatype.NewFromString(msg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert message string %s to key-value: %v", msg, err)
+		return nil, "", fmt.Errorf("failed to convert message string %s to key-value: %v", msg, err)
 	}
 
 	var request message.Request
 	err = data.Interface(&request)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert key-value %v to intermediate interface: %v", data, err)
+		return nil, "", fmt.Errorf("failed to convert key-value %v to intermediate interface: %v", data, err)
 	}
 
 	if request.String() == "" {
-		return nil, fmt.Errorf("failed to validate")
+		return nil, "", fmt.Errorf("failed to validate")
 	}
 	request.SetConId(conId)
 
 	var proxifiedHandler string
 	var outboundURL string
-	if len(tail) > 0 {
-		proxifiedHandler, outboundURL, err = manager.resolveOutboundRef(tail[0])
+	if outboundRef != "" {
+		proxifiedHandler, outboundURL, err = manager.resolveOutboundRef(outboundRef)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	} else {
 		proxifiedHandler, outboundURL, err = manager.defaultOutbound()
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
@@ -862,56 +859,86 @@ func (manager *ProxyHandlers) DeserializeRequest(zmqEnvelope []string) (message.
 		proxifiedHandler: proxifiedHandler,
 		outboundURL:      outboundURL,
 		manager:          manager,
-	}, nil
+	}, hmacHash, nil
 }
 
-func (manager *ProxyHandlers) DeserializeReply(zmqEnvelope []string) (message.ReplyInterface, error) {
+func (manager *ProxyHandlers) parseProxyRequestTail(tail []string) (hmacHash string, outboundRef string, err error) {
+	switch len(tail) {
+	case 0:
+		return "", "", nil
+	case 1:
+		if _, _, resolveErr := manager.resolveOutboundRef(tail[0]); resolveErr == nil {
+			return "", tail[0], nil
+		}
+		return tail[0], "", nil
+	default:
+		return tail[0], tail[1], nil
+	}
+}
+
+func proxyEnvelopeHMACTail(hmac ...string) []string {
+	if len(hmac) > 0 && hmac[0] != "" {
+		return []string{hmac[0]}
+	}
+	return nil
+}
+
+func (manager *ProxyHandlers) DeserializeReply(zmqEnvelope []string) (message.ReplyInterface, string, error) {
 	if err := message.ValidEnvelope(zmqEnvelope); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	conId, msg, _ := message.EnvelopeToMessage(zmqEnvelope)
+	conId, msg, tail := message.EnvelopeToMessage(zmqEnvelope)
+	hmacHash, _ := proxyHMACFromTail(tail)
 	data, err := datatype.NewFromString(msg)
 	if err != nil {
-		return nil, fmt.Errorf("datatype.NewFromString: %w", err)
+		return nil, "", fmt.Errorf("datatype.NewFromString: %w", err)
 	}
 
 	var reply message.Reply
 	err = data.Interface(&reply)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize key-value to msg.Reply: %v", err)
+		return nil, "", fmt.Errorf("failed to serialize key-value to msg.Reply: %v", err)
 	}
 	reply.SetConId(conId)
 
 	if reply.String() == "" {
-		return nil, fmt.Errorf("validation failed")
+		return nil, "", fmt.Errorf("validation failed")
 	}
 
-	return &ProxyReply{Reply: reply}, nil
+	return &ProxyReply{Reply: reply}, hmacHash, nil
 }
 
-func (manager *ProxyHandlers) SerializeRequest(request message.RequestInterface) ([]string, error) {
+func proxyHMACFromTail(tail []string) (hmacHash string, rest []string) {
+	if len(tail) == 0 {
+		return "", tail
+	}
+	return tail[0], tail[1:]
+}
+
+func (manager *ProxyHandlers) SerializeRequest(request message.RequestInterface, hmac ...string) ([]string, error) {
 	str := request.String()
 	if str == "" {
 		return nil, fmt.Errorf("request.String returned an empty string")
 	}
 
+	tail := proxyEnvelopeHMACTail(hmac...)
 	if proxyRequest, ok := request.(*ProxyRequest); ok {
 		if proxyRequest.outboundURL != "" {
-			return message.MessageToEnvelope(request.ConId(), str, proxyRequest.outboundURL), nil
+			tail = append(tail, proxyRequest.outboundURL)
 		}
 	}
 
-	return message.MessageToEnvelope(request.ConId(), str), nil
+	return message.MessageToEnvelope(request.ConId(), str, tail...), nil
 }
 
-func (manager *ProxyHandlers) SerializeReply(reply message.ReplyInterface) ([]string, error) {
+func (manager *ProxyHandlers) SerializeReply(reply message.ReplyInterface, hmac ...string) ([]string, error) {
 	str := reply.String()
 	if str == "" {
 		return nil, fmt.Errorf("request.String returned an empty string")
 	}
 
-	return message.MessageToEnvelope(reply.ConId(), str), nil
+	return message.MessageToEnvelope(reply.ConId(), str, proxyEnvelopeHMACTail(hmac...)...), nil
 }
 
 func (manager *ProxyHandlers) EmptyRequest() message.RequestInterface {

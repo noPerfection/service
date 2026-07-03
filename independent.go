@@ -12,7 +12,6 @@ import (
 	"github.com/noPerfection/log"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
-	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/pair"
 	"github.com/noPerfection/protocol/handler/publisher"
 	"github.com/noPerfection/protocol/handler/replier"
@@ -320,12 +319,7 @@ func (independent *Independent) addTopologyHandlersToHandlers() error {
 		if err != nil {
 			return fmt.Errorf("newTopologyHandler('%s'): %w", configured.Category, err)
 		}
-		handler.SetConfig(handlerConfig.New(
-			handlerConfig.HandlerType(configured.Type),
-			configured.Endpoint.Id,
-			configured.Category,
-			configured.Endpoint.Port,
-		))
+		handler.SetEndpoint(configured.Endpoint)
 		if err := independent.Handlers.SetHandler(configured.Category, handler); err != nil {
 			return fmt.Errorf("handlers.SetHandler('%s'): %w", configured.Category, err)
 		}

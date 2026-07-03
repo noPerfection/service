@@ -12,8 +12,6 @@ import (
 	"github.com/noPerfection/datatype"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
-	handlerConfig "github.com/noPerfection/protocol/handler/config"
-	"github.com/noPerfection/protocol/handler/control"
 	handlerPublisher "github.com/noPerfection/protocol/handler/publisher"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/topology"
@@ -169,8 +167,8 @@ func TestProxyHandlersLifecycle(t *testing.T) {
 	})
 
 	managerControl, err := clientSyncReplier.NewControl(
-		control.ControlEndpointID(manager.Interface.Config().Id, manager.Interface.Config().Port),
-		0,
+		handlerControlEndpoint(manager.Interface).Id,
+		manager.Interface.Endpoint().Port,
 	)
 	require.NoError(t, err)
 	managerControl.Timeout(time.Second)
@@ -246,7 +244,7 @@ func TestProxyHandlersSetProxyHandler(t *testing.T) {
 		_ = manager.Close()
 	})
 
-	client, err := clientSyncReplier.NewClient(manager.Interface.Config().Id, manager.Interface.Config().Port)
+	client, err := clientSyncReplier.NewClient(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
 	require.NoError(t, err)
 	client.Timeout(time.Second)
 	client.Attempt(3)
@@ -342,7 +340,7 @@ func TestProxyHandlersStartStopProxyHandler(t *testing.T) {
 		_ = manager.Close()
 	})
 
-	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Config().Id, manager.Interface.Config().Port)
+	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
 	require.NoError(t, err)
 	managerClient.Timeout(time.Second)
 	managerClient.Attempt(3)
@@ -409,7 +407,7 @@ func TestProxyHandlersHandleFuncWhitelistAndRouteFallback(t *testing.T) {
 		_ = manager.Close()
 	})
 
-	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Config().Id, manager.Interface.Config().Port)
+	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
 	require.NoError(t, err)
 	managerClient.Timeout(time.Second)
 	managerClient.Attempt(3)
@@ -462,9 +460,9 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 		Command:    "hello",
 		Parameters: datatype.New(),
 	}
-	_, err := emptyManager.DeserializeRequest(message.MessageToEnvelope("", request.String()))
+	_, _, err := emptyManager.DeserializeRequest(message.MessageToEnvelope("", request.String()))
 	require.EqualError(t, err, "no proxified handlers")
-	_, err = emptyManager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "pkg:$?var=services[name:missing]&category=main"))
+	_, _, err = emptyManager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "pkg:$?var=services[name:missing]&category=main"))
 	require.EqualError(t, err, `outbound "pkg:$?var=services[name:missing]&category=main" not found`)
 
 	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-outbound"))
@@ -474,7 +472,7 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 		proxyConfig: proxyConfig,
 	}
 
-	raw, err := manager.DeserializeRequest(message.MessageToEnvelope("", request.String()))
+	raw, _, err := manager.DeserializeRequest(message.MessageToEnvelope("", request.String()))
 	require.NoError(t, err)
 	proxyRequest := raw.(*ProxyRequest)
 	require.Equal(t, "api", proxyRequest.proxifiedHandler)
@@ -484,23 +482,23 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"", request.String(), proxyConfig.Outbounds[0]}, envelope)
 
-	raw, err = manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), proxyConfig.Outbounds[0]))
+	raw, _, err = manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), proxyConfig.Outbounds[0]))
 	require.NoError(t, err)
 	proxyRequest = raw.(*ProxyRequest)
 	require.Equal(t, "api", proxyRequest.proxifiedHandler)
 	require.Equal(t, proxyConfig.Outbounds[0], proxyRequest.outboundURL)
 
-	_, err = manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "missing-service"))
+	_, _, err = manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "missing-service"))
 	require.EqualError(t, err, `outbound "missing-service" not found`)
 }
 
 func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
 	serviceName := "outbound-forward"
 	outboundHandlers := []topologyConfig.IndependentHandler{
-		startForwardOutboundHandler(t, handlerConfig.SyncReplierType, "sync", "sync reply"),
-		startForwardOutboundHandler(t, handlerConfig.ReplierType, "replier", "replier reply"),
-		startForwardOutboundHandler(t, handlerConfig.PairType, "pair", "pair reply"),
-		startForwardOutboundHandler(t, handlerConfig.WorkerType, "worker", "worker reply"),
+		startForwardOutboundHandler(t, base.SyncReplierType, "sync", "sync reply"),
+		startForwardOutboundHandler(t, base.ReplierType, "replier", "replier reply"),
+		startForwardOutboundHandler(t, base.PairType, "pair", "pair reply"),
+		startForwardOutboundHandler(t, base.WorkerType, "worker", "worker reply"),
 		startForwardPublisher(t, serviceName, "publisher", "publisher reply"),
 	}
 
@@ -586,7 +584,7 @@ func TestProxyHandlerRouteForwardsToOutboundAcrossLifecycle(t *testing.T) {
 		_ = manager.Close()
 	})
 
-	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Config().Id, manager.Interface.Config().Port)
+	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
 	require.NoError(t, err)
 	managerClient.Timeout(time.Second)
 	managerClient.Attempt(3)
@@ -618,8 +616,8 @@ func TestProxyHandlerConfiguredForwardOverridesTailOutbound(t *testing.T) {
 	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-configured-forward"))
 	proxyCategory := "proxy-forward-config"
 	serviceName := "outbound-forward-config"
-	defaultHandler := startForwardOutboundHandler(t, handlerConfig.SyncReplierType, "default", "default reply")
-	configuredHandler := startForwardOutboundHandler(t, handlerConfig.SyncReplierType, DefaultHandlerCategory, "configured reply")
+	defaultHandler := startForwardOutboundHandler(t, base.SyncReplierType, "default", "default reply")
+	configuredHandler := startForwardOutboundHandler(t, base.SyncReplierType, DefaultHandlerCategory, "configured reply")
 	registerOutboundHandlers(t, serviceName, defaultHandler, configuredHandler)
 	defaultURL := testOutboundURL(serviceName, "default")
 	configuredURL := testOutboundURL(serviceName, DefaultHandlerCategory)
@@ -640,7 +638,7 @@ func TestProxyHandlerConfiguredForwardOverridesTailOutbound(t *testing.T) {
 		_ = manager.Close()
 	})
 
-	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Config().Id, manager.Interface.Config().Port)
+	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
 	require.NoError(t, err)
 	managerClient.Timeout(time.Second)
 	managerClient.Attempt(3)
@@ -655,7 +653,7 @@ func TestProxyHandlerConfiguredForwardOverridesTailOutbound(t *testing.T) {
 		Command:    "forward",
 		Parameters: datatype.New(),
 	}
-	rawRequest, err := manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), defaultURL))
+	rawRequest, _, err := manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), defaultURL))
 	require.NoError(t, err)
 	reply = manager.handleFunc(rawRequest)
 	require.True(t, reply.IsOK(), reply.ErrorMessage())
@@ -682,11 +680,11 @@ func proxyMessageRoute(text string) ProxyHandleFunc {
 	}
 }
 
-func startForwardOutboundHandler(t *testing.T, handlerType handlerConfig.HandlerType, category string, replyText string) topologyConfig.IndependentHandler {
+func startForwardOutboundHandler(t *testing.T, handlerType base.HandlerType, category string, replyText string) topologyConfig.IndependentHandler {
 	t.Helper()
 
 	handler := newProtocolHandler(t, handlerType)
-	handler.SetConfig(inprocHandlerConfig(handlerType, category, testEndpointID(t, category)))
+	endpoint := setInprocHandlerEndpoint(t, handler, testEndpointID(t, category))
 	require.NoError(t, handler.Route("forward", func(req message.RequestInterface) message.ReplyInterface {
 		return req.Ok(datatype.New().Set("message", replyText))
 	}))
@@ -698,15 +696,15 @@ func startForwardOutboundHandler(t *testing.T, handlerType handlerConfig.Handler
 	return topologyConfig.IndependentHandler{
 		Type:     topologyConfig.HandlerType(handlerType),
 		Category: category,
-		Endpoint: message.NewEndpoint(handler.Config().Id, handler.Config().Port),
+		Endpoint: endpoint,
 	}
 }
 
 func startEchoOutboundHandler(t *testing.T, category string) topologyConfig.IndependentHandler {
 	t.Helper()
 
-	handler := newProtocolHandler(t, handlerConfig.SyncReplierType)
-	handler.SetConfig(inprocHandlerConfig(handlerConfig.SyncReplierType, category, testEndpointID(t, category)))
+	handler := newProtocolHandler(t, base.SyncReplierType)
+	endpoint := setInprocHandlerEndpoint(t, handler, testEndpointID(t, category))
 	require.NoError(t, handler.Route("echo", func(req message.RequestInterface) message.ReplyInterface {
 		payload, err := req.RouteParameters().StringValue("payload")
 		if err != nil {
@@ -722,21 +720,22 @@ func startEchoOutboundHandler(t *testing.T, category string) topologyConfig.Inde
 	return topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
 		Category: category,
-		Endpoint: message.NewEndpoint(handler.Config().Id, handler.Config().Port),
+		Endpoint: endpoint,
 	}
 }
 
 func startForwardPublisher(t *testing.T, serviceName string, category string, replyText string) topologyConfig.IndependentHandler {
 	t.Helper()
 
-	handler := newProtocolHandler(t, handlerConfig.PublisherType)
-	handler.SetConfig(inprocHandlerConfig(handlerConfig.PublisherType, category, testEndpointID(t, category)))
+	handler := newProtocolHandler(t, base.PublisherType)
+	endpoint := setInprocHandlerEndpoint(t, handler, testEndpointID(t, category))
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
 		_ = closeHandlers([]base.Interface{handler})
 	})
 
-	controlClient, err := clientSyncReplier.NewClient(control.ControlEndpointID(handler.Config().Id, handler.Config().Port), 0)
+	controlEndpoint := handlerControlEndpoint(handler)
+	controlClient, err := clientSyncReplier.NewClient(controlEndpoint.Id, controlEndpoint.Port)
 	require.NoError(t, err)
 	controlClient.Timeout(time.Second)
 	controlClient.Attempt(3)
@@ -758,7 +757,7 @@ func startForwardPublisher(t *testing.T, serviceName string, category string, re
 	return topologyConfig.IndependentHandler{
 		Type:     topologyConfig.PublisherType,
 		Category: category,
-		Endpoint: message.NewEndpoint(handler.Config().Id, handler.Config().Port),
+		Endpoint: endpoint,
 	}
 }
 

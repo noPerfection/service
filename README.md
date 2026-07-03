@@ -922,8 +922,10 @@ Now, I need to add the manager in tmp, but also make my own service to be inproc
 Once you edit the set service configs, and set handler configs in the code, it sees that there is no inproc services left so it will remove the inproc_topology file itself as well.
 
 ## Tutorial 11: security
+The handlers communication is secure at three levels.
+By default, service topology will make the communication secure.
 
-### Tutorial 12: cross-language
+## Tutorial 12: cross-language
 
 Its cross-language actually, after all services are talking to each other
 using zeromq sockets, defining predefined protocol.

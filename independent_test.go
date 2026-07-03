@@ -54,8 +54,8 @@ func requireTopologyFilepath(t *testing.T, setter interface{ SetTopologyParams(m
 func closeTopologyHandler(t *testing.T) {
 	t.Helper()
 
-	controlConfig := control.CreateInternalConfig(topology.HandlerConfig())
-	controlClient, err := clientSyncReplier.NewClient(controlConfig.Id, controlConfig.Port)
+	controlEndpoint := control.NewInternalControlEndpoint(topology.HandlerEndpoint())
+	controlClient, err := clientSyncReplier.NewClient(controlEndpoint.Id, controlEndpoint.Port)
 	if err == nil {
 		_, _ = controlClient.Request(&message.Request{
 			Command:    control.HandlerClose,

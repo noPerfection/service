@@ -5,7 +5,9 @@ import (
 	"sort"
 
 	"github.com/noPerfection/log"
+	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
+	handlerControl "github.com/noPerfection/protocol/handler/control"
 	"github.com/noPerfection/protocol/message"
 )
 
@@ -36,15 +38,8 @@ func (manager *Handlers) SetHandler(category string, handler base.Interface) err
 	if handler == nil {
 		return fmt.Errorf("handler of %s category is nil", category)
 	}
-	if registered, exists := manager.handlers[category]; exists {
-		if registered == nil {
-			return fmt.Errorf("handler of %s category is nil", category)
-		}
-		if !registered.Closed() {
-			if err := closeHandlers([]base.Interface{registered}); err != nil {
-				return fmt.Errorf("close existing handler(category: '%s'): %w", category, err)
-			}
-		}
+	if _, exists := manager.handlers[category]; exists {
+		return fmt.Errorf("handler of %s category already exists", category)
 	}
 	manager.handlers[category] = handler
 
@@ -65,7 +60,7 @@ func (manager *Handlers) RouteCommands(category string) ([]string, error) {
 		return nil, fmt.Errorf("handler of %s category is nil", category)
 	}
 
-	commands := handler.RouteCommands()
+	commands := handler.Commands()
 	sort.Strings(commands)
 	return commands, nil
 }
@@ -126,7 +121,7 @@ func (manager *Handlers) Start() error {
 			err = fmt.Errorf("handler of %s category is nil", category)
 			goto exitStartHandler
 		}
-		if handler.Config() == nil {
+		if handler.Endpoint() == (message.Endpoint{}) {
 			err = fmt.Errorf("handler of %s category has no config", category)
 			goto exitStartHandler
 		}
@@ -192,13 +187,48 @@ func (manager *Handlers) Close() error {
 
 func closeHandlers(handlers []base.Interface) error {
 	for _, handler := range handlers {
-		handler.SetClose(true)
-		if socket := handler.Socket(); socket != nil {
-			if err := socket.Close(); err != nil {
-				return fmt.Errorf("handler(category: '%s').Socket.Close: %w", handler.Config().Category, err)
-			}
-			handler.SetSocketNil()
+		if err := closeHandlerViaControl(handler); err != nil {
+			return err
 		}
+	}
+
+	return nil
+}
+
+func newHandlerControlClient(handler base.Interface) (*clientSyncReplier.BaseControl, error) {
+	endpoint := handler.Endpoint()
+	if endpoint == (message.Endpoint{}) {
+		return nil, fmt.Errorf("handler endpoint is empty")
+	}
+
+	controlEndpoint := handlerControl.NewInternalControlEndpoint(endpoint)
+	controlClient, err := clientSyncReplier.NewBaseControl(controlEndpoint.Id, controlEndpoint.Port)
+	if err != nil {
+		return nil, fmt.Errorf("sync_replier.NewBaseControl('%s'): %w", controlEndpoint.Id, err)
+	}
+
+	return controlClient, nil
+}
+
+func closeHandlerViaControl(handler base.Interface) error {
+	controlClient, err := newHandlerControlClient(handler)
+	if err != nil {
+		return nil
+	}
+	defer func() {
+		_ = controlClient.Close()
+	}()
+
+	status, err := controlClient.HandlerStatus()
+	if err != nil {
+		return nil
+	}
+	if status == base.SocketNil {
+		return nil
+	}
+
+	if err := controlClient.HandlerClose(); err != nil {
+		return fmt.Errorf("handler(endpoint: '%s').HandlerClose: %w", handler.Endpoint().Id, err)
 	}
 
 	return nil

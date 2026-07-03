@@ -7,7 +7,6 @@ import (
 
 	"github.com/ahmetson/mushroom"
 	"github.com/noPerfection/log"
-	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/package_url"
@@ -288,12 +287,7 @@ func (independent *Extension) addTopologyHandlersToHandlers() error {
 		if err != nil {
 			return fmt.Errorf("newTopologyHandler('%s'): %w", configured.Category, err)
 		}
-		handler.SetConfig(handlerConfig.New(
-			handlerConfig.HandlerType(configured.Type),
-			configured.Endpoint.Id,
-			configured.Category,
-			configured.Endpoint.Port,
-		))
+		handler.SetEndpoint(configured.Endpoint)
 		if err := independent.Handlers.SetHandler(configured.Category, handler); err != nil {
 			return fmt.Errorf("handlers.SetHandler('%s'): %w", configured.Category, err)
 		}
