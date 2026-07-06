@@ -63,8 +63,7 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint) (*Pro
 		serviceName: serviceName,
 	}
 
-	managerConfig := HandlerConfig(managerEndpoint)
-	handler.SetConfig(managerConfig)
+	handler.SetEndpoint(managerEndpoint)
 
 	return h, nil
 }
@@ -187,13 +186,8 @@ func (m *ProxyManager) Close() error {
 	if err := m.StopService(m.serviceName); err != nil {
 		return err
 	}
-	if err := closeHandler(m.Interface); err != nil {
+	if err := handlers.CloseViaControl(m.Interface); err != nil {
 		return fmt.Errorf("manager handler close: %w", err)
-	}
-	if handler, ok := m.Interface.(*syncReplier.SyncReplier); ok {
-		if err := closeHandler(handler.Control); err != nil {
-			return fmt.Errorf("manager control close: %w", err)
-		}
 	}
 
 	return nil

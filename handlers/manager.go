@@ -195,6 +195,24 @@ func closeHandlers(handlers []base.Interface) error {
 	return nil
 }
 
+// CloseViaControl shuts down a handler through its control endpoint.
+func CloseViaControl(handler base.Interface) error {
+	return closeHandlerViaControl(handler)
+}
+
+// HandlerControlStatus returns the handler status reported by its control endpoint.
+func HandlerControlStatus(handler base.Interface) (string, error) {
+	controlClient, err := newHandlerControlClient(handler)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_ = controlClient.Close()
+	}()
+
+	return controlClient.HandlerStatus()
+}
+
 func newHandlerControlClient(handler base.Interface) (*clientSyncReplier.BaseControl, error) {
 	endpoint := handler.Endpoint()
 	if endpoint == (message.Endpoint{}) {

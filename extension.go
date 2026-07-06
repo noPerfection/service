@@ -581,6 +581,11 @@ func (independent *Extension) resolveTopologyHandler(mushroomURL string) (config
 	return tp.Handler(mushroomURL)
 }
 
+// GetHandlerLink returns this service's link URL with the handler category
+// encoded as the AdditionalProps "category" key (e.g. &category=main).
+// This &category format is required by topology ResolveDep and is used by
+// syncCommandDepProxyOutbounds and handlerDepProxyOutboundTargets as the final
+// outbound target URL for the last proxy in a chain.
 func (independent *Extension) GetHandlerLink(handlerCategory string) (string, error) {
 	if handlerCategory == "" {
 		return "", fmt.Errorf("handler category is empty")
@@ -596,6 +601,7 @@ func (independent *Extension) GetHandlerLink(handlerCategory string) (string, er
 	if err != nil {
 		return "", fmt.Errorf("soil.Hypha(%q): %w", link, err)
 	}
+
 	linkHypha := hypha.AsLink()
 	if linkHypha.AdditionalProps == nil {
 		linkHypha.AdditionalProps = map[string]string{}

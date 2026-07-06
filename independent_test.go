@@ -137,7 +137,7 @@ func TestEnsureServiceManagerUsesEndpointFromConfig(t *testing.T) {
 		requireTopologyFilepath(t, independent, configPath)
 		require.NoError(t, err)
 		require.NoError(t, independent.ensureServiceManager())
-		require.Equal(t, DefaultServiceManagerEndpoint, independent.manager.Config().Endpoint)
+		require.Equal(t, DefaultServiceManagerEndpoint, independent.manager.Endpoint())
 	})
 
 	t.Run("configured endpoint from topology manager handler", func(t *testing.T) {
@@ -163,7 +163,7 @@ func TestEnsureServiceManagerUsesEndpointFromConfig(t *testing.T) {
 		requireTopologyFilepath(t, independent, configPath)
 		require.NoError(t, err)
 		require.NoError(t, independent.ensureServiceManager())
-		require.Equal(t, configuredEndpoint, independent.manager.Config().Endpoint)
+		require.Equal(t, configuredEndpoint, independent.manager.Endpoint())
 	})
 }
 
@@ -204,7 +204,7 @@ func TestEnsureServiceManagerUsesExistingManagerFromTopology(t *testing.T) {
 	managerHandler := requireServiceHandler(t, serviceConfig, topology.ServiceManagerCategory)
 	require.Equal(t, topologyConfig.SyncReplierType, managerHandler.Type)
 	require.Equal(t, DefaultServiceManagerEndpoint, managerHandler.Endpoint)
-	require.Equal(t, DefaultServiceManagerEndpoint, independent.manager.Config().Endpoint)
+	require.Equal(t, DefaultServiceManagerEndpoint, independent.manager.Endpoint())
 }
 
 func TestLintDefaultTopologyKeepsExistingDefaultHandlerConfig(t *testing.T) {

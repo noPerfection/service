@@ -12,7 +12,6 @@ import (
 	"github.com/noPerfection/protocol/client"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
-	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	handlerControl "github.com/noPerfection/protocol/handler/control"
 	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/message"
@@ -67,8 +66,7 @@ func New(serviceURL string, managerEndpoint message.Endpoint) (*Manager, error) 
 		serviceURL:      serviceURL,
 	}
 
-	managerConfig := HandlerConfig(managerEndpoint)
-	handler.SetConfig(managerConfig)
+	handler.SetEndpoint(managerEndpoint)
 
 	return h, nil
 }
@@ -239,13 +237,8 @@ func (m *Manager) Close() error {
 	if err := m.StopService(m.serviceURL); err != nil {
 		return err
 	}
-	if err := closeHandler(m.Interface); err != nil {
+	if err := handlers.CloseViaControl(m.Interface); err != nil {
 		return fmt.Errorf("manager handler close: %w", err)
-	}
-	if handler, ok := m.Interface.(*syncReplier.SyncReplier); ok {
-		if err := closeHandler(handler.Control); err != nil {
-			return fmt.Errorf("manager control close: %w", err)
-		}
 	}
 
 	return nil
@@ -309,16 +302,6 @@ func (m *Manager) onServices(req message.RequestInterface) message.ReplyInterfac
 	return req.Ok(datatype.New().Set("services", services))
 }
 
-// HandlerConfig returns the manager handler configuration.
-func HandlerConfig(managerEndpoint message.Endpoint) *handlerConfig.Handler {
-	return handlerConfig.New(
-		handlerConfig.SyncReplierType,
-		managerEndpoint.Id,
-		topology.ServiceManagerCategory,
-		managerEndpoint.Port,
-	)
-}
-
 func (m *Manager) setHandlerControls() error {
 	if m.topology == nil {
 		return fmt.Errorf("topology is nil")
@@ -339,28 +322,12 @@ func (m *Manager) setHandlerControls() error {
 			continue
 		}
 
-		controlID := handlerControl.ControlEndpointID(handler.Endpoint.Id, handler.Endpoint.Port)
-		control, err := clientSyncReplier.NewBaseControl(controlID, 0)
+		controlEndpoint := handlerControl.NewInternalControlEndpoint(handler.Endpoint)
+		control, err := clientSyncReplier.NewBaseControl(controlEndpoint.Id, controlEndpoint.Port)
 		if err != nil {
-			return fmt.Errorf("sync_replier.NewBaseControl('%s'): %w", controlID, err)
+			return fmt.Errorf("sync_replier.NewBaseControl('%s'): %w", controlEndpoint.Id, err)
 		}
 		m.handlerControls = append(m.handlerControls, control)
-	}
-
-	return nil
-}
-
-func closeHandler(handler base.Interface) error {
-	if handler == nil {
-		return nil
-	}
-
-	handler.SetClose(true)
-	if socket := handler.Socket(); socket != nil {
-		if err := socket.Close(); err != nil {
-			return fmt.Errorf("handler(category: '%s').Socket.Close: %w", topology.ServiceManagerCategory, err)
-		}
-		handler.SetSocketNil()
 	}
 
 	return nil

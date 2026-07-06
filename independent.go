@@ -457,6 +457,10 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("startIpcServices: %w", err)
 		goto errOccurred
 	}
+	if err = independent.secureEdges(); err != nil {
+		err = fmt.Errorf("listTopologySiblings: %w", err)
+		goto errOccurred
+	}
 
 errOccurred:
 	if err != nil {
@@ -967,6 +971,7 @@ func (independent *Independent) startIpcService(mushroomURL string, startedRefs 
 	return nil
 }
 
+// Either service url with category parameter, or handler url.
 func (independent *Independent) resolveTopologyHandler(mushroomURL string) (config.Handler, error) {
 	mushroomURL = dereferenceMushroomURL(mushroomURL)
 	tp := independent.topology()
@@ -980,6 +985,11 @@ func (independent *Independent) resolveTopologyHandler(mushroomURL string) (conf
 	return tp.Handler(mushroomURL)
 }
 
+// GetHandlerLink returns this service's link URL with the handler category
+// encoded as the AdditionalProps "category" key (e.g. &category=main).
+// This &category format is required by topology ResolveDep and is used by
+// syncCommandDepProxyOutbounds and handlerDepProxyOutboundTargets as the final
+// outbound target URL for the last proxy in a chain.
 func (independent *Independent) GetHandlerLink(handlerCategory string) (string, error) {
 	if handlerCategory == "" {
 		return "", fmt.Errorf("handler category is empty")
@@ -995,6 +1005,7 @@ func (independent *Independent) GetHandlerLink(handlerCategory string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("soil.Hypha(%q): %w", link, err)
 	}
+
 	linkHypha := hypha.AsLink()
 	if linkHypha.AdditionalProps == nil {
 		linkHypha.AdditionalProps = map[string]string{}
@@ -1016,7 +1027,7 @@ func dereferenceMushroomURL(url string) string {
 }
 
 func isServiceOnlyMushroomURL(mushroomURL string) bool {
-	return strings.Contains(mushroomURL, "services[name:") && !strings.Contains(mushroomURL, ".handlers[")
+	return !strings.Contains(mushroomURL, ".handlers[")
 }
 
 func handlerCategoryFromMushroomURL(mushroomURL string) string {

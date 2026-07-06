@@ -13,7 +13,6 @@ import (
 	"github.com/noPerfection/datatype"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
-	handlerConfig "github.com/noPerfection/protocol/handler/config"
 	"github.com/noPerfection/protocol/handler/publisher"
 	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/protocol/handler/sync_replier"
@@ -144,12 +143,7 @@ func startFakeServiceHandlers(t *testing.T, service topologyConfig.Service) []ba
 		}
 
 		handler := newProtocolHandler(t, configured.Type)
-		handler.SetConfig(handlerConfig.New(
-			handlerConfig.HandlerType(configured.Type),
-			configured.Endpoint.Id,
-			configured.Category,
-			configured.Endpoint.Port,
-		))
+		handler.SetEndpoint(configured.Endpoint)
 		require.NoError(t, handler.Start())
 		handlers = append(handlers, handler)
 	}
@@ -164,22 +158,30 @@ func startFakeServiceHandlers(t *testing.T, service topologyConfig.Service) []ba
 }
 
 func closeProtocolHandler(handler base.Interface) error {
-	if err := closeHandler(handler); err != nil {
-		return err
-	}
+	return handlers.CloseViaControl(handler)
+}
 
-	switch h := handler.(type) {
-	case *sync_replier.SyncReplier:
-		return closeHandler(h.Control)
-	case *replier.Replier:
-		return closeHandler(h.Control)
-	case *publisher.Publisher:
-		return closeHandler(h.Control)
-	case *worker.Worker:
-		return closeHandler(h.Control)
-	default:
-		return nil
-	}
+func requireHandlersStopped(t *testing.T, started []base.Interface) {
+	t.Helper()
+
+	require.Eventually(t, func() bool {
+		for _, handler := range started {
+			status, err := handlers.HandlerControlStatus(handler)
+			if err != nil || status != base.SocketNil {
+				return false
+			}
+		}
+		return true
+	}, 2*time.Second, 10*time.Millisecond)
+}
+
+func requireHandlerStopped(t *testing.T, handler base.Interface) {
+	t.Helper()
+
+	require.Eventually(t, func() bool {
+		status, err := handlers.HandlerControlStatus(handler)
+		return err == nil && status == base.SocketNil
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func newTestManager(t *testing.T, service topologyConfig.Service, managerEndpoint message.Endpoint) *Manager {
@@ -192,19 +194,6 @@ func newTestManager(t *testing.T, service topologyConfig.Service, managerEndpoin
 		time.Sleep(20 * time.Millisecond)
 	})
 	return manager
-}
-
-func requireHandlersStopped(t *testing.T, handlers []base.Interface) {
-	t.Helper()
-
-	require.Eventually(t, func() bool {
-		for _, handler := range handlers {
-			if handler.Socket() != nil || handler.Status() != base.SocketNil {
-				return false
-			}
-		}
-		return true
-	}, time.Second, 10*time.Millisecond)
 }
 
 func TestSetHandlerControlsMatchesFakeServiceConfig(t *testing.T) {
@@ -409,8 +398,7 @@ func TestCloseStopsConfiguredHandlersAndManagerSockets(t *testing.T) {
 
 	require.False(t, manager.Running())
 	require.Empty(t, manager.handlerControls)
-	require.True(t, manager.Interface.Closed())
-	require.Nil(t, manager.Interface.Socket())
+	requireHandlerStopped(t, manager.Interface)
 	requireHandlersStopped(t, handlers)
 }
 
@@ -458,7 +446,7 @@ func startRecordingInprocTopologyExtension(t *testing.T, endpoint message.Endpoi
 
 	recorder := newRecordingInprocTopologyExtension()
 	handler := replier.New()
-	handler.SetConfig(HandlerConfig(endpoint))
+	handler.SetEndpoint(endpoint)
 	require.NoError(t, handler.Route(StartService, func(req message.RequestInterface) message.ReplyInterface {
 		serviceName, err := req.RouteParameters().StringValue("service")
 		if err != nil {
@@ -469,8 +457,7 @@ func startRecordingInprocTopologyExtension(t *testing.T, endpoint message.Endpoi
 	}))
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
-		_ = closeHandler(handler)
-		_ = closeHandler(handler.Control)
+		_ = handlers.CloseViaControl(handler)
 	})
 	return recorder
 }
@@ -488,7 +475,7 @@ func startRecordingServiceManager(t *testing.T, endpoint message.Endpoint) *reco
 		probe:   make(map[string]bool),
 	}
 	handler := sync_replier.New()
-	handler.SetConfig(HandlerConfig(endpoint))
+	handler.SetEndpoint(endpoint)
 	require.NoError(t, handler.Route(IsServiceRunning, func(req message.RequestInterface) message.ReplyInterface {
 		serviceName, err := req.RouteParameters().StringValue("service")
 		if err != nil {
@@ -507,8 +494,7 @@ func startRecordingServiceManager(t *testing.T, endpoint message.Endpoint) *reco
 	}))
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
-		_ = closeHandler(handler)
-		_ = closeHandler(handler.Control)
+		_ = handlers.CloseViaControl(handler)
 	})
 	return recorder
 }

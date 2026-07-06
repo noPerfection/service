@@ -841,6 +841,7 @@ app.SetEndpoint(
 	"entrypoint",
 )
 ```
+
 So, now our entrypoint is IPC. But ipc can not connect to the inproc default name? 
 Its possible to set both default name and hello worl services as an ipc with the inproc-parmaeter.
 But I don't want to expose the processes because I'm too much paranoid with the safety.
@@ -916,14 +917,37 @@ Try it, and it should work.
 If we want to change our app from ipc back to inproc, we simply remove the tmp service manager and add the inproc handlers to our entrypoint. We run twice and our code works. If we want to return back we simply set the manager, and remove the parameter from our config. And it will be reversed. All only by changing the configuration.
 
 ### Complete removal of the inprocess
+
 Lets now, remove the inproc-handlers in our default name, since I want it to be single for all packages.
 Now, I need to add the manager in tmp, but also make my own service to be inproc as well.
 
 Once you edit the set service configs, and set handler configs in the code, it sees that there is no inproc services left so it will remove the inproc_topology file itself as well.
 
 ## Tutorial 11: security
-The handlers communication is secure at three levels.
-By default, service topology will make the communication secure.
+
+When you start a service, service will wire a signal to its topology about security.
+By default, it enables HMAC (hashed messages). For example, let's look at [examples/011-security](./examples/011-security).
+
+We have our hello world, a handler dependency to entry point proxy. And for the `hello` command, we have the default name proxy.
+
+### Auto Whitelisting
+
+Since our entry point is exposed to the world, it can be connected by anyone.
+But what about the independent service? Well, it depends on its command.
+
+If you route to the `hello` command, it can come only from the default name. For the age, it can come only from the `entrypoint`.
+
+What about the proxy? Can we access it directly? Well, not exactly, it can be called by the entry point only. In one terminal, run the services: `GOWORK=off go run ./cmd/service`.
+
+Then, try to call the services directly:
+
+```bash
+GOWORK=off go run ./cmd/client --service=hello-world --name=User
+GOWORK=off go run ./cmd/client --service=default-name
+GOWORK=off go run ./cmd/client
+```
+
+First two will fail.
 
 ## Tutorial 12: cross-language
 
@@ -944,15 +968,17 @@ once you do it, share it to the people.
 
 Topology configuration is stored as a [Mushroom](https://github.com/ahmetson/mushroom) mycelium. The topology package itself only germinates the **json** colony (`pkg:json`). Other mushroom types are resolved through **substrates** registered by the caller.
 
-The **service** package owns built-in substrates in [`substrates.go`](./substrates.go). When you call `SetTopologyParams` or when `Start` creates the default topology handler, substrates are passed into `topology.NewHandler` → `config.Load` → `json_substrate.Root`. Topology stays minimal; it does not register substrates on its own.
+The **service** package owns built-in substrates in `[substrates.go](./substrates.go)`. When you call `SetTopologyParams` or when `Start` creates the default topology handler, substrates are passed into `topology.NewHandler` → `config.Load` → `json_substrate.Root`. Topology stays minimal; it does not register substrates on its own.
 
 By default, the service layer supports three mushroom types:
 
-| Type | Module | Role |
-|------|--------|------|
-| `pkg:golang` | [github.com/noPerfection/service/package_url](./package_url/) | Resolves Go module and package links (`module-url`, inproc services, `func=` factories). |
-| `pkg:json` | [github.com/ahmetson/mushroom/substrates/json_substrate](https://github.com/ahmetson/mushroom/tree/main/substrates/json_substrate) | Loads and mutates topology JSON (`noPerfection.json`). Always used as the root colony. |
-| `pkg:os` | [github.com/noPerfection/os/substrate](https://github.com/noPerfection/os/tree/main/substrate) | Resolves environment links (for example `*pkg:os#env?var=ANTHROPIC_API_KEY&env=.env&envArg=true` in service parameters). Wired automatically via `ossubstrate.New()` in [`substrates.go`](./substrates.go). |
+
+| Type         | Module                                                                                                                             | Role                                                                                                                                                                                                        |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pkg:golang` | [github.com/noPerfection/service/package_url](./package_url/)                                                                      | Resolves Go module and package links (`module-url`, inproc services, `func=` factories).                                                                                                                    |
+| `pkg:json`   | [github.com/ahmetson/mushroom/substrates/json_substrate](https://github.com/ahmetson/mushroom/tree/main/substrates/json_substrate) | Loads and mutates topology JSON (`noPerfection.json`). Always used as the root colony.                                                                                                                      |
+| `pkg:os`     | [github.com/noPerfection/os/substrate](https://github.com/noPerfection/os/tree/main/substrate)                                     | Resolves environment links (for example `*pkg:os#env?var=ANTHROPIC_API_KEY&env=.env&envArg=true` in service parameters). Wired automatically via `ossubstrate.New()` in `[substrates.go](./substrates.go)`. |
+
 
 ### Register your own substrate
 
@@ -980,10 +1006,12 @@ Dereference links (`*pkg:…`) inside topology data are fruitized when services 
 
 Service **parameters**:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
+
+| Parameter | Default                             | Description                                                                                                                 |
+| --------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `api-key` | `*pkg:os/env?var=ANTHROPIC_API_KEY` | Anthropic API key. Stored as a dereference link; mushroom embeds the resolved value when the service is read from topology. |
-| `model` | `claude-haiku-4-5-20251001` | Anthropic model id (see `mozilla-ai/any-llm-go/providers/anthropic`). |
+| `model`   | `claude-haiku-4-5-20251001`         | Anthropic model id (see `mozilla-ai/any-llm-go/providers/anthropic`).                                                       |
+
 
 `AiService` reads these parameters from topology whenever it needs them (for example on `CheckConnection` or completion calls), so `SetServiceParams` changes take effect without reconstructing the extension.
 
