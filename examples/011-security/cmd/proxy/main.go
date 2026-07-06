@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/noPerfection/service/examples/009-inproc-services/services/proxy"
+	"github.com/noPerfection/service/examples/011-security/services/proxy"
 )
 
 func main() {

@@ -16,8 +16,18 @@ const (
 	entrypointName         = "entrypoint"
 	entrypointUrl          = "tmp/entrypoint"
 	entrypointManagerUrl   = "tmp/entrypoint_manager" // since we treat it as inproc
-	proxyModuleUrl         = "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/proxy?root=/home/medet/noPerfection/service/examples/010-self-optimizing"
-	entrypointModuleUrl    = "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/entrypoint?root=/home/medet/noPerfection/service/examples/010-self-optimizing"
+	metricsName            = "metrics"
+	metricsUrl             = "tmp/metrics"
+	metricsManagerUrl      = "tmp/metrics_manager"
+	proxy2Name             = "upper-case-names"
+	proxy2Url              = "tmp/upper-case-names"
+	proxy2ManagerUrl       = "tmp/upper-case-names_manager"
+	exampleRoot            = "/home/medet/noPerfection/service/examples/011-security"
+	proxyModuleUrl         = "pkg:golang/github.com/noPerfection/service/examples/011-security#services/proxy?root=" + exampleRoot
+	entrypointModuleUrl    = "pkg:golang/github.com/noPerfection/service/examples/011-security#services/entrypoint?root=" + exampleRoot
+	serviceModuleUrl       = "pkg:golang/github.com/noPerfection/service/examples/011-security#cmd/service?root=" + exampleRoot
+	metricsModuleUrl       = "pkg:golang/github.com/noPerfection/service/examples/011-security#services/metrics?root=" + exampleRoot
+	proxy2ModuleUrl        = "pkg:golang/github.com/noPerfection/service/examples/011-security#services/proxy2?root=" + exampleRoot
 )
 
 func main() {
@@ -38,7 +48,7 @@ func main() {
 		service.Config{
 			Type:         service.IndependentType,
 			Name:         serviceName,
-			ModuleUrl:    "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#cmd/service?root=/home/medet/noPerfection/service/examples/010-self-optimizing",
+			ModuleUrl:    serviceModuleUrl,
 			StartCommand: "./bin/service",
 			Handlers: []service.Handler{
 				service.IndependentHandler{
@@ -103,15 +113,70 @@ func main() {
 		panic(err)
 	}
 
+	if err := app.SetServiceConfig(service.Config{
+		Type:         service.ProxyType,
+		Name:         metricsName,
+		ModuleUrl:    metricsModuleUrl,
+		StartCommand: "./bin/metrics",
+		Handlers: []service.Handler{
+			service.ProxyHandler{
+				IndependentHandler: service.IndependentHandler{
+					Type:     service.SyncReplierType,
+					Category: "main",
+					Endpoint: service.Endpoint(metricsUrl, 0),
+				},
+				Routes: []string{service.AnyCmd},
+			},
+			service.IndependentHandler{
+				Type:     service.SyncReplierType,
+				Category: service.ServiceManagerCategory,
+				Endpoint: service.Endpoint(metricsManagerUrl, 0),
+			},
+		},
+	}, "*pkg:$?var=services[name:"+metricsName+"]"); err != nil {
+		panic(err)
+	}
+
+	if err := app.SetServiceConfig(service.Config{
+		Type:         service.ProxyType,
+		Name:         proxy2Name,
+		ModuleUrl:    proxy2ModuleUrl,
+		StartCommand: "./bin/proxy2",
+		Handlers: []service.Handler{
+			service.ProxyHandler{
+				IndependentHandler: service.IndependentHandler{
+					Type:     service.SyncReplierType,
+					Category: "main",
+					Endpoint: service.Endpoint(proxy2Url, 0),
+				},
+				Routes: []string{"hello"},
+			},
+			service.IndependentHandler{
+				Type:     service.SyncReplierType,
+				Category: service.ServiceManagerCategory,
+				Endpoint: service.Endpoint(proxy2ManagerUrl, 0),
+			},
+		},
+	}, "*pkg:$?var=services[name:"+proxy2Name+"]"); err != nil {
+		panic(err)
+	}
+
 	if err := app.SetHandlerDeps(service.Dependency{
 		Name: service.DefaultHandlerCategory,
 		Proxies: []string{
 			fmt.Sprintf("pkg:$?var=services[name:%s]", entrypointName),
-			fmt.Sprintf("pkg:$?var=services[name:%s]", defaultProxyName),
+			fmt.Sprintf("pkg:$?var=services[name:%s]", metricsName),
 		},
 	}); err != nil {
 		panic(err)
 	}
+	app.SetCommandDeps(service.Dependency{
+		Name: "hello",
+		Proxies: []string{
+			fmt.Sprintf("pkg:$?var=services[name:%s]", defaultProxyName),
+			fmt.Sprintf("pkg:$?var=services[name:%s]", proxy2Name),
+		},
+	})
 
 	if err := app.SetHandlerDeps(service.Dependency{
 		Name:       service.ServiceManagerCategory,

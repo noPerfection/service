@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/noPerfection/service/examples/011-security/services/entrypoint"
+	"github.com/noPerfection/service/examples/011-security/services/metrics"
 )
 
 func main() {
-	app, err := entrypoint.New()
+	app, err := metrics.New()
 	if err != nil {
 		panic(err)
 	}

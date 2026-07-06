@@ -15,8 +15,15 @@ import (
 )
 
 const (
-	entrypointEndpoint = "tmp/entrypoint"
-	managerEndpoint    = "tmp/hello-world_manager"
+	serviceHelloWorld      = "hello-world"
+	serviceDefaultName     = "default-name-proxy"
+	serviceEntrypoint      = "entrypoint"
+	serviceDefaultNameFlag = "default-name"
+
+	helloWorldEndpoint      = "tmp/hello-world"
+	defaultNameProxyEndpoint = "tmp/default-name-proxy"
+	entrypointEndpoint      = "tmp/entrypoint"
+	managerEndpoint         = "tmp/hello-world_manager"
 )
 
 func main() {
@@ -49,6 +56,9 @@ func printHelp() {
   go run ./cmd/client
   go run ./cmd/client --name="Medet Ahmetson"
   go run ./cmd/client --age=21
+  go run ./cmd/client --service=entrypoint
+  go run ./cmd/client --service=hello-world
+  go run ./cmd/client --service=default-name
   go run ./cmd/client --services
   go run ./cmd/client --status=<service-name>
   go run ./cmd/client --start=<service-name>
@@ -176,7 +186,13 @@ func callEntrypoint() {
 		params.Set("name", arg.FlagValue("name"))
 	}
 
-	c, err := client.New(entrypointEndpoint, 0, client.SyncReplierType)
+	endpoint, err := proxyEndpoint(arg.FlagValue("service"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	c, err := client.New(endpoint, 0, client.SyncReplierType)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -211,4 +227,21 @@ func callEntrypoint() {
 		panic(err)
 	}
 	fmt.Println(msg)
+}
+
+func proxyEndpoint(service string) (string, error) {
+	if service == "" {
+		service = serviceEntrypoint
+	}
+
+	switch service {
+	case serviceEntrypoint:
+		return entrypointEndpoint, nil
+	case serviceHelloWorld:
+		return helloWorldEndpoint, nil
+	case serviceDefaultName, serviceDefaultNameFlag:
+		return defaultNameProxyEndpoint, nil
+	default:
+		return "", fmt.Errorf("unknown service %q: use %q, %q, or %q", service, serviceEntrypoint, serviceHelloWorld, serviceDefaultNameFlag)
+	}
 }
