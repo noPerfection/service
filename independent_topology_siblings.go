@@ -24,47 +24,6 @@ import (
 // The manager creates a whitelist and secure keys.
 //
 // Perhaps we need to set the secure edges for the topology as well?
-/*
-manager of upper-case-names: default-name-proxy
-2026/07/06 19:19:21 INFO hello-world: Service inbounds services amount=5
-2026/07/06 19:19:21 INFO hello-world: Service inbounds
-     service="pkg:json/.#noPerfection.json?var=services[name:upper-case-names]" cmd amount=1
-2026/07/06 19:19:21 INFO hello-world: Inbounds for
-     command="pkg:json/.#noPerfection.json?var=services[name:upper-case-names]&category=main&command=hello"
-    inbounds="[pkg:json/.#noPerfection.json?var=services[name:default-name-proxy]&category=main&command=hello]"
-
-2026/07/06 19:19:21 INFO hello-world: Service inbounds
-     service="pkg:json/.#noPerfection.json?var=services[name:default-name-proxy]" cmd amount=1
-2026/07/06 19:19:21 INFO hello-world: Inbounds for
-     command="pkg:json/.#noPerfection.json?var=services[name:default-name-proxy]&category=main&command=hello"
-    inbounds="[pkg:json/.#noPerfection.json?var=services[name:metrics]&category=main&command=hello]"
-
-2026/07/06 19:19:21 INFO hello-world: Service inbounds
-     service="pkg:json/.#noPerfection.json?var=services[name:metrics]" cmd amount=1
-2026/07/06 19:19:21 INFO hello-world: Inbounds for
-     command="pkg:json/.#noPerfection.json?var=services[name:metrics]&category=main&command=any"
-    inbounds="[pkg:json/.#noPerfection.json?var=services[name:entrypoint]&category=main&command=any]"
-
-2026/07/06 19:19:21 INFO hello-world: Service inbounds
-     service="pkg:json/.#noPerfection.json?var=services[name:ai]" cmd amount=1
-2026/07/06 19:19:21 INFO hello-world: Inbounds for
-     command="pkg:json/.#noPerfection.json?var=services[name:ai]&category=main&command=any"
-    inbounds="[pkg:json/.#noPerfection.json?var=services[name:hello-world]&category=manager&command=any]"
-
-2026/07/06 19:19:21 INFO hello-world: Service inbounds
-     service="pkg:json/.#noPerfection.json?var=services[name:hello-world]" cmd amount=3
-2026/07/06 19:19:21 INFO hello-world: Inbounds for
-     command="pkg:json/.#noPerfection.json?var=services[name:hello-world]&category=main&command=age-verification"
-    inbounds="[pkg:json/.#noPerfection.json?var=services[name:metrics]&category=main&command=age-verification]"
-2026/07/06 19:19:21 INFO hello-world: Inbounds for
-     command="pkg:json/.#noPerfection.json?var=services[name:hello-world]&category=main&command=country"
-    inbounds="[pkg:json/.#noPerfection.json?var=services[name:metrics]&category=main&command=country]"
-2026/07/06 19:19:21 INFO hello-world: Inbounds for
-     command="pkg:json/.#noPerfection.json?var=services[name:hello-world]&category=main&command=hello"
-    inbounds="[pkg:json/.#noPerfection.json?var=services[name:upper-case-names]&category=main&command=hello]"
-
-
-*/
 func (independent *Independent) secureEdges() error {
 	serviceConfig, err := independent.topology().Service(independent.mushroomURL)
 	if err != nil {

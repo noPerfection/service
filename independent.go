@@ -30,6 +30,10 @@ const DefaultName = "main"
 // ManagerSecretKeyParameter is the service Parameters key for a hardcoded manager CURVE secret key.
 // When present, the manager derives its public key from this value instead of generating a fresh pair.
 const ManagerSecretKeyParameter = "manager-secret-key"
+
+// ManagerPublicKeyParam is the service Parameters key under which the manager's
+// CURVE public key is stored so dep services can reference it by dereference URL.
+const ManagerPublicKeyParam = "public-key"
 const DefaultConfigPath = "noPerfection.json"
 const DefaultModuleUrl = "github.com/noPerfection/service"
 
@@ -867,12 +871,16 @@ func (independent *Independent) getAiExtensionFromConfig(serviceConfig config.Se
 	return config.Service{}, false
 }
 
-// allowServiceManager registers this service's manager public key into the "allowed" parameters of
-// every dependency service (handler-deps and command-deps). Each dep service receives an entry:
+// allowServiceManager publishes this service's manager public key in its own
+// Parameters["public-key"] and registers a dereference reference to that field
+// in the "allowed" parameters of every dependency service (handler-deps and
+// command-deps). Each dep service receives an entry:
 //
-//	Parameters["allowed"][ServiceManagerCategory][GetHandlerLink(ServiceManagerCategory)] = manager.PublicKey()
+//	Parameters["allowed"][ServiceManagerCategory][GetHandlerLink(ServiceManagerCategory)]
+//	    = "*<thisServiceLink>.parameters[public-key]"
 //
-// so that the dep service's manager handler can authenticate connections from this manager.
+// so that the dep service's manager handler can authenticate connections from
+// this manager by resolving the reference at allow-time.
 func (independent *Independent) allowServiceManager() error {
 	tp := independent.topology()
 	serviceConfig, err := tp.Service(independent.mushroomURL)
@@ -885,6 +893,22 @@ func (independent *Independent) allowServiceManager() error {
 		return fmt.Errorf("GetHandlerLink('%s'): %w", topology.ServiceManagerCategory, err)
 	}
 	publicKey := independent.manager.PublicKey()
+
+	if serviceConfig.Parameters == nil {
+		serviceConfig.Parameters = datatype.New()
+	}
+	if existing, _ := serviceConfig.Parameters[ManagerPublicKeyParam].(string); existing != publicKey {
+		serviceConfig.Parameters[ManagerPublicKeyParam] = publicKey
+		if err := tp.SetService(serviceConfig); err != nil {
+			return fmt.Errorf("topology.SetService('%s') store public key: %w", independent.mushroomURL, err)
+		}
+	}
+
+	// Build a dereference URL pointing at this service's public-key parameter.
+	publicKeyRef, err := ManagerPublicDereference(tp, independent.mushroomURL)
+	if err != nil {
+		return fmt.Errorf("ManagerPublicDereference: %w", err)
+	}
 
 	depServiceURLs := make(map[string]struct{})
 
@@ -916,10 +940,10 @@ func (independent *Independent) allowServiceManager() error {
 		if err != nil {
 			return fmt.Errorf("topology.Service('%s'): %w", svcURL, err)
 		}
-		if !depServiceNeedsManagerAllow(depService.Parameters, managerLink, publicKey) {
+		if !depServiceNeedsManagerAllow(depService.Parameters, managerLink, publicKeyRef) {
 			continue
 		}
-		setDepServiceManagerAllow(&depService, topology.ServiceManagerCategory, managerLink, publicKey)
+		setDepServiceManagerAllow(&depService, topology.ServiceManagerCategory, managerLink, publicKeyRef)
 		if err := tp.SetService(depService); err != nil {
 			return fmt.Errorf("topology.SetService('%s'): %w", depService.Name, err)
 		}
@@ -928,13 +952,11 @@ func (independent *Independent) allowServiceManager() error {
 	return nil
 }
 
-// serviceURLFromDepURL strips the handler segment from a dep mushroom URL and returns a
-// dereference URL pointing at the owning service.
-// e.g. "pkg:json/.#noPerfection.json?var=services[name:proxy].handlers[category:main]"
-// becomes "*pkg:json/.#noPerfection.json?var=services[name:proxy]".
-// addAllowedKeys reads the "allowed" parameters of this service and calls manager.Allow for
-// every public key listed under the ServiceManagerCategory. Missing or empty allowed entries
-// are logged as warnings — they are not errors, since the service may simply have no callers yet.
+// addAllowedKeys reads the "allowed" parameters of this service and calls
+// manager.Allow for every public key listed under the ServiceManagerCategory.
+// The topology resolves dereference URLs (via Fruit) before returning the
+// service config, so values are always plain key strings by the time they arrive
+// here. Missing or empty allowed entries are logged as warnings.
 func (independent *Independent) addAllowedKeys() error {
 	tp := independent.topology()
 	serviceConfig, err := tp.Service(independent.mushroomURL)
@@ -994,8 +1016,8 @@ func (independent *Independent) addAllowedKeys() error {
 }
 
 // depServiceNeedsManagerAllow reports whether the manager allow entry is missing or stale.
-// Returns false when the stored public key already matches.
-func depServiceNeedsManagerAllow(serviceParameters datatype.KeyValue, managerLink, publicKey string) bool {
+// Returns false when the stored value already matches.
+func depServiceNeedsManagerAllow(serviceParameters datatype.KeyValue, managerLink, value string) bool {
 	if serviceParameters == nil {
 		return true
 	}
@@ -1016,11 +1038,12 @@ func depServiceNeedsManagerAllow(serviceParameters datatype.KeyValue, managerLin
 		return true
 	}
 	existing, exists := entryMap[managerLink]
-	return !exists || existing != publicKey
+	return !exists || existing != value
 }
 
 // setDepServiceManagerAllow writes the manager allow entry into depService.Parameters.
-func setDepServiceManagerAllow(depService *config.Service, category, managerLink, publicKey string) {
+// value is a dereference URL pointing at the caller's public-key parameter.
+func setDepServiceManagerAllow(depService *config.Service, category, managerLink, value string) {
 	if depService.Parameters == nil {
 		depService.Parameters = datatype.New()
 	}
@@ -1045,7 +1068,7 @@ func setDepServiceManagerAllow(depService *config.Service, category, managerLink
 		entryMap = make(map[string]interface{})
 	}
 
-	entryMap[managerLink] = publicKey
+	entryMap[managerLink] = value
 	categoryMap[category] = entryMap
 	depService.Parameters["allowed"] = categoryMap
 }
@@ -1222,6 +1245,77 @@ func (independent *Independent) GetHandlerLink(handlerCategory string) (string, 
 	}
 	linkHypha.AdditionalProps["category"] = handlerCategory
 	return linkHypha.String(), nil
+}
+
+// ManagerPublicDereference builds a dereference URL that points at the caller
+// service's Parameters["public-key"] field, e.g.:
+//
+//	*pkg:json/.#noPerfection.json?var=services[name:hello-world].parameters.public-key
+//
+// The path uses three separate segments (services[name:X], parameters, public-key)
+// so that lookup navigates services as an array, then parameters as a plain map
+// field, then public-key as a map key — avoiding the "array segment not found"
+// error that occurs when [public-key] is a scalar on the parameters segment.
+func ManagerPublicDereference(tp topology.TopologyInterface, mushroomURL string) (string, error) {
+	link, err := tp.GetLink(mushroomURL)
+	if err != nil {
+		return "", fmt.Errorf("tp.GetLink(%q): %w", mushroomURL, err)
+	}
+	var soil mushroom.Soil
+	hypha, err := soil.Hypha(link)
+	if err != nil {
+		return "", fmt.Errorf("soil.Hypha(%q): %w", link, err)
+	}
+	paramsHypha, err := hypha.ChildResource("parameters")
+	if err != nil {
+		return "", fmt.Errorf("ChildResource(\"parameters\"): %w", err)
+	}
+	// ChildResource("public-key") creates a new segment, not a scalar —
+	// resulting in …parameters.public-key (map navigation), not …parameters[public-key]
+	// (array filter), which would fail because parameters is a map, not an array.
+	pubKeyHypha, err := paramsHypha.ChildResource(ManagerPublicKeyParam)
+	if err != nil {
+		return "", fmt.Errorf("ChildResource(%q): %w", ManagerPublicKeyParam, err)
+	}
+	return pubKeyHypha.AsDereference().String(), nil
+}
+
+// resolveManagerPublicKeyRef resolves a dereference URL of the form
+// "*pkg:…?var=services[name:X].parameters.public-key" to the public key string
+// stored in service X's Parameters["public-key"].
+func resolveManagerPublicKeyRef(tp topology.TopologyInterface, ref string) (string, error) {
+	var soil mushroom.Soil
+	hypha, err := soil.Hypha(ref)
+	if err != nil {
+		return "", fmt.Errorf("soil.Hypha(%q): %w", ref, err)
+	}
+	segs := hypha.ResourcePath.Segments
+	if len(segs) < 2 || len(segs[0].Scalars) == 0 {
+		return "", fmt.Errorf("unexpected resource path in ref %q", ref)
+	}
+	serviceName := segs[0].Scalars[0].Value
+	if serviceName == "" {
+		serviceName = segs[0].Scalars[0].Key
+	}
+	if serviceName == "" {
+		return "", fmt.Errorf("could not extract service name from ref %q", ref)
+	}
+	svc, err := tp.Service(serviceName)
+	if err != nil {
+		return "", fmt.Errorf("tp.Service(%q): %w", serviceName, err)
+	}
+	if svc.Parameters == nil {
+		return "", fmt.Errorf("service %q has no parameters", serviceName)
+	}
+	val, ok := svc.Parameters[ManagerPublicKeyParam]
+	if !ok {
+		return "", fmt.Errorf("service %q missing parameter %q", serviceName, ManagerPublicKeyParam)
+	}
+	pubKey, ok := val.(string)
+	if !ok || pubKey == "" {
+		return "", fmt.Errorf("service %q parameter %q is not a non-empty string", serviceName, ManagerPublicKeyParam)
+	}
+	return pubKey, nil
 }
 
 func dereferenceMushroomURL(url string) string {

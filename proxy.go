@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ahmetson/mushroom"
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
@@ -424,6 +425,22 @@ func (proxy *Proxy) allowServiceManager() error {
 	}
 	publicKey := proxy.manager.PublicKey()
 
+	if serviceConfig.Parameters == nil {
+		serviceConfig.Parameters = datatype.New()
+	}
+	if existing, _ := serviceConfig.Parameters[ManagerPublicKeyParam].(string); existing != publicKey {
+		serviceConfig.Parameters[ManagerPublicKeyParam] = publicKey
+		if err := tp.SetService(serviceConfig); err != nil {
+			return fmt.Errorf("topology.SetService('%s') store public key: %w", proxy.name, err)
+		}
+	}
+
+	// Build a dereference URL pointing at this service's public-key parameter.
+	publicKeyRef, err := ManagerPublicDereference(tp, proxy.name)
+	if err != nil {
+		return fmt.Errorf("ManagerPublicDereference: %w", err)
+	}
+
 	depServiceURLs := make(map[string]struct{})
 
 	for _, dep := range serviceConfig.HandlerDeps {
@@ -454,10 +471,10 @@ func (proxy *Proxy) allowServiceManager() error {
 		if err != nil {
 			return fmt.Errorf("topology.Service('%s'): %w", svcURL, err)
 		}
-		if !depServiceNeedsManagerAllow(depService.Parameters, managerLink, publicKey) {
+		if !depServiceNeedsManagerAllow(depService.Parameters, managerLink, publicKeyRef) {
 			continue
 		}
-		setDepServiceManagerAllow(&depService, topology.ServiceManagerCategory, managerLink, publicKey)
+		setDepServiceManagerAllow(&depService, topology.ServiceManagerCategory, managerLink, publicKeyRef)
 		if err := tp.SetService(depService); err != nil {
 			return fmt.Errorf("topology.SetService('%s'): %w", depService.Name, err)
 		}
@@ -504,7 +521,6 @@ func (proxy *Proxy) addAllowedKeys() error {
 		}
 		proxy.manager.Allow(pubKey)
 		fmt.Printf("The %s allowed to access: %s\n", proxy.mushroomURL, link)
-
 	}
 
 	return nil

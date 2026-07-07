@@ -63,6 +63,9 @@ func main() {
 					Endpoint: service.Endpoint(serviceManagerUrl, 0),
 				},
 			},
+			Parameters: service.KeyValue().Set("manager-secret-key",
+				"*pkg:os/env?var=MANAGER_SECRET_KEY&LoadAnyEnv=true").Set("public-key",
+				"*pkg:os/env?var=MANAGER_PUBLIC_KEY&LoadAnyEnv=true"),
 		},
 	)
 
