@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/noPerfection/service"
 )
@@ -187,6 +188,7 @@ func main() {
 
 	app.Route("hello", onHello)
 	app.Route("age-verification", onAgeVerification)
+	app.Route("country", onCountry)
 
 	if err := app.Start(); err != nil {
 		panic(err)
@@ -214,4 +216,13 @@ func onAgeVerification(req service.RequestInterface) service.ReplyInterface {
 	}
 
 	return req.Ok(map[string]any{"passed": age >= 18})
+}
+
+func onCountry(req service.RequestInterface) service.ReplyInterface {
+	country, err := req.RouteParameters().StringValue("country")
+	if err != nil {
+		return req.Fail("country is required")
+	}
+
+	return req.Ok(map[string]any{"country": strings.ToUpper(country[0:2])})
 }

@@ -3,8 +3,6 @@ package manager
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -109,7 +107,7 @@ func (m *Manager) StartService(serviceURL string) (string, error) {
 		return "", err
 	}
 	if match {
-		return strconv.Itoa(os.Getpid()), nil
+		return "", fmt.Errorf("can't start itself: service is already running")
 	}
 	if m.topology == nil {
 		return "", fmt.Errorf("topology is nil")
@@ -168,6 +166,9 @@ func startInprocService(inprocTopologyEndpoint message.Endpoint, handlerType con
 	return id, nil
 }
 
+// Stops and unlocks the blocker of the service.
+// If the service is watched using service.Watch(), then it will be unlocked.
+// To start this service, call the Start() method. Or StartService from its parent.
 func (m *Manager) StopService(serviceURL string) error {
 	if !m.running && m.started {
 		return nil

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/ahmetson/mushroom"
 	"github.com/noPerfection/log"
@@ -12,6 +13,58 @@ import (
 
 // secureEdges prints who may call each handler command on this independent
 // service by walking command-deps, handler-deps, and registered routes.
+//
+// TODO:
+// Then, we create a node interface in topology a new method: SecureEdges(serviceURL)
+// Then, there is an interface called SetInbounds(serviceURL, inbounds) ?? how to retreive it after restart?
+// From whom it gets the message?
+//
+// Then managers implement it.
+// Then handlers has the inbounds and can be called by manager.
+// The manager creates a whitelist and secure keys.
+//
+// Perhaps we need to set the secure edges for the topology as well?
+/*
+manager of upper-case-names: default-name-proxy
+2026/07/06 19:19:21 INFO hello-world: Service inbounds services amount=5
+2026/07/06 19:19:21 INFO hello-world: Service inbounds
+     service="pkg:json/.#noPerfection.json?var=services[name:upper-case-names]" cmd amount=1
+2026/07/06 19:19:21 INFO hello-world: Inbounds for
+     command="pkg:json/.#noPerfection.json?var=services[name:upper-case-names]&category=main&command=hello"
+    inbounds="[pkg:json/.#noPerfection.json?var=services[name:default-name-proxy]&category=main&command=hello]"
+
+2026/07/06 19:19:21 INFO hello-world: Service inbounds
+     service="pkg:json/.#noPerfection.json?var=services[name:default-name-proxy]" cmd amount=1
+2026/07/06 19:19:21 INFO hello-world: Inbounds for
+     command="pkg:json/.#noPerfection.json?var=services[name:default-name-proxy]&category=main&command=hello"
+    inbounds="[pkg:json/.#noPerfection.json?var=services[name:metrics]&category=main&command=hello]"
+
+2026/07/06 19:19:21 INFO hello-world: Service inbounds
+     service="pkg:json/.#noPerfection.json?var=services[name:metrics]" cmd amount=1
+2026/07/06 19:19:21 INFO hello-world: Inbounds for
+     command="pkg:json/.#noPerfection.json?var=services[name:metrics]&category=main&command=any"
+    inbounds="[pkg:json/.#noPerfection.json?var=services[name:entrypoint]&category=main&command=any]"
+
+2026/07/06 19:19:21 INFO hello-world: Service inbounds
+     service="pkg:json/.#noPerfection.json?var=services[name:ai]" cmd amount=1
+2026/07/06 19:19:21 INFO hello-world: Inbounds for
+     command="pkg:json/.#noPerfection.json?var=services[name:ai]&category=main&command=any"
+    inbounds="[pkg:json/.#noPerfection.json?var=services[name:hello-world]&category=manager&command=any]"
+
+2026/07/06 19:19:21 INFO hello-world: Service inbounds
+     service="pkg:json/.#noPerfection.json?var=services[name:hello-world]" cmd amount=3
+2026/07/06 19:19:21 INFO hello-world: Inbounds for
+     command="pkg:json/.#noPerfection.json?var=services[name:hello-world]&category=main&command=age-verification"
+    inbounds="[pkg:json/.#noPerfection.json?var=services[name:metrics]&category=main&command=age-verification]"
+2026/07/06 19:19:21 INFO hello-world: Inbounds for
+     command="pkg:json/.#noPerfection.json?var=services[name:hello-world]&category=main&command=country"
+    inbounds="[pkg:json/.#noPerfection.json?var=services[name:metrics]&category=main&command=country]"
+2026/07/06 19:19:21 INFO hello-world: Inbounds for
+     command="pkg:json/.#noPerfection.json?var=services[name:hello-world]&category=main&command=hello"
+    inbounds="[pkg:json/.#noPerfection.json?var=services[name:upper-case-names]&category=main&command=hello]"
+
+
+*/
 func (independent *Independent) secureEdges() error {
 	serviceConfig, err := independent.topology().Service(independent.mushroomURL)
 	if err != nil {
@@ -27,7 +80,7 @@ func (independent *Independent) secureEdges() error {
 		}
 	}
 
-	logger.Info("Collect for handlers of", "MushroomURL", independent.mushroomURL, "handlers amount", len(serviceConfig.Handlers))
+	inbounds := make(map[string][]string)
 
 	for _, variant := range serviceConfig.Handlers {
 		fmt.Printf("\n")
@@ -35,20 +88,34 @@ func (independent *Independent) secureEdges() error {
 		if !ok {
 			return fmt.Errorf("handler %q is not an independent handler", variant)
 		}
-		cmds, err := independent.commands(handler.Category)
-		if err != nil {
-			return fmt.Errorf("commands(%q): %w", handler.Category, err)
-		}
-		logger.Info("Collecting inbound edges for handler:\n", "\tcategory", handler.Category, "\n\troutes amount", len(cmds))
-
-		inbounds, err := independent.secureHandlerEdges(serviceConfig, handler)
+		handlerInbounds, err := independent.secureHandlerEdges(serviceConfig, handler)
 		if err != nil {
 			return fmt.Errorf("secure handler edges: %w", err)
 		}
-		logger.Info("Inbound edges collected:\n", "\tinbounds amount", len(inbounds))
-		for cmd, inbounds := range inbounds {
-			logger.Info("Inbound for\n", "\tcommand", cmd, "\n\tinbounds", inbounds)
+		maps.Copy(inbounds, handlerInbounds)
+	}
+	// Here we need to filter the inbounds per service
+	serviceInbounds := make(map[string]map[string][]string)
+	soil := &mushroom.Soil{}
+	for cmdLink := range inbounds {
+		cmdHypha, _ := soil.Hypha(cmdLink)
+		serviceLink := cmdHypha.AsLink()
+		serviceLink.AdditionalProps = map[string]string{}
+		_, ok := serviceInbounds[serviceLink.String()]
+		if !ok {
+			serviceInbounds[serviceLink.String()] = make(map[string][]string)
 		}
+		serviceInbounds[serviceLink.String()][cmdHypha.String()] = inbounds[cmdLink]
+	}
+
+	// Now we print all:
+	logger.Info("Service inbounds", "services amount", len(serviceInbounds))
+	for serviceLink, cmdInbounds := range serviceInbounds {
+		logger.Info("Service inbounds \n", "\tservice", serviceLink, "cmd amount", len(cmdInbounds))
+		for cmd, inbounds := range cmdInbounds {
+			logger.Info("Inbounds for\n", "\tcommand", cmd, "\n\tinbounds", inbounds)
+		}
+		fmt.Printf("\n")
 	}
 
 	return nil

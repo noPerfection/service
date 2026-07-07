@@ -443,7 +443,7 @@ func (independent *Independent) Start() error {
 	}
 
 	if inprocServices > 0 {
-		needToStart, err = independent.setupInproc()
+		needToStart, err = independent.startInproc()
 		if err != nil {
 			err = fmt.Errorf("setupInproc: %w", err)
 			goto errOccurred
@@ -583,7 +583,7 @@ func (independent *Independent) cleanupInproc(needToStart []config.Service) erro
 	return NeedToRerun("reconciled %s; please rebuild and re-run", inprocTopologyFilename)
 }
 
-func (independent *Independent) setupInproc() ([]config.Service, error) {
+func (independent *Independent) startInproc() ([]config.Service, error) {
 	tp := independent.topology()
 	// serviceConfig is used to ensure ai extension, or to find the path to the inproc_topology.go
 	serviceConfig, err := tp.Service(independent.mushroomURL)

@@ -46,6 +46,7 @@
           ],
           "routes": [
             "age-verification",
+            "country",
             "hello"
           ],
           "type": "SyncReplier"
@@ -157,6 +158,7 @@
           ],
           "routes": [
             "age-verification",
+            "country",
             "hello"
           ],
           "type": "SyncReplier"
