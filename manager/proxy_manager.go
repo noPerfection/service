@@ -39,8 +39,9 @@ type ProxyManager struct {
 }
 
 // NewProxyManager creates a manager for a proxy service.
-// Optionally you can pass the manager's endpoint to manage proxy from remote computer or other process.
-func NewProxyManager(serviceName string, managerEndpoint message.Endpoint) (*ProxyManager, error) {
+// An optional secretKey may be provided; if given, the public key is derived from it.
+// If omitted, a fresh CURVE keypair is generated.
+func NewProxyManager(serviceName string, managerEndpoint message.Endpoint, secretKey ...string) (*ProxyManager, error) {
 	if serviceName == "" {
 		return nil, fmt.Errorf("serviceName is required")
 	}
@@ -56,11 +57,22 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint) (*Pro
 		return nil, fmt.Errorf("sync_replier.NewClient('%s'): %w", serviceName+handlers.ProxyHandlersCategory, err)
 	}
 
-	pubKey, secretKey, err := base.GenerateCurveKey()
-	if err != nil {
-		_ = topologyClient.Close()
-		_ = proxyHandlersClient.Close()
-		return nil, fmt.Errorf("base.GenerateCurveKey: %w", err)
+	var pub, sec string
+	if len(secretKey) > 0 && secretKey[0] != "" {
+		sec = secretKey[0]
+		pub, err = base.DerivePublicKey(sec)
+		if err != nil {
+			_ = topologyClient.Close()
+			_ = proxyHandlersClient.Close()
+			return nil, fmt.Errorf("base.DerivePublicKey: %w", err)
+		}
+	} else {
+		pub, sec, err = base.GenerateCurveKey()
+		if err != nil {
+			_ = topologyClient.Close()
+			_ = proxyHandlersClient.Close()
+			return nil, fmt.Errorf("base.GenerateCurveKey: %w", err)
+		}
 	}
 
 	handler := syncReplier.New()
@@ -70,8 +82,8 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint) (*Pro
 		topology:    topologyClient,
 		handlers:    proxyHandlersClient,
 		serviceName: serviceName,
-		secretKey:   secretKey,
-		pubKey:      pubKey,
+		secretKey:   sec,
+		pubKey:      pub,
 	}
 
 	handler.SetEndpoint(managerEndpoint)

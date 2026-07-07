@@ -275,7 +275,14 @@ func (proxy *Proxy) ensureServiceManager() error {
 		}
 	}
 
-	m, err := manager.NewProxyManager(proxy.name, managerEndpoint)
+	var secretKey string
+	if serviceConfig.Parameters != nil {
+		if v, ok := serviceConfig.Parameters[ManagerSecretKeyParameter]; ok {
+			secretKey, _ = v.(string)
+		}
+	}
+
+	m, err := manager.NewProxyManager(proxy.name, managerEndpoint, secretKey)
 	if err != nil {
 		return fmt.Errorf("manager.NewProxyManager: %w", err)
 	}

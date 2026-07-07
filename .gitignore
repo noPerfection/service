@@ -6,3 +6,5 @@ _vault/file
 .idea
 examples/009-inproc-services/.env
 examples/010-self-optimizing/.env
+examples/011-self-optimizing/.env
+examples/011-security/.env

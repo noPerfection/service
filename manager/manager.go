@@ -51,16 +51,29 @@ type Manager struct {
 // serviceURL is the mushroomURL used to locate this service in the topology mycelium
 // (a plain symbol such as "main", or a full dereference URL).
 // managerEndpoint is the socket other processes use to start, stop, and probe this service.
-func New(serviceURL string, managerEndpoint message.Endpoint) (*Manager, error) {
+// New creates a manager for an independent service.
+// An optional secretKey may be provided; if given, the public key is derived from it.
+// If omitted, a fresh CURVE keypair is generated.
+func New(serviceURL string, managerEndpoint message.Endpoint, secretKey ...string) (*Manager, error) {
 	topology, err := topology.NewClient()
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewClient: %w", err)
 	}
 
-	pubKey, secretKey, err := base.GenerateCurveKey()
-	if err != nil {
-		return nil, fmt.Errorf("base.GenerateCurveKey: %w", err)
+	var pub, sec string
+	if len(secretKey) > 0 && secretKey[0] != "" {
+		sec = secretKey[0]
+		pub, err = base.DerivePublicKey(sec)
+		if err != nil {
+			return nil, fmt.Errorf("base.DerivePublicKey: %w", err)
+		}
+	} else {
+		pub, sec, err = base.GenerateCurveKey()
+		if err != nil {
+			return nil, fmt.Errorf("base.GenerateCurveKey: %w", err)
+		}
 	}
+	fmt.Printf("Generated CURVE key pair for manager %s: pubKey=%s\n", serviceURL, pub)
 
 	handler := syncReplier.New()
 
@@ -69,8 +82,8 @@ func New(serviceURL string, managerEndpoint message.Endpoint) (*Manager, error) 
 		handlerControls: make([]*clientSyncReplier.BaseControl, 0),
 		topology:        topology,
 		serviceURL:      serviceURL,
-		secretKey:       secretKey,
-		pubKey:          pubKey,
+		secretKey:       sec,
+		pubKey:          pub,
 	}
 
 	handler.SetEndpoint(managerEndpoint)

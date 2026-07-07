@@ -949,6 +949,33 @@ GOWORK=off go run ./cmd/client
 
 First two will fail.
 
+### Hardcoded Secret Key
+
+By default, a fresh CURVE keypair is generated every time a service starts. This means other services must re-learn the public key after a restart.
+
+To use a stable, hardcoded key add `manager-secret-key` to the service's `parameters` in `noPerfection.json`:
+
+```json
+{
+  "name": "hello-world",
+  "parameters": {
+    "manager-secret-key": "<your-Z85-encoded-secret-key>"
+  }
+}
+```
+
+You can generate a keypair using [`base.GenerateCurveKey`](pkg:golang/github.com/noPerfection/protocol/handler#base?var=GenerateCurveKey):
+
+```go
+import "github.com/noPerfection/protocol/handler/base"
+
+pub, sec, err := base.GenerateCurveKey()
+// store sec in noPerfection.json as "manager-secret-key"
+// pub is derived automatically on startup
+```
+
+When `manager-secret-key` is present, the service derives its public key from it using `base.DerivePublicKey` instead of generating a new pair, so the public key stays consistent across restarts.
+
 ## Tutorial 12: cross-language
 
 Its cross-language actually, after all services are talking to each other

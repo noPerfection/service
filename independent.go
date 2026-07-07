@@ -26,6 +26,10 @@ import (
 )
 
 const DefaultName = "main"
+
+// ManagerSecretKeyParameter is the service Parameters key for a hardcoded manager CURVE secret key.
+// When present, the manager derives its public key from this value instead of generating a fresh pair.
+const ManagerSecretKeyParameter = "manager-secret-key"
 const DefaultConfigPath = "noPerfection.json"
 const DefaultModuleUrl = "github.com/noPerfection/service"
 
@@ -267,7 +271,14 @@ func (independent *Independent) ensureServiceManager() error {
 		managerEndpoint = handler.Endpoint
 	}
 
-	m, err := manager.New(independent.mushroomURL, managerEndpoint)
+	var secretKey string
+	if serviceConfig.Parameters != nil {
+		if v, ok := serviceConfig.Parameters[ManagerSecretKeyParameter]; ok {
+			secretKey, _ = v.(string)
+		}
+	}
+
+	m, err := manager.New(independent.mushroomURL, managerEndpoint, secretKey)
 	if err != nil {
 		return fmt.Errorf("manager.New: %w", err)
 	}

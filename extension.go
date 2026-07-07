@@ -252,7 +252,14 @@ func (independent *Extension) ensureServiceManager() error {
 		managerEndpoint = handler.Endpoint
 	}
 
-	m, err := manager.New(independent.mushroomURL, managerEndpoint)
+	var secretKey string
+	if serviceConfig.Parameters != nil {
+		if v, ok := serviceConfig.Parameters[ManagerSecretKeyParameter]; ok {
+			secretKey, _ = v.(string)
+		}
+	}
+
+	m, err := manager.New(independent.mushroomURL, managerEndpoint, secretKey)
 	if err != nil {
 		return fmt.Errorf("manager.New: %w", err)
 	}
