@@ -376,6 +376,22 @@ func (independent *Extension) Start() error {
 		goto errOccurred
 	}
 
+	// Managers must have the public keys
+	if independent.manager.PublicKey() == "" {
+		err = fmt.Errorf("manager.PublicKey() is empty")
+		goto errOccurred
+	}
+
+	if err = independent.allowServiceManager(); err != nil {
+		err = fmt.Errorf("allowServiceManager: %w", err)
+		goto errOccurred
+	}
+
+	if err = independent.addAllowedKeys(); err != nil {
+		err = fmt.Errorf("addAllowedKeys: %w", err)
+		goto errOccurred
+	}
+
 	if err = independent.topologyHandler.Start(); err != nil {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
@@ -608,6 +624,120 @@ func (independent *Extension) GetHandlerLink(handlerCategory string) (string, er
 	}
 	linkHypha.AdditionalProps["category"] = handlerCategory
 	return linkHypha.String(), nil
+}
+
+func (independent *Extension) allowServiceManager() error {
+	tp := independent.topology()
+	serviceConfig, err := tp.Service(independent.mushroomURL)
+	if err != nil {
+		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+	}
+
+	managerLink, err := independent.GetHandlerLink(topology.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("GetHandlerLink('%s'): %w", topology.ServiceManagerCategory, err)
+	}
+	publicKey := independent.manager.PublicKey()
+
+	depServiceURLs := make(map[string]struct{})
+
+	for _, dep := range serviceConfig.HandlerDeps {
+		for _, u := range dep.Proxies {
+			depServiceURLs[u] = struct{}{}
+		}
+		for _, u := range dep.Extensions {
+			depServiceURLs[u] = struct{}{}
+		}
+	}
+	for _, variant := range serviceConfig.Handlers {
+		handler, ok := variant.AsIndependentHandler()
+		if !ok {
+			continue
+		}
+		for _, dep := range handler.CommandDeps {
+			for _, u := range dep.Proxies {
+				depServiceURLs[u] = struct{}{}
+			}
+			for _, u := range dep.Extensions {
+				depServiceURLs[u] = struct{}{}
+			}
+		}
+	}
+
+	for svcURL := range depServiceURLs {
+		depService, err := tp.Service(dereferenceMushroomURL(svcURL))
+		if err != nil {
+			return fmt.Errorf("topology.Service('%s'): %w", svcURL, err)
+		}
+		if !depServiceNeedsManagerAllow(depService.Parameters, managerLink, publicKey) {
+			continue
+		}
+		setDepServiceManagerAllow(&depService, topology.ServiceManagerCategory, managerLink, publicKey)
+		if err := tp.SetService(depService); err != nil {
+			return fmt.Errorf("topology.SetService('%s'): %w", depService.Name, err)
+		}
+	}
+
+	return nil
+}
+
+func (independent *Extension) addAllowedKeys() error {
+	tp := independent.topology()
+	serviceConfig, err := tp.Service(independent.mushroomURL)
+	if err != nil {
+		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+	}
+
+	if serviceConfig.Parameters == nil {
+		if independent.logger != nil {
+			independent.logger.Warn("no allowed keys: parameters not set, no one can access this service", "service", serviceConfig.Name)
+		}
+		return nil
+	}
+
+	allowed, ok := serviceConfig.Parameters["allowed"]
+	if !ok {
+		if independent.logger != nil {
+			independent.logger.Warn("no allowed keys: 'allowed' parameter missing, no one can access this service", "service", serviceConfig.Name)
+		}
+		return nil
+	}
+
+	categoryMap, ok := allowed.(map[string]interface{})
+	if !ok {
+		if independent.logger != nil {
+			independent.logger.Warn("no allowed keys: 'allowed' parameter has unexpected type", "service", serviceConfig.Name)
+		}
+		return nil
+	}
+
+	managerEntry, ok := categoryMap[topology.ServiceManagerCategory]
+	if !ok {
+		if independent.logger != nil {
+			independent.logger.Warn("no allowed keys: service manager category not found in allowed", "service", serviceConfig.Name, "category", topology.ServiceManagerCategory)
+		}
+		return nil
+	}
+
+	entryMap, ok := managerEntry.(map[string]interface{})
+	if !ok {
+		if independent.logger != nil {
+			independent.logger.Warn("no allowed keys: manager allowed entry has unexpected type", "service", serviceConfig.Name)
+		}
+		return nil
+	}
+
+	for link, pubKeyVal := range entryMap {
+		pubKey, ok := pubKeyVal.(string)
+		if !ok || pubKey == "" {
+			continue
+		}
+		independent.manager.Allow(pubKey)
+		fmt.Printf("The %s allowed to access: %s\n", independent.mushroomURL, link)
+
+	}
+
+	return nil
 }
 
 func (independent *Extension) GetServiceFacade(mushroomURL string, command ...string) (string, error) {

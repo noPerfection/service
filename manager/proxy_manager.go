@@ -34,6 +34,8 @@ type ProxyManager struct {
 	blocker     **sync.WaitGroup
 	running     bool
 	logger      *log.Logger
+	secretKey   string
+	pubKey      string
 }
 
 // NewProxyManager creates a manager for a proxy service.
@@ -54,6 +56,13 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint) (*Pro
 		return nil, fmt.Errorf("sync_replier.NewClient('%s'): %w", serviceName+handlers.ProxyHandlersCategory, err)
 	}
 
+	pubKey, secretKey, err := base.GenerateCurveKey()
+	if err != nil {
+		_ = topologyClient.Close()
+		_ = proxyHandlersClient.Close()
+		return nil, fmt.Errorf("base.GenerateCurveKey: %w", err)
+	}
+
 	handler := syncReplier.New()
 
 	h := &ProxyManager{
@@ -61,11 +70,18 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint) (*Pro
 		topology:    topologyClient,
 		handlers:    proxyHandlersClient,
 		serviceName: serviceName,
+		secretKey:   secretKey,
+		pubKey:      pubKey,
 	}
 
 	handler.SetEndpoint(managerEndpoint)
 
 	return h, nil
+}
+
+// PublicKey returns the CURVE public key for this proxy manager's handler.
+func (m *ProxyManager) PublicKey() string {
+	return m.pubKey
 }
 
 func (m *ProxyManager) SetSharedBlocker(blocker **sync.WaitGroup) {
@@ -475,6 +491,8 @@ func (m *ProxyManager) Start() error {
 	if err := m.proxyHandlersRequest(handlers.StartProxyHandlersCommand); err != nil {
 		return err
 	}
+
+	m.Interface.Secure(m.secretKey)
 
 	if err := m.Interface.Start(); err != nil {
 		return fmt.Errorf("handler.Start: %w", err)

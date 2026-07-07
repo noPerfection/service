@@ -396,6 +396,22 @@ func (independent *Independent) Start() error {
 		goto errOccurred
 	}
 
+	// Managers must have the public keys
+	if independent.manager.PublicKey() == "" {
+		err = fmt.Errorf("manager.PublicKey() is empty")
+		goto errOccurred
+	}
+
+	if err = independent.allowServiceManager(); err != nil {
+		err = fmt.Errorf("allowServiceManager: %w", err)
+		goto errOccurred
+	}
+
+	if err = independent.addAllowedKeys(); err != nil {
+		err = fmt.Errorf("addAllowedKeys: %w", err)
+		goto errOccurred
+	}
+
 	if err = independent.topologyHandler.Start(); err != nil {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
@@ -838,6 +854,189 @@ func (independent *Independent) getAiExtensionFromConfig(serviceConfig config.Se
 		return config.Service{}, false
 	}
 	return config.Service{}, false
+}
+
+// allowServiceManager registers this service's manager public key into the "allowed" parameters of
+// every dependency service (handler-deps and command-deps). Each dep service receives an entry:
+//
+//	Parameters["allowed"][ServiceManagerCategory][GetHandlerLink(ServiceManagerCategory)] = manager.PublicKey()
+//
+// so that the dep service's manager handler can authenticate connections from this manager.
+func (independent *Independent) allowServiceManager() error {
+	tp := independent.topology()
+	serviceConfig, err := tp.Service(independent.mushroomURL)
+	if err != nil {
+		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+	}
+
+	managerLink, err := independent.GetHandlerLink(topology.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("GetHandlerLink('%s'): %w", topology.ServiceManagerCategory, err)
+	}
+	publicKey := independent.manager.PublicKey()
+
+	depServiceURLs := make(map[string]struct{})
+
+	for _, dep := range serviceConfig.HandlerDeps {
+		for _, u := range dep.Proxies {
+			depServiceURLs[u] = struct{}{}
+		}
+		for _, u := range dep.Extensions {
+			depServiceURLs[u] = struct{}{}
+		}
+	}
+	for _, variant := range serviceConfig.Handlers {
+		handler, ok := variant.AsIndependentHandler()
+		if !ok {
+			continue
+		}
+		for _, dep := range handler.CommandDeps {
+			for _, u := range dep.Proxies {
+				depServiceURLs[u] = struct{}{}
+			}
+			for _, u := range dep.Extensions {
+				depServiceURLs[u] = struct{}{}
+			}
+		}
+	}
+
+	for svcURL := range depServiceURLs {
+		depService, err := tp.Service(dereferenceMushroomURL(svcURL))
+		if err != nil {
+			return fmt.Errorf("topology.Service('%s'): %w", svcURL, err)
+		}
+		if !depServiceNeedsManagerAllow(depService.Parameters, managerLink, publicKey) {
+			continue
+		}
+		setDepServiceManagerAllow(&depService, topology.ServiceManagerCategory, managerLink, publicKey)
+		if err := tp.SetService(depService); err != nil {
+			return fmt.Errorf("topology.SetService('%s'): %w", depService.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// serviceURLFromDepURL strips the handler segment from a dep mushroom URL and returns a
+// dereference URL pointing at the owning service.
+// e.g. "pkg:json/.#noPerfection.json?var=services[name:proxy].handlers[category:main]"
+// becomes "*pkg:json/.#noPerfection.json?var=services[name:proxy]".
+// addAllowedKeys reads the "allowed" parameters of this service and calls manager.Allow for
+// every public key listed under the ServiceManagerCategory. Missing or empty allowed entries
+// are logged as warnings — they are not errors, since the service may simply have no callers yet.
+func (independent *Independent) addAllowedKeys() error {
+	tp := independent.topology()
+	serviceConfig, err := tp.Service(independent.mushroomURL)
+	if err != nil {
+		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+	}
+
+	if serviceConfig.Parameters == nil {
+		if independent.logger != nil {
+			independent.logger.Warn("no allowed keys: parameters not set, no one can access this service", "service", serviceConfig.Name)
+		}
+		return nil
+	}
+
+	allowed, ok := serviceConfig.Parameters["allowed"]
+	if !ok {
+		if independent.logger != nil {
+			independent.logger.Warn("no allowed keys: 'allowed' parameter missing, no one can access this service", "service", serviceConfig.Name)
+		}
+		return nil
+	}
+
+	categoryMap, ok := allowed.(map[string]interface{})
+	if !ok {
+		if independent.logger != nil {
+			independent.logger.Warn("no allowed keys: 'allowed' parameter has unexpected type", "service", serviceConfig.Name)
+		}
+		return nil
+	}
+
+	managerEntry, ok := categoryMap[topology.ServiceManagerCategory]
+	if !ok {
+		if independent.logger != nil {
+			independent.logger.Warn("no allowed keys: service manager category not found in allowed", "service", serviceConfig.Name, "category", topology.ServiceManagerCategory)
+		}
+		return nil
+	}
+
+	entryMap, ok := managerEntry.(map[string]interface{})
+	if !ok {
+		if independent.logger != nil {
+			independent.logger.Warn("no allowed keys: manager allowed entry has unexpected type", "service", serviceConfig.Name)
+		}
+		return nil
+	}
+
+	for link, pubKeyVal := range entryMap {
+		pubKey, ok := pubKeyVal.(string)
+		if !ok || pubKey == "" {
+			continue
+		}
+		independent.manager.Allow(pubKey)
+		fmt.Printf("The %s allowed to access: %s\n", independent.mushroomURL, link)
+	}
+
+	return nil
+}
+
+// depServiceNeedsManagerAllow reports whether the manager allow entry is missing or stale.
+// Returns false when the stored public key already matches.
+func depServiceNeedsManagerAllow(serviceParameters datatype.KeyValue, managerLink, publicKey string) bool {
+	if serviceParameters == nil {
+		return true
+	}
+	allowed, ok := serviceParameters["allowed"]
+	if !ok {
+		return true
+	}
+	categoryMap, ok := allowed.(map[string]any)
+	if !ok {
+		return true
+	}
+	catEntry, ok := categoryMap[topology.ServiceManagerCategory]
+	if !ok {
+		return true
+	}
+	entryMap, ok := catEntry.(map[string]any)
+	if !ok {
+		return true
+	}
+	existing, exists := entryMap[managerLink]
+	return !exists || existing != publicKey
+}
+
+// setDepServiceManagerAllow writes the manager allow entry into depService.Parameters.
+func setDepServiceManagerAllow(depService *config.Service, category, managerLink, publicKey string) {
+	if depService.Parameters == nil {
+		depService.Parameters = datatype.New()
+	}
+
+	var categoryMap map[string]interface{}
+	if allowed, ok := depService.Parameters["allowed"]; ok {
+		if cm, ok := allowed.(map[string]interface{}); ok {
+			categoryMap = cm
+		}
+	}
+	if categoryMap == nil {
+		categoryMap = make(map[string]interface{})
+	}
+
+	var entryMap map[string]interface{}
+	if catEntry, ok := categoryMap[category]; ok {
+		if em, ok := catEntry.(map[string]interface{}); ok {
+			entryMap = em
+		}
+	}
+	if entryMap == nil {
+		entryMap = make(map[string]interface{})
+	}
+
+	entryMap[managerLink] = publicKey
+	categoryMap[category] = entryMap
+	depService.Parameters["allowed"] = categoryMap
 }
 
 func (independent *Independent) syncHandlerDepOutbounds() error {

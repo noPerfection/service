@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ahmetson/mushroom"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
@@ -321,6 +322,23 @@ func (proxy *Proxy) Start() error {
 		err = fmt.Errorf("ensureServiceManager: %w", err)
 		goto errOccurred
 	}
+
+	// Managers must have the public keys
+	if proxy.manager.PublicKey() == "" {
+		err = fmt.Errorf("manager.PublicKey() is empty")
+		goto errOccurred
+	}
+
+	if err = proxy.allowServiceManager(); err != nil {
+		err = fmt.Errorf("allowServiceManager: %w", err)
+		goto errOccurred
+	}
+
+	if err = proxy.addAllowedKeys(); err != nil {
+		err = fmt.Errorf("addAllowedKeys: %w", err)
+		goto errOccurred
+	}
+
 	if err = proxy.topologyHandler.Start(); err != nil {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
@@ -359,6 +377,130 @@ errOccurred:
 	}
 
 	return err
+}
+
+// GetHandlerLink returns this proxy's link URL with the handler category as an additional prop.
+func (proxy *Proxy) GetHandlerLink(handlerCategory string) (string, error) {
+	if handlerCategory == "" {
+		return "", fmt.Errorf("handler category is empty")
+	}
+	tp := proxy.topology()
+	link, err := tp.GetLink(proxy.name)
+	if err != nil {
+		return "", err
+	}
+
+	var soil mushroom.Soil
+	hypha, err := soil.Hypha(link)
+	if err != nil {
+		return "", fmt.Errorf("soil.Hypha(%q): %w", link, err)
+	}
+
+	linkHypha := hypha.AsLink()
+	if linkHypha.AdditionalProps == nil {
+		linkHypha.AdditionalProps = map[string]string{}
+	}
+	linkHypha.AdditionalProps["category"] = handlerCategory
+	return linkHypha.String(), nil
+}
+
+func (proxy *Proxy) allowServiceManager() error {
+	tp := proxy.topology()
+	serviceConfig, err := tp.Service(proxy.name)
+	if err != nil {
+		return fmt.Errorf("topology.Service('%s'): %w", proxy.name, err)
+	}
+
+	managerLink, err := proxy.GetHandlerLink(topology.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("GetHandlerLink('%s'): %w", topology.ServiceManagerCategory, err)
+	}
+	publicKey := proxy.manager.PublicKey()
+
+	depServiceURLs := make(map[string]struct{})
+
+	for _, dep := range serviceConfig.HandlerDeps {
+		for _, u := range dep.Proxies {
+			depServiceURLs[u] = struct{}{}
+		}
+		for _, u := range dep.Extensions {
+			depServiceURLs[u] = struct{}{}
+		}
+	}
+	for _, variant := range serviceConfig.Handlers {
+		handler, ok := variant.AsIndependentHandler()
+		if !ok {
+			continue
+		}
+		for _, dep := range handler.CommandDeps {
+			for _, u := range dep.Proxies {
+				depServiceURLs[u] = struct{}{}
+			}
+			for _, u := range dep.Extensions {
+				depServiceURLs[u] = struct{}{}
+			}
+		}
+	}
+
+	for svcURL := range depServiceURLs {
+		depService, err := tp.Service(dereferenceMushroomURL(svcURL))
+		if err != nil {
+			return fmt.Errorf("topology.Service('%s'): %w", svcURL, err)
+		}
+		if !depServiceNeedsManagerAllow(depService.Parameters, managerLink, publicKey) {
+			continue
+		}
+		setDepServiceManagerAllow(&depService, topology.ServiceManagerCategory, managerLink, publicKey)
+		if err := tp.SetService(depService); err != nil {
+			return fmt.Errorf("topology.SetService('%s'): %w", depService.Name, err)
+		}
+	}
+
+	return nil
+}
+
+func (proxy *Proxy) addAllowedKeys() error {
+	tp := proxy.topology()
+	serviceConfig, err := tp.Service(proxy.name)
+	if err != nil {
+		return fmt.Errorf("topology.Service('%s'): %w", proxy.name, err)
+	}
+
+	if serviceConfig.Parameters == nil {
+		return nil
+	}
+
+	allowed, ok := serviceConfig.Parameters["allowed"]
+	if !ok {
+		return nil
+	}
+
+	categoryMap, ok := allowed.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	managerEntry, ok := categoryMap[topology.ServiceManagerCategory]
+	if !ok {
+		return nil
+	}
+
+	entryMap, ok := managerEntry.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	for link, pubKeyVal := range entryMap {
+		pubKey, ok := pubKeyVal.(string)
+		if !ok || pubKey == "" {
+			continue
+		}
+		proxy.manager.Allow(pubKey)
+		fmt.Printf("The %s allowed to access: %s\n", proxy.mushroomURL, link)
+
+	}
+
+	return nil
 }
 
 func (proxy *Proxy) connectTopologyClientIfRunning() error {

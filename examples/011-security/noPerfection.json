@@ -30,6 +30,13 @@
       ],
       "module-url": "pkg:golang/github.com/noPerfection/service/examples/011-security#services/proxy?root=/home/medet/noPerfection/service/examples/011-security",
       "name": "default-name-proxy",
+      "parameters": {
+        "allowed": {
+          "manager": {
+            "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "oHvGA]*r!e[\u003e:tUHM1\u003c}5ATF]-Nii2A\u003eQZ!aBgjq"
+          }
+        }
+      },
       "start-command": "./bin/proxy",
       "type": "Proxy"
     },
@@ -62,6 +69,13 @@
       ],
       "module-url": "pkg:golang/github.com/noPerfection/service/examples/011-security#services/entrypoint?root=/home/medet/noPerfection/service/examples/011-security",
       "name": "entrypoint",
+      "parameters": {
+        "allowed": {
+          "manager": {
+            "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "oHvGA]*r!e[\u003e:tUHM1\u003c}5ATF]-Nii2A\u003eQZ!aBgjq"
+          }
+        }
+      },
       "start-command": "./bin/entrypoint",
       "type": "Proxy"
     },
@@ -136,6 +150,11 @@
       "module-url": "pkg:golang/github.com/noPerfection/service",
       "name": "ai",
       "parameters": {
+        "allowed": {
+          "manager": {
+            "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "oHvGA]*r!e[\u003e:tUHM1\u003c}5ATF]-Nii2A\u003eQZ!aBgjq"
+          }
+        },
         "api-key": "REDACTED",
         "model": "claude-haiku-4-5-20251001"
       },
@@ -174,6 +193,13 @@
       ],
       "module-url": "pkg:golang/github.com/noPerfection/service/examples/011-security#services/metrics?root=/home/medet/noPerfection/service/examples/011-security",
       "name": "metrics",
+      "parameters": {
+        "allowed": {
+          "manager": {
+            "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "oHvGA]*r!e[\u003e:tUHM1\u003c}5ATF]-Nii2A\u003eQZ!aBgjq"
+          }
+        }
+      },
       "start-command": "./bin/metrics",
       "type": "Proxy"
     },
@@ -207,6 +233,13 @@
       ],
       "module-url": "pkg:golang/github.com/noPerfection/service/examples/011-security#services/proxy2?root=/home/medet/noPerfection/service/examples/011-security",
       "name": "upper-case-names",
+      "parameters": {
+        "allowed": {
+          "manager": {
+            "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "oHvGA]*r!e[\u003e:tUHM1\u003c}5ATF]-Nii2A\u003eQZ!aBgjq"
+          }
+        }
+      },
       "start-command": "./bin/proxy2",
       "type": "Proxy"
     }

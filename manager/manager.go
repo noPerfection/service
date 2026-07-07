@@ -43,6 +43,8 @@ type Manager struct {
 	blocker         **sync.WaitGroup
 	started         bool
 	running         bool
+	secretKey       string
+	pubKey          string
 }
 
 // New creates a manager for an independent service.
@@ -55,6 +57,11 @@ func New(serviceURL string, managerEndpoint message.Endpoint) (*Manager, error) 
 		return nil, fmt.Errorf("topology.NewClient: %w", err)
 	}
 
+	pubKey, secretKey, err := base.GenerateCurveKey()
+	if err != nil {
+		return nil, fmt.Errorf("base.GenerateCurveKey: %w", err)
+	}
+
 	handler := syncReplier.New()
 
 	h := &Manager{
@@ -62,11 +69,18 @@ func New(serviceURL string, managerEndpoint message.Endpoint) (*Manager, error) 
 		handlerControls: make([]*clientSyncReplier.BaseControl, 0),
 		topology:        topology,
 		serviceURL:      serviceURL,
+		secretKey:       secretKey,
+		pubKey:          pubKey,
 	}
 
 	handler.SetEndpoint(managerEndpoint)
 
 	return h, nil
+}
+
+// PublicKey returns the CURVE public key for this manager's handler.
+func (m *Manager) PublicKey() string {
+	return m.pubKey
 }
 
 func (m *Manager) SetSharedBlocker(blocker **sync.WaitGroup) {
@@ -352,6 +366,8 @@ func (m *Manager) Start() error {
 	if err := m.setHandlerControls(); err != nil {
 		return fmt.Errorf("setHandlerControls: %w", err)
 	}
+
+	m.Interface.Secure(m.secretKey)
 
 	if err := m.Interface.Start(); err != nil {
 		return fmt.Errorf("handler.Start: %w", err)
