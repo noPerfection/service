@@ -1,27 +1,27 @@
 {
   "services": [
     {
-      "type": "Independent",
-      "name": "close-service",
-      "module-url": "github.com/noPerfection/service",
       "handlers": [
         {
-          "type": "Replier",
           "category": "main",
           "endpoint": {
             "id": "localhost",
             "port": 8000
-          }
+          },
+          "type": "Replier"
         },
         {
-          "type": "SyncReplier",
           "category": "manager",
           "endpoint": {
             "id": "localhost",
             "port": 8001
-          }
+          },
+          "type": "SyncReplier"
         }
-      ]
+      ],
+      "module-url": "pkg:golang/github.com/noPerfection/service/examples/001-close-service#cmd/service?root=/home/medet/noPerfection/service/examples/001-close-service",
+      "name": "close-service",
+      "type": "Independent"
     }
   ]
 }

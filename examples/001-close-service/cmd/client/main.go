@@ -56,6 +56,9 @@ func closeService() {
 	}
 	defer c.Close()
 
+	c.Timeout(time.Second)
+	c.Attempt(1)
+
 	reply, err := c.Request(&message.Request{
 		Command:    manager.StopService,
 		Parameters: datatype.New().Set("service", "close-service"),
