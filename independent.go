@@ -15,6 +15,7 @@ import (
 	"github.com/noPerfection/protocol/handler/pair"
 	"github.com/noPerfection/protocol/handler/publisher"
 	"github.com/noPerfection/protocol/handler/replier"
+	"github.com/noPerfection/protocol/handler/npac"
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/handler/worker"
 	"github.com/noPerfection/protocol/message"
@@ -352,6 +353,10 @@ func (independent *Independent) Start() error {
 	var needToStart []config.Service
 	var topologySnapshot string = ""
 	var tp topology.TopologyInterface
+	if err = npac.New().Start(); err != nil {
+		err = fmt.Errorf("npac.Start: %w", err)
+		goto errOccurred
+	}
 	if err = independent.connectTopologyClientIfRunning(); err != nil {
 		err = fmt.Errorf("connectTopologyClientIfRunning: %w", err)
 		goto errOccurred

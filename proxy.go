@@ -8,6 +8,7 @@ import (
 	"github.com/ahmetson/mushroom"
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
+	"github.com/noPerfection/protocol/handler/npac"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/package_url"
@@ -297,6 +298,10 @@ func (proxy *Proxy) Start() error {
 	var err error
 	var topologySnapshot string
 
+	if err = npac.New().Start(); err != nil {
+		err = fmt.Errorf("npac.Start: %w", err)
+		goto errOccurred
+	}
 	if err = proxy.connectTopologyClientIfRunning(); err != nil {
 		err = fmt.Errorf("connectTopologyClientIfRunning: %w", err)
 		goto errOccurred
