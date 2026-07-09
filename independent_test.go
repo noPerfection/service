@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const DefaultModuleUrl = "github.com/noPerfection/service"
+
 var testEndpointSeq atomic.Uint64
 
 func testEndpointID(t *testing.T, name string) string {

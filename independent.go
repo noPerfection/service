@@ -33,8 +33,6 @@ const DefaultName = "main"
 const ManagerSecretKeyParameter = "manager-secret-key"
 
 const DefaultConfigPath = "noPerfection.json"
-const DefaultModuleUrl = "github.com/noPerfection/service"
-
 var DefaultServiceManagerEndpoint = message.NewEndpoint(topology.ServiceManagerCategory, 0)
 
 // Independent keeps all necessary parameters of the independent service.
@@ -1195,11 +1193,7 @@ func (independent *Independent) startIpcService(mushroomURL string, startedRefs 
 	if _, err := independent.manager.StartService(depService.Name); err != nil {
 		return fmt.Errorf("manager.StartService('%s'): %w", depService.Name, err)
 	}
-	go func() {
-		time.Sleep(time.Millisecond * 500)
-		running, err := independent.manager.IsServiceRunning(depService.Name)
-		fmt.Println("running", running, err)
-	}()
+
 	return nil
 }
 
