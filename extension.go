@@ -270,6 +270,10 @@ func (independent *Extension) ensureServiceManager() error {
 		return fmt.Errorf("manager.SetLogger: %w", err)
 	}
 
+	if err := independent.addAllowedManagerClients(serviceConfig.Parameters); err != nil {
+		return fmt.Errorf("addAllowedManagerClients: %w", err)
+	}
+
 	return nil
 }
 
@@ -397,11 +401,6 @@ func (independent *Extension) Start() error {
 
 	if err = independent.allowServiceManager(); err != nil {
 		err = fmt.Errorf("allowServiceManager: %w", err)
-		goto errOccurred
-	}
-
-	if err = independent.addAllowedKeys(); err != nil {
-		err = fmt.Errorf("addAllowedKeys: %w", err)
 		goto errOccurred
 	}
 
@@ -710,24 +709,18 @@ func (independent *Extension) allowServiceManager() error {
 	return nil
 }
 
-func (independent *Extension) addAllowedKeys() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.mushroomURL)
-	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
-	}
-
-	if serviceConfig.Parameters == nil {
+func (independent *Extension) addAllowedManagerClients(parameters datatype.KeyValue) error {
+	if parameters == nil {
 		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: parameters not set, no one can access this service", "service", serviceConfig.Name)
+			independent.logger.Warn("no allowed keys: parameters not set, no one can access this service", "service", independent.mushroomURL)
 		}
 		return nil
 	}
 
-	allowed, ok := serviceConfig.Parameters["allowed"]
+	allowed, ok := parameters["allowed"]
 	if !ok {
 		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: 'allowed' parameter missing, no one can access this service", "service", serviceConfig.Name)
+			independent.logger.Warn("no allowed keys: 'allowed' parameter missing, no one can access this service", "service", independent.mushroomURL)
 		}
 		return nil
 	}
@@ -735,7 +728,7 @@ func (independent *Extension) addAllowedKeys() error {
 	categoryMap, ok := allowed.(map[string]interface{})
 	if !ok {
 		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: 'allowed' parameter has unexpected type", "service", serviceConfig.Name)
+			independent.logger.Warn("no allowed keys: 'allowed' parameter has unexpected type", "service", independent.mushroomURL)
 		}
 		return nil
 	}
@@ -743,7 +736,7 @@ func (independent *Extension) addAllowedKeys() error {
 	managerEntry, ok := categoryMap[topology.ServiceManagerCategory]
 	if !ok {
 		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: service manager category not found in allowed", "service", serviceConfig.Name, "category", topology.ServiceManagerCategory)
+			independent.logger.Warn("no allowed keys: service manager category not found in allowed", "service", independent.mushroomURL, "category", topology.ServiceManagerCategory)
 		}
 		return nil
 	}
@@ -751,7 +744,7 @@ func (independent *Extension) addAllowedKeys() error {
 	entryMap, ok := managerEntry.(map[string]interface{})
 	if !ok {
 		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: manager allowed entry has unexpected type", "service", serviceConfig.Name)
+			independent.logger.Warn("no allowed keys: manager allowed entry has unexpected type", "service", independent.mushroomURL)
 		}
 		return nil
 	}

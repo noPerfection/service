@@ -12,10 +12,10 @@ import (
 	"github.com/noPerfection/log"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
+	"github.com/noPerfection/protocol/handler/npac"
 	"github.com/noPerfection/protocol/handler/pair"
 	"github.com/noPerfection/protocol/handler/publisher"
 	"github.com/noPerfection/protocol/handler/replier"
-	"github.com/noPerfection/protocol/handler/npac"
 	"github.com/noPerfection/protocol/handler/sync_replier"
 	"github.com/noPerfection/protocol/handler/worker"
 	"github.com/noPerfection/protocol/message"
@@ -292,6 +292,10 @@ func (independent *Independent) ensureServiceManager() error {
 		return fmt.Errorf("manager.SetLogger: %w", err)
 	}
 
+	if err := independent.addAllowedManagerClients(serviceConfig.Parameters); err != nil {
+		return fmt.Errorf("addAllowedManagerClients: %w", err)
+	}
+
 	return nil
 }
 
@@ -424,11 +428,6 @@ func (independent *Independent) Start() error {
 
 	if err = independent.allowServiceManager(); err != nil {
 		err = fmt.Errorf("allowServiceManager: %w", err)
-		goto errOccurred
-	}
-
-	if err = independent.addAllowedKeys(); err != nil {
-		err = fmt.Errorf("addAllowedKeys: %w", err)
 		goto errOccurred
 	}
 
@@ -877,12 +876,11 @@ func (independent *Independent) getAiExtensionFromConfig(serviceConfig config.Se
 }
 
 // allowServiceManager publishes this service's manager public key in its own
-// Parameters["public-key"] and registers a dereference reference to that field
+// Parameters["public-key"] if it doesn't exist already.
+//
+// Then it publishes a dereference to that field
 // in the "allowed" parameters of every dependency service (handler-deps and
 // command-deps). Each dep service receives an entry:
-//
-//	Parameters["allowed"][ServiceManagerCategory][GetHandlerLink(ServiceManagerCategory)]
-//	    = "*<thisServiceLink>.parameters[public-key]"
 //
 // so that the dep service's manager handler can authenticate connections from
 // this manager by resolving the reference at allow-time.
@@ -957,29 +955,23 @@ func (independent *Independent) allowServiceManager() error {
 	return nil
 }
 
-// addAllowedKeys reads the "allowed" parameters of this service and calls
+// addAllowedManagerClients reads the "allowed" parameters of this service and calls
 // manager.Allow for every public key listed under the ServiceManagerCategory.
 // The topology resolves dereference URLs (via Fruit) before returning the
 // service config, so values are always plain key strings by the time they arrive
 // here. Missing or empty allowed entries are logged as warnings.
-func (independent *Independent) addAllowedKeys() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.mushroomURL)
-	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
-	}
-
-	if serviceConfig.Parameters == nil {
+func (independent *Independent) addAllowedManagerClients(parameters datatype.KeyValue) error {
+	if parameters == nil {
 		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: parameters not set, no one can access this service", "service", serviceConfig.Name)
+			independent.logger.Warn("no allowed keys: parameters not set, no one can access this service", "service", independent.mushroomURL)
 		}
 		return nil
 	}
 
-	allowed, ok := serviceConfig.Parameters["allowed"]
+	allowed, ok := parameters["allowed"]
 	if !ok {
 		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: 'allowed' parameter missing, no one can access this service", "service", serviceConfig.Name)
+			independent.logger.Warn("no allowed keys: 'allowed' parameter missing, no one can access this service", "service", independent.mushroomURL)
 		}
 		return nil
 	}
@@ -987,7 +979,7 @@ func (independent *Independent) addAllowedKeys() error {
 	categoryMap, ok := allowed.(map[string]interface{})
 	if !ok {
 		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: 'allowed' parameter has unexpected type", "service", serviceConfig.Name)
+			independent.logger.Warn("no allowed keys: 'allowed' parameter has unexpected type", "service", independent.mushroomURL)
 		}
 		return nil
 	}
@@ -995,7 +987,7 @@ func (independent *Independent) addAllowedKeys() error {
 	managerEntry, ok := categoryMap[topology.ServiceManagerCategory]
 	if !ok {
 		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: service manager category not found in allowed", "service", serviceConfig.Name, "category", topology.ServiceManagerCategory)
+			independent.logger.Warn("no allowed keys: service manager category not found in allowed", "service", independent.mushroomURL, "category", topology.ServiceManagerCategory)
 		}
 		return nil
 	}
@@ -1003,7 +995,7 @@ func (independent *Independent) addAllowedKeys() error {
 	entryMap, ok := managerEntry.(map[string]interface{})
 	if !ok {
 		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: manager allowed entry has unexpected type", "service", serviceConfig.Name)
+			independent.logger.Warn("no allowed keys: manager allowed entry has unexpected type", "service", independent.mushroomURL)
 		}
 		return nil
 	}
@@ -1283,44 +1275,6 @@ func ManagerPublicDereference(tp topology.TopologyInterface, mushroomURL string)
 		return "", fmt.Errorf("ChildResource(%q): %w", ManagerPublicKeyParam, err)
 	}
 	return pubKeyHypha.AsDereference().String(), nil
-}
-
-// resolveManagerPublicKeyRef resolves a dereference URL of the form
-// "*pkg:…?var=services[name:X].parameters.public-key" to the public key string
-// stored in service X's Parameters["public-key"].
-func resolveManagerPublicKeyRef(tp topology.TopologyInterface, ref string) (string, error) {
-	var soil mushroom.Soil
-	hypha, err := soil.Hypha(ref)
-	if err != nil {
-		return "", fmt.Errorf("soil.Hypha(%q): %w", ref, err)
-	}
-	segs := hypha.ResourcePath.Segments
-	if len(segs) < 2 || len(segs[0].Scalars) == 0 {
-		return "", fmt.Errorf("unexpected resource path in ref %q", ref)
-	}
-	serviceName := segs[0].Scalars[0].Value
-	if serviceName == "" {
-		serviceName = segs[0].Scalars[0].Key
-	}
-	if serviceName == "" {
-		return "", fmt.Errorf("could not extract service name from ref %q", ref)
-	}
-	svc, err := tp.Service(serviceName)
-	if err != nil {
-		return "", fmt.Errorf("tp.Service(%q): %w", serviceName, err)
-	}
-	if svc.Parameters == nil {
-		return "", fmt.Errorf("service %q has no parameters", serviceName)
-	}
-	val, ok := svc.Parameters[ManagerPublicKeyParam]
-	if !ok {
-		return "", fmt.Errorf("service %q missing parameter %q", serviceName, ManagerPublicKeyParam)
-	}
-	pubKey, ok := val.(string)
-	if !ok || pubKey == "" {
-		return "", fmt.Errorf("service %q parameter %q is not a non-empty string", serviceName, ManagerPublicKeyParam)
-	}
-	return pubKey, nil
 }
 
 func dereferenceMushroomURL(url string) string {

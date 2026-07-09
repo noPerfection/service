@@ -290,6 +290,10 @@ func (proxy *Proxy) ensureServiceManager() error {
 	}
 	proxy.manager = m
 
+	if err := proxy.addAllowedManagerClients(serviceConfig.Parameters); err != nil {
+		return fmt.Errorf("addAllowedManagerClients: %w", err)
+	}
+
 	return nil
 }
 
@@ -344,11 +348,6 @@ func (proxy *Proxy) Start() error {
 
 	if err = proxy.allowServiceManager(); err != nil {
 		err = fmt.Errorf("allowServiceManager: %w", err)
-		goto errOccurred
-	}
-
-	if err = proxy.addAllowedKeys(); err != nil {
-		err = fmt.Errorf("addAllowedKeys: %w", err)
 		goto errOccurred
 	}
 
@@ -488,18 +487,12 @@ func (proxy *Proxy) allowServiceManager() error {
 	return nil
 }
 
-func (proxy *Proxy) addAllowedKeys() error {
-	tp := proxy.topology()
-	serviceConfig, err := tp.Service(proxy.name)
-	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", proxy.name, err)
-	}
-
-	if serviceConfig.Parameters == nil {
+func (proxy *Proxy) addAllowedManagerClients(parameters datatype.KeyValue) error {
+	if parameters == nil {
 		return nil
 	}
 
-	allowed, ok := serviceConfig.Parameters["allowed"]
+	allowed, ok := parameters["allowed"]
 	if !ok {
 		return nil
 	}
@@ -525,7 +518,7 @@ func (proxy *Proxy) addAllowedKeys() error {
 			continue
 		}
 		proxy.manager.Allow(pubKey)
-		fmt.Printf("The %s allowed to access: %s\n", proxy.mushroomURL, link)
+		fmt.Printf("The %s allowed to access: %s\n", proxy.name, link)
 	}
 
 	return nil
