@@ -654,8 +654,8 @@ func (independent *Extension) allowServiceManager() error {
 	if serviceConfig.Parameters == nil {
 		serviceConfig.Parameters = datatype.New()
 	}
-	if existing, _ := serviceConfig.Parameters[ManagerPublicKeyParam].(string); existing != publicKey {
-		serviceConfig.Parameters[ManagerPublicKeyParam] = publicKey
+	if existing, _ := serviceConfig.Parameters[topology.ManagerPublicKeyParam].(string); existing != publicKey {
+		serviceConfig.Parameters[topology.ManagerPublicKeyParam] = publicKey
 		if err := tp.SetService(serviceConfig); err != nil {
 			return fmt.Errorf("topology.SetService('%s') store public key: %w", independent.mushroomURL, err)
 		}

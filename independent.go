@@ -32,9 +32,6 @@ const DefaultName = "main"
 // When present, the manager derives its public key from this value instead of generating a fresh pair.
 const ManagerSecretKeyParameter = "manager-secret-key"
 
-// ManagerPublicKeyParam is the service Parameters key under which the manager's
-// CURVE public key is stored so dep services can reference it by dereference URL.
-const ManagerPublicKeyParam = "public-key"
 const DefaultConfigPath = "noPerfection.json"
 const DefaultModuleUrl = "github.com/noPerfection/service"
 
@@ -900,8 +897,8 @@ func (independent *Independent) allowServiceManager() error {
 	if serviceConfig.Parameters == nil {
 		serviceConfig.Parameters = datatype.New()
 	}
-	if existing, _ := serviceConfig.Parameters[ManagerPublicKeyParam].(string); existing != publicKey {
-		serviceConfig.Parameters[ManagerPublicKeyParam] = publicKey
+	if existing, _ := serviceConfig.Parameters[topology.ManagerPublicKeyParam].(string); existing != publicKey {
+		serviceConfig.Parameters[topology.ManagerPublicKeyParam] = publicKey
 		if err := tp.SetService(serviceConfig); err != nil {
 			return fmt.Errorf("topology.SetService('%s') store public key: %w", independent.mushroomURL, err)
 		}
@@ -1198,6 +1195,11 @@ func (independent *Independent) startIpcService(mushroomURL string, startedRefs 
 	if _, err := independent.manager.StartService(depService.Name); err != nil {
 		return fmt.Errorf("manager.StartService('%s'): %w", depService.Name, err)
 	}
+	go func() {
+		time.Sleep(time.Millisecond * 500)
+		running, err := independent.manager.IsServiceRunning(depService.Name)
+		fmt.Println("running", running, err)
+	}()
 	return nil
 }
 
@@ -1270,9 +1272,9 @@ func ManagerPublicDereference(tp topology.TopologyInterface, mushroomURL string)
 	// ChildResource("public-key") creates a new segment, not a scalar —
 	// resulting in …parameters.public-key (map navigation), not …parameters[public-key]
 	// (array filter), which would fail because parameters is a map, not an array.
-	pubKeyHypha, err := paramsHypha.ChildResource(ManagerPublicKeyParam)
+	pubKeyHypha, err := paramsHypha.ChildResource(topology.ManagerPublicKeyParam)
 	if err != nil {
-		return "", fmt.Errorf("ChildResource(%q): %w", ManagerPublicKeyParam, err)
+		return "", fmt.Errorf("ChildResource(%q): %w", topology.ManagerPublicKeyParam, err)
 	}
 	return pubKeyHypha.AsDereference().String(), nil
 }
