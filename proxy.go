@@ -355,6 +355,10 @@ func (proxy *Proxy) Start() error {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
 	}
+	if err = proxy.ensureTopologyClient(); err != nil {
+		err = fmt.Errorf("ensureTopologyClient: %w", err)
+		goto errOccurred
+	}
 	if err = proxy.ProxyHandlers.Start(); err != nil {
 		err = fmt.Errorf("proxyHandlers.Start: %w", err)
 		goto errOccurred
@@ -544,6 +548,18 @@ func (proxy *Proxy) connectTopologyClientIfRunning() error {
 	running, err := probe.IsRunning()
 	_ = probe.Close()
 	if err != nil || !running {
+		return nil
+	}
+	client, err := topology.NewClient()
+	if err != nil {
+		return fmt.Errorf("topology.NewClient: %w", err)
+	}
+	proxy.topologyClient = client
+	return nil
+}
+
+func (proxy *Proxy) ensureTopologyClient() error {
+	if proxy == nil || proxy.topologyClient != nil {
 		return nil
 	}
 	client, err := topology.NewClient()
