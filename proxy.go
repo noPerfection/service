@@ -364,6 +364,13 @@ func (proxy *Proxy) Start() error {
 	proxy.blocker.Add(1)
 	proxy.manager.SetSharedBlocker(&proxy.blocker)
 
+	// Wait for all IPC deps concurrently, reloading config on each probe so
+	// that public keys written by newly started services are discovered.
+	if err = proxy.waitServicesRunning(); err != nil {
+		err = fmt.Errorf("waitServicesRunning: %w", err)
+		goto errOccurred
+	}
+
 	if err = proxy.manager.Start(); err != nil {
 		err = fmt.Errorf("proxy.manager.Start: %w", err)
 		goto errOccurred
@@ -528,19 +535,81 @@ func (proxy *Proxy) connectTopologyClientIfRunning() error {
 	if proxy == nil || proxy.topologyClient != nil {
 		return nil
 	}
+	probe, err := topology.NewClient()
+	if err != nil {
+		return fmt.Errorf("topology.NewClient: %w", err)
+	}
+	probe.Timeout(50 * time.Millisecond)
+	probe.Attempt(1)
+	running, err := probe.IsRunning()
+	_ = probe.Close()
+	if err != nil || !running {
+		return nil
+	}
 	client, err := topology.NewClient()
 	if err != nil {
 		return fmt.Errorf("topology.NewClient: %w", err)
 	}
-	client.Timeout(50 * time.Millisecond)
-	client.Attempt(1)
-	running, err := client.IsRunning()
-	if err != nil || !running {
-		_ = client.Close()
+	proxy.topologyClient = client
+	return nil
+}
+
+// waitServicesRunning waits for every direct dep service (IPC and inproc) to
+// become running, probing them all in parallel.
+// attempts=10 with the IPC probe timeout of ~100ms gives ~1s total per dep.
+func (proxy *Proxy) waitServicesRunning() error {
+	tp := proxy.topology()
+	serviceConfig, err := tp.Service(proxy.name)
+	if err != nil {
+		return fmt.Errorf("topology.Service: %w", err)
+	}
+
+	depURLs := make(map[string]struct{})
+
+	for _, hdep := range serviceConfig.HandlerDeps {
+		for _, u := range hdep.Proxies {
+			derefU := dereferenceMushroomURL(u)
+			svcDep, err := tp.Service(derefU)
+			if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
+				depURLs[derefU] = struct{}{}
+			}
+		}
+		for _, u := range hdep.Extensions {
+			derefU := dereferenceMushroomURL(u)
+			svcDep, err := tp.Service(derefU)
+			if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
+				depURLs[derefU] = struct{}{}
+			}
+		}
+	}
+
+	if len(depURLs) == 0 {
 		return nil
 	}
-	client.Attempt(2)
-	proxy.topologyClient = client
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(depURLs))
+	for url := range depURLs {
+		wg.Add(1)
+		go func(depURL string) {
+			defer wg.Done()
+			running, runErr := proxy.manager.IsServiceRunning(depURL, 10)
+			if runErr != nil {
+				errCh <- fmt.Errorf("service %q: %w", depURL, runErr)
+				return
+			}
+			if running {
+				return
+			}
+			errCh <- fmt.Errorf("service %q did not become running after %d attempts", depURL, 10)
+		}(url)
+	}
+	wg.Wait()
+	close(errCh)
+
+	for e := range errCh {
+		return e
+	}
 	return nil
 }
 

@@ -33,6 +33,7 @@ const DefaultName = "main"
 const ManagerSecretKeyParameter = "manager-secret-key"
 
 const DefaultConfigPath = "noPerfection.json"
+
 var DefaultServiceManagerEndpoint = message.NewEndpoint(topology.ServiceManagerCategory, 0)
 
 // Independent keeps all necessary parameters of the independent service.
@@ -485,6 +486,12 @@ func (independent *Independent) Start() error {
 	}
 	if err = independent.startIpcServices(); err != nil {
 		err = fmt.Errorf("startIpcServices: %w", err)
+		goto errOccurred
+	}
+	// Wait for all IPC deps concurrently, reloading config on each probe so
+	// that public keys written by newly started services are discovered.
+	if err = independent.waitServicesRunning(); err != nil {
+		err = fmt.Errorf("waitServicesRunning: %w", err)
 		goto errOccurred
 	}
 	if err = independent.secureEdges(); err != nil {
@@ -1112,6 +1119,93 @@ func (independent *Independent) syncHandlerDepOutbounds() error {
 	return nil
 }
 
+// waitServicesRunning waits for every direct dep service (IPC and inproc) to
+// become running, probing them all in parallel.  Transitive deps are not
+// visited here — each started service is responsible for waiting on its own
+// deps during its own Start().
+// attempts=10 with the IPC probe timeout of ~100ms gives ~1s total per dep.
+func (independent *Independent) waitServicesRunning() error {
+	tp := independent.topology()
+	serviceConfig, err := tp.Service(independent.mushroomURL)
+	if err != nil {
+		return fmt.Errorf("topology.Service: %w", err)
+	}
+
+	depURLs := make(map[string]struct{})
+
+	for _, hdep := range serviceConfig.HandlerDeps {
+		for _, u := range hdep.Proxies {
+			derefU := dereferenceMushroomURL(u)
+			svcDep, err := tp.Service(derefU)
+			if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
+				depURLs[derefU] = struct{}{}
+			}
+		}
+		for _, u := range hdep.Extensions {
+			derefU := dereferenceMushroomURL(u)
+			svcDep, err := tp.Service(derefU)
+			if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
+				depURLs[derefU] = struct{}{}
+			}
+		}
+	}
+	for _, variant := range serviceConfig.Handlers {
+		h, ok := variant.AsIndependentHandler()
+		if !ok {
+			continue
+		}
+		for _, cdep := range h.CommandDeps {
+			for _, u := range cdep.Proxies {
+				derefU := dereferenceMushroomURL(u)
+				svcDep, err := tp.Service(derefU)
+				if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
+					depURLs[derefU] = struct{}{}
+				}
+			}
+			for _, u := range cdep.Extensions {
+				derefU := dereferenceMushroomURL(u)
+				svcDep, err := tp.Service(derefU)
+				if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
+					depURLs[derefU] = struct{}{}
+				}
+			}
+		}
+	}
+
+	if len(depURLs) == 0 {
+		return nil
+	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(depURLs))
+	for url := range depURLs {
+		wg.Add(1)
+		go func(depURL string) {
+			defer wg.Done()
+			fmt.Printf("waitServicesRunning: probing: %s\n", depURL)
+			running, runErr := independent.manager.IsServiceRunning(depURL, 10)
+			if runErr != nil {
+				fmt.Printf("waitServicesRunning: probe error: %v\n", runErr)
+				errCh <- fmt.Errorf("service %q: %w", depURL, runErr)
+				return
+			}
+			if running {
+				fmt.Printf("waitServicesRunning: running: %s\n", depURL)
+				return
+			}
+			fmt.Printf("waitServicesRunning: not running after attempts: %s\n", depURL)
+			errCh <- fmt.Errorf("service %q did not become running after %d attempts", depURL, 10)
+		}(url)
+	}
+	wg.Wait()
+	close(errCh)
+
+	for e := range errCh {
+		return e
+	}
+	return nil
+}
+
 // startIpcServices starts IPC services this service depends on.
 func (independent *Independent) startIpcServices() error {
 	tp := independent.topology()
@@ -1452,19 +1546,21 @@ func (independent *Independent) connectTopologyClientIfRunning() error {
 	if independent == nil || independent.topologyClient != nil {
 		return nil
 	}
+	probe, err := topology.NewClient()
+	if err != nil {
+		return fmt.Errorf("topology.NewClient: %w", err)
+	}
+	probe.Timeout(50 * time.Millisecond)
+	probe.Attempt(1)
+	running, err := probe.IsRunning()
+	_ = probe.Close()
+	if err != nil || !running {
+		return nil
+	}
 	client, err := topology.NewClient()
 	if err != nil {
 		return fmt.Errorf("topology.NewClient: %w", err)
 	}
-	client.Timeout(50 * time.Millisecond)
-	client.Attempt(1)
-	running, err := client.IsRunning()
-	if err != nil || !running {
-		_ = client.Close()
-		return nil
-	}
-	// here put normal client
-	client.Attempt(2)
 	independent.topologyClient = client
 	return nil
 }

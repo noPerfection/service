@@ -949,7 +949,7 @@ GOWORK=off go run ./cmd/client
 
 First two will fail.
 
-### Hardcoded Secret Key
+### Secret Keys
 
 By default, a fresh CURVE keypair is generated every time a service starts. This means other services must re-learn the public key after a restart.
 

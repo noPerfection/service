@@ -11,7 +11,7 @@ import (
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
 	handlerControl "github.com/noPerfection/protocol/handler/control"
-	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
+	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/topology"
@@ -75,7 +75,7 @@ func New(serviceURL string, managerEndpoint message.Endpoint, secretKey ...strin
 	}
 	fmt.Printf("Generated CURVE key pair for manager %s: pubKey=%s\n", serviceURL, pub)
 
-	handler := syncReplier.New()
+	handler := replier.New()
 
 	h := &Manager{
 		Interface:       handler,
@@ -150,7 +150,7 @@ func (m *Manager) StartService(serviceURL string) (string, error) {
 	return m.topology.StartService(serviceURL)
 }
 
-func (m *Manager) IsServiceRunning(serviceURL string) (bool, error) {
+func (m *Manager) IsServiceRunning(serviceURL string, attempts ...int) (bool, error) {
 	match, err := m.matchesSelf(serviceURL)
 	if err != nil {
 		return false, err
@@ -161,7 +161,7 @@ func (m *Manager) IsServiceRunning(serviceURL string) (bool, error) {
 	if m.topology == nil {
 		return false, fmt.Errorf("topology is nil")
 	}
-	return m.topology.IsServiceRunning(serviceURL)
+	return m.topology.IsServiceRunning(serviceURL, attempts...)
 }
 
 // inprocTopologyEndpoint is the endpoint of the inproc topology extension service.

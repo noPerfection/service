@@ -10,7 +10,7 @@ import (
 	"github.com/noPerfection/log"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
-	syncReplier "github.com/noPerfection/protocol/handler/sync_replier"
+	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/topology"
@@ -75,7 +75,7 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint, secre
 		}
 	}
 
-	handler := syncReplier.New()
+	handler := replier.New()
 
 	h := &ProxyManager{
 		Interface:   handler,
@@ -139,14 +139,14 @@ func (m *ProxyManager) StartService(serviceName string) (string, error) {
 }
 
 // For now, lets just return manager.running.
-func (m *ProxyManager) IsServiceRunning(serviceName string) (bool, error) {
+func (m *ProxyManager) IsServiceRunning(serviceName string, attempts ...int) (bool, error) {
 	if serviceName == "" || serviceName == m.serviceName {
 		return m.running, nil
 	}
 	if err := m.ensureTopologyClient(); err != nil {
 		return false, err
 	}
-	return m.topology.IsServiceRunning(serviceName)
+	return m.topology.IsServiceRunning(serviceName, attempts...)
 }
 
 func (m *ProxyManager) StopService(serviceName string) error {
