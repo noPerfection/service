@@ -18,7 +18,7 @@ import (
 
 // Extension keeps all necessary parameters of the independent service.
 type Extension struct {
-	*handlers.Handlers
+	*handlers.Setup
 	*WithHardcodedTopology
 	topologyHandler *topology.Handler // topology handles the configuration and dependencies
 	topologyClient  *topology.Client
@@ -86,7 +86,7 @@ func NewExt(params ...any) (*Extension, error) {
 	}
 
 	independent := &Extension{
-		Handlers:              handlers.NewHandlers(),
+		Setup:                 handlers.NewSetup(),
 		WithHardcodedTopology: NewHardcodedTopologies(mushroomURL),
 		mushroomURL:           mushroomURL,
 		logger:                nil,
@@ -145,7 +145,7 @@ func (extension *Extension) ensureTopologyHandler() error {
 // EnableLogger toggles the optional service logger.
 func (independent *Extension) EnableLogger(enable bool) error {
 	if !enable {
-		if err := independent.Handlers.SetLogger(nil); err != nil {
+		if err := independent.Setup.SetLogger(nil); err != nil {
 			return fmt.Errorf("handlers.SetLogger: %w", err)
 		}
 		if independent.manager != nil {
@@ -161,7 +161,7 @@ func (independent *Extension) EnableLogger(enable bool) error {
 	if err != nil {
 		return fmt.Errorf("log.New(%s): %w", independent.mushroomURL, err)
 	}
-	if err := independent.Handlers.SetLogger(logger); err != nil {
+	if err := independent.Setup.SetLogger(logger); err != nil {
 		return fmt.Errorf("handlers.SetLogger: %w", err)
 	}
 
@@ -301,7 +301,7 @@ func (independent *Extension) addTopologyHandlersToHandlers() error {
 			return fmt.Errorf("newTopologyHandler('%s'): %w", configured.Category, err)
 		}
 		handler.SetEndpoint(configured.Endpoint)
-		if err := independent.Handlers.SetHandler(configured.Category, handler); err != nil {
+		if err := independent.Setup.SetHandler(configured.Category, handler); err != nil {
 			return fmt.Errorf("handlers.SetHandler('%s'): %w", configured.Category, err)
 		}
 	}
@@ -408,7 +408,7 @@ func (independent *Extension) Start() error {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
 	}
-	if err = independent.Handlers.Start(); err != nil {
+	if err = independent.Setup.Start(); err != nil {
 		err = fmt.Errorf("handlers.Start: %w", err)
 		goto errOccurred
 	}
@@ -495,7 +495,7 @@ func (independent *Extension) syncHandlerDepOutbounds() error {
 		if !ok {
 			return fmt.Errorf("handler dep %q is not an independent handler", dep.Name)
 		}
-		routes, err := independent.Handlers.RouteCommands(dep.Name)
+		routes, err := independent.Setup.RouteCommands(dep.Name)
 		if err != nil {
 			return fmt.Errorf("handler dep %q route commands: %w", dep.Name, err)
 		}

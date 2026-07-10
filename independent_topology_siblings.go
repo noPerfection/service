@@ -90,7 +90,7 @@ func (independent *Independent) commands(category string) ([]string, error) {
 		}
 		return independent.manager.Commands(), nil
 	}
-	return independent.Handlers.RouteCommands(category)
+	return independent.Setup.RouteCommands(category)
 }
 
 // secureHandlerEdges computes the inbound route map for the given handler and returns it.

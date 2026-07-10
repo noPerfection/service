@@ -55,7 +55,7 @@ func setInprocHandlerEndpoint(t *testing.T, handler base.Interface, endpointID s
 	return endpoint
 }
 
-func registerInprocHandler(t *testing.T, manager *Handlers, handlerType base.HandlerType, category string) base.Interface {
+func registerInprocHandler(t *testing.T, manager *Setup, handlerType base.HandlerType, category string) base.Interface {
 	t.Helper()
 
 	handler := newProtocolHandler(t, handlerType)

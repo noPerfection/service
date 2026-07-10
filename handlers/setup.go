@@ -15,8 +15,8 @@ const DefaultHandlerCategory = "main"
 
 var DefaultHandlerEndpoint = message.NewEndpoint("localhost", 8000)
 
-// Handlers owns the local handler registry and lifecycle.
-type Handlers struct {
+// Setup owns the local handler registry and lifecycle.
+type Setup struct {
 	// handler category -> handler/base.Interface
 	handlers map[string]base.Interface
 	// handler category -> command -> handle function
@@ -25,34 +25,34 @@ type Handlers struct {
 	running bool
 }
 
-// NewHandlers creates an empty handler manager.
-func NewHandlers() *Handlers {
-	return &Handlers{
+// NewSetup creates an empty handler manager.
+func NewSetup() *Setup {
+	return &Setup{
 		handlers: make(map[string]base.Interface),
 		routes:   make(map[string]map[string]base.HandleFunc),
 	}
 }
 
 // SetHandler adds or replaces a handler by category.
-func (manager *Handlers) SetHandler(category string, handler base.Interface) error {
+func (setup *Setup) SetHandler(category string, handler base.Interface) error {
 	if handler == nil {
 		return fmt.Errorf("handler of %s category is nil", category)
 	}
-	if _, exists := manager.handlers[category]; exists {
+	if _, exists := setup.handlers[category]; exists {
 		return fmt.Errorf("handler of %s category already exists", category)
 	}
-	manager.handlers[category] = handler
+	setup.handlers[category] = handler
 
 	return nil
 }
 
-func (manager *Handlers) IsHandlerExist(category string) bool {
-	_, exists := manager.handlers[category]
+func (setup *Setup) IsHandlerExist(category string) bool {
+	_, exists := setup.handlers[category]
 	return exists
 }
 
-func (manager *Handlers) RouteCommands(category string) ([]string, error) {
-	handler, exists := manager.handlers[category]
+func (setup *Setup) RouteCommands(category string) ([]string, error) {
+	handler, exists := setup.handlers[category]
 	if !exists {
 		return nil, fmt.Errorf("handler of %s category is not found", category)
 	}
@@ -65,8 +65,8 @@ func (manager *Handlers) RouteCommands(category string) ([]string, error) {
 	return commands, nil
 }
 
-func (manager *Handlers) Route(command string, handleFunc base.HandleFunc, handlerCategory ...string) error {
-	if manager.running {
+func (setup *Setup) Route(command string, handleFunc base.HandleFunc, handlerCategory ...string) error {
+	if setup.running {
 		return fmt.Errorf("I cant route when its already started. Please stop the handler first or the best way to route before starting the handler")
 	}
 	if len(handlerCategory) > 1 {
@@ -77,19 +77,19 @@ func (manager *Handlers) Route(command string, handleFunc base.HandleFunc, handl
 	if len(handlerCategory) == 1 && handlerCategory[0] != "" {
 		category = handlerCategory[0]
 	}
-	if manager.routes[category] == nil {
-		manager.routes[category] = make(map[string]base.HandleFunc)
+	if setup.routes[category] == nil {
+		setup.routes[category] = make(map[string]base.HandleFunc)
 	}
-	manager.routes[category][command] = handleFunc
+	setup.routes[category][command] = handleFunc
 
 	return nil
 }
 
-// SetLogger sets the optional logger for this manager and all registered handlers.
-func (manager *Handlers) SetLogger(logger *log.Logger) error {
-	manager.logger = logger
+// SetLogger sets the optional logger for this setup and all registered handlers.
+func (setup *Setup) SetLogger(logger *log.Logger) error {
+	setup.logger = logger
 
-	for category, handler := range manager.handlers {
+	for category, handler := range setup.handlers {
 		if handler == nil {
 			return fmt.Errorf("handler of %s category is nil", category)
 		}
@@ -102,21 +102,22 @@ func (manager *Handlers) SetLogger(logger *log.Logger) error {
 }
 
 // Start starts all registered handlers.
-// The manager itself is not a thread to run
-func (manager *Handlers) Start() error {
-	var err error
-	startedHandlers := make([]base.Interface, 0, len(manager.handlers))
-
-	if len(manager.handlers) == 0 {
+// The setup itself is not a thread to run
+func (setup *Setup) Start() error {
+	if len(setup.handlers) == 0 {
 		return fmt.Errorf("no handlers")
 	}
-	for category := range manager.routes {
-		if !manager.IsHandlerExist(category) {
+
+	for category := range setup.routes {
+		if !setup.IsHandlerExist(category) {
 			return fmt.Errorf("routed to a category that not exist: '%s'", category)
 		}
 	}
 
-	for category, handler := range manager.handlers {
+	var err error
+	startedHandlers := make([]base.Interface, 0, len(setup.handlers))
+
+	for category, handler := range setup.handlers {
 		if handler == nil {
 			err = fmt.Errorf("handler of %s category is nil", category)
 			goto exitStartHandler
@@ -126,14 +127,14 @@ func (manager *Handlers) Start() error {
 			goto exitStartHandler
 		}
 
-		if manager.logger != nil {
-			if err = handler.SetLogger(manager.logger); err != nil {
+		if setup.logger != nil {
+			if err = handler.SetLogger(setup.logger); err != nil {
 				err = fmt.Errorf("handler(category: '%s').SetLogger: %w", category, err)
 				goto exitStartHandler
 			}
 		}
 
-		for command, handleFunc := range manager.routes[category] {
+		for command, handleFunc := range setup.routes[category] {
 			if err = handler.Route(command, handleFunc); err != nil {
 				err = fmt.Errorf("handler(category: '%s').Route('%s'): %w", category, command, err)
 				goto exitStartHandler
@@ -146,8 +147,8 @@ func (manager *Handlers) Start() error {
 		}
 		startedHandlers = append(startedHandlers, handler)
 	}
-	manager.running = true
-	manager.routes = nil
+	setup.running = true
+	setup.routes = nil
 
 exitStartHandler:
 	if err == nil {
@@ -157,8 +158,10 @@ exitStartHandler:
 	if len(startedHandlers) == 0 {
 		return err
 	}
-	if closeErr := closeHandlers(startedHandlers); closeErr != nil {
-		return fmt.Errorf("%v: close started handlers: %w", err, closeErr)
+	for _, handler := range startedHandlers {
+		if err := CloseViaControl(handler); err != nil {
+			return fmt.Errorf("%v: close started handlers: %w", err, err)
+		}
 	}
 
 	return err
@@ -166,51 +169,48 @@ exitStartHandler:
 
 // Close closes all registered handlers.
 // Used only by service codes during the start-ups.
-// After the service is started, the handlers are closed by the service/manager
-func (manager *Handlers) Close() error {
-	handlers := make([]base.Interface, 0, len(manager.handlers))
-	for category, handler := range manager.handlers {
+// After the service is started, the handlers are closed by the service/setup
+func (setup *Setup) Close() error {
+	handlers := make([]base.Interface, 0, len(setup.handlers))
+	for category, handler := range setup.handlers {
 		if handler == nil {
 			return fmt.Errorf("handler of %s category is nil", category)
 		}
 		handlers = append(handlers, handler)
 	}
 
-	if err := closeHandlers(handlers); err != nil {
-		return err
-	}
-	manager.routes = make(map[string]map[string]base.HandleFunc)
-	manager.running = false
-
-	return nil
-}
-
-func closeHandlers(handlers []base.Interface) error {
 	for _, handler := range handlers {
-		if err := closeHandlerViaControl(handler); err != nil {
+		if err := CloseViaControl(handler); err != nil {
 			return err
 		}
 	}
+	setup.routes = make(map[string]map[string]base.HandleFunc)
+	setup.running = false
 
 	return nil
 }
 
 // CloseViaControl shuts down a handler through its control endpoint.
 func CloseViaControl(handler base.Interface) error {
-	return closeHandlerViaControl(handler)
-}
-
-// HandlerControlStatus returns the handler status reported by its control endpoint.
-func HandlerControlStatus(handler base.Interface) (string, error) {
 	controlClient, err := newHandlerControlClient(handler)
 	if err != nil {
-		return "", err
+		return nil
 	}
-	defer func() {
-		_ = controlClient.Close()
-	}()
+	defer controlClient.Close()
 
-	return controlClient.HandlerStatus()
+	status, err := controlClient.HandlerStatus()
+	if err != nil {
+		return nil
+	}
+	if status == base.SocketNil {
+		return nil
+	}
+
+	if err := controlClient.HandlerClose(); err != nil {
+		return fmt.Errorf("handler(endpoint: '%s').HandlerClose: %w", handler.Endpoint().Id, err)
+	}
+
+	return nil
 }
 
 func newHandlerControlClient(handler base.Interface) (*clientSyncReplier.BaseControl, error) {
@@ -226,28 +226,4 @@ func newHandlerControlClient(handler base.Interface) (*clientSyncReplier.BaseCon
 	}
 
 	return controlClient, nil
-}
-
-func closeHandlerViaControl(handler base.Interface) error {
-	controlClient, err := newHandlerControlClient(handler)
-	if err != nil {
-		return nil
-	}
-	defer func() {
-		_ = controlClient.Close()
-	}()
-
-	status, err := controlClient.HandlerStatus()
-	if err != nil {
-		return nil
-	}
-	if status == base.SocketNil {
-		return nil
-	}
-
-	if err := controlClient.HandlerClose(); err != nil {
-		return fmt.Errorf("handler(endpoint: '%s').HandlerClose: %w", handler.Endpoint().Id, err)
-	}
-
-	return nil
 }

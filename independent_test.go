@@ -104,7 +104,7 @@ func TestNewDefaultParamsLintDefaultTopologyCreatesDefaultService(t *testing.T) 
 	require.Equal(t, handlers.DefaultHandlerEndpoint, defaultHandler.Endpoint)
 
 	require.NoError(t, independent.addTopologyHandlersToHandlers())
-	require.True(t, independent.Handlers.IsHandlerExist(handlers.DefaultHandlerCategory))
+	require.True(t, independent.Setup.IsHandlerExist(handlers.DefaultHandlerCategory))
 }
 
 func TestAddDefaultServiceToTopologyFillsModuleURL(t *testing.T) {
@@ -1163,8 +1163,8 @@ func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) 
 
 	require.NoError(t, independent.addTopologyHandlersToHandlers())
 
-	require.True(t, independent.Handlers.IsHandlerExist(handlers.DefaultHandlerCategory))
-	require.False(t, independent.Handlers.IsHandlerExist(topology.ServiceManagerCategory))
+	require.True(t, independent.Setup.IsHandlerExist(handlers.DefaultHandlerCategory))
+	require.False(t, independent.Setup.IsHandlerExist(topology.ServiceManagerCategory))
 }
 
 func TestStartCreatesDefaultHandlerAndStartsManager(t *testing.T) {

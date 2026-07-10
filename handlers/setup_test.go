@@ -14,7 +14,7 @@ import (
 )
 
 func TestNewManager(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 
 	require.NotNil(t, manager)
 	require.NotNil(t, manager.handlers)
@@ -22,7 +22,7 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestSetHandlerRegistersProtocolHandler(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	handler := registerInprocHandler(t, manager, base.SyncReplierType, "sync")
 
 	require.Same(t, handler, manager.handlers["sync"])
@@ -30,7 +30,7 @@ func TestSetHandlerRegistersProtocolHandler(t *testing.T) {
 }
 
 func TestSetHandlerRejectsDuplicateCategory(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	registerInprocHandler(t, manager, base.SyncReplierType, "api")
 
 	second := newProtocolHandler(t, base.ReplierType)
@@ -40,7 +40,7 @@ func TestSetHandlerRejectsDuplicateCategory(t *testing.T) {
 }
 
 func TestSetHandlerRejectsDuplicateAfterStart(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	first := registerInprocHandler(t, manager, base.SyncReplierType, "api")
 	require.NoError(t, manager.Start())
 	requireHandlerRunning(t, first)
@@ -56,7 +56,7 @@ func TestSetHandlerRejectsDuplicateAfterStart(t *testing.T) {
 }
 
 func TestManagerRegistryCapacity(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 
 	cases := []struct {
 		handlerType base.HandlerType
@@ -81,7 +81,7 @@ func TestManagerRegistryCapacity(t *testing.T) {
 }
 
 func TestSetLogger(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	registerInprocHandler(t, manager, base.SyncReplierType, "sync")
 
 	logger, err := log.New("test", true)
@@ -92,7 +92,7 @@ func TestSetLogger(t *testing.T) {
 }
 
 func TestSetLoggerNilDisablesLogger(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	registerInprocHandler(t, manager, base.SyncReplierType, "sync")
 
 	logger, err := log.New("test", true)
@@ -104,7 +104,7 @@ func TestSetLoggerNilDisablesLogger(t *testing.T) {
 }
 
 func TestSetLoggerRejectsNilRegistryEntry(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	manager.handlers["bad"] = nil
 
 	logger, err := log.New("test", true)
@@ -114,7 +114,7 @@ func TestSetLoggerRejectsNilRegistryEntry(t *testing.T) {
 }
 
 func TestRouteUsesDefaultHandlerCategory(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 
 	require.NoError(t, manager.Route("hello", func(req message.RequestInterface) message.ReplyInterface {
 		return req.Ok(datatype.New())
@@ -125,7 +125,7 @@ func TestRouteUsesDefaultHandlerCategory(t *testing.T) {
 }
 
 func TestStartRejectsRouteForMissingCategory(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	registerInprocHandler(t, manager, base.SyncReplierType, DefaultHandlerCategory)
 	require.NoError(t, manager.Route("hello", func(req message.RequestInterface) message.ReplyInterface {
 		return req.Ok(datatype.New())
@@ -135,7 +135,7 @@ func TestStartRejectsRouteForMissingCategory(t *testing.T) {
 }
 
 func TestRouteRejectsAfterStart(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	registerInprocHandler(t, manager, base.SyncReplierType, DefaultHandlerCategory)
 	require.NoError(t, manager.Start())
 	t.Cleanup(func() {
@@ -149,7 +149,7 @@ func TestRouteRejectsAfterStart(t *testing.T) {
 }
 
 func TestRouteIsUsedByStartedHandler(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	handler := registerInprocHandler(t, manager, base.SyncReplierType, DefaultHandlerCategory)
 	require.NoError(t, manager.Route("hello", func(req message.RequestInterface) message.ReplyInterface {
 		name, err := req.RouteParameters().StringValue("name")
@@ -183,13 +183,13 @@ func TestRouteIsUsedByStartedHandler(t *testing.T) {
 }
 
 func TestStartNoHandlers(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 
 	require.EqualError(t, manager.Start(), "no handlers")
 }
 
 func TestStartRequiresHandlerConfig(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	handler := sync_replier.New()
 	require.NoError(t, manager.SetHandler("sync", handler))
 
@@ -197,14 +197,17 @@ func TestStartRequiresHandlerConfig(t *testing.T) {
 }
 
 func TestStartReturnsHandlerStartError(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 
 	sharedEndpoint := testEndpointID(t, "sync-bind")
 	blocker := sync_replier.New()
 	setInprocHandlerEndpoint(t, blocker, sharedEndpoint)
 	require.NoError(t, blocker.Start())
 	t.Cleanup(func() {
-		require.NoError(t, closeHandlers([]base.Interface{blocker}))
+		handlers := []base.Interface{blocker}
+		for _, handler := range handlers {
+			require.NoError(t, CloseViaControl(handler))
+		}
 	})
 
 	handler := sync_replier.New()
@@ -217,7 +220,7 @@ func TestStartReturnsHandlerStartError(t *testing.T) {
 }
 
 func TestStartWithMultipleProtocolHandlers(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 
 	registerInprocHandler(t, manager, base.SyncReplierType, "sync")
 	registerInprocHandler(t, manager, base.ReplierType, "async")
@@ -236,35 +239,23 @@ func TestStartWithMultipleProtocolHandlers(t *testing.T) {
 }
 
 func TestCloseNoHandlers(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 
 	require.NoError(t, manager.Close())
 }
 
 func TestCloseRejectsNilRegistryEntry(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	manager.handlers["bad"] = nil
 
 	require.EqualError(t, manager.Close(), "handler of bad category is nil")
 }
 
 func TestCloseMarksHandlersClosed(t *testing.T) {
-	manager := NewHandlers()
+	manager := NewSetup()
 	handler := registerInprocHandler(t, manager, base.SyncReplierType, "sync")
 
 	require.NoError(t, manager.Start())
 	require.NoError(t, manager.Close())
 	requireHandlerClosed(t, handler)
-}
-
-func TestCloseHandlersClosesStartedHandlers(t *testing.T) {
-	manager := NewHandlers()
-	first := registerInprocHandler(t, manager, base.SyncReplierType, "first")
-	second := registerInprocHandler(t, manager, base.ReplierType, "second")
-
-	require.NoError(t, manager.Start())
-	require.NoError(t, closeHandlers([]base.Interface{first, second}))
-
-	requireHandlerClosed(t, first)
-	requireHandlerClosed(t, second)
 }

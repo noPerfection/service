@@ -18,7 +18,7 @@ import (
 
 // Proxy keeps the minimal proxy service state.
 type Proxy struct {
-	*handlers.ProxyHandlers
+	*handlers.ProxySetup
 	*WithHardcodedTopology
 	topologyHandler *topology.Handler // topology handles the configuration and dependencies
 	topologyClient  *topology.Client
@@ -62,7 +62,7 @@ func NewProxy(name string) (*Proxy, error) {
 	}
 
 	return &Proxy{
-		ProxyHandlers:         handlers.NewProxyHandlers(name),
+		ProxySetup:            handlers.NewProxyHandlers(name),
 		WithHardcodedTopology: NewHardcodedTopologies(name),
 		name:                  name,
 	}, nil
@@ -118,7 +118,7 @@ func (proxy *Proxy) ensureTopologyHandler() error {
 // EnableLogger toggles the optional proxy logger.
 func (proxy *Proxy) EnableLogger(enable bool) error {
 	if !enable {
-		if err := proxy.ProxyHandlers.SetLogger(nil); err != nil {
+		if err := proxy.ProxySetup.SetLogger(nil); err != nil {
 			return fmt.Errorf("proxyHandlers.SetLogger: %w", err)
 		}
 		return nil
@@ -128,7 +128,7 @@ func (proxy *Proxy) EnableLogger(enable bool) error {
 	if err != nil {
 		return fmt.Errorf("log.New(%s): %w", proxy.name, err)
 	}
-	if err := proxy.ProxyHandlers.SetLogger(logger); err != nil {
+	if err := proxy.ProxySetup.SetLogger(logger); err != nil {
 		return fmt.Errorf("proxyHandlers.SetLogger: %w", err)
 	}
 
@@ -359,7 +359,7 @@ func (proxy *Proxy) Start() error {
 		err = fmt.Errorf("ensureTopologyClient: %w", err)
 		goto errOccurred
 	}
-	if err = proxy.ProxyHandlers.Start(); err != nil {
+	if err = proxy.ProxySetup.Start(); err != nil {
 		err = fmt.Errorf("proxyHandlers.Start: %w", err)
 		goto errOccurred
 	}
@@ -635,12 +635,12 @@ func (proxy *Proxy) Stop() error {
 		proxy.topologyClient = nil
 	}
 	if proxy.manager == nil {
-		return proxy.ProxyHandlers.Close()
+		return proxy.ProxySetup.Close()
 	}
 	if err := proxy.manager.StopService(proxy.name); err != nil {
 		return err
 	}
-	if err := proxy.ProxyHandlers.Close(); err != nil {
+	if err := proxy.ProxySetup.Close(); err != nil {
 		return fmt.Errorf("proxyHandlers.Close: %w", err)
 	}
 	return nil

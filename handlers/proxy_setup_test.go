@@ -156,7 +156,7 @@ func TestProxyHandlersLifecycle(t *testing.T) {
 		NewProxyHandlers("tmp-proxy-service")
 	})
 
-	var zero ProxyHandlers
+	var zero ProxySetup
 	require.EqualError(t, zero.Start(), "proxy manager interface is nil, please create this manager using NewProxyHandlers(serviceName)")
 	require.EqualError(t, zero.Close(), "proxy manager interface is nil, please create this manager using NewProxyHandlers(serviceName)")
 
@@ -304,7 +304,7 @@ func TestProxyHandlersRouteAnyDefaultAndCategoryRules(t *testing.T) {
 		require.NotNil(t, manager.routes[base.Any])
 		require.NoError(t, manager.Route("hello", proxyOKRoute))
 		require.NotNil(t, manager.routes["hello"])
-		require.Empty(t, manager.proxifiedHandlers)
+		require.Empty(t, manager.handlers)
 	})
 
 	t.Run("any with category requires user handler and sets category route only", func(t *testing.T) {
@@ -313,7 +313,7 @@ func TestProxyHandlersRouteAnyDefaultAndCategoryRules(t *testing.T) {
 		require.EqualError(t, manager.Route(base.Any, nil, "api"), "proxy handle function is required when command is '*'")
 		require.NoError(t, manager.Route(base.Any, proxyOKRoute, "api"))
 		require.Empty(t, manager.routes)
-		require.NotNil(t, manager.proxifiedHandlers[Category("api")].routes[base.Any])
+		require.NotNil(t, manager.handlers[Category("api")].routes[base.Any])
 	})
 
 	t.Run("named command with category requires handler", func(t *testing.T) {
@@ -322,7 +322,7 @@ func TestProxyHandlersRouteAnyDefaultAndCategoryRules(t *testing.T) {
 		require.EqualError(t, manager.Route("hello", nil, "api"), "proxy handle function is required when command is 'hello'")
 
 		require.NoError(t, manager.Route("hello", proxyOKRoute, "api"))
-		require.NotNil(t, manager.proxifiedHandlers[Category("api")].routes["hello"])
+		require.NotNil(t, manager.handlers[Category("api")].routes["hello"])
 	})
 }
 
@@ -467,7 +467,7 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 
 	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-outbound"))
 	proxyConfig := validProxyHandlerConfig(t, "api")
-	manager.proxifiedHandlers[Category(proxyConfig.Category)] = &ProxifiedHandler{
+	manager.handlers[Category(proxyConfig.Category)] = &ProxifiedHandler{
 		routes:      make(map[string]ProxyHandleFunc),
 		proxyConfig: proxyConfig,
 	}
@@ -526,7 +526,7 @@ func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
 	startOutboundSubscribers(outboundClients)
 	time.Sleep(50 * time.Millisecond)
 
-	manager.proxifiedHandlers[Category(proxyConfig.Category)] = &ProxifiedHandler{
+	manager.handlers[Category(proxyConfig.Category)] = &ProxifiedHandler{
 		proxyConfig:     proxyConfig,
 		outboundClients: outboundClients,
 	}
@@ -690,7 +690,7 @@ func startForwardOutboundHandler(t *testing.T, handlerType base.HandlerType, cat
 	}))
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
-		_ = closeHandlers([]base.Interface{handler})
+		require.NoError(t, CloseViaControl(handler))
 	})
 
 	return topologyConfig.IndependentHandler{
@@ -714,7 +714,7 @@ func startEchoOutboundHandler(t *testing.T, category string) topologyConfig.Inde
 	}))
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
-		_ = closeHandlers([]base.Interface{handler})
+		require.NoError(t, CloseViaControl(handler))
 	})
 
 	return topologyConfig.IndependentHandler{
@@ -731,7 +731,7 @@ func startForwardPublisher(t *testing.T, serviceName string, category string, re
 	endpoint := setInprocHandlerEndpoint(t, handler, testEndpointID(t, category))
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
-		_ = closeHandlers([]base.Interface{handler})
+		require.NoError(t, CloseViaControl(handler))
 	})
 
 	controlEndpoint := handlerControlEndpoint(handler)
@@ -761,7 +761,7 @@ func startForwardPublisher(t *testing.T, serviceName string, category string, re
 	}
 }
 
-func proxyForwardRequest(manager *ProxyHandlers, proxifiedCategory string, serviceName string, handlerCategory string) *ProxyRequest {
+func proxyForwardRequest(manager *ProxySetup, proxifiedCategory string, serviceName string, handlerCategory string) *ProxyRequest {
 	return &ProxyRequest{
 		Request: message.Request{
 			Command:    "forward",

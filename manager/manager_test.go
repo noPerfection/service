@@ -13,6 +13,7 @@ import (
 	"github.com/noPerfection/datatype"
 	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/handler/base"
+	handlerControl "github.com/noPerfection/protocol/handler/control"
 	"github.com/noPerfection/protocol/handler/publisher"
 	"github.com/noPerfection/protocol/handler/replier"
 	"github.com/noPerfection/protocol/handler/sync_replier"
@@ -161,12 +162,26 @@ func closeProtocolHandler(handler base.Interface) error {
 	return handlers.CloseViaControl(handler)
 }
 
+func handlerControlStatus(handler base.Interface) (string, error) {
+	endpoint := handler.Endpoint()
+	if endpoint == (message.Endpoint{}) {
+		return "", fmt.Errorf("handler endpoint is empty")
+	}
+	controlEndpoint := handlerControl.NewInternalControlEndpoint(endpoint)
+	controlClient, err := clientSyncReplier.NewBaseControl(controlEndpoint.Id, controlEndpoint.Port)
+	if err != nil {
+		return "", fmt.Errorf("sync_replier.NewBaseControl('%s'): %w", controlEndpoint.Id, err)
+	}
+	defer controlClient.Close()
+	return controlClient.HandlerStatus()
+}
+
 func requireHandlersStopped(t *testing.T, started []base.Interface) {
 	t.Helper()
 
 	require.Eventually(t, func() bool {
 		for _, handler := range started {
-			status, err := handlers.HandlerControlStatus(handler)
+			status, err := handlerControlStatus(handler)
 			if err != nil || status != base.SocketNil {
 				return false
 			}
@@ -179,7 +194,7 @@ func requireHandlerStopped(t *testing.T, handler base.Interface) {
 	t.Helper()
 
 	require.Eventually(t, func() bool {
-		status, err := handlers.HandlerControlStatus(handler)
+		status, err := handlerControlStatus(handler)
 		return err == nil && status == base.SocketNil
 	}, 2*time.Second, 10*time.Millisecond)
 }
