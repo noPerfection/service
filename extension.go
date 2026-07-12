@@ -409,6 +409,10 @@ func (independent *Extension) Start() error {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
 	}
+	if err = independent.ensureTopologyClient(); err != nil {
+		err = fmt.Errorf("ensureTopologyClient: %w", err)
+		goto errOccurred
+	}
 	serviceLink, err = independent.topology().GetLink(independent.mushroomURL)
 	if err != nil {
 		err = fmt.Errorf("topology.GetLink('%s'): %w", independent.mushroomURL, err)
@@ -425,11 +429,6 @@ func (independent *Extension) Start() error {
 	independent.manager.SetSharedBlocker(&independent.blocker)
 	if err = independent.manager.Start(); err != nil {
 		err = fmt.Errorf("service.manager.Start: %w", err)
-		goto errOccurred
-	}
-
-	if err = independent.ensureTopologyClient(); err != nil {
-		err = fmt.Errorf("ensureTopologyClient: %w", err)
 		goto errOccurred
 	}
 

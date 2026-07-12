@@ -307,7 +307,6 @@ func newHandler(handlerType config.HandlerType) (protocolHandler.Interface, erro
 	}
 }
 
-
 // GetHandlerLink returns this service link with the handler category set.
 func (independent *Independent) GetHandlerLink(handlerCategory string) (string, error) {
 	link, err := independent.topology().GetLink(independent.mushroomURL)
@@ -317,6 +316,9 @@ func (independent *Independent) GetHandlerLink(handlerCategory string) (string, 
 	return handlers.AsHandlerLink(link, handlerCategory)
 }
 
+// addTopologyHandlersToHandlers adds the handlers to the handlers list.
+// Except for the Service Manager category, any handler defined in the topology is
+// registered in the handlers package for launching them.
 func (independent *Independent) addTopologyHandlersToHandlers() error {
 	tp := independent.topology()
 	serviceConfig, err := tp.Service(independent.mushroomURL)
@@ -434,7 +436,11 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
 	}
-	serviceLink, err = tp.GetLink(independent.mushroomURL)
+	if err = independent.ensureTopologyClient(); err != nil {
+		err = fmt.Errorf("ensureTopologyClient: %w", err)
+		goto errOccurred
+	}
+	serviceLink, err = independent.topology().GetLink(independent.mushroomURL)
 	if err != nil {
 		err = fmt.Errorf("topology.GetLink('%s'): %w", independent.mushroomURL, err)
 		goto errOccurred
@@ -450,11 +456,6 @@ func (independent *Independent) Start() error {
 	independent.manager.SetSharedBlocker(&independent.blocker)
 	if err = independent.manager.Start(); err != nil {
 		err = fmt.Errorf("service.manager.Start: %w", err)
-		goto errOccurred
-	}
-
-	if err = independent.ensureTopologyClient(); err != nil {
-		err = fmt.Errorf("ensureTopologyClient: %w", err)
 		goto errOccurred
 	}
 
