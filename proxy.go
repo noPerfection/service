@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ahmetson/mushroom"
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/protocol/handler/npac"
@@ -301,6 +300,7 @@ func (proxy *Proxy) ensureServiceManager() error {
 func (proxy *Proxy) Start() error {
 	var err error
 	var topologySnapshot string
+	var serviceLink string
 
 	if err = npac.New().Start(); err != nil {
 		err = fmt.Errorf("npac.Start: %w", err)
@@ -359,7 +359,12 @@ func (proxy *Proxy) Start() error {
 		err = fmt.Errorf("ensureTopologyClient: %w", err)
 		goto errOccurred
 	}
-	if err = proxy.ProxySetup.Start(); err != nil {
+	serviceLink, err = proxy.topology().GetLink(proxy.name)
+	if err != nil {
+		err = fmt.Errorf("topology.GetLink('%s'): %w", proxy.name, err)
+		goto errOccurred
+	}
+	if err = proxy.ProxySetup.Start(serviceLink); err != nil {
 		err = fmt.Errorf("proxyHandlers.Start: %w", err)
 		goto errOccurred
 	}
@@ -402,41 +407,20 @@ errOccurred:
 	return err
 }
 
-// GetHandlerLink returns this proxy's link URL with the handler category as an additional prop.
-func (proxy *Proxy) GetHandlerLink(handlerCategory string) (string, error) {
-	if handlerCategory == "" {
-		return "", fmt.Errorf("handler category is empty")
-	}
-	tp := proxy.topology()
-	link, err := tp.GetLink(proxy.name)
-	if err != nil {
-		return "", err
-	}
-
-	var soil mushroom.Soil
-	hypha, err := soil.Hypha(link)
-	if err != nil {
-		return "", fmt.Errorf("soil.Hypha(%q): %w", link, err)
-	}
-
-	linkHypha := hypha.AsLink()
-	if linkHypha.AdditionalProps == nil {
-		linkHypha.AdditionalProps = map[string]string{}
-	}
-	linkHypha.AdditionalProps["category"] = handlerCategory
-	return linkHypha.String(), nil
-}
-
 func (proxy *Proxy) allowServiceManager() error {
 	tp := proxy.topology()
 	serviceConfig, err := tp.Service(proxy.name)
 	if err != nil {
 		return fmt.Errorf("topology.Service('%s'): %w", proxy.name, err)
 	}
-
-	managerLink, err := proxy.GetHandlerLink(topology.ServiceManagerCategory)
+	serviceLink, err := tp.GetLink(proxy.name)
 	if err != nil {
-		return fmt.Errorf("GetHandlerLink('%s'): %w", topology.ServiceManagerCategory, err)
+		return fmt.Errorf("topology.GetLink('%s'): %w", proxy.name, err)
+	}
+
+	managerLink, err := handlers.AsHandlerLink(serviceLink, topology.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("handlers.AsHandlerLink('%s'): %w", topology.ServiceManagerCategory, err)
 	}
 	publicKey := proxy.manager.PublicKey()
 

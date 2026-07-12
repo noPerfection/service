@@ -7,8 +7,7 @@ import (
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
 	protocolClient "github.com/noPerfection/protocol/client"
-	"github.com/noPerfection/protocol/handler/base"
-	"github.com/noPerfection/protocol/handler/sync_replier"
+	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 	"github.com/stretchr/testify/require"
 )
@@ -23,17 +22,17 @@ func TestNewManager(t *testing.T) {
 
 func TestSetHandlerRegistersProtocolHandler(t *testing.T) {
 	manager := NewSetup()
-	handler := registerInprocHandler(t, manager, base.SyncReplierType, "sync")
+	handler := registerInprocHandler(t, manager, protocolHandler.SyncReplierType, "sync")
 
 	require.Same(t, handler, manager.handlers["sync"])
-	require.Equal(t, base.SyncReplierType, handler.Type())
+	require.Equal(t, protocolHandler.SyncReplierType, handler.Type())
 }
 
 func TestSetHandlerRejectsDuplicateCategory(t *testing.T) {
 	manager := NewSetup()
-	registerInprocHandler(t, manager, base.SyncReplierType, "api")
+	registerInprocHandler(t, manager, protocolHandler.SyncReplierType, "api")
 
-	second := newProtocolHandler(t, base.ReplierType)
+	second := newProtocolHandler(t, protocolHandler.ReplierType)
 	setInprocHandlerEndpoint(t, second, testEndpointID(t, "api"))
 
 	require.EqualError(t, manager.SetHandler("api", second), "handler of api category already exists")
@@ -41,14 +40,14 @@ func TestSetHandlerRejectsDuplicateCategory(t *testing.T) {
 
 func TestSetHandlerRejectsDuplicateAfterStart(t *testing.T) {
 	manager := NewSetup()
-	first := registerInprocHandler(t, manager, base.SyncReplierType, "api")
-	require.NoError(t, manager.Start())
+	first := registerInprocHandler(t, manager, protocolHandler.SyncReplierType, "api")
+	require.NoError(t, manager.Start(testServiceMushroomURL))
 	requireHandlerRunning(t, first)
 	t.Cleanup(func() {
 		require.NoError(t, manager.Close())
 	})
 
-	second := newProtocolHandler(t, base.ReplierType)
+	second := newProtocolHandler(t, protocolHandler.ReplierType)
 	setInprocHandlerEndpoint(t, second, testEndpointID(t, "api-replace"))
 
 	require.EqualError(t, manager.SetHandler("api", second), "handler of api category already exists")
@@ -59,14 +58,14 @@ func TestManagerRegistryCapacity(t *testing.T) {
 	manager := NewSetup()
 
 	cases := []struct {
-		handlerType base.HandlerType
+		handlerType protocolHandler.HandlerType
 		category    string
 	}{
-		{base.SyncReplierType, "sync"},
-		{base.ReplierType, "async"},
-		{base.PublisherType, "pub"},
-		{base.PairType, "pair"},
-		{base.WorkerType, "worker"},
+		{protocolHandler.SyncReplierType, "sync"},
+		{protocolHandler.ReplierType, "async"},
+		{protocolHandler.PublisherType, "pub"},
+		{protocolHandler.PairType, "pair"},
+		{protocolHandler.WorkerType, "worker"},
 	}
 
 	for _, tc := range cases {
@@ -82,7 +81,7 @@ func TestManagerRegistryCapacity(t *testing.T) {
 
 func TestSetLogger(t *testing.T) {
 	manager := NewSetup()
-	registerInprocHandler(t, manager, base.SyncReplierType, "sync")
+	registerInprocHandler(t, manager, protocolHandler.SyncReplierType, "sync")
 
 	logger, err := log.New("test", true)
 	require.NoError(t, err)
@@ -93,7 +92,7 @@ func TestSetLogger(t *testing.T) {
 
 func TestSetLoggerNilDisablesLogger(t *testing.T) {
 	manager := NewSetup()
-	registerInprocHandler(t, manager, base.SyncReplierType, "sync")
+	registerInprocHandler(t, manager, protocolHandler.SyncReplierType, "sync")
 
 	logger, err := log.New("test", true)
 	require.NoError(t, err)
@@ -126,18 +125,18 @@ func TestRouteUsesDefaultHandlerCategory(t *testing.T) {
 
 func TestStartRejectsRouteForMissingCategory(t *testing.T) {
 	manager := NewSetup()
-	registerInprocHandler(t, manager, base.SyncReplierType, DefaultHandlerCategory)
+	registerInprocHandler(t, manager, protocolHandler.SyncReplierType, DefaultHandlerCategory)
 	require.NoError(t, manager.Route("hello", func(req message.RequestInterface) message.ReplyInterface {
 		return req.Ok(datatype.New())
 	}, "missing"))
 
-	require.EqualError(t, manager.Start(), "routed to a category that not exist: 'missing'")
+	require.EqualError(t, manager.Start(testServiceMushroomURL), "routed to a category that not exist: 'missing'")
 }
 
 func TestRouteRejectsAfterStart(t *testing.T) {
 	manager := NewSetup()
-	registerInprocHandler(t, manager, base.SyncReplierType, DefaultHandlerCategory)
-	require.NoError(t, manager.Start())
+	registerInprocHandler(t, manager, protocolHandler.SyncReplierType, DefaultHandlerCategory)
+	require.NoError(t, manager.Start(testServiceMushroomURL))
 	t.Cleanup(func() {
 		require.NoError(t, manager.Close())
 	})
@@ -150,7 +149,7 @@ func TestRouteRejectsAfterStart(t *testing.T) {
 
 func TestRouteIsUsedByStartedHandler(t *testing.T) {
 	manager := NewSetup()
-	handler := registerInprocHandler(t, manager, base.SyncReplierType, DefaultHandlerCategory)
+	handler := registerInprocHandler(t, manager, protocolHandler.SyncReplierType, DefaultHandlerCategory)
 	require.NoError(t, manager.Route("hello", func(req message.RequestInterface) message.ReplyInterface {
 		name, err := req.RouteParameters().StringValue("name")
 		if err != nil {
@@ -159,7 +158,7 @@ func TestRouteIsUsedByStartedHandler(t *testing.T) {
 		return req.Ok(datatype.New().Set("reply", "hello "+name))
 	}))
 
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(testServiceMushroomURL))
 	t.Cleanup(func() {
 		require.NoError(t, manager.Close())
 	})
@@ -185,49 +184,55 @@ func TestRouteIsUsedByStartedHandler(t *testing.T) {
 func TestStartNoHandlers(t *testing.T) {
 	manager := NewSetup()
 
-	require.EqualError(t, manager.Start(), "no handlers")
+	require.EqualError(t, manager.Start(testServiceMushroomURL), "no handlers")
 }
 
 func TestStartRequiresHandlerConfig(t *testing.T) {
 	manager := NewSetup()
-	handler := sync_replier.New()
+	handler := protocolHandler.NewSyncReplier()
 	require.NoError(t, manager.SetHandler("sync", handler))
 
-	require.EqualError(t, manager.Start(), "handler of sync category has no config")
+	require.EqualError(t, manager.Start(testServiceMushroomURL), "handler of sync category has no config")
 }
 
 func TestStartReturnsHandlerStartError(t *testing.T) {
 	manager := NewSetup()
 
 	sharedEndpoint := testEndpointID(t, "sync-bind")
-	blocker := sync_replier.New()
+	blocker := protocolHandler.NewSyncReplier()
 	setInprocHandlerEndpoint(t, blocker, sharedEndpoint)
+	mushroomURL, err := AsHandlerLink(testServiceMushroomURL, "blocker")
+	require.NoError(t, err)
+	blocker.SetMushroomURL(mushroomURL)
 	require.NoError(t, blocker.Start())
 	t.Cleanup(func() {
-		handlers := []base.Interface{blocker}
+		handlers := []protocolHandler.Interface{blocker}
 		for _, handler := range handlers {
 			require.NoError(t, CloseViaControl(handler))
 		}
 	})
 
-	handler := sync_replier.New()
+	handler := protocolHandler.NewSyncReplier()
 	setInprocHandlerEndpoint(t, handler, sharedEndpoint)
 	require.NoError(t, manager.SetHandler("sync", handler))
 
-	err := manager.Start()
+	handlerLink, err := AsHandlerLink(testServiceMushroomURL, "sync")
+	require.NoError(t, err)
+	handler.SetMushroomURL(handlerLink)
+	err = handler.Start()
 	require.Error(t, err)
-	require.ErrorContains(t, err, "handler(category: 'sync').Start:")
+	require.Contains(t, err.Error(), "control.Start")
 }
 
 func TestStartWithMultipleProtocolHandlers(t *testing.T) {
 	manager := NewSetup()
 
-	registerInprocHandler(t, manager, base.SyncReplierType, "sync")
-	registerInprocHandler(t, manager, base.ReplierType, "async")
-	registerInprocHandler(t, manager, base.PublisherType, "pub")
-	registerInprocHandler(t, manager, base.WorkerType, "worker")
+	registerInprocHandler(t, manager, protocolHandler.SyncReplierType, "sync")
+	registerInprocHandler(t, manager, protocolHandler.ReplierType, "async")
+	registerInprocHandler(t, manager, protocolHandler.PublisherType, "pub")
+	registerInprocHandler(t, manager, protocolHandler.WorkerType, "worker")
 
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(testServiceMushroomURL))
 	t.Cleanup(func() {
 		require.NoError(t, manager.Close())
 	})
@@ -253,9 +258,9 @@ func TestCloseRejectsNilRegistryEntry(t *testing.T) {
 
 func TestCloseMarksHandlersClosed(t *testing.T) {
 	manager := NewSetup()
-	handler := registerInprocHandler(t, manager, base.SyncReplierType, "sync")
+	handler := registerInprocHandler(t, manager, protocolHandler.SyncReplierType, "sync")
 
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(testServiceMushroomURL))
 	require.NoError(t, manager.Close())
 	requireHandlerClosed(t, handler)
 }

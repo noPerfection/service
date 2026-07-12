@@ -10,9 +10,8 @@ import (
 	"time"
 
 	"github.com/noPerfection/datatype"
-	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
-	"github.com/noPerfection/protocol/handler/base"
-	handlerPublisher "github.com/noPerfection/protocol/handler/publisher"
+	protocolClient "github.com/noPerfection/protocol/client"
+	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
@@ -27,6 +26,10 @@ var testTopologyRuntime struct {
 
 func testOutboundURL(serviceName, category string) string {
 	return fmt.Sprintf("pkg:$?var=services[name:%s]&category=%s", serviceName, category)
+}
+
+func testProxyServiceLink(serviceName string) string {
+	return "*pkg:$?var=services[name:" + serviceName + "]"
 }
 
 func parseTestOutboundURL(url string) (serviceName, category string, err error) {
@@ -157,16 +160,16 @@ func TestProxyHandlersLifecycle(t *testing.T) {
 	})
 
 	var zero ProxySetup
-	require.EqualError(t, zero.Start(), "proxy manager interface is nil, please create this manager using NewProxyHandlers(serviceName)")
+	require.EqualError(t, zero.Start(""), "proxy manager interface is nil, please create this manager using NewProxyHandlers(serviceName)")
 	require.EqualError(t, zero.Close(), "proxy manager interface is nil, please create this manager using NewProxyHandlers(serviceName)")
 
 	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager"))
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(testProxyServiceLink(manager.serviceName)))
 	t.Cleanup(func() {
 		_ = manager.Close()
 	})
 
-	managerControl, err := clientSyncReplier.NewControl(
+	managerControl, err := protocolClient.NewControl(
 		handlerControlEndpoint(manager.Interface).Id,
 		manager.Interface.Endpoint().Port,
 	)
@@ -175,19 +178,21 @@ func TestProxyHandlersLifecycle(t *testing.T) {
 	managerControl.Attempt(3)
 	defer managerControl.Close()
 
-	requireProxyManagerStatus(t, managerControl, base.SocketReady)
-	require.Error(t, manager.Start())
+	requireProxyManagerStatus(t, managerControl, protocolHandler.SocketReady)
+	require.Error(t, manager.Start(testProxyServiceLink(manager.serviceName)))
 
 	require.NoError(t, manager.Close())
-	requireProxyManagerStatus(t, managerControl, base.SocketNil)
-	require.NoError(t, manager.Start())
-	requireProxyManagerStatus(t, managerControl, base.SocketReady)
+	requireProxyManagerStatus(t, managerControl, protocolHandler.SocketNil)
+	_, err = managerControl.StartHandler()
+	require.NoError(t, err)
+	manager.running = true
+	requireProxyManagerStatus(t, managerControl, protocolHandler.SocketReady)
 
 	require.NoError(t, manager.Close())
-	requireProxyManagerStatus(t, managerControl, base.SocketNil)
+	requireProxyManagerStatus(t, managerControl, protocolHandler.SocketNil)
 }
 
-func requireProxyManagerStatus(t *testing.T, managerControl *clientSyncReplier.Control, expected string) {
+func requireProxyManagerStatus(t *testing.T, managerControl *protocolClient.Control, expected string) {
 	t.Helper()
 
 	require.Eventually(t, func() bool {
@@ -239,12 +244,12 @@ func TestProxyHandlersSetProxyHandler(t *testing.T) {
 	registerProxyHandlerOutbounds(t, proxyConfig)
 	require.NoError(t, manager.Route("hello", proxyOKRoute, category))
 
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(testProxyServiceLink(manager.serviceName)))
 	t.Cleanup(func() {
 		_ = manager.Close()
 	})
 
-	client, err := clientSyncReplier.NewClient(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
+	client, err := protocolClient.NewSyncReplier(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
 	require.NoError(t, err)
 	client.Timeout(time.Second)
 	client.Attempt(3)
@@ -299,9 +304,9 @@ func TestProxyHandlersRouteAnyDefaultAndCategoryRules(t *testing.T) {
 	t.Run("no category requires user handler and sets manager routes", func(t *testing.T) {
 		manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-route-default"))
 
-		require.EqualError(t, manager.Route(base.Any, nil), "proxy handle function is required when command is '*'")
-		require.NoError(t, manager.Route(base.Any, proxyOKRoute))
-		require.NotNil(t, manager.routes[base.Any])
+		require.EqualError(t, manager.Route(message.Any, nil), "proxy handle function is required when command is 'any'")
+		require.NoError(t, manager.Route(message.Any, proxyOKRoute))
+		require.NotNil(t, manager.routes[message.Any])
 		require.NoError(t, manager.Route("hello", proxyOKRoute))
 		require.NotNil(t, manager.routes["hello"])
 		require.Empty(t, manager.handlers)
@@ -310,10 +315,10 @@ func TestProxyHandlersRouteAnyDefaultAndCategoryRules(t *testing.T) {
 	t.Run("any with category requires user handler and sets category route only", func(t *testing.T) {
 		manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-route-category-default"))
 
-		require.EqualError(t, manager.Route(base.Any, nil, "api"), "proxy handle function is required when command is '*'")
-		require.NoError(t, manager.Route(base.Any, proxyOKRoute, "api"))
+		require.EqualError(t, manager.Route(message.Any, nil, "api"), "proxy handle function is required when command is 'any'")
+		require.NoError(t, manager.Route(message.Any, proxyOKRoute, "api"))
 		require.Empty(t, manager.routes)
-		require.NotNil(t, manager.handlers[Category("api")].routes[base.Any])
+		require.NotNil(t, manager.handlers[Category("api")].routes[message.Any])
 	})
 
 	t.Run("named command with category requires handler", func(t *testing.T) {
@@ -331,16 +336,16 @@ func TestProxyHandlersStartStopProxyHandler(t *testing.T) {
 	category := "api"
 	proxyConfig := validProxyHandlerConfig(t, category)
 	registerProxyHandlerOutbounds(t, proxyConfig)
-	proxyConfig.Routes = []string{base.Any}
+	proxyConfig.Routes = []string{message.Any}
 	require.NoError(t, manager.Route("hello", proxyOKRoute, category))
-	require.NoError(t, manager.Route(base.Any, proxyOKRoute, category))
+	require.NoError(t, manager.Route(message.Any, proxyOKRoute, category))
 
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(testProxyServiceLink(manager.serviceName)))
 	t.Cleanup(func() {
 		_ = manager.Close()
 	})
 
-	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
+	managerClient, err := protocolClient.NewSyncReplier(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
 	require.NoError(t, err)
 	managerClient.Timeout(time.Second)
 	managerClient.Attempt(3)
@@ -398,16 +403,16 @@ func TestProxyHandlersStartStopProxyHandler(t *testing.T) {
 
 func TestProxyHandlersHandleFuncWhitelistAndRouteFallback(t *testing.T) {
 	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-handle-func"))
-	require.NoError(t, manager.Route(base.Any, proxyMessageRoute("Whitelisted default")))
-	require.NoError(t, manager.Route(base.Any, proxyMessageRoute("handler's default any is returned"), "handler-any"))
+	require.NoError(t, manager.Route(message.Any, proxyMessageRoute("Whitelisted default")))
+	require.NoError(t, manager.Route(message.Any, proxyMessageRoute("handler's default any is returned"), "handler-any"))
 	require.NoError(t, manager.Route("hello", proxyMessageRoute("hello from manager")))
 
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(testProxyServiceLink(manager.serviceName)))
 	t.Cleanup(func() {
 		_ = manager.Close()
 	})
 
-	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
+	managerClient, err := protocolClient.NewSyncReplier(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
 	require.NoError(t, err)
 	managerClient.Timeout(time.Second)
 	managerClient.Attempt(3)
@@ -423,7 +428,7 @@ func TestProxyHandlersHandleFuncWhitelistAndRouteFallback(t *testing.T) {
 	requireStoppedAndRemovedProxyConfig(t, managerClient, defaultConfig.Category)
 
 	handlerAnyConfig := validProxyHandlerConfig(t, "handler-any")
-	handlerAnyConfig.Routes = []string{base.Any}
+	handlerAnyConfig.Routes = []string{message.Any}
 	registerProxyHandlerOutbounds(t, handlerAnyConfig)
 	requireStartedProxyConfig(t, managerClient, handlerAnyConfig)
 	handlerAnyClient := newProxyHandlerClient(t, handlerAnyConfig)
@@ -431,7 +436,7 @@ func TestProxyHandlersHandleFuncWhitelistAndRouteFallback(t *testing.T) {
 	require.NoError(t, handlerAnyClient.Close())
 	requireStoppedAndRemovedProxyConfig(t, managerClient, handlerAnyConfig.Category)
 
-	delete(manager.routes, base.Any)
+	delete(manager.routes, message.Any)
 
 	managerHelloConfig := validProxyHandlerConfig(t, "manager-hello")
 	managerHelloConfig.Routes = nil
@@ -443,7 +448,7 @@ func TestProxyHandlersHandleFuncWhitelistAndRouteFallback(t *testing.T) {
 	require.NoError(t, managerHelloClient.Close())
 	requireStoppedAndRemovedProxyConfig(t, managerClient, managerHelloConfig.Category)
 
-	manager.routes[base.Any] = proxyMessageRoute("manager any")
+	manager.routes[message.Any] = proxyMessageRoute("manager any")
 
 	managerAnyConfig := validProxyHandlerConfig(t, "manager-any")
 	managerAnyConfig.Routes = nil
@@ -463,7 +468,7 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 	_, _, err := emptyManager.DeserializeRequest(message.MessageToEnvelope("", request.String()))
 	require.EqualError(t, err, "no proxified handlers")
 	_, _, err = emptyManager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "pkg:$?var=services[name:missing]&category=main"))
-	require.EqualError(t, err, `outbound "pkg:$?var=services[name:missing]&category=main" not found`)
+	require.EqualError(t, err, "no proxified handlers")
 
 	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-outbound"))
 	proxyConfig := validProxyHandlerConfig(t, "api")
@@ -488,17 +493,17 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 	require.Equal(t, "api", proxyRequest.proxifiedHandler)
 	require.Equal(t, proxyConfig.Outbounds[0], proxyRequest.outboundURL)
 
-	_, _, err = manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "missing-service"))
-	require.EqualError(t, err, `outbound "missing-service" not found`)
+	_, _, err = manager.DeserializeRequest(message.MessageToEnvelope("", request.String(), "", "pkg:$?var=services[name:missing]&category=main"))
+	require.EqualError(t, err, `outbound "pkg:$?var=services[name:missing]&category=main" not found`)
 }
 
 func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
 	serviceName := "outbound-forward"
 	outboundHandlers := []topologyConfig.IndependentHandler{
-		startForwardOutboundHandler(t, base.SyncReplierType, "sync", "sync reply"),
-		startForwardOutboundHandler(t, base.ReplierType, "replier", "replier reply"),
-		startForwardOutboundHandler(t, base.PairType, "pair", "pair reply"),
-		startForwardOutboundHandler(t, base.WorkerType, "worker", "worker reply"),
+		startForwardOutboundHandler(t, protocolHandler.SyncReplierType, "sync", "sync reply"),
+		startForwardOutboundHandler(t, protocolHandler.ReplierType, "replier", "replier reply"),
+		startForwardOutboundHandler(t, protocolHandler.PairType, "pair", "pair reply"),
+		startForwardOutboundHandler(t, protocolHandler.WorkerType, "worker", "worker reply"),
 		startForwardPublisher(t, serviceName, "publisher", "publisher reply"),
 	}
 
@@ -574,17 +579,17 @@ func TestProxyHandlerRouteForwardsToOutboundAcrossLifecycle(t *testing.T) {
 			Category: proxyCategory,
 			Endpoint: message.NewEndpoint(testEndpointID(t, "proxy-route-forward"), 0),
 		},
-		Routes:    []string{base.Any},
+		Routes:    []string{message.Any},
 		Outbounds: []string{testOutboundURL(serviceName, "echo")},
 	}
 
-	require.NoError(t, manager.Route(base.Any, proxyForwardRoute, proxyCategory))
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Route(message.Any, proxyForwardRoute, proxyCategory))
+	require.NoError(t, manager.Start(testProxyServiceLink(manager.serviceName)))
 	t.Cleanup(func() {
 		_ = manager.Close()
 	})
 
-	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
+	managerClient, err := protocolClient.NewSyncReplier(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
 	require.NoError(t, err)
 	managerClient.Timeout(time.Second)
 	managerClient.Attempt(3)
@@ -616,8 +621,8 @@ func TestProxyHandlerConfiguredForwardOverridesTailOutbound(t *testing.T) {
 	manager := NewProxyHandlers(testEndpointID(t, "proxy-manager-configured-forward"))
 	proxyCategory := "proxy-forward-config"
 	serviceName := "outbound-forward-config"
-	defaultHandler := startForwardOutboundHandler(t, base.SyncReplierType, "default", "default reply")
-	configuredHandler := startForwardOutboundHandler(t, base.SyncReplierType, DefaultHandlerCategory, "configured reply")
+	defaultHandler := startForwardOutboundHandler(t, protocolHandler.SyncReplierType, "default", "default reply")
+	configuredHandler := startForwardOutboundHandler(t, protocolHandler.SyncReplierType, DefaultHandlerCategory, "configured reply")
 	registerOutboundHandlers(t, serviceName, defaultHandler, configuredHandler)
 	defaultURL := testOutboundURL(serviceName, "default")
 	configuredURL := testOutboundURL(serviceName, DefaultHandlerCategory)
@@ -632,13 +637,13 @@ func TestProxyHandlerConfiguredForwardOverridesTailOutbound(t *testing.T) {
 		Outbounds: []string{defaultURL, configuredURL},
 	}
 
-	require.NoError(t, manager.Route(base.Any, proxyForwardRoute, proxyCategory))
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Route(message.Any, proxyForwardRoute, proxyCategory))
+	require.NoError(t, manager.Start(testProxyServiceLink(manager.serviceName)))
 	t.Cleanup(func() {
 		_ = manager.Close()
 	})
 
-	managerClient, err := clientSyncReplier.NewClient(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
+	managerClient, err := protocolClient.NewSyncReplier(manager.Interface.Endpoint().Id, manager.Interface.Endpoint().Port)
 	require.NoError(t, err)
 	managerClient.Timeout(time.Second)
 	managerClient.Attempt(3)
@@ -680,11 +685,14 @@ func proxyMessageRoute(text string) ProxyHandleFunc {
 	}
 }
 
-func startForwardOutboundHandler(t *testing.T, handlerType base.HandlerType, category string, replyText string) topologyConfig.IndependentHandler {
+func startForwardOutboundHandler(t *testing.T, handlerType protocolHandler.HandlerType, category string, replyText string) topologyConfig.IndependentHandler {
 	t.Helper()
 
 	handler := newProtocolHandler(t, handlerType)
 	endpoint := setInprocHandlerEndpoint(t, handler, testEndpointID(t, category))
+	mushroomURL, err := AsHandlerLink(testServiceMushroomURL, category)
+	require.NoError(t, err)
+	handler.SetMushroomURL(mushroomURL)
 	require.NoError(t, handler.Route("forward", func(req message.RequestInterface) message.ReplyInterface {
 		return req.Ok(datatype.New().Set("message", replyText))
 	}))
@@ -703,8 +711,11 @@ func startForwardOutboundHandler(t *testing.T, handlerType base.HandlerType, cat
 func startEchoOutboundHandler(t *testing.T, category string) topologyConfig.IndependentHandler {
 	t.Helper()
 
-	handler := newProtocolHandler(t, base.SyncReplierType)
+	handler := newProtocolHandler(t, protocolHandler.SyncReplierType)
 	endpoint := setInprocHandlerEndpoint(t, handler, testEndpointID(t, category))
+	mushroomURL, err := AsHandlerLink(testServiceMushroomURL, category)
+	require.NoError(t, err)
+	handler.SetMushroomURL(mushroomURL)
 	require.NoError(t, handler.Route("echo", func(req message.RequestInterface) message.ReplyInterface {
 		payload, err := req.RouteParameters().StringValue("payload")
 		if err != nil {
@@ -727,15 +738,18 @@ func startEchoOutboundHandler(t *testing.T, category string) topologyConfig.Inde
 func startForwardPublisher(t *testing.T, serviceName string, category string, replyText string) topologyConfig.IndependentHandler {
 	t.Helper()
 
-	handler := newProtocolHandler(t, base.PublisherType)
+	handler := newProtocolHandler(t, protocolHandler.PublisherType)
 	endpoint := setInprocHandlerEndpoint(t, handler, testEndpointID(t, category))
+	mushroomURL, err := AsHandlerLink(testServiceMushroomURL, category)
+	require.NoError(t, err)
+	handler.SetMushroomURL(mushroomURL)
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
 		require.NoError(t, CloseViaControl(handler))
 	})
 
 	controlEndpoint := handlerControlEndpoint(handler)
-	controlClient, err := clientSyncReplier.NewClient(controlEndpoint.Id, controlEndpoint.Port)
+	controlClient, err := protocolClient.NewSyncReplier(controlEndpoint.Id, controlEndpoint.Port)
 	require.NoError(t, err)
 	controlClient.Timeout(time.Second)
 	controlClient.Attempt(3)
@@ -746,8 +760,8 @@ func startForwardPublisher(t *testing.T, serviceName string, category string, re
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		_, _ = controlClient.Request(&message.Request{
-			Command: handlerPublisher.Broadcast,
-			Parameters: datatype.New().Set(handlerPublisher.BroadcastParameter, message.Reply{
+			Command: protocolHandler.Broadcast,
+			Parameters: datatype.New().Set(protocolHandler.BroadcastParameter, message.Reply{
 				Status:     message.OK,
 				Parameters: datatype.New().Set("message", replyText).Set("service", serviceName),
 			}),
@@ -800,7 +814,7 @@ func proxyManagerCategoryParams(category string) datatype.KeyValue {
 	return datatype.New().Set("category", category)
 }
 
-func proxyManagerRequest(t *testing.T, client *clientSyncReplier.Client, command string, params datatype.KeyValue) message.ReplyInterface {
+func proxyManagerRequest(t *testing.T, client *protocolClient.SyncReplierClient, command string, params datatype.KeyValue) message.ReplyInterface {
 	t.Helper()
 
 	reply, err := client.Request(&message.Request{
@@ -811,7 +825,7 @@ func proxyManagerRequest(t *testing.T, client *clientSyncReplier.Client, command
 	return reply
 }
 
-func requireProxyHandlerExists(t *testing.T, client *clientSyncReplier.Client, category string, expected bool) {
+func requireProxyHandlerExists(t *testing.T, client *protocolClient.SyncReplierClient, category string, expected bool) {
 	t.Helper()
 
 	reply := proxyManagerRequest(t, client, IsProxyHandlerExistCommand, proxyManagerCategoryParams(category))
@@ -821,7 +835,7 @@ func requireProxyHandlerExists(t *testing.T, client *clientSyncReplier.Client, c
 	require.Equal(t, expected, exists)
 }
 
-func requireProxyHandlerRunning(t *testing.T, client *clientSyncReplier.Client, category string, expected bool) {
+func requireProxyHandlerRunning(t *testing.T, client *protocolClient.SyncReplierClient, category string, expected bool) {
 	t.Helper()
 
 	reply := proxyManagerRequest(t, client, IsProxyHandlerRunningCommand, proxyManagerCategoryParams(category))
@@ -831,17 +845,17 @@ func requireProxyHandlerRunning(t *testing.T, client *clientSyncReplier.Client, 
 	require.Equal(t, expected, running)
 }
 
-func newProxyHandlerClient(t *testing.T, proxyConfig topologyConfig.ProxyHandler) *clientSyncReplier.Client {
+func newProxyHandlerClient(t *testing.T, proxyConfig topologyConfig.ProxyHandler) *protocolClient.SyncReplierClient {
 	t.Helper()
 
-	client, err := clientSyncReplier.NewClient(proxyConfig.Endpoint.Id, proxyConfig.Endpoint.Port)
+	client, err := protocolClient.NewSyncReplier(proxyConfig.Endpoint.Id, proxyConfig.Endpoint.Port)
 	require.NoError(t, err)
 	client.Timeout(time.Second)
 	client.Attempt(1)
 	return client
 }
 
-func requireProxifiedReply(t *testing.T, client *clientSyncReplier.Client, command string) {
+func requireProxifiedReply(t *testing.T, client *protocolClient.SyncReplierClient, command string) {
 	t.Helper()
 
 	reply, err := client.Request(&message.Request{
@@ -855,7 +869,7 @@ func requireProxifiedReply(t *testing.T, client *clientSyncReplier.Client, comma
 	require.True(t, proxified)
 }
 
-func requireStartedProxyConfig(t *testing.T, managerClient *clientSyncReplier.Client, proxyConfig topologyConfig.ProxyHandler) {
+func requireStartedProxyConfig(t *testing.T, managerClient *protocolClient.SyncReplierClient, proxyConfig topologyConfig.ProxyHandler) {
 	t.Helper()
 
 	reply := proxyManagerRequest(t, managerClient, SetProxyHandlerCommand, proxyManagerConfigParams(t, proxyConfig))
@@ -864,7 +878,7 @@ func requireStartedProxyConfig(t *testing.T, managerClient *clientSyncReplier.Cl
 	require.True(t, reply.IsOK(), reply.ErrorMessage())
 }
 
-func requireStoppedAndRemovedProxyConfig(t *testing.T, managerClient *clientSyncReplier.Client, category string) {
+func requireStoppedAndRemovedProxyConfig(t *testing.T, managerClient *protocolClient.SyncReplierClient, category string) {
 	t.Helper()
 
 	reply := proxyManagerRequest(t, managerClient, StopProxyHandlerCommand, proxyManagerCategoryParams(category))
@@ -873,7 +887,7 @@ func requireStoppedAndRemovedProxyConfig(t *testing.T, managerClient *clientSync
 	require.True(t, reply.IsOK(), reply.ErrorMessage())
 }
 
-func requireProxyMessage(t *testing.T, client *clientSyncReplier.Client, command string, expected string) {
+func requireProxyMessage(t *testing.T, client *protocolClient.SyncReplierClient, command string, expected string) {
 	t.Helper()
 
 	reply, err := client.Request(&message.Request{
@@ -887,7 +901,7 @@ func requireProxyMessage(t *testing.T, client *clientSyncReplier.Client, command
 	require.Equal(t, expected, actual)
 }
 
-func requireForwardedEcho(t *testing.T, client *clientSyncReplier.Client, payload string) {
+func requireForwardedEcho(t *testing.T, client *protocolClient.SyncReplierClient, payload string) {
 	t.Helper()
 
 	reply, err := client.Request(&message.Request{
@@ -901,7 +915,7 @@ func requireForwardedEcho(t *testing.T, client *clientSyncReplier.Client, payloa
 	require.Equal(t, payload, actual)
 }
 
-func requireProxyFailure(t *testing.T, client *clientSyncReplier.Client, command string, expected string) {
+func requireProxyFailure(t *testing.T, client *protocolClient.SyncReplierClient, command string, expected string) {
 	t.Helper()
 
 	reply, err := client.Request(&message.Request{

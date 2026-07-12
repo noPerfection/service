@@ -8,9 +8,8 @@ import (
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
-	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
-	"github.com/noPerfection/protocol/handler/base"
-	"github.com/noPerfection/protocol/handler/replier"
+	protocolClient "github.com/noPerfection/protocol/client"
+	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/topology"
@@ -27,10 +26,10 @@ func DefaultProxyManagerEndpoint(serviceName string) message.Endpoint {
 // ProxyManager keeps all necessary parameters of the proxy service.
 // Manage this proxy service from other parts.
 type ProxyManager struct {
-	base.Interface
+	protocolHandler.Interface
 	serviceName string
 	topology    *topology.Client
-	handlers    *clientSyncReplier.Client
+	handlers    *protocolClient.SyncReplierClient
 	blocker     **sync.WaitGroup
 	running     bool
 	logger      *log.Logger
@@ -51,31 +50,31 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint, secre
 		return nil, fmt.Errorf("topology.NewClient: %w", err)
 	}
 
-	proxyHandlersClient, err := clientSyncReplier.NewClient(serviceName+handlers.ProxyHandlersCategory, 0)
+	proxyHandlersClient, err := protocolClient.NewSyncReplier(serviceName+handlers.ProxyHandlersCategory, 0)
 	if err != nil {
 		_ = topologyClient.Close()
-		return nil, fmt.Errorf("sync_replier.NewClient('%s'): %w", serviceName+handlers.ProxyHandlersCategory, err)
+		return nil, fmt.Errorf("client.NewSyncReplier('%s'): %w", serviceName+handlers.ProxyHandlersCategory, err)
 	}
 
 	var pub, sec string
 	if len(secretKey) > 0 && secretKey[0] != "" {
 		sec = secretKey[0]
-		pub, err = base.DerivePublicKey(sec)
+		pub, err = message.DerivePublicKey(sec)
 		if err != nil {
 			_ = topologyClient.Close()
 			_ = proxyHandlersClient.Close()
-			return nil, fmt.Errorf("base.DerivePublicKey: %w", err)
+			return nil, fmt.Errorf("message.DerivePublicKey: %w", err)
 		}
 	} else {
-		pub, sec, err = base.GenerateCurveKey()
+		pub, sec, err = message.GenerateCurveKey()
 		if err != nil {
 			_ = topologyClient.Close()
 			_ = proxyHandlersClient.Close()
-			return nil, fmt.Errorf("base.GenerateCurveKey: %w", err)
+			return nil, fmt.Errorf("message.GenerateCurveKey: %w", err)
 		}
 	}
 
-	handler := replier.New()
+	handler := protocolHandler.NewReplier()
 
 	h := &ProxyManager{
 		Interface:   handler,
@@ -349,9 +348,9 @@ func (m *ProxyManager) ensureProxyHandlersClient() error {
 	if m.handlers != nil {
 		return nil
 	}
-	proxyHandlersClient, err := clientSyncReplier.NewClient(m.serviceName+handlers.ProxyHandlersCategory, 0)
+	proxyHandlersClient, err := protocolClient.NewSyncReplier(m.serviceName+handlers.ProxyHandlersCategory, 0)
 	if err != nil {
-		return fmt.Errorf("sync_replier.NewClient('%s'): %w", m.serviceName+handlers.ProxyHandlersCategory, err)
+		return fmt.Errorf("client.NewSyncReplier('%s'): %w", m.serviceName+handlers.ProxyHandlersCategory, err)
 	}
 	m.handlers = proxyHandlersClient
 	return nil
@@ -503,6 +502,17 @@ func (m *ProxyManager) Start() error {
 	if err := m.proxyHandlersRequest(handlers.StartProxyHandlersCommand); err != nil {
 		return err
 	}
+
+	serviceLink, err := m.topology.GetLink(m.serviceName)
+	if err != nil {
+		return fmt.Errorf("topology.GetLink(%q): %w", m.serviceName, err)
+	}
+
+	handlerLink, err := handlers.AsHandlerLink(serviceLink, topology.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("handlers.AsHandlerLink(%q): %w", topology.ServiceManagerCategory, err)
+	}
+	m.Interface.SetMushroomURL(handlerLink)
 
 	m.Interface.Secure(m.secretKey)
 

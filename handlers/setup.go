@@ -3,11 +3,11 @@ package handlers
 import (
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/noPerfection/log"
-	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
-	"github.com/noPerfection/protocol/handler/base"
-	handlerControl "github.com/noPerfection/protocol/handler/control"
+	protocolClient "github.com/noPerfection/protocol/client"
+	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 )
 
@@ -17,10 +17,10 @@ var DefaultHandlerEndpoint = message.NewEndpoint("localhost", 8000)
 
 // Setup owns the local handler registry and lifecycle.
 type Setup struct {
-	// handler category -> handler/base.Interface
-	handlers map[string]base.Interface
+	// handler category -> handler.Interface
+	handlers map[string]protocolHandler.Interface
 	// handler category -> command -> handle function
-	routes  map[string]map[string]base.HandleFunc
+	routes  map[string]map[string]protocolHandler.HandleFunc
 	logger  *log.Logger
 	running bool
 }
@@ -28,13 +28,13 @@ type Setup struct {
 // NewSetup creates an empty handler manager.
 func NewSetup() *Setup {
 	return &Setup{
-		handlers: make(map[string]base.Interface),
-		routes:   make(map[string]map[string]base.HandleFunc),
+		handlers: make(map[string]protocolHandler.Interface),
+		routes:   make(map[string]map[string]protocolHandler.HandleFunc),
 	}
 }
 
 // SetHandler adds or replaces a handler by category.
-func (setup *Setup) SetHandler(category string, handler base.Interface) error {
+func (setup *Setup) SetHandler(category string, handler protocolHandler.Interface) error {
 	if handler == nil {
 		return fmt.Errorf("handler of %s category is nil", category)
 	}
@@ -65,7 +65,7 @@ func (setup *Setup) RouteCommands(category string) ([]string, error) {
 	return commands, nil
 }
 
-func (setup *Setup) Route(command string, handleFunc base.HandleFunc, handlerCategory ...string) error {
+func (setup *Setup) Route(command string, handleFunc protocolHandler.HandleFunc, handlerCategory ...string) error {
 	if setup.running {
 		return fmt.Errorf("I cant route when its already started. Please stop the handler first or the best way to route before starting the handler")
 	}
@@ -78,7 +78,7 @@ func (setup *Setup) Route(command string, handleFunc base.HandleFunc, handlerCat
 		category = handlerCategory[0]
 	}
 	if setup.routes[category] == nil {
-		setup.routes[category] = make(map[string]base.HandleFunc)
+		setup.routes[category] = make(map[string]protocolHandler.HandleFunc)
 	}
 	setup.routes[category][command] = handleFunc
 
@@ -103,7 +103,7 @@ func (setup *Setup) SetLogger(logger *log.Logger) error {
 
 // Start starts all registered handlers.
 // The setup itself is not a thread to run
-func (setup *Setup) Start() error {
+func (setup *Setup) Start(serviceLink string) error {
 	if len(setup.handlers) == 0 {
 		return fmt.Errorf("no handlers")
 	}
@@ -115,7 +115,7 @@ func (setup *Setup) Start() error {
 	}
 
 	var err error
-	startedHandlers := make([]base.Interface, 0, len(setup.handlers))
+	startedHandlers := make([]protocolHandler.Interface, 0, len(setup.handlers))
 
 	for category, handler := range setup.handlers {
 		if handler == nil {
@@ -140,6 +140,13 @@ func (setup *Setup) Start() error {
 				goto exitStartHandler
 			}
 		}
+
+		handlerLink, err := AsHandlerLink(serviceLink, category)
+		if err != nil {
+			err = fmt.Errorf("handlers.AsHandlerLink(%q): %w", category, err)
+			goto exitStartHandler
+		}
+		handler.SetMushroomURL(handlerLink)
 
 		if err = handler.Start(); err != nil {
 			err = fmt.Errorf("handler(category: '%s').Start: %w", category, err)
@@ -171,7 +178,7 @@ exitStartHandler:
 // Used only by service codes during the start-ups.
 // After the service is started, the handlers are closed by the service/setup
 func (setup *Setup) Close() error {
-	handlers := make([]base.Interface, 0, len(setup.handlers))
+	handlers := make([]protocolHandler.Interface, 0, len(setup.handlers))
 	for category, handler := range setup.handlers {
 		if handler == nil {
 			return fmt.Errorf("handler of %s category is nil", category)
@@ -184,14 +191,14 @@ func (setup *Setup) Close() error {
 			return err
 		}
 	}
-	setup.routes = make(map[string]map[string]base.HandleFunc)
+	setup.routes = make(map[string]map[string]protocolHandler.HandleFunc)
 	setup.running = false
 
 	return nil
 }
 
 // CloseViaControl shuts down a handler through its control endpoint.
-func CloseViaControl(handler base.Interface) error {
+func CloseViaControl(handler protocolHandler.Interface) error {
 	controlClient, err := newHandlerControlClient(handler)
 	if err != nil {
 		return nil
@@ -202,7 +209,7 @@ func CloseViaControl(handler base.Interface) error {
 	if err != nil {
 		return nil
 	}
-	if status == base.SocketNil {
+	if status == protocolHandler.SocketNil {
 		return nil
 	}
 
@@ -213,17 +220,19 @@ func CloseViaControl(handler base.Interface) error {
 	return nil
 }
 
-func newHandlerControlClient(handler base.Interface) (*clientSyncReplier.BaseControl, error) {
+func newHandlerControlClient(handler protocolHandler.Interface) (*protocolClient.Control, error) {
 	endpoint := handler.Endpoint()
 	if endpoint == (message.Endpoint{}) {
 		return nil, fmt.Errorf("handler endpoint is empty")
 	}
 
-	controlEndpoint := handlerControl.NewInternalControlEndpoint(endpoint)
-	controlClient, err := clientSyncReplier.NewBaseControl(controlEndpoint.Id, controlEndpoint.Port)
+	controlEndpoint := protocolHandler.NewInternalControlEndpoint(endpoint)
+	controlClient, err := protocolClient.NewControl(controlEndpoint.Id, controlEndpoint.Port)
 	if err != nil {
-		return nil, fmt.Errorf("sync_replier.NewBaseControl('%s'): %w", controlEndpoint.Id, err)
+		return nil, fmt.Errorf("client.NewControl('%s'): %w", controlEndpoint.Id, err)
 	}
+	controlClient.Timeout(time.Second)
+	controlClient.Attempt(1)
 
 	return controlClient, nil
 }

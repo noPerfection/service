@@ -10,14 +10,9 @@ import (
 	"github.com/ahmetson/mushroom"
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
-	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
-	"github.com/noPerfection/protocol/handler/base"
+	protocolClient "github.com/noPerfection/protocol/client"
+	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/handler/npac"
-	"github.com/noPerfection/protocol/handler/pair"
-	"github.com/noPerfection/protocol/handler/publisher"
-	"github.com/noPerfection/protocol/handler/replier"
-	"github.com/noPerfection/protocol/handler/sync_replier"
-	"github.com/noPerfection/protocol/handler/worker"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
@@ -295,26 +290,33 @@ func (independent *Independent) ensureServiceManager() error {
 	return nil
 }
 
-func newHandler(handlerType config.HandlerType) (base.Interface, error) {
+func newHandler(handlerType config.HandlerType) (protocolHandler.Interface, error) {
 	switch handlerType {
 	case config.SyncReplierType:
-		return sync_replier.New(), nil
+		return protocolHandler.NewSyncReplier(), nil
 	case config.ReplierType:
-		return replier.New(), nil
+		return protocolHandler.NewReplier(), nil
 	case config.PublisherType:
-		return publisher.New(), nil
+		return protocolHandler.NewPublisher(), nil
 	case config.PairType:
-		return pair.New(), nil
+		return protocolHandler.NewPair(), nil
 	case config.WorkerType:
-		return worker.New(), nil
+		return protocolHandler.NewWorker(), nil
 	default:
 		return nil, fmt.Errorf("unsupported handler type: %s", handlerType)
 	}
 }
 
-// addTopologyHandlersToHandlers adds the handlers to the handlers list.
-// Except for the Service Manager category, any handler defined in the topology is
-// registered in the handlers package for launching them.
+
+// GetHandlerLink returns this service link with the handler category set.
+func (independent *Independent) GetHandlerLink(handlerCategory string) (string, error) {
+	link, err := independent.topology().GetLink(independent.mushroomURL)
+	if err != nil {
+		return "", err
+	}
+	return handlers.AsHandlerLink(link, handlerCategory)
+}
+
 func (independent *Independent) addTopologyHandlersToHandlers() error {
 	tp := independent.topology()
 	serviceConfig, err := tp.Service(independent.mushroomURL)
@@ -352,6 +354,7 @@ func (independent *Independent) Start() error {
 	var inprocServices int
 	var needToStart []config.Service
 	var topologySnapshot string = ""
+	var serviceLink string
 	var tp topology.TopologyInterface
 	if err = npac.New().Start(); err != nil {
 		err = fmt.Errorf("npac.Start: %w", err)
@@ -431,7 +434,12 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
 	}
-	if err = independent.Setup.Start(); err != nil {
+	serviceLink, err = tp.GetLink(independent.mushroomURL)
+	if err != nil {
+		err = fmt.Errorf("topology.GetLink('%s'): %w", independent.mushroomURL, err)
+		goto errOccurred
+	}
+	if err = independent.Setup.Start(serviceLink); err != nil {
 		err = fmt.Errorf("handlers.Start: %w", err)
 		goto errOccurred
 	}
@@ -892,11 +900,15 @@ func (independent *Independent) allowServiceManager() error {
 	if err != nil {
 		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
 	}
-
-	managerLink, err := independent.GetHandlerLink(topology.ServiceManagerCategory)
+	serviceLink, err := tp.GetLink(independent.mushroomURL)
 	if err != nil {
-		return fmt.Errorf("GetHandlerLink('%s'): %w", topology.ServiceManagerCategory, err)
+		return fmt.Errorf("topology.GetLink('%s'): %w", independent.mushroomURL, err)
 	}
+	managerLink, err := handlers.AsHandlerLink(serviceLink, topology.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("AsHandlerLink('%s'): %w", serviceLink, err)
+	}
+
 	publicKey := independent.manager.PublicKey()
 
 	if serviceConfig.Parameters == nil {
@@ -1305,35 +1317,6 @@ func (independent *Independent) resolveTopologyHandler(mushroomURL string) (conf
 	return tp.Handler(mushroomURL)
 }
 
-// GetHandlerLink returns this service's link URL with the handler category
-// encoded as the AdditionalProps "category" key (e.g. &category=main).
-// This &category format is required by topology ResolveDep and is used by
-// syncCommandDepProxyOutbounds and handlerDepProxyOutboundTargets as the final
-// outbound target URL for the last proxy in a chain.
-func (independent *Independent) GetHandlerLink(handlerCategory string) (string, error) {
-	if handlerCategory == "" {
-		return "", fmt.Errorf("handler category is empty")
-	}
-	tp := independent.topology()
-	link, err := tp.GetLink(independent.mushroomURL)
-	if err != nil {
-		return "", err
-	}
-
-	var soil mushroom.Soil
-	hypha, err := soil.Hypha(link)
-	if err != nil {
-		return "", fmt.Errorf("soil.Hypha(%q): %w", link, err)
-	}
-
-	linkHypha := hypha.AsLink()
-	if linkHypha.AdditionalProps == nil {
-		linkHypha.AdditionalProps = map[string]string{}
-	}
-	linkHypha.AdditionalProps["category"] = handlerCategory
-	return linkHypha.String(), nil
-}
-
 // ManagerPublicDereference builds a dereference URL that points at the caller
 // service's Parameters["public-key"] field, e.g.:
 //
@@ -1421,6 +1404,10 @@ func (independent *Independent) syncCommandOutbounds() error {
 	if err != nil {
 		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
 	}
+	serviceLink, err := tp.GetLink(independent.mushroomURL)
+	if err != nil {
+		return fmt.Errorf("topology.GetLink('%s'): %w", independent.mushroomURL, err)
+	}
 
 	for handlerIndex := range serviceConfig.Handlers {
 		handler, _ := serviceConfig.Handlers[handlerIndex].AsIndependentHandler()
@@ -1437,7 +1424,7 @@ func (independent *Independent) syncCommandOutbounds() error {
 				if proxyIndex+1 < len(dep.Proxies) {
 					outboundURL, err = independent.GetServiceFacade(dep.Proxies[proxyIndex+1], dep.Name)
 				} else {
-					outboundURL, err = independent.GetHandlerLink(handler.Category)
+					outboundURL, err = handlers.AsHandlerLink(serviceLink, handler.Category)
 				}
 				if err != nil {
 					return err
@@ -1479,7 +1466,11 @@ func (independent *Independent) handlerDepProxyOutboundTargets(handlerConfig con
 	if !ok {
 		return "", nil, fmt.Errorf("handler is not an independent handler")
 	}
-	outboundURL, err := independent.GetHandlerLink(handler.Category)
+	serviceLink, err := independent.topology().GetLink(independent.mushroomURL)
+	if err != nil {
+		return "", nil, fmt.Errorf("topology.GetLink('%s'): %w", independent.mushroomURL, err)
+	}
+	outboundURL, err := handlers.AsHandlerLink(serviceLink, handler.Category)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1642,7 +1633,7 @@ func stringSlicesEqual(a []string, b []string) bool {
 	return true
 }
 
-func newProxyManagerClient(proxyService config.Service) (*clientSyncReplier.Client, error) {
+func newProxyManagerClient(proxyService config.Service) (*protocolClient.SyncReplierClient, error) {
 	endpoint := manager.DefaultProxyManagerEndpoint(proxyService.Name)
 	if managerHandler, err := proxyService.HandlerByCategory(topology.ServiceManagerCategory); err == nil {
 		handler, ok := managerHandler.AsIndependentHandler()
@@ -1650,7 +1641,7 @@ func newProxyManagerClient(proxyService config.Service) (*clientSyncReplier.Clie
 			endpoint = handler.Endpoint
 		}
 	}
-	client, err := clientSyncReplier.NewClient(endpoint.Id, endpoint.Port)
+	client, err := protocolClient.NewSyncReplier(endpoint.Id, endpoint.Port)
 	if err != nil {
 		return nil, err
 	}
@@ -1696,7 +1687,7 @@ func reloadProxy(proxyService config.Service, proxyConfig config.ProxyHandler, u
 	return startProxyHandler(proxyManagerClient, proxyService.Name, proxyConfig.Category)
 }
 
-func proxyHandlerExists(client *clientSyncReplier.Client, serviceName string, category string) (bool, error) {
+func proxyHandlerExists(client *protocolClient.SyncReplierClient, serviceName string, category string) (bool, error) {
 	reply, err := proxyManagerRequest(client, handlers.IsProxyHandlerExistCommand, datatype.New().Set("service", serviceName).Set("category", category))
 	if err != nil {
 		return false, err
@@ -1704,7 +1695,7 @@ func proxyHandlerExists(client *clientSyncReplier.Client, serviceName string, ca
 	return reply.ReplyParameters().BoolValue("exists")
 }
 
-func proxyHandlerRunning(client *clientSyncReplier.Client, serviceName string, category string) (bool, error) {
+func proxyHandlerRunning(client *protocolClient.SyncReplierClient, serviceName string, category string) (bool, error) {
 	reply, err := proxyManagerRequest(client, handlers.IsProxyHandlerRunningCommand, datatype.New().Set("service", serviceName).Set("category", category))
 	if err != nil {
 		return false, err
@@ -1712,7 +1703,7 @@ func proxyHandlerRunning(client *clientSyncReplier.Client, serviceName string, c
 	return reply.ReplyParameters().BoolValue("running")
 }
 
-func setProxyHandler(client *clientSyncReplier.Client, serviceName string, proxyConfig config.ProxyHandler) error {
+func setProxyHandler(client *protocolClient.SyncReplierClient, serviceName string, proxyConfig config.ProxyHandler) error {
 	configParams, err := datatype.NewFromInterface(proxyConfig)
 	if err != nil {
 		return fmt.Errorf("datatype.NewFromInterface: %w", err)
@@ -1721,17 +1712,17 @@ func setProxyHandler(client *clientSyncReplier.Client, serviceName string, proxy
 	return err
 }
 
-func startProxyHandler(client *clientSyncReplier.Client, serviceName string, category string) error {
+func startProxyHandler(client *protocolClient.SyncReplierClient, serviceName string, category string) error {
 	_, err := proxyManagerRequest(client, handlers.StartProxyHandlerCommand, datatype.New().Set("service", serviceName).Set("category", category))
 	return err
 }
 
-func stopProxyHandler(client *clientSyncReplier.Client, serviceName string, category string) error {
+func stopProxyHandler(client *protocolClient.SyncReplierClient, serviceName string, category string) error {
 	_, err := proxyManagerRequest(client, handlers.StopProxyHandlerCommand, datatype.New().Set("service", serviceName).Set("category", category))
 	return err
 }
 
-func proxyManagerRequest(client *clientSyncReplier.Client, command string, params datatype.KeyValue) (message.ReplyInterface, error) {
+func proxyManagerRequest(client *protocolClient.SyncReplierClient, command string, params datatype.KeyValue) (message.ReplyInterface, error) {
 	reply, err := client.Request(&message.Request{
 		Command:    command,
 		Parameters: params,

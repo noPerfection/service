@@ -5,8 +5,7 @@ import (
 	"testing"
 
 	"github.com/noPerfection/datatype"
-	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
-	"github.com/noPerfection/protocol/handler/base"
+	protocolClient "github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	topologyConfig "github.com/noPerfection/topology/config"
@@ -32,15 +31,15 @@ func TestProxyManagerOnProxyHandlerRunningForwardsToProxyHandlers(t *testing.T) 
 	})
 
 	proxyHandlers := handlers.NewProxyHandlers(serviceName)
-	require.NoError(t, proxyHandlers.Route(base.Any, func(req handlers.ProxyRequest) handlers.ProxyReply {
+	require.NoError(t, proxyHandlers.Route(message.Any, func(req handlers.ProxyRequest) handlers.ProxyReply {
 		return handlers.ProxyReply{Reply: *req.Ok(datatype.New()).(*message.Reply)}
 	}, category))
-	require.NoError(t, proxyHandlers.Start())
+	require.NoError(t, proxyHandlers.Start("*pkg:$?var=services[name:"+serviceName+"]"))
 	t.Cleanup(func() {
 		_ = proxyHandlers.Close()
 	})
 
-	proxyHandlersClient, err := clientSyncReplier.NewClient(serviceName+handlers.ProxyHandlersCategory, 0)
+	proxyHandlersClient, err := protocolClient.NewSyncReplier(serviceName+handlers.ProxyHandlersCategory, 0)
 	require.NoError(t, err)
 	defer proxyHandlersClient.Close()
 
@@ -112,7 +111,7 @@ func validManagerProxyHandlerConfig(t *testing.T, category string) topologyConfi
 			Category: category,
 			Endpoint: message.NewEndpoint(testEndpointID(t, category), 0),
 		},
-		Routes: []string{base.Any},
+		Routes: []string{message.Any},
 		Outbounds: []string{
 			fmt.Sprintf("pkg:$?var=services[name:%s]&category=%s", "outbound-"+category, handlers.DefaultHandlerCategory),
 		},

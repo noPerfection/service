@@ -7,34 +7,28 @@ import (
 	"testing"
 	"time"
 
-	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
-	"github.com/noPerfection/protocol/handler/base"
-	"github.com/noPerfection/protocol/handler/control"
-	"github.com/noPerfection/protocol/handler/pair"
-	"github.com/noPerfection/protocol/handler/publisher"
-	"github.com/noPerfection/protocol/handler/replier"
-	"github.com/noPerfection/protocol/handler/sync_replier"
-	"github.com/noPerfection/protocol/handler/worker"
+	protocolClient "github.com/noPerfection/protocol/client"
+	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 	"github.com/stretchr/testify/require"
 )
 
 var testEndpointSeq atomic.Uint64
 
-func newProtocolHandler(t *testing.T, handlerType base.HandlerType) base.Interface {
+func newProtocolHandler(t *testing.T, handlerType protocolHandler.HandlerType) protocolHandler.Interface {
 	t.Helper()
 
 	switch handlerType {
-	case base.SyncReplierType:
-		return sync_replier.New()
-	case base.ReplierType:
-		return replier.New()
-	case base.PublisherType:
-		return publisher.New()
-	case base.PairType:
-		return pair.New()
-	case base.WorkerType:
-		return worker.New()
+	case protocolHandler.SyncReplierType:
+		return protocolHandler.NewSyncReplier()
+	case protocolHandler.ReplierType:
+		return protocolHandler.NewReplier()
+	case protocolHandler.PublisherType:
+		return protocolHandler.NewPublisher()
+	case protocolHandler.PairType:
+		return protocolHandler.NewPair()
+	case protocolHandler.WorkerType:
+		return protocolHandler.NewWorker()
 	default:
 		t.Fatalf("unsupported handler type: %v", handlerType)
 		return nil
@@ -47,7 +41,7 @@ func testEndpointID(t *testing.T, category string) string {
 	return fmt.Sprintf("%s_%s_%d", strings.ReplaceAll(t.Name(), "/", "_"), category, seq)
 }
 
-func setInprocHandlerEndpoint(t *testing.T, handler base.Interface, endpointID string) message.Endpoint {
+func setInprocHandlerEndpoint(t *testing.T, handler protocolHandler.Interface, endpointID string) message.Endpoint {
 	t.Helper()
 
 	endpoint := message.NewEndpoint(endpointID, 0)
@@ -55,7 +49,9 @@ func setInprocHandlerEndpoint(t *testing.T, handler base.Interface, endpointID s
 	return endpoint
 }
 
-func registerInprocHandler(t *testing.T, manager *Setup, handlerType base.HandlerType, category string) base.Interface {
+const testServiceMushroomURL = "*pkg:$?var=services[name:test-service]"
+
+func registerInprocHandler(t *testing.T, manager *Setup, handlerType protocolHandler.HandlerType, category string) protocolHandler.Interface {
 	t.Helper()
 
 	handler := newProtocolHandler(t, handlerType)
@@ -64,22 +60,22 @@ func registerInprocHandler(t *testing.T, manager *Setup, handlerType base.Handle
 	return handler
 }
 
-func handlerControlEndpoint(handler base.Interface) message.Endpoint {
-	return control.NewInternalControlEndpoint(handler.Endpoint())
+func handlerControlEndpoint(handler protocolHandler.Interface) message.Endpoint {
+	return protocolHandler.NewInternalControlEndpoint(handler.Endpoint())
 }
 
-func newTestHandlerControl(t *testing.T, handler base.Interface) *clientSyncReplier.BaseControl {
+func newTestHandlerControl(t *testing.T, handler protocolHandler.Interface) *protocolClient.Control {
 	t.Helper()
 
 	endpoint := handlerControlEndpoint(handler)
-	controlClient, err := clientSyncReplier.NewBaseControl(endpoint.Id, endpoint.Port)
+	controlClient, err := protocolClient.NewControl(endpoint.Id, endpoint.Port)
 	require.NoError(t, err)
 	controlClient.Timeout(time.Second)
 	controlClient.Attempt(3)
 	return controlClient
 }
 
-func requireHandlerStatus(t *testing.T, handler base.Interface, expected string) {
+func requireHandlerStatus(t *testing.T, handler protocolHandler.Interface, expected string) {
 	t.Helper()
 
 	controlClient := newTestHandlerControl(t, handler)
@@ -91,12 +87,12 @@ func requireHandlerStatus(t *testing.T, handler base.Interface, expected string)
 	}, 2*time.Second, 10*time.Millisecond)
 }
 
-func requireHandlerRunning(t *testing.T, handler base.Interface) {
+func requireHandlerRunning(t *testing.T, handler protocolHandler.Interface) {
 	t.Helper()
-	requireHandlerStatus(t, handler, base.SocketReady)
+	requireHandlerStatus(t, handler, protocolHandler.SocketReady)
 }
 
-func requireHandlerClosed(t *testing.T, handler base.Interface) {
+func requireHandlerClosed(t *testing.T, handler protocolHandler.Interface) {
 	t.Helper()
-	requireHandlerStatus(t, handler, base.SocketNil)
+	requireHandlerStatus(t, handler, protocolHandler.SocketNil)
 }

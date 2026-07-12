@@ -316,6 +316,7 @@ func (independent *Extension) Start() error {
 	var err error
 	var inprocServices int
 	var topologySnapshot string
+	var serviceLink string
 	var tp topology.TopologyInterface
 	if err = npac.New().Start(); err != nil {
 		err = fmt.Errorf("npac.Start: %w", err)
@@ -408,7 +409,12 @@ func (independent *Extension) Start() error {
 		err = fmt.Errorf("topologyHandler.Start(): %w", err)
 		goto errOccurred
 	}
-	if err = independent.Setup.Start(); err != nil {
+	serviceLink, err = independent.topology().GetLink(independent.mushroomURL)
+	if err != nil {
+		err = fmt.Errorf("topology.GetLink('%s'): %w", independent.mushroomURL, err)
+		goto errOccurred
+	}
+	if err = independent.Setup.Start(serviceLink); err != nil {
 		err = fmt.Errorf("handlers.Start: %w", err)
 		goto errOccurred
 	}

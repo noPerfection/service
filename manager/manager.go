@@ -8,10 +8,7 @@ import (
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/client"
-	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
-	"github.com/noPerfection/protocol/handler/base"
-	handlerControl "github.com/noPerfection/protocol/handler/control"
-	"github.com/noPerfection/protocol/handler/replier"
+	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/topology"
@@ -36,9 +33,9 @@ var _ topology.NodeInterface = (*Manager)(nil)
 // The Manager keeps all necessary parameters of the service.
 // Manage this service from other parts.
 type Manager struct {
-	base.Interface
+	protocolHandler.Interface
 	serviceURL      string // mushroomURL of this service in the topology mycelium
-	handlerControls []*clientSyncReplier.BaseControl
+	handlerControls []*client.Control
 	topology        *topology.Client
 	blocker         **sync.WaitGroup
 	started         bool
@@ -63,23 +60,23 @@ func New(serviceURL string, managerEndpoint message.Endpoint, secretKey ...strin
 	var pub, sec string
 	if len(secretKey) > 0 && secretKey[0] != "" {
 		sec = secretKey[0]
-		pub, err = base.DerivePublicKey(sec)
+		pub, err = message.DerivePublicKey(sec)
 		if err != nil {
-			return nil, fmt.Errorf("base.DerivePublicKey: %w", err)
+			return nil, fmt.Errorf("message.DerivePublicKey: %w", err)
 		}
 	} else {
-		pub, sec, err = base.GenerateCurveKey()
+		pub, sec, err = message.GenerateCurveKey()
 		if err != nil {
-			return nil, fmt.Errorf("base.GenerateCurveKey: %w", err)
+			return nil, fmt.Errorf("message.GenerateCurveKey: %w", err)
 		}
 	}
 	fmt.Printf("Generated CURVE key pair for manager %s: pubKey=%s\n", serviceURL, pub)
 
-	handler := replier.New()
+	handler := protocolHandler.NewReplier()
 
 	h := &Manager{
 		Interface:       handler,
-		handlerControls: make([]*clientSyncReplier.BaseControl, 0),
+		handlerControls: make([]*client.Control, 0),
 		topology:        topology,
 		serviceURL:      serviceURL,
 		secretKey:       sec,
@@ -226,7 +223,7 @@ func (m *Manager) StopService(serviceURL string) error {
 			return fmt.Errorf("handlerControl.Close: %w", err)
 		}
 	}
-	m.handlerControls = make([]*clientSyncReplier.BaseControl, 0)
+	m.handlerControls = make([]*client.Control, 0)
 
 	wasRunning := m.running
 	m.running = false
@@ -340,7 +337,7 @@ func (m *Manager) setHandlerControls() error {
 		return fmt.Errorf("topology.Service(%q): %w", m.serviceURL, err)
 	}
 
-	m.handlerControls = make([]*clientSyncReplier.BaseControl, 0, len(service.Handlers))
+	m.handlerControls = make([]*client.Control, 0, len(service.Handlers))
 	for _, handlerVariant := range service.Handlers {
 		handler, ok := handlerVariant.AsIndependentHandler()
 		if !ok {
@@ -350,10 +347,10 @@ func (m *Manager) setHandlerControls() error {
 			continue
 		}
 
-		controlEndpoint := handlerControl.NewInternalControlEndpoint(handler.Endpoint)
-		control, err := clientSyncReplier.NewBaseControl(controlEndpoint.Id, controlEndpoint.Port)
+		controlEndpoint := protocolHandler.NewInternalControlEndpoint(handler.Endpoint)
+		control, err := client.NewControl(controlEndpoint.Id, controlEndpoint.Port)
 		if err != nil {
-			return fmt.Errorf("sync_replier.NewBaseControl('%s'): %w", controlEndpoint.Id, err)
+			return fmt.Errorf("client.NewControl('%s'): %w", controlEndpoint.Id, err)
 		}
 		m.handlerControls = append(m.handlerControls, control)
 	}
@@ -379,6 +376,16 @@ func (m *Manager) Start() error {
 	if err := m.setHandlerControls(); err != nil {
 		return fmt.Errorf("setHandlerControls: %w", err)
 	}
+
+	serviceLink, err := m.topology.GetLink(m.serviceURL)
+	if err != nil {
+		return fmt.Errorf("topology.GetLink(%q): %w", m.serviceURL, err)
+	}
+	handlerLink, err := handlers.AsHandlerLink(serviceLink, topology.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("handlers.AsHandlerLink(%q): %w", topology.ServiceManagerCategory, err)
+	}
+	m.Interface.SetMushroomURL(handlerLink)
 
 	m.Interface.Secure(m.secretKey)
 

@@ -11,13 +11,8 @@ import (
 	"time"
 
 	"github.com/noPerfection/datatype"
-	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
-	"github.com/noPerfection/protocol/handler/base"
-	handlerControl "github.com/noPerfection/protocol/handler/control"
-	"github.com/noPerfection/protocol/handler/publisher"
-	"github.com/noPerfection/protocol/handler/replier"
-	"github.com/noPerfection/protocol/handler/sync_replier"
-	"github.com/noPerfection/protocol/handler/worker"
+	protocolClient "github.com/noPerfection/protocol/client"
+	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/topology"
@@ -112,28 +107,28 @@ func startTestRuntimeHandler(t *testing.T, services ...topologyConfig.Service) {
 	}
 }
 
-func newProtocolHandler(t *testing.T, handlerType topologyConfig.HandlerType) base.Interface {
+func newProtocolHandler(t *testing.T, handlerType topologyConfig.HandlerType) protocolHandler.Interface {
 	t.Helper()
 
 	switch handlerType {
 	case topologyConfig.SyncReplierType:
-		return sync_replier.New()
+		return protocolHandler.NewSyncReplier()
 	case topologyConfig.ReplierType:
-		return replier.New()
+		return protocolHandler.NewReplier()
 	case topologyConfig.PublisherType:
-		return publisher.New()
+		return protocolHandler.NewPublisher()
 	case topologyConfig.WorkerType:
-		return worker.New()
+		return protocolHandler.NewWorker()
 	default:
 		t.Fatalf("unsupported handler type: %s", handlerType)
 		return nil
 	}
 }
 
-func startFakeServiceHandlers(t *testing.T, service topologyConfig.Service) []base.Interface {
+func startFakeServiceHandlers(t *testing.T, service topologyConfig.Service) []protocolHandler.Interface {
 	t.Helper()
 
-	handlers := make([]base.Interface, 0, len(service.Handlers))
+	startedHandlers := make([]protocolHandler.Interface, 0, len(service.Handlers))
 	for _, configuredVariant := range service.Handlers {
 		configured, ok := configuredVariant.AsIndependentHandler()
 		if !ok {
@@ -145,44 +140,49 @@ func startFakeServiceHandlers(t *testing.T, service topologyConfig.Service) []ba
 
 		handler := newProtocolHandler(t, configured.Type)
 		handler.SetEndpoint(configured.Endpoint)
+		mushroomURL, err := handlers.AsHandlerLink("*pkg:$?var=services[name:"+service.Name+"]", configured.Category)
+		require.NoError(t, err)
+		handler.SetMushroomURL(mushroomURL)
 		require.NoError(t, handler.Start())
-		handlers = append(handlers, handler)
+		startedHandlers = append(startedHandlers, handler)
 	}
 
 	t.Cleanup(func() {
-		for _, handler := range handlers {
+		for _, handler := range startedHandlers {
 			_ = closeProtocolHandler(handler)
 		}
 	})
 
-	return handlers
+	return startedHandlers
 }
 
-func closeProtocolHandler(handler base.Interface) error {
+func closeProtocolHandler(handler protocolHandler.Interface) error {
 	return handlers.CloseViaControl(handler)
 }
 
-func handlerControlStatus(handler base.Interface) (string, error) {
+func handlerControlStatus(handler protocolHandler.Interface) (string, error) {
 	endpoint := handler.Endpoint()
 	if endpoint == (message.Endpoint{}) {
 		return "", fmt.Errorf("handler endpoint is empty")
 	}
-	controlEndpoint := handlerControl.NewInternalControlEndpoint(endpoint)
-	controlClient, err := clientSyncReplier.NewBaseControl(controlEndpoint.Id, controlEndpoint.Port)
+	controlEndpoint := protocolHandler.NewInternalControlEndpoint(endpoint)
+	controlClient, err := protocolClient.NewControl(controlEndpoint.Id, controlEndpoint.Port)
 	if err != nil {
 		return "", fmt.Errorf("sync_replier.NewBaseControl('%s'): %w", controlEndpoint.Id, err)
 	}
+	controlClient.Timeout(time.Second)
+	controlClient.Attempt(3)
 	defer controlClient.Close()
 	return controlClient.HandlerStatus()
 }
 
-func requireHandlersStopped(t *testing.T, started []base.Interface) {
+func requireHandlersStopped(t *testing.T, started []protocolHandler.Interface) {
 	t.Helper()
 
 	require.Eventually(t, func() bool {
 		for _, handler := range started {
 			status, err := handlerControlStatus(handler)
-			if err != nil || status != base.SocketNil {
+			if err != nil || status != protocolHandler.SocketNil {
 				return false
 			}
 		}
@@ -190,12 +190,12 @@ func requireHandlersStopped(t *testing.T, started []base.Interface) {
 	}, 2*time.Second, 10*time.Millisecond)
 }
 
-func requireHandlerStopped(t *testing.T, handler base.Interface) {
+func requireHandlerStopped(t *testing.T, handler protocolHandler.Interface) {
 	t.Helper()
 
 	require.Eventually(t, func() bool {
 		status, err := handlerControlStatus(handler)
-		return err == nil && status == base.SocketNil
+		return err == nil && status == protocolHandler.SocketNil
 	}, 2*time.Second, 10*time.Millisecond)
 }
 
@@ -235,7 +235,6 @@ func TestSetHandlerControlsMatchesFakeServiceConfig(t *testing.T) {
 
 		expected, ok := service.Handlers[i+1].AsIndependentHandler()
 		require.True(t, ok)
-		require.Equal(t, expected.Category, handlerControlConfig.Category)
 		require.Equal(t, expected.Endpoint.Id, handlerControlConfig.Id)
 		require.Equal(t, expected.Endpoint.Port, handlerControlConfig.Port)
 	}
@@ -250,7 +249,7 @@ func TestRemoteServicesReturnsConfiguredServices(t *testing.T) {
 	manager := newTestManager(t, service, managerEndpoint)
 	require.NoError(t, manager.Start())
 
-	client, err := clientSyncReplier.NewClient(managerEndpoint.Id, managerEndpoint.Port)
+	client, err := protocolClient.NewSyncReplier(managerEndpoint.Id, managerEndpoint.Port)
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -340,7 +339,7 @@ func TestRemoteStopServiceWithNilBlocker(t *testing.T) {
 	manager := newTestManager(t, service, managerEndpoint)
 	require.NoError(t, manager.Start())
 
-	client, err := clientSyncReplier.NewClient(managerEndpoint.Id, managerEndpoint.Port)
+	client, err := protocolClient.NewSyncReplier(managerEndpoint.Id, managerEndpoint.Port)
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -460,7 +459,7 @@ func startRecordingInprocTopologyExtension(t *testing.T, endpoint message.Endpoi
 	t.Helper()
 
 	recorder := newRecordingInprocTopologyExtension()
-	handler := replier.New()
+	handler := protocolHandler.NewReplier()
 	handler.SetEndpoint(endpoint)
 	require.NoError(t, handler.Route(StartService, func(req message.RequestInterface) message.ReplyInterface {
 		serviceName, err := req.RouteParameters().StringValue("service")
@@ -470,6 +469,9 @@ func startRecordingInprocTopologyExtension(t *testing.T, endpoint message.Endpoi
 		recorder.started[serviceName] = true
 		return req.Ok(datatype.New().Set("id", "1"))
 	}))
+	mushroomURL, err := handlers.AsHandlerLink("*pkg:$?var=services[name:inproc-topology]", handlers.DefaultHandlerCategory)
+	require.NoError(t, err)
+	handler.SetMushroomURL(mushroomURL)
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
 		_ = handlers.CloseViaControl(handler)
@@ -489,7 +491,7 @@ func startRecordingServiceManager(t *testing.T, endpoint message.Endpoint) *reco
 		stopped: make(map[string]bool),
 		probe:   make(map[string]bool),
 	}
-	handler := sync_replier.New()
+	handler := protocolHandler.NewSyncReplier()
 	handler.SetEndpoint(endpoint)
 	require.NoError(t, handler.Route(IsServiceRunning, func(req message.RequestInterface) message.ReplyInterface {
 		serviceName, err := req.RouteParameters().StringValue("service")
@@ -507,6 +509,9 @@ func startRecordingServiceManager(t *testing.T, endpoint message.Endpoint) *reco
 		recorder.probe[serviceName] = false
 		return req.Ok(datatype.New())
 	}))
+	mushroomURL, err := handlers.AsHandlerLink("*pkg:$?var=services[name:test-service]", topology.ServiceManagerCategory)
+	require.NoError(t, err)
+	handler.SetMushroomURL(mushroomURL)
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
 		_ = handlers.CloseViaControl(handler)

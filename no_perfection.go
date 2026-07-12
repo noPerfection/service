@@ -5,7 +5,6 @@ import (
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/client"
-	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/topology"
@@ -57,7 +56,7 @@ const (
 	PairType        = topologyConfig.PairType
 	WorkerType      = topologyConfig.WorkerType
 	//--
-	AnyCmd                 = base.Any
+	AnyCmd                 = message.Any
 	DefaultHandlerCategory = handlers.DefaultHandlerCategory
 	ServiceManagerCategory = topology.ServiceManagerCategory
 )

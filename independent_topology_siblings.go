@@ -6,7 +6,7 @@ import (
 
 	"github.com/ahmetson/mushroom"
 	"github.com/noPerfection/log"
-	"github.com/noPerfection/protocol/handler/base"
+	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
@@ -188,15 +188,15 @@ func (independent *Independent) secureHandlerEdges(serviceConfig config.Service,
 		}
 	}
 
-	// Handler dep proxy chain: each proxy[i]'s base.Any route has proxy[i-1] as inbound.
+	// Handler dep proxy chain: each proxy[i]'s message.Any route has proxy[i-1] as inbound.
 	if handlerDep != nil {
 		hdProxies := handlerDep.Proxies
 		for i := 1; i < len(hdProxies); i++ {
-			currURL, err := independent.depCmdRouteURL(hdProxies[i], base.Any)
+			currURL, err := independent.depCmdRouteURL(hdProxies[i], message.Any)
 			if err != nil {
 				return nil, fmt.Errorf("handler dep proxy[%d] route url: %w", i, err)
 			}
-			prevURL, err := independent.depCmdRouteURL(hdProxies[i-1], base.Any)
+			prevURL, err := independent.depCmdRouteURL(hdProxies[i-1], message.Any)
 			if err != nil {
 				return nil, fmt.Errorf("handler dep proxy[%d] route url: %w", i-1, err)
 			}
@@ -206,10 +206,10 @@ func (independent *Independent) secureHandlerEdges(serviceConfig config.Service,
 			routes[currURL] = appendUnique(routes[currURL], prevURL)
 		}
 
-		// Handler dep extensions: each ext's inbounds are this handler's base.Any URL + sibling ext base.Any URLs.
-		handlerAnyURL := handlerHyphaWithCmd(handlerURL, base.Any)
+		// Handler dep extensions: each ext's inbounds are this handler's message.Any URL + sibling ext message.Any URLs.
+		handlerAnyURL := handlerHyphaWithCmd(handlerURL, message.Any)
 		for _, ext := range handlerDep.Extensions {
-			extURL, err := independent.depCmdRouteURL(ext, base.Any)
+			extURL, err := independent.depCmdRouteURL(ext, message.Any)
 			if err != nil {
 				return nil, fmt.Errorf("handler dep extension route url: %w", err)
 			}
@@ -221,7 +221,7 @@ func (independent *Independent) secureHandlerEdges(serviceConfig config.Service,
 				if other == ext {
 					continue
 				}
-				otherURL, err := independent.depCmdRouteURL(other, base.Any)
+				otherURL, err := independent.depCmdRouteURL(other, message.Any)
 				if err != nil {
 					return nil, fmt.Errorf("handler dep sibling extension route url: %w", err)
 				}

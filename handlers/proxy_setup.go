@@ -10,17 +10,7 @@ import (
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
 	protocolClient "github.com/noPerfection/protocol/client"
-	clientPair "github.com/noPerfection/protocol/client/pair"
-	clientPublisher "github.com/noPerfection/protocol/client/publisher"
-	clientReplier "github.com/noPerfection/protocol/client/replier"
-	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
-	clientWorker "github.com/noPerfection/protocol/client/worker"
-	"github.com/noPerfection/protocol/handler/base"
-	"github.com/noPerfection/protocol/handler/pair"
-	"github.com/noPerfection/protocol/handler/publisher"
-	"github.com/noPerfection/protocol/handler/replier"
-	"github.com/noPerfection/protocol/handler/sync_replier"
-	"github.com/noPerfection/protocol/handler/worker"
+	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
@@ -44,7 +34,7 @@ const (
 // Proxy services work with a special type of requests and replies.
 // And handles them in a special way: ProxyHandleFunc
 // They are all following the message.RequestInterface and message.ReplyInterface interfaces.
-// Where is ProxyHandleFunc is concrete case of noPerfection/protocol/handler/base.HandleFunc
+// Where is ProxyHandleFunc is concrete case of noPerfection/protocol/handler.HandleFunc
 type ProxyRequest struct {
 	message.Request
 	proxifiedHandler string
@@ -60,11 +50,12 @@ type ProxyHandleFunc func(req ProxyRequest) ProxyReply
 type Category string
 
 type ProxifiedHandler struct {
-	handler         base.Interface
+	handler         protocolHandler.Interface
 	outboundClients map[string]outboundClient
 	routes          map[string]ProxyHandleFunc  // command => handleFunc; user can do whatever he wants
 	proxyConfig     topologyConfig.ProxyHandler // handler's information
 	running         bool
+	wasStarted      bool
 }
 
 type outboundClient interface {
@@ -80,11 +71,13 @@ type outboundReceiveOptions interface {
 // The proxy is a service, only difference from other types of services
 // is using noPerfection/topology/config.ProxyHandler instead noPerfection/topology/config.Handler
 type ProxySetup struct {
-	base.Interface
-	handlers map[Category]*ProxifiedHandler
-	routes   map[string]ProxyHandleFunc
-	logger   *log.Logger
-	running  bool
+	protocolHandler.Interface
+	serviceName string
+	serviceLink string
+	handlers    map[Category]*ProxifiedHandler
+	routes      map[string]ProxyHandleFunc
+	logger      *log.Logger
+	running     bool
 }
 
 var _ message.ReplyInterface = (*ProxyReply)(nil)
@@ -103,7 +96,7 @@ func (request *ProxyRequest) Forward() (ProxyReply, error) {
 			return ProxyReply{}, err
 		}
 		return proxyReplyFromReply(reply)
-	case *clientPair.Client:
+	case *protocolClient.PairClient:
 		if err := c.Send(&request.Request); err != nil {
 			return ProxyReply{}, err
 		}
@@ -161,13 +154,14 @@ func NewProxyHandlers(serviceName string) *ProxySetup {
 	if strings.HasPrefix(serviceName, "tmp") {
 		panic("serviceName can not start with tmp, since it will turn handler into ipc protocol please change it")
 	}
-	manager := sync_replier.New()
+	manager := protocolHandler.NewSyncReplier()
 	manager.SetEndpoint(message.NewEndpoint(serviceName+ProxyHandlersCategory, 0))
 
 	return &ProxySetup{
-		Interface: manager,
-		handlers:  make(map[Category]*ProxifiedHandler),
-		routes:    make(map[string]ProxyHandleFunc),
+		Interface:   manager,
+		serviceName: serviceName,
+		handlers:    make(map[Category]*ProxifiedHandler),
+		routes:      make(map[string]ProxyHandleFunc),
 	}
 }
 
@@ -191,15 +185,15 @@ func (manager *ProxySetup) handleFunc(request message.RequestInterface) message.
 			return request.Fail(err.Error())
 		}
 		handleFunc = proxified.routes[request.CommandName()]
-		if handleFunc == nil && request.CommandName() != base.Any {
-			handleFunc = proxified.routes[base.Any]
+		if handleFunc == nil && request.CommandName() != message.Any {
+			handleFunc = proxified.routes[message.Any]
 		}
 	}
 	if handleFunc == nil {
 		handleFunc = manager.routes[request.CommandName()]
 	}
-	if handleFunc == nil && request.CommandName() != base.Any {
-		handleFunc = manager.routes[base.Any]
+	if handleFunc == nil && request.CommandName() != message.Any {
+		handleFunc = manager.routes[message.Any]
 	}
 	if handleFunc == nil {
 		return request.Fail("can not find the proxy handler")
@@ -262,7 +256,7 @@ func proxyConfigAllowsCommand(proxyConfig topologyConfig.ProxyHandler, command s
 		return true
 	}
 	for _, route := range proxyConfig.Routes {
-		if route == base.Any || route == command {
+		if route == message.Any || route == command {
 			return true
 		}
 	}
@@ -323,10 +317,14 @@ func (manager *ProxySetup) SetLogger(logger *log.Logger) error {
 }
 
 // Start starts proxy handlers when any are registered.
-func (manager *ProxySetup) Start() error {
+func (manager *ProxySetup) Start(serviceLink string) error {
 	if manager.Interface == nil {
 		return fmt.Errorf("proxy manager interface is nil, please create this manager using NewProxyHandlers(serviceName)")
 	}
+	if manager.running {
+		return fmt.Errorf("proxy manager is already started")
+	}
+	manager.serviceLink = serviceLink
 	if err := manager.Interface.Route(SetProxyHandlerCommand, manager.onSetProxyHandler); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", SetProxyHandlerCommand, err)
 	}
@@ -351,6 +349,11 @@ func (manager *ProxySetup) Start() error {
 	if err := manager.Interface.Route(RemoveProxyHandlerCommand, manager.onRemoveProxyHandler); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", RemoveProxyHandlerCommand, err)
 	}
+	mushroomURL, err := AsHandlerLink(serviceLink, ProxyHandlersCategory)
+	if err != nil {
+		return fmt.Errorf("handlers.AsHandlerLink('%s'): %w", ProxyHandlersCategory, err)
+	}
+	manager.Interface.SetMushroomURL(mushroomURL)
 	if err := manager.Interface.Start(); err != nil {
 		return fmt.Errorf("proxy manager Start: %w", err)
 	}
@@ -493,8 +496,19 @@ func (manager *ProxySetup) startProxyHandler(proxified *ProxifiedHandler) error 
 		proxified.outboundClients = outboundClients
 	}
 	startOutboundSubscribers(proxified.outboundClients)
-	if err := proxified.handler.Start(); err != nil {
+	if proxified.wasStarted {
+		controlClient, err := newHandlerControlClient(proxified.handler)
+		if err != nil {
+			return fmt.Errorf("proxified handler Start: %v", err)
+		}
+		defer controlClient.Close()
+		if _, err = controlClient.StartHandler(); err != nil {
+			return fmt.Errorf("proxified handler Start: %v", err)
+		}
+	} else if err := proxified.handler.Start(); err != nil {
 		return fmt.Errorf("proxified handler Start: %v", err)
+	} else {
+		proxified.wasStarted = true
 	}
 	proxified.running = true
 
@@ -589,12 +603,18 @@ func (manager *ProxySetup) onSetProxyHandler(req message.RequestInterface) messa
 			return req.Fail(fmt.Sprintf("handler.SetLogger: %v", err))
 		}
 	}
-	if err = handler.Route(base.Any, manager.handleFunc); err != nil {
-		return req.Fail(fmt.Sprintf("Failed to route for proxifying (category: '%s').Route('%s'): %+v", category, base.Any, err))
+	if err = handler.Route(message.Any, manager.handleFunc); err != nil {
+		return req.Fail(fmt.Sprintf("Failed to route for proxifying (category: '%s').Route('%s'): %+v", category, message.Any, err))
 	}
+	mushroomURL, err := AsHandlerLink(manager.serviceLink, proxyConfig.Category)
+	if err != nil {
+		return req.Fail(fmt.Sprintf("handlers.AsHandlerLink('%s'): %v", proxyConfig.Category, err))
+	}
+	handler.SetMushroomURL(mushroomURL)
 
 	proxified.handler = handler
 	proxified.proxyConfig = proxyConfig
+	proxified.wasStarted = false
 	proxified.outboundClients, err = manager.newOutboundClients(proxyConfig)
 	if err != nil {
 		return req.Fail(fmt.Sprintf("new outbound clients: %v", err))
@@ -675,18 +695,18 @@ func newOutboundClient(handler topologyConfig.IndependentHandler) (outboundClien
 
 	switch handler.Type {
 	case topologyConfig.SyncReplierType:
-		client, err = clientSyncReplier.NewClient(handler.Endpoint.Id, handler.Endpoint.Port)
+		client, err = protocolClient.NewSyncReplier(handler.Endpoint.Id, handler.Endpoint.Port)
 	case topologyConfig.ReplierType:
-		client, err = clientReplier.NewClient(handler.Endpoint.Id, handler.Endpoint.Port)
+		client, err = protocolClient.NewReplier(handler.Endpoint.Id, handler.Endpoint.Port)
 	case topologyConfig.PublisherType:
-		client, err = clientPublisher.NewClient(handler.Endpoint.Id, handler.Endpoint.Port)
+		client, err = protocolClient.NewPublisher(handler.Endpoint.Id, handler.Endpoint.Port)
 		if err == nil {
 			configureOutboundReceiver(client)
 		}
 	case topologyConfig.PairType:
-		client, err = clientPair.NewClient(handler.Endpoint.Id, handler.Endpoint.Port)
+		client, err = protocolClient.NewPair(handler.Endpoint.Id, handler.Endpoint.Port)
 	case topologyConfig.WorkerType:
-		client, err = clientWorker.NewClient(handler.Endpoint.Id, handler.Endpoint.Port)
+		client, err = protocolClient.NewWorker(handler.Endpoint.Id, handler.Endpoint.Port)
 	default:
 		return nil, fmt.Errorf("unsupported outbound handler type: %s", handler.Type)
 	}
@@ -786,18 +806,18 @@ func (manager *ProxySetup) firstProxifiedHandler() (*ProxifiedHandler, error) {
 	return nil, fmt.Errorf("no proxified handler configs")
 }
 
-func newProxyHandler(handlerType topologyConfig.HandlerType) (base.Interface, error) {
+func newProxyHandler(handlerType topologyConfig.HandlerType) (protocolHandler.Interface, error) {
 	switch handlerType {
 	case topologyConfig.SyncReplierType:
-		return sync_replier.New(), nil
+		return protocolHandler.NewSyncReplier(), nil
 	case topologyConfig.ReplierType:
-		return replier.New(), nil
+		return protocolHandler.NewReplier(), nil
 	case topologyConfig.PublisherType:
-		return publisher.New(), nil
+		return protocolHandler.NewPublisher(), nil
 	case topologyConfig.PairType:
-		return pair.New(), nil
+		return protocolHandler.NewPair(), nil
 	case topologyConfig.WorkerType:
-		return worker.New(), nil
+		return protocolHandler.NewWorker(), nil
 	default:
 		return nil, fmt.Errorf("unsupported handler type: %s", handlerType)
 	}

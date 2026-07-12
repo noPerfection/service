@@ -9,9 +9,8 @@ import (
 	"time"
 
 	"github.com/noPerfection/datatype"
-	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
-	"github.com/noPerfection/protocol/handler/base"
-	"github.com/noPerfection/protocol/handler/control"
+	protocolClient "github.com/noPerfection/protocol/client"
+	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/topology"
@@ -56,11 +55,11 @@ func requireTopologyFilepath(t *testing.T, setter interface{ SetTopologyParams(m
 func closeTopologyHandler(t *testing.T) {
 	t.Helper()
 
-	controlEndpoint := control.NewInternalControlEndpoint(topology.HandlerEndpoint())
-	controlClient, err := clientSyncReplier.NewClient(controlEndpoint.Id, controlEndpoint.Port)
+	controlEndpoint := protocolHandler.NewInternalControlEndpoint(topology.HandlerEndpoint())
+	controlClient, err := protocolClient.NewSyncReplier(controlEndpoint.Id, controlEndpoint.Port)
 	if err == nil {
 		_, _ = controlClient.Request(&message.Request{
-			Command:    control.HandlerClose,
+			Command:    protocolHandler.HandlerClose,
 			Parameters: datatype.New(),
 		})
 		_ = controlClient.Close()
@@ -842,7 +841,7 @@ func protocolProxyLikeServiceWithHandlerParameters(t *testing.T, name string, se
 			Category: handlers.DefaultHandlerCategory,
 			Endpoint: protocolEndpoint(t, name, protocol),
 		},
-		Routes:    []string{base.Any},
+		Routes:    []string{message.Any},
 		Outbounds: append([]string(nil), outbounds...),
 	}
 	return topologyConfig.Service{

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/noPerfection/datatype"
-	clientSyncReplier "github.com/noPerfection/protocol/client/sync_replier"
+	protocolClient "github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/package_url"
@@ -352,9 +352,9 @@ func ProbeInprocServiceRunning(service config.Service) (bool, error) {
 		return false, err
 	}
 
-	client, err := clientSyncReplier.NewClient(endpoint.Id, endpoint.Port)
+	client, err := protocolClient.NewSyncReplier(endpoint.Id, endpoint.Port)
 	if err != nil {
-		return false, fmt.Errorf("sync_replier.NewClient: %w", err)
+		return false, fmt.Errorf("client.NewSyncReplier: %w", err)
 	}
 	defer client.Close()
 
