@@ -150,7 +150,7 @@ func TestEnsureServiceManagerUsesEndpointFromConfig(t *testing.T) {
 			ModuleUrl: DefaultModuleUrl,
 			Handlers: testHandlers(topologyConfig.IndependentHandler{
 				Type:     topologyConfig.SyncReplierType,
-				Category: topology.ServiceManagerCategory,
+				Category: ServiceManagerCategory,
 				Endpoint: configuredEndpoint,
 			}),
 		}
@@ -172,7 +172,7 @@ func TestEnsureServiceManagerUsesExistingManagerFromTopology(t *testing.T) {
 	configPath := testConfigPath(t)
 	existingManager := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
-		Category: topology.ServiceManagerCategory,
+		Category: ServiceManagerCategory,
 		Endpoint: DefaultServiceManagerEndpoint,
 	}
 	existingService := topologyConfig.Service{
@@ -202,7 +202,7 @@ func TestEnsureServiceManagerUsesExistingManagerFromTopology(t *testing.T) {
 
 	serviceConfig, err := independent.topologyHandler.Service("custom-service")
 	require.NoError(t, err)
-	managerHandler := requireServiceHandler(t, serviceConfig, topology.ServiceManagerCategory)
+	managerHandler := requireServiceHandler(t, serviceConfig, ServiceManagerCategory)
 	require.Equal(t, topologyConfig.SyncReplierType, managerHandler.Type)
 	require.Equal(t, DefaultServiceManagerEndpoint, managerHandler.Endpoint)
 	require.Equal(t, DefaultServiceManagerEndpoint, independent.manager.Endpoint())
@@ -520,7 +520,9 @@ func TestCommandOutboundTargetUsesFacadeURL(t *testing.T) {
 	require.NoError(t, err)
 	requireTopologyFilepath(t, independent, configPath)
 	require.NoError(t, err)
-	outboundURL, err := independent.GetHandlerLink("api")
+	serviceLink, err := independent.topology().GetLink(independent.rawMushroomURL)
+	require.NoError(t, err)
+	outboundURL, err := handlers.AsHandlerLink(serviceLink, "api")
 	require.NoError(t, err)
 	require.Contains(t, outboundURL, "services[name:custom-service]&category=api")
 }
@@ -1141,7 +1143,7 @@ func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) 
 	}
 	managerHandler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
-		Category: topology.ServiceManagerCategory,
+		Category: ServiceManagerCategory,
 		Endpoint: message.NewEndpoint(testEndpointID(t, "manager"), 0),
 	}
 	existingService := topologyConfig.Service{
@@ -1163,7 +1165,7 @@ func TestAddTopologyHandlersRegistersServiceHandlersExceptManager(t *testing.T) 
 	require.NoError(t, independent.addTopologyHandlersToHandlers())
 
 	require.True(t, independent.Setup.IsHandlerExist(handlers.DefaultHandlerCategory))
-	require.False(t, independent.Setup.IsHandlerExist(topology.ServiceManagerCategory))
+	require.False(t, independent.Setup.IsHandlerExist(ServiceManagerCategory))
 }
 
 func TestStartCreatesDefaultHandlerAndStartsManager(t *testing.T) {

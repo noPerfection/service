@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ahmetson/mushroom"
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
 	protocolClient "github.com/noPerfection/protocol/client"
 	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 )
@@ -349,11 +349,11 @@ func (manager *ProxySetup) Start(serviceLink string) error {
 	if err := manager.Interface.Route(RemoveProxyHandlerCommand, manager.onRemoveProxyHandler); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", RemoveProxyHandlerCommand, err)
 	}
-	mushroomURL, err := AsHandlerLink(serviceLink, ProxyHandlersCategory)
+	mushroomURL, err := mushroom.New(serviceLink, ProxyHandlersCategory)
 	if err != nil {
 		return fmt.Errorf("handlers.AsHandlerLink('%s'): %w", ProxyHandlersCategory, err)
 	}
-	manager.Interface.SetMushroomURL(mushroomURL)
+	manager.Interface.SetMushroomURL(mushroomURL.String())
 	if err := manager.Interface.Start(); err != nil {
 		return fmt.Errorf("proxy manager Start: %w", err)
 	}
@@ -606,11 +606,11 @@ func (manager *ProxySetup) onSetProxyHandler(req message.RequestInterface) messa
 	if err = handler.Route(message.Any, manager.handleFunc); err != nil {
 		return req.Fail(fmt.Sprintf("Failed to route for proxifying (category: '%s').Route('%s'): %+v", category, message.Any, err))
 	}
-	mushroomURL, err := AsHandlerLink(manager.serviceLink, proxyConfig.Category)
+	mushroomURL, err := mushroom.New(manager.serviceLink, proxyConfig.Category)
 	if err != nil {
 		return req.Fail(fmt.Sprintf("handlers.AsHandlerLink('%s'): %v", proxyConfig.Category, err))
 	}
-	handler.SetMushroomURL(mushroomURL)
+	handler.SetMushroomURL(mushroomURL.String())
 
 	proxified.handler = handler
 	proxified.proxyConfig = proxyConfig
@@ -638,26 +638,14 @@ func validateProxyHandlerOutbounds(proxyConfig topologyConfig.ProxyHandler) erro
 	return nil
 }
 
-func dereferenceOutboundURL(url string) string {
-	if url == "" {
-		return url
-	}
-	var soil mushroom.Soil
-	hypha, err := soil.Hypha(url)
-	if err != nil || !hypha.URL {
-		return url
-	}
-	return hypha.AsDereference().String()
-}
-
-func (manager *ProxySetup) resolveOutboundHandler(mushroomURL string) (topologyConfig.IndependentHandler, error) {
+func (manager *ProxySetup) resolveOutboundHandler(mushroomURL mushroom.TopologyURL) (topologyConfig.IndependentHandler, error) {
 	topologyClient, err := topology.NewClient()
 	if err != nil {
 		return topologyConfig.IndependentHandler{}, err
 	}
 	defer topologyClient.Close()
 
-	record, err := topologyClient.Handler(dereferenceOutboundURL(mushroomURL))
+	record, err := topologyClient.Handler(mushroomURL.AsDereference().String())
 	if err != nil {
 		return topologyConfig.IndependentHandler{}, err
 	}
@@ -674,7 +662,11 @@ func (manager *ProxySetup) newOutboundClients(proxyConfig topologyConfig.ProxyHa
 		if outboundURL == "" {
 			return nil, fmt.Errorf("outbounds[%d] url is required", i)
 		}
-		handler, err := manager.resolveOutboundHandler(outboundURL)
+		mushroomURL, err := mushroom.New(outboundURL)
+		if err != nil {
+			return nil, fmt.Errorf("mushroom.New(%q): %w", outboundURL, err)
+		}
+		handler, err := manager.resolveOutboundHandler(mushroomURL)
 		if err != nil {
 			_ = closeOutboundClients(clients)
 			return nil, fmt.Errorf("outbounds[%d] %q: %w", i, outboundURL, err)

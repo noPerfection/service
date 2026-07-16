@@ -21,6 +21,9 @@
       ],
       "module-url": "pkg:golang/github.com/noPerfection/service/examples/001-close-service#cmd/service?root=/home/medet/noPerfection/service/examples/001-close-service",
       "name": "close-service",
+      "parameters": {
+        "public-key": ":{g@Zlo6MKnbg*$pDO$pP]0Q$IIQKr)06n\u0026ZeM:}"
+      },
       "type": "Independent"
     }
   ]

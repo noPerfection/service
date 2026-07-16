@@ -1,7 +1,6 @@
 package entrypoint
 
 import (
-	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
 	"github.com/noPerfection/service/handlers"
@@ -19,7 +18,7 @@ func New() (*service.Proxy, error) {
 		return nil, err
 	}
 
-	if err := app.Route(base.Any, onForward, proxyCategory); err != nil {
+	if err := app.Route(message.Any, onForward, proxyCategory); err != nil {
 		return nil, err
 	}
 

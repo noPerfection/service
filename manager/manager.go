@@ -11,6 +11,7 @@ import (
 	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
+	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
@@ -21,11 +22,15 @@ const (
 	StopService               = topology.StopService
 	Services                  = topology.Services
 	InprocTopologyServiceName = "inproc-topology"
+
+	// ManagerPublicKeyParam is the service Parameters key under which the manager's
+	// CURVE public key is stored by allowServiceManager.
+	ManagerPublicKeyParam = "public-key"
 )
 
 // DefaultExtensionManagerEndpoint returns the default endpoint for a service's extension manager.
 func DefaultExtensionManagerEndpoint(serviceName string) message.Endpoint {
-	return message.NewEndpoint(serviceName+"_ext_"+topology.ServiceManagerCategory, 0)
+	return message.NewEndpoint(serviceName+"_ext_"+config.ServiceManagerCategory, 0)
 }
 
 var _ topology.NodeInterface = (*Manager)(nil)
@@ -34,7 +39,7 @@ var _ topology.NodeInterface = (*Manager)(nil)
 // Manage this service from other parts.
 type Manager struct {
 	protocolHandler.Interface
-	serviceURL      string // mushroomURL of this service in the topology mycelium
+	serviceURL      mushroom.TopologyURL // mushroomURL of this service in the topology mycelium
 	handlerControls []*client.Control
 	topology        *topology.Client
 	blocker         **sync.WaitGroup
@@ -51,7 +56,7 @@ type Manager struct {
 // New creates a manager for an independent service.
 // An optional secretKey may be provided; if given, the public key is derived from it.
 // If omitted, a fresh CURVE keypair is generated.
-func New(serviceURL string, managerEndpoint message.Endpoint, secretKey ...string) (*Manager, error) {
+func New(serviceURL mushroom.TopologyURL, managerEndpoint message.Endpoint, secretKey ...string) (*Manager, error) {
 	topology, err := topology.NewClient()
 	if err != nil {
 		return nil, fmt.Errorf("topology.NewClient: %w", err)
@@ -70,7 +75,8 @@ func New(serviceURL string, managerEndpoint message.Endpoint, secretKey ...strin
 			return nil, fmt.Errorf("message.GenerateCurveKey: %w", err)
 		}
 	}
-	fmt.Printf("Generated CURVE key pair for manager %s: pubKey=%s\n", serviceURL, pub)
+	topology.Secure(sec)
+	fmt.Printf("Generated CURVE key pair for manager %s: pubKey=%s\n", serviceURL.String(), pub)
 
 	handler := protocolHandler.NewReplier()
 
@@ -101,7 +107,7 @@ func (m *Manager) selfService() (config.Service, error) {
 	if m.topology == nil {
 		return config.Service{}, fmt.Errorf("topology is nil")
 	}
-	return m.topology.Service(m.serviceURL)
+	return m.topology.Service(m.serviceURL.AsDereference().String())
 }
 
 // matchesSelf reports whether serviceURL refers to this manager's service.
@@ -158,7 +164,11 @@ func (m *Manager) IsServiceRunning(serviceURL string, attempts ...int) (bool, er
 	if m.topology == nil {
 		return false, fmt.Errorf("topology is nil")
 	}
-	return m.topology.IsServiceRunning(serviceURL, attempts...)
+	return isServiceRunningWithReload(m.topology, serviceURL, m.secretKey, attempts...)
+}
+
+func (m *Manager) TestSecretKey() string {
+	return m.secretKey
 }
 
 // inprocTopologyEndpoint is the endpoint of the inproc topology extension service.
@@ -205,6 +215,12 @@ func (m *Manager) StopService(serviceURL string) error {
 	if serviceURL != "" && !match {
 		if m.topology == nil {
 			return fmt.Errorf("topology is nil")
+		}
+		if err := stopRemoteService(m.topology, serviceURL, m.secretKey); err != nil {
+			if localErr := m.topology.StopService(serviceURL); localErr == nil {
+				return nil
+			}
+			return fmt.Errorf("stopRemoteService(%q): %w", serviceURL, err)
 		}
 		return m.topology.StopService(serviceURL)
 	}
@@ -259,7 +275,7 @@ func (m *Manager) Close() error {
 		return fmt.Errorf("manager is nil")
 	}
 
-	if err := m.StopService(m.serviceURL); err != nil {
+	if err := m.StopService(m.serviceURL.AsDereference().String()); err != nil {
 		return err
 	}
 	if err := handlers.CloseViaControl(m.Interface); err != nil {
@@ -343,7 +359,7 @@ func (m *Manager) setHandlerControls() error {
 		if !ok {
 			continue
 		}
-		if handler.Category == topology.ServiceManagerCategory {
+		if handler.Category == config.ServiceManagerCategory {
 			continue
 		}
 
@@ -377,15 +393,8 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("setHandlerControls: %w", err)
 	}
 
-	serviceLink, err := m.topology.GetLink(m.serviceURL)
-	if err != nil {
-		return fmt.Errorf("topology.GetLink(%q): %w", m.serviceURL, err)
-	}
-	handlerLink, err := handlers.AsHandlerLink(serviceLink, topology.ServiceManagerCategory)
-	if err != nil {
-		return fmt.Errorf("handlers.AsHandlerLink(%q): %w", topology.ServiceManagerCategory, err)
-	}
-	m.Interface.SetMushroomURL(handlerLink)
+	handlerLink := m.serviceURL.New(config.ServiceManagerCategory)
+	m.Interface.SetMushroomURL(handlerLink.String())
 
 	m.Interface.Secure(m.secretKey)
 

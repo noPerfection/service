@@ -8,6 +8,7 @@ import (
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
+	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
 
@@ -246,13 +247,12 @@ func (topologies *WithHardcodedTopology) HasHardcodedHandlers(mushroomURL ...str
 	return len(topologies.handlerConfigs[url]) > 0
 }
 
-func (independent *Independent) addHardcodedServicesToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
+// ----------------------------------------------
+// startup functions
+// ----------------------------------------------
 
-	for mushroomURL, serviceConfig := range independent.serviceConfigs {
+func (hardcoded *WithHardcodedTopology) addHardcodedServicesToTopology(tp topology.TopologyInterface) error {
+	for mushroomURL, serviceConfig := range hardcoded.serviceConfigs {
 		parent := serviceParentURL(mushroomURL)
 		_, err := tp.Service(mushroomURL)
 		if err != nil {
@@ -270,16 +270,11 @@ func (independent *Independent) addHardcodedServicesToTopology() error {
 	return nil
 }
 
-func (independent *Independent) addHardcodedHandlersToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
-
-	for mushroomURL, handlers := range independent.handlerConfigs {
+func (hardcoded *WithHardcodedTopology) addHardcodedHandlersToTopology(tp topology.TopologyInterface) error {
+	for mushroomURL, handlers := range hardcoded.handlerConfigs {
 		serviceConfig, err := tp.Service(mushroomURL)
 		if err != nil {
-			return fmt.Errorf("hardcoded handlers for %q not found in topology: %w", mushroomURL, err)
+			return fmt.Errorf("topology.Service(%q): %w", mushroomURL, err)
 		}
 
 		for _, handler := range handlers {
@@ -298,16 +293,11 @@ func (independent *Independent) addHardcodedHandlersToTopology() error {
 	return nil
 }
 
-func (independent *Independent) addHardcodedHandlerDepsToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
-
-	for mushroomURL, deps := range independent.handlerDeps {
+func (hardcoded *WithHardcodedTopology) addHardcodedHandlerDepsToTopology(tp topology.TopologyInterface) error {
+	for mushroomURL, deps := range hardcoded.handlerDeps {
 		serviceConfig, err := tp.Service(mushroomURL)
 		if err != nil {
-			return fmt.Errorf("hardcoded handler deps for %q not found in topology: %w", mushroomURL, err)
+			return fmt.Errorf("topology.Service(%q): %w", mushroomURL, err)
 		}
 
 		for _, dep := range deps {
@@ -321,13 +311,8 @@ func (independent *Independent) addHardcodedHandlerDepsToTopology() error {
 	return nil
 }
 
-func (independent *Independent) addHardcodedServiceParamsToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
-
-	for mushroomURL, params := range independent.serviceParams {
+func (hardcoded *WithHardcodedTopology) addHardcodedServiceParamsToTopology(tp topology.TopologyInterface) error {
+	for mushroomURL, params := range hardcoded.serviceParams {
 		if params == nil {
 			continue
 		}
@@ -351,22 +336,17 @@ func (independent *Independent) addHardcodedServiceParamsToTopology() error {
 	return nil
 }
 
-func (independent *Independent) addHardcodedEndpointsToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
-
-	for mushroomURL, endpointsByHandler := range independent.endpoints {
+func (hardcoded *WithHardcodedTopology) addHardcodedEndpointsToTopology(tp topology.TopologyInterface) error {
+	for mushroomURL, endpointsByHandler := range hardcoded.endpoints {
 		serviceConfig, err := tp.Service(mushroomURL)
 		if err != nil {
-			return fmt.Errorf("hardcoded endpoints for %q not found in topology: %w", mushroomURL, err)
+			return fmt.Errorf("topology.Service(%q): %w", mushroomURL, err)
 		}
 
 		for handlerCategory, endpoint := range endpointsByHandler {
 			handlerVariant, err := serviceConfig.HandlerByCategory(handlerCategory)
 			if err != nil {
-				return fmt.Errorf("hardcoded endpoints handler '%s' in service %q: %w", handlerCategory, mushroomURL, err)
+				return fmt.Errorf("service.HandlerByCategory(%q): %w", handlerCategory, mushroomURL, err)
 			}
 
 			serviceConfig.SetHandler(setHandlerEndpoint(handlerVariant, endpoint), true)
@@ -379,22 +359,17 @@ func (independent *Independent) addHardcodedEndpointsToTopology() error {
 	return nil
 }
 
-func (independent *Independent) addHardcodedCommandDepsToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
-
-	for mushroomURL, depsByHandler := range independent.commandDeps {
+func (hardcoded *WithHardcodedTopology) addHardcodedCommandDepsToTopology(tp topology.TopologyInterface) error {
+	for mushroomURL, depsByHandler := range hardcoded.commandDeps {
 		serviceConfig, err := tp.Service(mushroomURL)
 		if err != nil {
-			return fmt.Errorf("hardcoded command deps for %q not found in topology: %w", mushroomURL, err)
+			return fmt.Errorf("topology.Service(%q): %w", mushroomURL, err)
 		}
 
 		for handlerCategory, deps := range depsByHandler {
 			handlerVariant, err := serviceConfig.HandlerByCategory(handlerCategory)
 			if err != nil {
-				return fmt.Errorf("hardcoded command deps handler '%s' in service %q: %w", handlerCategory, mushroomURL, err)
+				return fmt.Errorf("service.HandlerByCategory(%q): %w", handlerCategory, mushroomURL, err)
 			}
 
 			updatedHandler := handlerVariant
@@ -403,7 +378,7 @@ func (independent *Independent) addHardcodedCommandDepsToTopology() error {
 			}
 			serviceConfig.SetHandler(updatedHandler, true)
 		}
-		if err := tp.SetService(serviceConfig, serviceParentURL(mushroomURL)...); err != nil {
+		if err := tp.SetService(serviceConfig); err != nil {
 			return fmt.Errorf("topology.SetService(%q): %w", mushroomURL, err)
 		}
 	}
@@ -411,172 +386,9 @@ func (independent *Independent) addHardcodedCommandDepsToTopology() error {
 	return nil
 }
 
-func (independent *Extension) addHardcodedServicesToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
-
-	for mushroomURL, serviceConfig := range independent.serviceConfigs {
-		parent := serviceParentURL(mushroomURL)
-		_, err := tp.Service(mushroomURL)
-		if err != nil {
-			if err := tp.AddService(serviceConfig, parent...); err != nil {
-				if err := tp.SetService(serviceConfig, parent...); err != nil {
-					return fmt.Errorf("topology.SetService(%q): %w", mushroomURL, err)
-				}
-			}
-			continue
-		}
-
-		if err := tp.SetService(serviceConfig, parent...); err != nil {
-			return fmt.Errorf("topology.SetService(%q): %w", mushroomURL, err)
-		}
-	}
-
-	return nil
-}
-
-func (independent *Extension) addHardcodedHandlersToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
-
-	for mushroomURL, handlers := range independent.handlerConfigs {
-		serviceConfig, err := tp.Service(mushroomURL)
-		if err != nil {
-			return fmt.Errorf("hardcoded handlers for %q not found in topology: %w", mushroomURL, err)
-		}
-
-		for _, handler := range handlers {
-			if serviceConfig.Type == config.ProxyType {
-				if proxyHandler, ok := handler.AsProxyHandler(); ok {
-					handler = normalizeProxyHandlerOutbounds(proxyHandler)
-				}
-			}
-			serviceConfig.SetHandler(handler, true)
-		}
-		if err := tp.SetService(serviceConfig, serviceParentURL(mushroomURL)...); err != nil {
-			return fmt.Errorf("topology.SetService(%q): %w", mushroomURL, err)
-		}
-	}
-
-	return nil
-}
-
-func (independent *Extension) addHardcodedHandlerDepsToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
-
-	for mushroomURL, deps := range independent.handlerDeps {
-		serviceConfig, err := tp.Service(mushroomURL)
-		if err != nil {
-			return fmt.Errorf("hardcoded handler deps for %q not found in topology: %w", mushroomURL, err)
-		}
-
-		for _, dep := range deps {
-			serviceConfig.HandlerDeps = setDepService(serviceConfig.HandlerDeps, dep)
-		}
-		if err := tp.SetService(serviceConfig, serviceParentURL(mushroomURL)...); err != nil {
-			return fmt.Errorf("topology.SetService(%q): %w", mushroomURL, err)
-		}
-	}
-
-	return nil
-}
-
-func (independent *Extension) addHardcodedServiceParamsToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
-
-	for mushroomURL, params := range independent.serviceParams {
-		if params == nil {
-			continue
-		}
-
-		serviceConfig, err := tp.Service(mushroomURL)
-		if err != nil {
-			return fmt.Errorf("hardcoded service params for %q not found in topology: %w", mushroomURL, err)
-		}
-
-		if serviceConfig.Parameters == nil {
-			serviceConfig.Parameters = datatype.New()
-		}
-		for key, value := range params.Map() {
-			serviceConfig.Parameters.Set(key, value)
-		}
-		if err := tp.SetService(serviceConfig, serviceParentURL(mushroomURL)...); err != nil {
-			return fmt.Errorf("topology.SetService(%q): %w", mushroomURL, err)
-		}
-	}
-
-	return nil
-}
-
-func (independent *Extension) addHardcodedEndpointsToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
-
-	for mushroomURL, endpointsByHandler := range independent.endpoints {
-		serviceConfig, err := tp.Service(mushroomURL)
-		if err != nil {
-			return fmt.Errorf("hardcoded endpoints for %q not found in topology: %w", mushroomURL, err)
-		}
-
-		for handlerCategory, endpoint := range endpointsByHandler {
-			handlerVariant, err := serviceConfig.HandlerByCategory(handlerCategory)
-			if err != nil {
-				return fmt.Errorf("hardcoded endpoints handler '%s' in service %q: %w", handlerCategory, mushroomURL, err)
-			}
-
-			serviceConfig.SetHandler(setHandlerEndpoint(handlerVariant, endpoint), true)
-		}
-		if err := tp.SetService(serviceConfig, serviceParentURL(mushroomURL)...); err != nil {
-			return fmt.Errorf("topology.SetService(%q): %w", mushroomURL, err)
-		}
-	}
-
-	return nil
-}
-
-func (independent *Extension) addHardcodedCommandDepsToTopology() error {
-	if independent == nil || independent.WithHardcodedTopology == nil {
-		return fmt.Errorf("service or WithHardcodedTopology is nil")
-	}
-	tp := independent.topology()
-
-	for mushroomURL, depsByHandler := range independent.commandDeps {
-		serviceConfig, err := tp.Service(mushroomURL)
-		if err != nil {
-			return fmt.Errorf("hardcoded command deps for %q not found in topology: %w", mushroomURL, err)
-		}
-
-		for handlerCategory, deps := range depsByHandler {
-			handlerVariant, err := serviceConfig.HandlerByCategory(handlerCategory)
-			if err != nil {
-				return fmt.Errorf("hardcoded command deps handler '%s' in service %q: %w", handlerCategory, mushroomURL, err)
-			}
-
-			updatedHandler := handlerVariant
-			for _, dep := range deps {
-				updatedHandler = setHandlerCommandDep(updatedHandler, dep)
-			}
-			serviceConfig.SetHandler(updatedHandler, true)
-		}
-		if err := tp.SetService(serviceConfig, serviceParentURL(mushroomURL)...); err != nil {
-			return fmt.Errorf("topology.SetService(%q): %w", mushroomURL, err)
-		}
-	}
-
-	return nil
-}
+// ----------------------------------------------
+// helper functions
+// ----------------------------------------------
 
 func setHandlerEndpoint(handler config.Handler, endpoint message.Endpoint) config.Handler {
 	if proxyHandler, ok := handler.AsProxyHandler(); ok {

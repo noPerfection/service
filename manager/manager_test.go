@@ -15,6 +15,7 @@ import (
 	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
+	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 	"github.com/stretchr/testify/require"
@@ -37,7 +38,7 @@ func fakeServiceConfig(serviceName string, managerEndpoint message.Endpoint, han
 	serviceHandlers := []topologyConfig.IndependentHandler{
 		{
 			Type:     topologyConfig.SyncReplierType,
-			Category: topology.ServiceManagerCategory,
+			Category: topologyConfig.ServiceManagerCategory,
 			Endpoint: managerEndpoint,
 		},
 	}
@@ -134,15 +135,15 @@ func startFakeServiceHandlers(t *testing.T, service topologyConfig.Service) []pr
 		if !ok {
 			continue
 		}
-		if configured.Category == topology.ServiceManagerCategory {
+		if configured.Category == topologyConfig.ServiceManagerCategory {
 			continue
 		}
 
 		handler := newProtocolHandler(t, configured.Type)
 		handler.SetEndpoint(configured.Endpoint)
-		mushroomURL, err := handlers.AsHandlerLink("*pkg:$?var=services[name:"+service.Name+"]", configured.Category)
+		mushroomURL, err := mushroom.New("*pkg:$?var=services[name:"+service.Name+"]", configured.Category)
 		require.NoError(t, err)
-		handler.SetMushroomURL(mushroomURL)
+		handler.SetMushroomURL(mushroomURL.String())
 		require.NoError(t, handler.Start())
 		startedHandlers = append(startedHandlers, handler)
 	}
@@ -247,7 +248,7 @@ func TestRemoteServicesReturnsConfiguredServices(t *testing.T) {
 	startTestRuntimeHandler(t, service)
 
 	manager := newTestManager(t, service, managerEndpoint)
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(""))
 
 	client, err := protocolClient.NewSyncReplier(managerEndpoint.Id, managerEndpoint.Port)
 	require.NoError(t, err)
@@ -292,7 +293,7 @@ func TestStopServiceWithNilBlockerStopsConfiguredHandlers(t *testing.T) {
 	startTestRuntimeHandler(t, service)
 
 	manager := newTestManager(t, service, managerEndpoint)
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(""))
 	require.True(t, manager.Running())
 	require.Len(t, manager.handlerControls, len(handlers))
 
@@ -317,7 +318,7 @@ func TestStopServiceWithNilSharedBlockerPointer(t *testing.T) {
 	manager := newTestManager(t, service, managerEndpoint)
 	var blocker *sync.WaitGroup
 	manager.SetSharedBlocker(&blocker)
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(""))
 
 	require.NoError(t, manager.StopService(service.Name))
 
@@ -337,7 +338,7 @@ func TestRemoteStopServiceWithNilBlocker(t *testing.T) {
 	startTestRuntimeHandler(t, service)
 
 	manager := newTestManager(t, service, managerEndpoint)
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(""))
 
 	client, err := protocolClient.NewSyncReplier(managerEndpoint.Id, managerEndpoint.Port)
 	require.NoError(t, err)
@@ -372,7 +373,7 @@ func TestStopServiceReleasesBlockerOnce(t *testing.T) {
 	blocker.Add(1)
 	sharedBlocker := blocker
 	manager.SetSharedBlocker(&sharedBlocker)
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(""))
 
 	released := make(chan struct{})
 	go func() {
@@ -406,7 +407,7 @@ func TestCloseStopsConfiguredHandlersAndManagerSockets(t *testing.T) {
 	startTestRuntimeHandler(t, service)
 
 	manager := newTestManager(t, service, managerEndpoint)
-	require.NoError(t, manager.Start())
+	require.NoError(t, manager.Start(""))
 
 	require.NoError(t, manager.Close())
 
@@ -422,7 +423,7 @@ func TestStartFailsWhenTopologyClientIsNil(t *testing.T) {
 	require.NoError(t, err)
 	manager.topology = nil
 
-	require.EqualError(t, manager.Start(), "setHandlerControls: topology is nil")
+	require.EqualError(t, manager.Start(""), "setHandlerControls: topology is nil")
 	require.False(t, manager.Running())
 }
 
@@ -469,9 +470,9 @@ func startRecordingInprocTopologyExtension(t *testing.T, endpoint message.Endpoi
 		recorder.started[serviceName] = true
 		return req.Ok(datatype.New().Set("id", "1"))
 	}))
-	mushroomURL, err := handlers.AsHandlerLink("*pkg:$?var=services[name:inproc-topology]", handlers.DefaultHandlerCategory)
+	mushroomURL, err := mushroom.New("*pkg:$?var=services[name:inproc-topology]", handlers.DefaultHandlerCategory)
 	require.NoError(t, err)
-	handler.SetMushroomURL(mushroomURL)
+	handler.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
 		_ = handlers.CloseViaControl(handler)
@@ -509,9 +510,9 @@ func startRecordingServiceManager(t *testing.T, endpoint message.Endpoint) *reco
 		recorder.probe[serviceName] = false
 		return req.Ok(datatype.New())
 	}))
-	mushroomURL, err := handlers.AsHandlerLink("*pkg:$?var=services[name:test-service]", topology.ServiceManagerCategory)
+	mushroomURL, err := mushroom.New("*pkg:$?var=services[name:test-service]", topologyConfig.ServiceManagerCategory)
 	require.NoError(t, err)
-	handler.SetMushroomURL(mushroomURL)
+	handler.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
 		_ = handlers.CloseViaControl(handler)
@@ -530,7 +531,7 @@ func TestManagerDelegatesInprocStartStop(t *testing.T) {
 		Handlers: []topologyConfig.Handler{
 			topologyConfig.IndependentHandler{
 				Type:     topologyConfig.SyncReplierType,
-				Category: topology.ServiceManagerCategory,
+				Category: topologyConfig.ServiceManagerCategory,
 				Endpoint: inprocTopologyManager,
 			},
 			topologyConfig.ExtensionHandler{
@@ -564,7 +565,7 @@ func TestManagerDelegatesInprocStartStop(t *testing.T) {
 			},
 			topologyConfig.IndependentHandler{
 				Type:     topologyConfig.SyncReplierType,
-				Category: topology.ServiceManagerCategory,
+				Category: topologyConfig.ServiceManagerCategory,
 				Endpoint: childManager,
 			},
 		},

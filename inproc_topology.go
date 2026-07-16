@@ -13,8 +13,8 @@ import (
 	protocolClient "github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/manager"
+	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/service/package_url"
-	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
 
@@ -97,25 +97,29 @@ func (t *InprocTopologyService) onStartService(req RequestInterface) ReplyInterf
 }
 
 // SetService registers an in-process service instance for a topology mushroom URL.
-func (t *InprocTopologyService) SetService(mushroomURL string, svc Service) error {
+func (t *InprocTopologyService) SetService(url string, svc Service) error {
 	if t == nil {
 		return fmt.Errorf("inproc topology is nil")
 	}
 	if svc == nil {
 		return fmt.Errorf("inproc service is nil")
 	}
-	mushroomURL = dereferenceMushroomURL(mushroomURL)
-	if mushroomURL == "" {
+	if url == "" {
 		return fmt.Errorf("mushroom url is empty")
 	}
+	mushroomURL, err := mushroom.New(url)
+	if err != nil {
+		return fmt.Errorf("mushroom.New(%q): %w", mushroomURL, err)
+	}
+
 	tp := t.topology()
 	if tp == nil {
 		return fmt.Errorf("topology is nil")
 	}
 
-	serviceConfig, err := tp.Service(mushroomURL)
+	serviceConfig, err := tp.Service(mushroomURL.AsDereference().String())
 	if err != nil {
-		return fmt.Errorf("topology.Service(%q): %w", mushroomURL, err)
+		return fmt.Errorf("topology.Service(%q): %w", mushroomURL.AsDereference().String(), err)
 	}
 
 	t.services[serviceConfig.Name] = svc
@@ -383,7 +387,7 @@ func ProbeInprocServiceRunning(service config.Service) (bool, error) {
 }
 
 func managerEndpointForService(service config.Service) (message.Endpoint, error) {
-	managerHandler, err := service.HandlerByCategory(topology.ServiceManagerCategory)
+	managerHandler, err := service.HandlerByCategory(config.ServiceManagerCategory)
 	if err == nil {
 		handler, ok := managerHandler.AsIndependentHandler()
 		if !ok {

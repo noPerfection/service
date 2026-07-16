@@ -7,7 +7,6 @@ import (
 	"github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
-	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 )
 
@@ -58,7 +57,7 @@ const (
 	//--
 	AnyCmd                 = message.Any
 	DefaultHandlerCategory = handlers.DefaultHandlerCategory
-	ServiceManagerCategory = topology.ServiceManagerCategory
+	ServiceManagerCategory = topologyConfig.ServiceManagerCategory
 )
 
 // Create a new import. Alias for noPerfection/protocol/message.NewEndpoint

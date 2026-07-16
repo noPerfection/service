@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"github.com/noPerfection/log"
-	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
 	"github.com/noPerfection/service/handlers"
@@ -24,7 +23,7 @@ func New() (*service.Proxy, error) {
 		return nil, err
 	}
 
-	if err := app.Route(base.Any, onMetrics(logger), proxyCategory); err != nil {
+	if err := app.Route(message.Any, onMetrics(logger), proxyCategory); err != nil {
 		return nil, err
 	}
 
@@ -33,7 +32,7 @@ func New() (*service.Proxy, error) {
 
 func onMetrics(logger *log.Logger) handlers.ProxyHandleFunc {
 	return func(req handlers.ProxyRequest) handlers.ProxyReply {
-		logger.Warn("request", "command", req.CommandName())
+		logger.Info("request", "command", req.CommandName())
 
 		reply, err := req.Forward()
 		if err != nil {
@@ -42,9 +41,9 @@ func onMetrics(logger *log.Logger) handlers.ProxyHandleFunc {
 		}
 
 		if reply.IsOK() {
-			logger.Error("reply", "command", req.CommandName(), "status", "ok")
+			logger.Warn("reply", "command", req.CommandName(), "status", "ok")
 		} else {
-			logger.Info("reply", "command", req.CommandName(), "status", "error", "message", reply.ErrorMessage())
+			logger.Error("reply", "command", req.CommandName(), "status", "error", "message", reply.ErrorMessage())
 		}
 
 		return reply

@@ -4,12 +4,11 @@ go 1.25.0
 
 require (
 	github.com/noPerfection/datatype v0.0.0
+	github.com/noPerfection/log v0.0.0
 	github.com/noPerfection/os v0.0.0
 	github.com/noPerfection/protocol/client v0.0.0
-	github.com/noPerfection/protocol/handler v0.0.0
 	github.com/noPerfection/protocol/message v0.0.0
 	github.com/noPerfection/service v0.0.0
-	github.com/noPerfection/service/examples/009-inproc-services v0.0.0-20260630151749-428902929939
 	github.com/noPerfection/topology/config v0.0.0
 )
 
@@ -32,7 +31,7 @@ require (
 	github.com/muesli/kmeans v0.3.1 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
-	github.com/noPerfection/log v0.0.0 // indirect
+	github.com/noPerfection/protocol/handler v0.0.0 // indirect
 	github.com/noPerfection/topology v0.0.0-20260618053405-c0164a6cc6e0 // indirect
 	github.com/pebbe/zmq4 v1.2.10 // indirect
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5 // indirect

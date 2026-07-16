@@ -13,6 +13,7 @@ import (
 	protocolClient "github.com/noPerfection/protocol/client"
 	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 	"github.com/stretchr/testify/require"
@@ -690,9 +691,9 @@ func startForwardOutboundHandler(t *testing.T, handlerType protocolHandler.Handl
 
 	handler := newProtocolHandler(t, handlerType)
 	endpoint := setInprocHandlerEndpoint(t, handler, testEndpointID(t, category))
-	mushroomURL, err := AsHandlerLink(testServiceMushroomURL, category)
+	mushroomURL, err := mushroom.New(testServiceMushroomURL, category)
 	require.NoError(t, err)
-	handler.SetMushroomURL(mushroomURL)
+	handler.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, handler.Route("forward", func(req message.RequestInterface) message.ReplyInterface {
 		return req.Ok(datatype.New().Set("message", replyText))
 	}))
@@ -713,9 +714,9 @@ func startEchoOutboundHandler(t *testing.T, category string) topologyConfig.Inde
 
 	handler := newProtocolHandler(t, protocolHandler.SyncReplierType)
 	endpoint := setInprocHandlerEndpoint(t, handler, testEndpointID(t, category))
-	mushroomURL, err := AsHandlerLink(testServiceMushroomURL, category)
+	mushroomURL, err := mushroom.New(testServiceMushroomURL, category)
 	require.NoError(t, err)
-	handler.SetMushroomURL(mushroomURL)
+	handler.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, handler.Route("echo", func(req message.RequestInterface) message.ReplyInterface {
 		payload, err := req.RouteParameters().StringValue("payload")
 		if err != nil {
@@ -740,9 +741,9 @@ func startForwardPublisher(t *testing.T, serviceName string, category string, re
 
 	handler := newProtocolHandler(t, protocolHandler.PublisherType)
 	endpoint := setInprocHandlerEndpoint(t, handler, testEndpointID(t, category))
-	mushroomURL, err := AsHandlerLink(testServiceMushroomURL, category)
+	mushroomURL, err := mushroom.New(testServiceMushroomURL, category)
 	require.NoError(t, err)
-	handler.SetMushroomURL(mushroomURL)
+	handler.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, handler.Start())
 	t.Cleanup(func() {
 		require.NoError(t, CloseViaControl(handler))

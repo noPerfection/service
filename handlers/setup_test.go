@@ -9,6 +9,7 @@ import (
 	protocolClient "github.com/noPerfection/protocol/client"
 	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/mushroom"
 	"github.com/stretchr/testify/require"
 )
 
@@ -201,9 +202,9 @@ func TestStartReturnsHandlerStartError(t *testing.T) {
 	sharedEndpoint := testEndpointID(t, "sync-bind")
 	blocker := protocolHandler.NewSyncReplier()
 	setInprocHandlerEndpoint(t, blocker, sharedEndpoint)
-	mushroomURL, err := AsHandlerLink(testServiceMushroomURL, "blocker")
+	mushroomURL, err := mushroom.New(testServiceMushroomURL, "blocker")
 	require.NoError(t, err)
-	blocker.SetMushroomURL(mushroomURL)
+	blocker.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, blocker.Start())
 	t.Cleanup(func() {
 		handlers := []protocolHandler.Interface{blocker}
@@ -216,9 +217,9 @@ func TestStartReturnsHandlerStartError(t *testing.T) {
 	setInprocHandlerEndpoint(t, handler, sharedEndpoint)
 	require.NoError(t, manager.SetHandler("sync", handler))
 
-	handlerLink, err := AsHandlerLink(testServiceMushroomURL, "sync")
+	handlerLink, err := mushroom.New(testServiceMushroomURL, "sync")
 	require.NoError(t, err)
-	handler.SetMushroomURL(handlerLink)
+	handler.SetMushroomURL(handlerLink.String())
 	err = handler.Start()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "control.Start")

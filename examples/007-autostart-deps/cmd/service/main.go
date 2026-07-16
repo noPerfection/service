@@ -45,7 +45,7 @@ func main() {
 		panic(err)
 	}
 
-	if err := app.SetEndpoint(message.NewEndpoint("localhost", serviceManagerPort), topology.ServiceManagerCategory); err != nil {
+	if err := app.SetEndpoint(message.NewEndpoint("localhost", serviceManagerPort), service.ServiceManagerCategory); err != nil {
 		panic(err)
 	}
 
@@ -111,7 +111,7 @@ func proxyConfig(name string, moduleURL string, endpointID string, startCommand 
 			},
 			topologyConfig.IndependentHandler{
 				Type:     topologyConfig.SyncReplierType,
-				Category: topology.ServiceManagerCategory,
+				Category: service.ServiceManagerCategory,
 				Endpoint: message.NewEndpoint(managerEndpointID, 0),
 			},
 		},

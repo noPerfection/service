@@ -73,7 +73,7 @@ func TestInprocessDepNumberIncludesManagerHandlerDep(t *testing.T) {
 	require.NoError(t, independent.addHardcodedServicesToTopology())
 	require.NoError(t, independent.topologyHandler.AddService(defaultAiExtensionServiceConfig()))
 	require.NoError(t, independent.SetHandlerDeps(topologyConfig.DepService{
-		Name:       topology.ServiceManagerCategory,
+		Name:       ServiceManagerCategory,
 		Extensions: []string{aiExtensionServiceLink()},
 	}))
 	require.NoError(t, independent.addHardcodedHandlerDepsToTopology())
@@ -99,7 +99,7 @@ func TestInprocessDepNumberSkipsNonInprocManagerHandlerDep(t *testing.T) {
 	remoteAI.Handlers = []topologyConfig.Handler{
 		topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,
-			Category: topology.ServiceManagerCategory,
+			Category: ServiceManagerCategory,
 			Endpoint: message.NewEndpoint("localhost", 9001),
 		},
 		topologyConfig.ExtensionHandler{
@@ -114,7 +114,7 @@ func TestInprocessDepNumberSkipsNonInprocManagerHandlerDep(t *testing.T) {
 	require.False(t, remoteAI.IsInproc())
 
 	require.NoError(t, independent.SetHandlerDeps(topologyConfig.DepService{
-		Name:       topology.ServiceManagerCategory,
+		Name:       ServiceManagerCategory,
 		Extensions: []string{aiExtensionServiceLink()},
 	}))
 	require.NoError(t, independent.addHardcodedHandlerDepsToTopology())
@@ -144,7 +144,7 @@ func inprocManagerProxyService(name string, handlerEndpoint message.Endpoint, in
 			},
 			topologyConfig.IndependentHandler{
 				Type:     topologyConfig.SyncReplierType,
-				Category: topology.ServiceManagerCategory,
+				Category: ServiceManagerCategory,
 				Endpoint: managerEndpoint,
 			},
 		},
@@ -164,7 +164,7 @@ func inprocManagerIndependentService(name string, handlerEndpoint message.Endpoi
 			},
 			topologyConfig.IndependentHandler{
 				Type:     topologyConfig.SyncReplierType,
-				Category: topology.ServiceManagerCategory,
+				Category: ServiceManagerCategory,
 				Endpoint: managerEndpoint,
 			},
 		),

@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/noPerfection/datatype"
-	"github.com/noPerfection/protocol/handler/base"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
 	"github.com/noPerfection/service/handlers"
@@ -22,7 +21,7 @@ func New() (*service.Proxy, error) {
 		return nil, err
 	}
 
-	if err := app.Route(base.Any, onDefaultName, proxyCategory); err != nil {
+	if err := app.Route(message.Any, onDefaultName, proxyCategory); err != nil {
 		return nil, err
 	}
 

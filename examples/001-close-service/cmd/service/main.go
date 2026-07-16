@@ -17,7 +17,7 @@ func main() {
 		panic(err)
 	}
 
-	if err := app.SetEndpoint(message.NewEndpoint("localhost", serviceManagerPort), topology.ServiceManagerCategory); err != nil {
+	if err := app.SetEndpoint(message.NewEndpoint("localhost", serviceManagerPort), service.ServiceManagerCategory); err != nil {
 		panic(err)
 	}
 

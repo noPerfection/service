@@ -8,7 +8,6 @@ import (
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/os/arg"
 	"github.com/noPerfection/protocol/client"
-	managerClient "github.com/noPerfection/protocol/client/sync_replier"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/manager"
 	topologyConfig "github.com/noPerfection/topology/config"
@@ -66,14 +65,14 @@ func printHelp() {
   go run ./cmd/client --help`)
 }
 
-func newManagerClient() (*managerClient.Client, error) {
-	client, err := managerClient.NewClient(managerEndpoint, 0)
+func newManagerClient() (*client.SyncReplierClient, error) {
+	c, err := client.NewSyncReplier(managerEndpoint, 0)
 	if err != nil {
 		return nil, err
 	}
-	client.Timeout(time.Second * 30)
-	client.Attempt(2)
-	return client, nil
+	c.Timeout(time.Second * 30)
+	c.Attempt(2)
+	return c, nil
 }
 
 func listServices() {
@@ -112,7 +111,7 @@ func listServices() {
 	}
 }
 
-func serviceRunning(c *managerClient.Client, serviceName string) (bool, error) {
+func serviceRunning(c *client.SyncReplierClient, serviceName string) (bool, error) {
 	reply, err := c.Request(&message.Request{
 		Command:    manager.IsServiceRunning,
 		Parameters: datatype.New().Set("service", serviceName),
@@ -199,7 +198,7 @@ func callEntrypoint() {
 	}
 	defer c.Close()
 
-	c.Timeout(time.Second)
+	c.Timeout(time.Second * 30)
 	c.Attempt(1)
 
 	reply, err := c.Request(&message.Request{

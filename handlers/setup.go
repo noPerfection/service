@@ -9,6 +9,7 @@ import (
 	protocolClient "github.com/noPerfection/protocol/client"
 	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/mushroom"
 )
 
 const DefaultHandlerCategory = "main"
@@ -103,7 +104,7 @@ func (setup *Setup) SetLogger(logger *log.Logger) error {
 
 // Start starts all registered handlers.
 // The setup itself is not a thread to run
-func (setup *Setup) Start(serviceLink string) error {
+func (setup *Setup) Start(mushroomURL mushroom.TopologyURL) error {
 	if len(setup.handlers) == 0 {
 		return fmt.Errorf("no handlers")
 	}
@@ -141,12 +142,7 @@ func (setup *Setup) Start(serviceLink string) error {
 			}
 		}
 
-		handlerLink, err := AsHandlerLink(serviceLink, category)
-		if err != nil {
-			err = fmt.Errorf("handlers.AsHandlerLink(%q): %w", category, err)
-			goto exitStartHandler
-		}
-		handler.SetMushroomURL(handlerLink)
+		handler.SetMushroomURL(mushroomURL.New(category).String())
 
 		if err = handler.Start(); err != nil {
 			err = fmt.Errorf("handler(category: '%s').Start: %w", category, err)

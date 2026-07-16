@@ -12,6 +12,7 @@ import (
 	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
+	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 )
@@ -20,7 +21,7 @@ var _ topology.NodeInterface = (*ProxyManager)(nil)
 
 // DefaultProxyManagerEndpoint returns the default endpoint for a service's proxy manager.
 func DefaultProxyManagerEndpoint(serviceName string) message.Endpoint {
-	return message.NewEndpoint(serviceName+"_proxy_"+topology.ServiceManagerCategory, 0)
+	return message.NewEndpoint(serviceName+"_proxy_"+topologyConfig.ServiceManagerCategory, 0)
 }
 
 // ProxyManager keeps all necessary parameters of the proxy service.
@@ -145,7 +146,7 @@ func (m *ProxyManager) IsServiceRunning(serviceName string, attempts ...int) (bo
 	if err := m.ensureTopologyClient(); err != nil {
 		return false, err
 	}
-	return m.topology.IsServiceRunning(serviceName, attempts...)
+	return isServiceRunningWithReload(m.topology, serviceName, m.secretKey, attempts...)
 }
 
 func (m *ProxyManager) StopService(serviceName string) error {
@@ -173,6 +174,12 @@ func (m *ProxyManager) StopService(serviceName string) error {
 	}
 	if err := m.ensureTopologyClient(); err != nil {
 		return err
+	}
+	if err := stopRemoteService(m.topology, serviceName, m.secretKey); err != nil {
+		if localErr := m.topology.StopService(serviceName); localErr == nil {
+			return nil
+		}
+		return fmt.Errorf("stopRemoteService(%q): %w", serviceName, err)
 	}
 	return m.topology.StopService(serviceName)
 }
@@ -508,11 +515,11 @@ func (m *ProxyManager) Start() error {
 		return fmt.Errorf("topology.GetLink(%q): %w", m.serviceName, err)
 	}
 
-	handlerLink, err := handlers.AsHandlerLink(serviceLink, topology.ServiceManagerCategory)
+	handlerLink, err := mushroom.New(serviceLink, topologyConfig.ServiceManagerCategory)
 	if err != nil {
-		return fmt.Errorf("handlers.AsHandlerLink(%q): %w", topology.ServiceManagerCategory, err)
+		return fmt.Errorf("handlers.AsHandlerLink(%q): %w", topologyConfig.ServiceManagerCategory, err)
 	}
-	m.Interface.SetMushroomURL(handlerLink)
+	m.Interface.SetMushroomURL(handlerLink.String())
 
 	m.Interface.Secure(m.secretKey)
 

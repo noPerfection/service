@@ -77,7 +77,7 @@ func proxyConfig(name string, moduleURL string, port uint64, managerPort uint64)
 			},
 			topologyConfig.IndependentHandler{
 				Type:     topologyConfig.SyncReplierType,
-				Category: topology.ServiceManagerCategory,
+				Category: service.ServiceManagerCategory,
 				Endpoint: message.NewEndpoint("localhost", managerPort),
 			},
 		},

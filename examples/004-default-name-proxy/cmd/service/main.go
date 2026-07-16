@@ -74,7 +74,7 @@ func defaultNameProxyConfig() topologyConfig.Service {
 func proxyManagerConfig() topologyConfig.Handler {
 	return topologyConfig.IndependentHandler{
 		Type:     topologyConfig.SyncReplierType,
-		Category: topology.ServiceManagerCategory,
+		Category: service.ServiceManagerCategory,
 		Endpoint: message.NewEndpoint("localhost", 8002),
 	}
 }

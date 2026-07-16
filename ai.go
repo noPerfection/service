@@ -141,29 +141,12 @@ func (ai *AiService) registerRoutes() error {
 	})
 }
 
-func (ai *AiService) registerInTopology() error {
-	if ai == nil {
-		return fmt.Errorf("ai service is nil")
-	}
-	if err := ai.ensureTopologyHandler(); err != nil {
-		return err
-	}
-	_, err := ai.topologyHandler.Service(AiServiceName)
-	if err == nil {
-		return nil
-	}
-	if err := ai.topologyHandler.AddService(defaultAiExtensionServiceConfig()); err != nil {
-		return fmt.Errorf("topologyHandler.AddService(%q): %w", AiServiceName, err)
-	}
-	return nil
-}
-
 func (ai *AiService) ensureProvider() (model string, err error) {
 	if ai == nil {
 		return "", fmt.Errorf("ai service is nil")
 	}
 
-	serviceConfig, err := ai.topology().Service(ai.mushroomURL)
+	serviceConfig, err := ai.topology().Service(ai.mushroomURL.AsDereference().String())
 	if err != nil {
 		return "", err
 	}
@@ -189,12 +172,22 @@ func (ai *AiService) Start() error {
 	if ai.running {
 		return fmt.Errorf("ai service is already running")
 	}
-	if err := ai.registerInTopology(); err != nil {
-		return err
+
+	startErr := ai.Extension.Start()
+	if startErr != nil {
+		return fmt.Errorf("Extension.Start: %w", startErr)
+	}
+
+	_, err := ai.topology().Service(AiServiceName)
+	if err == nil {
+		return nil
+	}
+	if err := ai.topology().AddService(defaultAiExtensionServiceConfig()); err != nil {
+		return fmt.Errorf("topology().AddService(%q): %w", AiServiceName, err)
 	}
 
 	ai.running = true
-	return ai.Extension.Start()
+	return nil
 }
 
 // CheckConnection verifies that the Anthropic API key can make a minimal completion.

@@ -3,8 +3,13 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/noPerfection/datatype"
+	"github.com/noPerfection/protocol/client"
+	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service"
+	"github.com/noPerfection/service/manager"
 )
 
 const (
@@ -105,7 +110,7 @@ func main() {
 					Category: "main",
 					Endpoint: service.Endpoint(entrypointUrl, 0),
 				},
-				Routes: []string{service.AnyCmd},
+				Routes: []string{message.Any},
 			},
 			service.IndependentHandler{
 				Type:     service.SyncReplierType,
@@ -129,7 +134,7 @@ func main() {
 					Category: "main",
 					Endpoint: service.Endpoint(metricsUrl, 0),
 				},
-				Routes: []string{service.AnyCmd},
+				Routes: []string{message.Any},
 			},
 			service.IndependentHandler{
 				Type:     service.SyncReplierType,
@@ -189,6 +194,43 @@ func main() {
 		panic(err)
 	}
 
+	onHello := func(req service.RequestInterface) service.ReplyInterface {
+		name, err := req.RouteParameters().StringValue("name")
+		if err != nil || name == "" {
+			return req.Fail("name is required")
+		}
+
+		aiMgrClient, err := client.New(service.DefaultAiManagerEndpoint.Id, service.DefaultAiManagerEndpoint.Port, client.ReplierType)
+		if err != nil {
+			return req.Fail("ai manager client: " + err.Error())
+		}
+		defer aiMgrClient.Close()
+		aiMgrClient.Timeout(time.Second * 5)
+		aiMgrClient.Attempt(2)
+
+		reply, err := aiMgrClient.Request(&message.Request{
+			Command:    manager.IsServiceRunning,
+			Parameters: datatype.New().Set("service", service.AiServiceName),
+		})
+		if err != nil {
+			return req.Fail("ai manager request: " + err.Error())
+		}
+		if !reply.IsOK() {
+			return req.Fail("ai manager: " + reply.ErrorMessage())
+		}
+
+		running, err := reply.ReplyParameters().BoolValue("running")
+		fmt.Println("AI running: ", running)
+		if err != nil {
+			return req.Fail("ai running: " + err.Error())
+		}
+		if !running {
+			return req.Fail("ai service is not running")
+		}
+
+		return req.Ok(map[string]any{"message": "hello " + name})
+	}
+
 	app.Route("hello", onHello)
 	app.Route("age-verification", onAgeVerification)
 	app.Route("country", onCountry)
@@ -201,15 +243,6 @@ func main() {
 	fmt.Println("Started and ready!")
 
 	app.Wait()
-}
-
-func onHello(req service.RequestInterface) service.ReplyInterface {
-	name, err := req.RouteParameters().StringValue("name")
-	if err != nil || name == "" {
-		return req.Fail("name is required")
-	}
-
-	return req.Ok(map[string]any{"message": "hello " + name})
 }
 
 func onAgeVerification(req service.RequestInterface) service.ReplyInterface {
