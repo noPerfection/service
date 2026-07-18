@@ -19,9 +19,17 @@ type Proxy struct {
 	*handlers.ProxySetup
 	*WithHardcodedTopology
 	*TopologyConnection
-	name    string
-	blocker *sync.WaitGroup
-	manager *manager.ProxyManager // manage this proxy from other parts
+	name        string
+	mushroomURL mushroom.TopologyURL
+	blocker     *sync.WaitGroup
+	manager     *manager.ProxyManager // manage this proxy from other parts
+}
+
+func (proxy *Proxy) dereference() string {
+	if proxy.mushroomURL.String() == "" {
+		return proxy.name
+	}
+	return proxy.mushroomURL.AsDereference().String()
 }
 
 // Follows pkg:golang/github.com/noPerfection/service?object=Service&root=no_perfection.go
@@ -89,7 +97,7 @@ func (proxy *Proxy) Type() config.Type {
 
 func (proxy *Proxy) addDefaultServiceToTopology() error {
 	tp := proxy.topology()
-	serviceConfig, err := tp.Service(proxy.name)
+	serviceConfig, err := tp.Service(proxy.dereference())
 	if err == nil {
 		return nil
 	}
@@ -119,12 +127,12 @@ func (proxy *Proxy) addDefaultServiceToTopology() error {
 // otherwise manager.DefaultProxyManagerEndpoint is used.
 func (proxy *Proxy) ensureServiceManager() error {
 	tp := proxy.topology()
-	serviceConfig, err := tp.Service(proxy.name)
+	serviceConfig, err := tp.Service(proxy.dereference())
 	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", proxy.name, err)
+		return fmt.Errorf("topology.Service('%s'): %w", proxy.dereference(), err)
 	}
 
-	managerEndpoint := manager.DefaultProxyManagerEndpoint(proxy.name)
+	managerEndpoint := manager.DefaultProxyManagerEndpoint(serviceConfig.Name)
 	currentManager, err := serviceConfig.HandlerByCategory(config.ServiceManagerCategory)
 	if err == nil {
 		handler, ok := currentManager.AsIndependentHandler()
@@ -140,7 +148,7 @@ func (proxy *Proxy) ensureServiceManager() error {
 		}
 	}
 
-	m, err := manager.NewProxyManager(proxy.name, managerEndpoint, secretKey)
+	m, err := manager.NewProxyManager(serviceConfig.Name, managerEndpoint, secretKey)
 	if err != nil {
 		return fmt.Errorf("manager.NewProxyManager: %w", err)
 	}
@@ -163,16 +171,19 @@ func (proxy *Proxy) Start() error {
 		err = fmt.Errorf("npac.Start: %w", err)
 		goto errOccurred
 	}
-	if err = proxy.TopologyConnection.connectTopologyClientIfRunning(); err != nil {
-		err = fmt.Errorf("connectTopologyClientIfRunning: %w", err)
+	if err = proxy.TopologyConnection.setupTopologyConnection(); err != nil {
+		err = fmt.Errorf("setupTopologyConnection: %w", err)
 		goto errOccurred
 	}
 	serviceLink, err = proxy.topology().GetLink(proxy.name)
 	if err != nil {
 		err = fmt.Errorf("topology.GetLink('%s'): %w", proxy.name, err)
 		goto errOccurred
-	} else {
-		proxy.name = serviceLink
+	}
+	proxy.mushroomURL, err = mushroom.New(serviceLink)
+	if err != nil {
+		err = fmt.Errorf("mushroom.New('%s'): %w", serviceLink, err)
+		goto errOccurred
 	}
 
 	topologySnapshot, err = proxy.topology().Snapshot()
@@ -231,15 +242,13 @@ func (proxy *Proxy) Start() error {
 	proxy.blocker.Add(1)
 	proxy.manager.SetSharedBlocker(&proxy.blocker)
 
-	// Wait for all IPC deps concurrently, reloading config on each probe so
-	// that public keys written by newly started services are discovered.
-	if err = proxy.waitServicesRunning(); err != nil {
-		err = fmt.Errorf("waitServicesRunning: %w", err)
+	if err = proxy.manager.Start(); err != nil {
+		err = fmt.Errorf("proxy.manager.Start: %w", err)
 		goto errOccurred
 	}
 
-	if err = proxy.manager.Start(); err != nil {
-		err = fmt.Errorf("proxy.manager.Start: %w", err)
+	if err = proxy.manager.Handshake(); err != nil {
+		err = fmt.Errorf("manager.Handshake: %w", err)
 		goto errOccurred
 	}
 
@@ -266,18 +275,15 @@ errOccurred:
 
 func (proxy *Proxy) allowServiceManager() error {
 	tp := proxy.topology()
-	serviceConfig, err := tp.Service(proxy.name)
+	serviceConfig, err := tp.Service(proxy.dereference())
 	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", proxy.name, err)
+		return fmt.Errorf("topology.Service('%s'): %w", proxy.dereference(), err)
 	}
-	serviceLink, err := tp.GetLink(proxy.name)
-	if err != nil {
-		return fmt.Errorf("topology.GetLink('%s'): %w", proxy.name, err)
-	}
+	serviceLink := proxy.mushroomURL.String()
 
 	managerLink, err := mushroom.New(serviceLink, config.ServiceManagerCategory)
 	if err != nil {
-		return fmt.Errorf("mushroom.New('%s'): %w", serviceLink, config.ServiceManagerCategory, err)
+		return fmt.Errorf("mushroom.New(%q, %q): %w", serviceLink, config.ServiceManagerCategory, err)
 	}
 	publicKey := proxy.manager.PublicKey()
 
@@ -341,10 +347,10 @@ func (proxy *Proxy) allowServiceManager() error {
 		if err != nil {
 			return fmt.Errorf("topology.Service('%s'): %w", svcURL, err)
 		}
-		if !depServiceNeedsManagerAllow(depService.Parameters, managerLink, managerLink.ResourcePublicKey().AsDereference()) {
+		if !mushroom.IsAllowedPublicKeyMatch(&depService, managerLink, managerLink.ResourcePublicKey()) {
 			continue
 		}
-		setDepServiceManagerAllow(&depService, config.ServiceManagerCategory, managerLink, managerLink.ResourcePublicKey().AsDereference())
+		mushroom.AddAllowedPublicKey(&depService, managerLink, managerLink.ResourcePublicKey())
 		if err := tp.SetService(depService); err != nil {
 			return fmt.Errorf("topology.SetService('%s'): %w", depService.Name, err)
 		}
@@ -386,82 +392,10 @@ func (proxy *Proxy) addAllowedManagerClients(parameters datatype.KeyValue) error
 		proxy.manager.Allow(pubKey)
 		fmt.Printf("The %s allowed to access: %s\n", proxy.name, link)
 	}
-
-	return nil
-}
-
-// waitServicesRunning waits for every direct dep service (IPC and inproc) to
-// become running, probing them all in parallel.
-// attempts=10 with the IPC probe timeout of ~100ms gives ~1s total per dep.
-func (proxy *Proxy) waitServicesRunning() error {
-	tp := proxy.topology()
-	serviceConfig, err := tp.Service(proxy.name)
-	if err != nil {
-		return fmt.Errorf("topology.Service: %w", err)
+	if len(entryMap) > 0 {
+		proxy.manager.RequireWhitelist()
 	}
 
-	depURLs := make(map[string]struct{})
-
-	for _, hdep := range serviceConfig.HandlerDeps {
-		for _, u := range hdep.Proxies {
-			link, err := tp.GetLink(u)
-			if err != nil {
-				return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
-			}
-			mushroomURL, err := mushroom.New(link)
-			if err != nil {
-				return fmt.Errorf("mushroom.New('%s'): %w", link, err)
-			}
-			derefU := mushroomURL.AsDereference().String()
-			svcDep, err := tp.Service(derefU)
-			if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
-				depURLs[derefU] = struct{}{}
-			}
-		}
-		for _, u := range hdep.Extensions {
-			link, err := tp.GetLink(u)
-			if err != nil {
-				return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
-			}
-			mushroomURL, err := mushroom.New(link)
-			if err != nil {
-				return fmt.Errorf("mushroom.New('%s'): %w", link, err)
-			}
-			derefU := mushroomURL.AsDereference().String()
-			svcDep, err := tp.Service(derefU)
-			if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
-				depURLs[derefU] = struct{}{}
-			}
-		}
-	}
-
-	if len(depURLs) == 0 {
-		return nil
-	}
-
-	var wg sync.WaitGroup
-	errCh := make(chan error, len(depURLs))
-	for url := range depURLs {
-		wg.Add(1)
-		go func(depURL string) {
-			defer wg.Done()
-			running, runErr := proxy.manager.IsServiceRunning(depURL, 10)
-			if runErr != nil {
-				errCh <- fmt.Errorf("service %q: %w", depURL, runErr)
-				return
-			}
-			if running {
-				return
-			}
-			errCh <- fmt.Errorf("service %q did not become running after %d attempts", depURL, 10)
-		}(url)
-	}
-	wg.Wait()
-	close(errCh)
-
-	for e := range errCh {
-		return e
-	}
 	return nil
 }
 

@@ -3,6 +3,7 @@ package manager
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/noPerfection/datatype"
@@ -14,7 +15,10 @@ import (
 
 const ipcManagerProbeTimeout = 100 * time.Millisecond
 
-func newServiceManagerClient(service config.Service, secretKey string) (*topology.Client, error) {
+// IpcServiceStartAttempts is how many IPC manager probes startIpcServices waits after spawning a dep.
+const IpcServiceStartAttempts = 30
+
+func newServiceManagerClient(service config.Service, secretKey, hmacSecret string) (*topology.Client, error) {
 	handler, err := service.HandlerByCategory(config.ServiceManagerCategory)
 	if err != nil {
 		return nil, fmt.Errorf("no manager found in the '%s' service, please set its config", service.Name)
@@ -35,6 +39,9 @@ func newServiceManagerClient(service config.Service, secretKey string) (*topolog
 		}
 	}
 	node.Socket.Secure(secretKey)
+	if hmacSecret != "" {
+		_ = node.Socket.Whitelist(message.Any, hmacSecret)
+	}
 
 	return node, nil
 }
@@ -48,18 +55,18 @@ func managerProbeTimeout(service config.Service) time.Duration {
 	if !ok {
 		return topology.DefaultTimeout
 	}
-	if handler.Endpoint.IsIpc() {
+	if handler.Endpoint.IsIpc() || handler.Endpoint.IsInproc() {
 		return ipcManagerProbeTimeout
 	}
 	return topology.DefaultTimeout
 }
 
-func probeServiceRunning(service config.Service, secretKey string) (bool, error) {
+func probeServiceRunning(service config.Service, secretKey, hmacSecret string) (bool, error) {
 	if service.Type == config.IndependentType {
 		return true, nil
 	}
 
-	node, err := newServiceManagerClient(service, secretKey)
+	node, err := newServiceManagerClient(service, secretKey, hmacSecret)
 	if err != nil {
 		return false, err
 	}
@@ -79,7 +86,11 @@ func probeServiceRunning(service config.Service, secretKey string) (bool, error)
 		return false, err
 	}
 	if !running.IsOK() {
-		return false, fmt.Errorf("reply.Message: %s", running.ErrorMessage())
+		msg := running.ErrorMessage()
+		if strings.Contains(msg, message.ErrAccessDenied.Error()) {
+			return false, fmt.Errorf("reply.Message: %w (%s)", message.ErrAccessDenied, msg)
+		}
+		return false, fmt.Errorf("reply.Message: %s", msg)
 	}
 	isRunning, err := running.ReplyParameters().BoolValue("running")
 	if err != nil {
@@ -88,7 +99,7 @@ func probeServiceRunning(service config.Service, secretKey string) (bool, error)
 	return isRunning, nil
 }
 
-func isServiceRunningWithReload(tp *topology.Client, serviceURL, secretKey string, attempts ...int) (bool, error) {
+func isServiceRunningWithReload(tp *topology.Client, serviceURL, secretKey, hmacSecret string, attempts ...int) (bool, error) {
 	n := 1
 	if len(attempts) > 0 && attempts[0] > 1 {
 		n = attempts[0]
@@ -107,7 +118,7 @@ func isServiceRunningWithReload(tp *topology.Client, serviceURL, secretKey strin
 			return false, err
 		}
 
-		running, err := probeServiceRunning(service, secretKey)
+		running, err := probeServiceRunning(service, secretKey, hmacSecret)
 		if err != nil {
 			if errors.Is(err, message.ErrNoCurveKey) {
 				if !reload {
@@ -125,7 +136,7 @@ func isServiceRunningWithReload(tp *topology.Client, serviceURL, secretKey strin
 	return false, nil
 }
 
-func stopRemoteService(tp *topology.Client, serviceURL, secretKey string) error {
+func stopRemoteService(tp *topology.Client, serviceURL, secretKey, hmacSecret string) error {
 	service, err := tp.Service(serviceURL)
 	if err != nil {
 		return err
@@ -134,7 +145,7 @@ func stopRemoteService(tp *topology.Client, serviceURL, secretKey string) error 
 		return nil
 	}
 
-	node, err := newServiceManagerClient(service, secretKey)
+	node, err := newServiceManagerClient(service, secretKey, hmacSecret)
 	if err != nil {
 		return err
 	}

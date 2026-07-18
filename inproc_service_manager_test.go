@@ -6,7 +6,6 @@ import (
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
-	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 	"github.com/stretchr/testify/require"
 )
@@ -70,13 +69,13 @@ func TestInprocessDepNumberIncludesManagerHandlerDep(t *testing.T) {
 		message.NewEndpoint("main", 0),
 		message.NewEndpoint("custom-service_manager", 0),
 	)))
-	require.NoError(t, independent.addHardcodedServicesToTopology())
+	require.NoError(t, independent.addHardcodedServicesToTopology(independent.topology()))
 	require.NoError(t, independent.topologyHandler.AddService(defaultAiExtensionServiceConfig()))
 	require.NoError(t, independent.SetHandlerDeps(topologyConfig.DepService{
 		Name:       ServiceManagerCategory,
 		Extensions: []string{aiExtensionServiceLink()},
 	}))
-	require.NoError(t, independent.addHardcodedHandlerDepsToTopology())
+	require.NoError(t, independent.addHardcodedHandlerDepsToTopology(independent.topology()))
 
 	inprocServices, err := independent.topologyHandler.InprocessDepNumber("custom-service")
 	require.NoError(t, err)
@@ -93,7 +92,7 @@ func TestInprocessDepNumberSkipsNonInprocManagerHandlerDep(t *testing.T) {
 		message.NewEndpoint("main", 0),
 		message.NewEndpoint("custom-service_manager", 0),
 	)))
-	require.NoError(t, independent.addHardcodedServicesToTopology())
+	require.NoError(t, independent.addHardcodedServicesToTopology(independent.topology()))
 
 	remoteAI := defaultAiExtensionServiceConfig()
 	remoteAI.Handlers = []topologyConfig.Handler{
@@ -117,7 +116,7 @@ func TestInprocessDepNumberSkipsNonInprocManagerHandlerDep(t *testing.T) {
 		Name:       ServiceManagerCategory,
 		Extensions: []string{aiExtensionServiceLink()},
 	}))
-	require.NoError(t, independent.addHardcodedHandlerDepsToTopology())
+	require.NoError(t, independent.addHardcodedHandlerDepsToTopology(independent.topology()))
 
 	inprocServices, err := independent.topologyHandler.InprocessDepNumber("custom-service")
 	require.NoError(t, err)

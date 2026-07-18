@@ -1,12 +1,14 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
 	"github.com/noPerfection/protocol/handler/npac"
+	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/mushroom"
@@ -15,7 +17,7 @@ import (
 	"github.com/noPerfection/topology/config"
 )
 
-// Extension keeps all necessary parameters of the independent service.
+// Extension keeps all necessary parameters of the ext service.
 type Extension struct {
 	*handlers.Setup
 	*WithHardcodedTopology
@@ -74,7 +76,7 @@ func NewExt(params ...any) (*Extension, error) {
 		}
 	}
 
-	independent := &Extension{
+	ext := &Extension{
 		Setup:                 handlers.NewSetup(),
 		WithHardcodedTopology: NewHardcodedTopologies(mushroomURL),
 		TopologyConnection:    newTopologyConnection(),
@@ -82,54 +84,54 @@ func NewExt(params ...any) (*Extension, error) {
 		logger:                nil,
 	}
 
-	return independent, nil
+	return ext, nil
 }
 
 // EnableLogger toggles the optional service logger.
-func (independent *Extension) EnableLogger(enable bool) error {
+func (ext *Extension) EnableLogger(enable bool) error {
 	if !enable {
-		if err := independent.Setup.SetLogger(nil); err != nil {
+		if err := ext.Setup.SetLogger(nil); err != nil {
 			return fmt.Errorf("handlers.SetLogger: %w", err)
 		}
-		if independent.manager != nil {
-			if err := independent.manager.SetLogger(nil); err != nil {
+		if ext.manager != nil {
+			if err := ext.manager.SetLogger(nil); err != nil {
 				return fmt.Errorf("manager.SetLogger: %w", err)
 			}
 		}
-		independent.logger = nil
+		ext.logger = nil
 		return nil
 	}
 
-	logger, err := log.New(independent.rawMushroomURL, true)
+	logger, err := log.New(ext.rawMushroomURL, true)
 	if err != nil {
-		return fmt.Errorf("log.New(%s): %w", independent.rawMushroomURL, err)
+		return fmt.Errorf("log.New(%s): %w", ext.rawMushroomURL, err)
 	}
-	if err := independent.Setup.SetLogger(logger); err != nil {
+	if err := ext.Setup.SetLogger(logger); err != nil {
 		return fmt.Errorf("handlers.SetLogger: %w", err)
 	}
 
-	if independent.manager != nil {
-		if err := independent.manager.SetLogger(logger); err != nil {
+	if ext.manager != nil {
+		if err := ext.manager.SetLogger(logger); err != nil {
 			return fmt.Errorf("manager.SetLogger: %w", err)
 		}
 	}
 
-	independent.logger = logger
+	ext.logger = logger
 	return nil
 }
 
 // addDefaultServiceToTopology adds the default service config
 // if no config was given for this service.
-func (independent *Extension) addDefaultServiceToTopology() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.mushroomURL.AsDereference().String())
+func (ext *Extension) addDefaultServiceToTopology() error {
+	tp := ext.topology()
+	serviceConfig, err := tp.Service(ext.mushroomURL.AsDereference().String())
 	if err == nil {
 		return nil
 	}
 
 	serviceConfig = config.Service{
 		Type:     config.ExtensionType,
-		Name:     independent.rawMushroomURL,
+		Name:     ext.rawMushroomURL,
 		Handlers: []config.Handler{},
 	}
 	if serviceConfig.ModuleUrl == "" {
@@ -141,7 +143,7 @@ func (independent *Extension) addDefaultServiceToTopology() error {
 	}
 
 	if err := tp.AddService(serviceConfig); err != nil {
-		return fmt.Errorf("topology.AddService('%s'): %w", independent.mushroomURL, err)
+		return fmt.Errorf("topology.AddService('%s'): %w", ext.mushroomURL, err)
 	}
 
 	return nil
@@ -149,11 +151,11 @@ func (independent *Extension) addDefaultServiceToTopology() error {
 
 // addDefaultHandlerToTopology adds the default handler when no handlers exist.
 // Unless there are handlers set by you or others
-func (independent *Extension) addDefaultHandlerToTopology() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.mushroomURL.AsDereference().String())
+func (ext *Extension) addDefaultHandlerToTopology() error {
+	tp := ext.topology()
+	serviceConfig, err := tp.Service(ext.mushroomURL.AsDereference().String())
 	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+		return fmt.Errorf("topology.Service('%s'): %w", ext.mushroomURL, err)
 	}
 	if len(serviceConfig.Handlers) > 0 {
 		return nil
@@ -174,7 +176,7 @@ func (independent *Extension) addDefaultHandlerToTopology() error {
 	}
 	serviceConfig.Handlers = []config.Handler{defaultHandler}
 	if err := tp.SetService(serviceConfig); err != nil {
-		return fmt.Errorf("topology.SetService('%s'): %w", independent.mushroomURL, err)
+		return fmt.Errorf("topology.SetService('%s'): %w", ext.mushroomURL, err)
 	}
 
 	return nil
@@ -183,14 +185,14 @@ func (independent *Extension) addDefaultHandlerToTopology() error {
 // ensureServiceManager creates the service manager from topology configuration.
 // When the service record has a manager handler, that endpoint is used;
 // otherwise manager.DefaultExtensionManagerEndpoint is used.
-func (independent *Extension) ensureServiceManager() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.mushroomURL.AsDereference().String())
+func (ext *Extension) ensureServiceManager() error {
+	tp := ext.topology()
+	serviceConfig, err := tp.Service(ext.mushroomURL.AsDereference().String())
 	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+		return fmt.Errorf("topology.Service('%s'): %w", ext.mushroomURL, err)
 	}
 
-	managerEndpoint := manager.DefaultExtensionManagerEndpoint(independent.mushroomURL.AsDereference().String())
+	managerEndpoint := manager.DefaultExtensionManagerEndpoint(ext.mushroomURL.AsDereference().String())
 	currentManager, err := serviceConfig.HandlerByCategory(config.ServiceManagerCategory)
 	if err == nil {
 		handler := currentManager.(config.IndependentHandler)
@@ -204,16 +206,16 @@ func (independent *Extension) ensureServiceManager() error {
 		}
 	}
 
-	m, err := manager.New(independent.mushroomURL, managerEndpoint, secretKey)
+	m, err := manager.New(ext.mushroomURL, managerEndpoint, secretKey)
 	if err != nil {
 		return fmt.Errorf("manager.New: %w", err)
 	}
-	independent.manager = m
-	if err := independent.manager.SetLogger(independent.logger); err != nil {
+	ext.manager = m
+	if err := ext.manager.SetLogger(ext.logger); err != nil {
 		return fmt.Errorf("manager.SetLogger: %w", err)
 	}
 
-	if err := independent.addAllowedManagerClients(serviceConfig.Parameters); err != nil {
+	if err := ext.addAllowedManagerClients(serviceConfig.Parameters); err != nil {
 		return fmt.Errorf("addAllowedManagerClients: %w", err)
 	}
 
@@ -223,11 +225,11 @@ func (independent *Extension) ensureServiceManager() error {
 // addTopologyHandlersToHandlers adds the handlers to the handlers list.
 // Except for the Service Manager category, any handler defined in the topology is
 // registered in the handlers package for launching them.
-func (independent *Extension) addTopologyHandlersToHandlers() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.mushroomURL.AsDereference().String())
+func (ext *Extension) addTopologyHandlersToHandlers() error {
+	tp := ext.topology()
+	serviceConfig, err := tp.Service(ext.mushroomURL.AsDereference().String())
 	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+		return fmt.Errorf("topology.Service('%s'): %w", ext.mushroomURL, err)
 	}
 
 	for _, configuredVariant := range serviceConfig.Handlers {
@@ -244,7 +246,7 @@ func (independent *Extension) addTopologyHandlersToHandlers() error {
 			return fmt.Errorf("newTopologyHandler('%s'): %w", configured.Category, err)
 		}
 		handler.SetEndpoint(configured.Endpoint)
-		if err := independent.Setup.SetHandler(configured.Category, handler); err != nil {
+		if err := ext.Setup.SetHandler(configured.Category, handler); err != nil {
 			return fmt.Errorf("handlers.SetHandler('%s'): %w", configured.Category, err)
 		}
 	}
@@ -255,7 +257,7 @@ func (independent *Extension) addTopologyHandlersToHandlers() error {
 // Start the service.
 //
 // Requires at least one handler.
-func (independent *Extension) Start() error {
+func (ext *Extension) Start() error {
 	var err error
 	var inprocServices int
 	var topologySnapshot string
@@ -265,74 +267,74 @@ func (independent *Extension) Start() error {
 		err = fmt.Errorf("npac.Start: %w", err)
 		goto errOccurred
 	}
-	if err = independent.TopologyConnection.setupTopologyConnection(); err != nil {
+	if err = ext.TopologyConnection.setupTopologyConnection(); err != nil {
 		err = fmt.Errorf("setupTopologyConnection: %w", err)
 		goto errOccurred
 	}
-	serviceLink, err = independent.topology().GetLink(independent.rawMushroomURL)
+	serviceLink, err = ext.topology().GetLink(ext.rawMushroomURL)
 	if err != nil {
-		err = fmt.Errorf("topology.GetLink('%s'): %w", independent.rawMushroomURL, err)
+		err = fmt.Errorf("topology.GetLink('%s'): %w", ext.rawMushroomURL, err)
 		goto errOccurred
 	} else {
-		independent.mushroomURL, err = mushroom.New(serviceLink)
+		ext.mushroomURL, err = mushroom.New(serviceLink)
 		if err != nil {
 			err = fmt.Errorf("mushroom.New('%s'): %w", serviceLink, err)
 			goto errOccurred
 		}
 	}
 
-	topologySnapshot, err = independent.topology().Snapshot()
+	topologySnapshot, err = ext.topology().Snapshot()
 	if err != nil {
 		err = fmt.Errorf("topology.Snapshot: %w", err)
 		goto errOccurred
 	}
-	if err = independent.WithHardcodedTopology.addHardcodedServicesToTopology(independent.topology()); err != nil {
+	if err = ext.WithHardcodedTopology.addHardcodedServicesToTopology(ext.topology()); err != nil {
 		err = fmt.Errorf("addHardcodedServicesToTopology: %w", err)
 		goto errOccurred
 	}
-	if err = independent.addDefaultServiceToTopology(); err != nil {
+	if err = ext.addDefaultServiceToTopology(); err != nil {
 		err = fmt.Errorf("addDefaultServiceToTopology: %w", err)
 		goto errOccurred
 	}
-	if err = independent.WithHardcodedTopology.addHardcodedHandlersToTopology(independent.topology()); err != nil {
+	if err = ext.WithHardcodedTopology.addHardcodedHandlersToTopology(ext.topology()); err != nil {
 		err = fmt.Errorf("addHardcodedHandlersToTopology: %w", err)
 		goto errOccurred
 	}
-	if err = independent.addDefaultHandlerToTopology(); err != nil {
+	if err = ext.addDefaultHandlerToTopology(); err != nil {
 		err = fmt.Errorf("addDefaultHandlerToTopology: %w", err)
 		goto errOccurred
 	}
 
-	if err = independent.WithHardcodedTopology.addHardcodedHandlerDepsToTopology(independent.topology()); err != nil {
+	if err = ext.WithHardcodedTopology.addHardcodedHandlerDepsToTopology(ext.topology()); err != nil {
 		err = fmt.Errorf("addHardcodedHandlerDepsToTopology: %w", err)
 		goto errOccurred
 	}
-	if err = independent.WithHardcodedTopology.addHardcodedServiceParamsToTopology(independent.topology()); err != nil {
+	if err = ext.WithHardcodedTopology.addHardcodedServiceParamsToTopology(ext.topology()); err != nil {
 		err = fmt.Errorf("addHardcodedServiceParamsToTopology: %w", err)
 		goto errOccurred
 	}
-	if err = independent.WithHardcodedTopology.addHardcodedEndpointsToTopology(independent.topology()); err != nil {
+	if err = ext.WithHardcodedTopology.addHardcodedEndpointsToTopology(ext.topology()); err != nil {
 		err = fmt.Errorf("addHardcodedEndpointsToTopology: %w", err)
 		goto errOccurred
 	}
 
-	if err = independent.ensureServiceManager(); err != nil {
+	if err = ext.ensureServiceManager(); err != nil {
 		err = fmt.Errorf("ensureServiceManager: %w", err)
 		goto errOccurred
 	}
 
-	if err = independent.WithHardcodedTopology.addHardcodedCommandDepsToTopology(independent.topology()); err != nil {
+	if err = ext.WithHardcodedTopology.addHardcodedCommandDepsToTopology(ext.topology()); err != nil {
 		err = fmt.Errorf("addHardcodedCommandDepsToTopology: %w", err)
 		goto errOccurred
 	}
 
-	if err = independent.addTopologyHandlersToHandlers(); err != nil {
+	if err = ext.addTopologyHandlersToHandlers(); err != nil {
 		err = fmt.Errorf("addTopologyHandlers: %w", err)
 		goto errOccurred
 	}
 
-	tp = independent.topology()
-	if err = tp.ValidateProtocolOrder(independent.mushroomURL.AsDereference().String()); err != nil {
+	tp = ext.topology()
+	if err = tp.ValidateProtocolOrder(ext.mushroomURL.AsDereference().String()); err != nil {
 		err = fmt.Errorf("topology.ValidateProtocolOrder: %w", err)
 		goto errOccurred
 	}
@@ -340,80 +342,78 @@ func (independent *Extension) Start() error {
 		err = fmt.Errorf("topology.ValidateInprocServiceManagers: %w", err)
 		goto errOccurred
 	}
-	if inprocServices, err = tp.InprocessDepNumber(independent.mushroomURL.AsDereference().String()); err != nil {
+	if inprocServices, err = tp.InprocessDepNumber(ext.mushroomURL.AsDereference().String()); err != nil {
 		err = fmt.Errorf("topology.InprocessDepNumber: %w", err)
 		goto errOccurred
 	}
 
 	// Managers must have the public keys
-	if independent.manager.PublicKey() == "" {
+	if ext.manager.PublicKey() == "" {
 		err = fmt.Errorf("manager.PublicKey() is empty")
 		goto errOccurred
 	}
 
-	if err = independent.allowServiceManager(); err != nil {
+	if err = ext.allowServiceManager(); err != nil {
 		err = fmt.Errorf("allowServiceManager: %w", err)
 		goto errOccurred
 	}
 
-	if independent.TopologyConnection.topologyHandler != nil {
-		if err = independent.TopologyConnection.topologyHandler.Start(); err != nil {
+	if ext.TopologyConnection.topologyHandler != nil {
+		if err = ext.TopologyConnection.topologyHandler.Start(); err != nil {
 			err = fmt.Errorf("topologyHandler.Start(): %w", err)
 			goto errOccurred
 		}
 	}
-	if err = independent.TopologyConnection.ensureTopologyClient(); err != nil {
+	if err = ext.TopologyConnection.ensureTopologyClient(); err != nil {
 		err = fmt.Errorf("ensureTopologyClient: %w", err)
 		goto errOccurred
 	}
-	if err = independent.Setup.Start(independent.mushroomURL); err != nil {
+	if err = ext.Setup.Start(ext.mushroomURL); err != nil {
 		err = fmt.Errorf("handlers.Start: %w", err)
 		goto errOccurred
 	}
 
-	independent.blocker = &sync.WaitGroup{}
-	independent.blocker.Add(1)
+	ext.blocker = &sync.WaitGroup{}
+	ext.blocker.Add(1)
 
-	independent.manager.SetSharedBlocker(&independent.blocker)
-	if err = independent.manager.Start(); err != nil {
+	ext.manager.SetSharedBlocker(&ext.blocker)
+	if err = ext.manager.Start(); err != nil {
 		err = fmt.Errorf("service.manager.Start: %w", err)
 		goto errOccurred
 	}
 
-	if err = independent.syncCommandOutbounds(); err != nil {
+	if err = ext.syncCommandOutbounds(); err != nil {
 		err = fmt.Errorf("syncCommandOutbounds: %w", err)
 		goto errOccurred
 	}
-	if err = independent.syncHandlerDepOutbounds(); err != nil {
+	if err = ext.syncHandlerDepOutbounds(); err != nil {
 		err = fmt.Errorf("syncHandlerDepOutbounds: %w", err)
 		goto errOccurred
 	}
 	if inprocServices > 0 {
 		fmt.Printf("todo: implement setupInproc() for extension only if its not running on main file\n")
 	}
-	if err = independent.startIpcServices(); err != nil {
+	if err = ext.startIpcServices(); err != nil {
 		err = fmt.Errorf("startIpcServices: %w", err)
 		goto errOccurred
 	}
-	// Wait for all IPC deps concurrently, reloading config on each probe so
-	// that public keys written by newly started services are discovered.
-	if err = independent.waitServicesRunning(); err != nil {
-		err = fmt.Errorf("waitServicesRunning: %w", err)
+	if err = ext.manager.Handshake(); err != nil {
+		err = fmt.Errorf("manager.Handshake: %w", err)
 		goto errOccurred
 	}
 
 errOccurred:
 	if err != nil {
 		if topologySnapshot != "" {
-			if rollbackErr := independent.topology().Rollback(topologySnapshot); rollbackErr != nil {
+			if rollbackErr := ext.topology().Rollback(topologySnapshot); rollbackErr != nil {
 				err = fmt.Errorf("%w: topology.Rollback: %v", err, rollbackErr)
 			}
 		}
-		if topologyCloseErr := independent.TopologyConnection.closeTopologyClient(); topologyCloseErr != nil {
+		if topologyCloseErr := ext.TopologyConnection.closeTopologyClient(); topologyCloseErr != nil {
 			err = fmt.Errorf("%w: closeTopologyClient: %w", err, topologyCloseErr)
 		}
-		if independent.manager != nil && independent.manager.Running() {
-			closeErr := independent.manager.StopService(independent.mushroomURL.AsDereference().String())
+		if ext.manager != nil && ext.manager.Running() {
+			closeErr := ext.manager.StopService(ext.mushroomURL.AsDereference().String())
 			if closeErr != nil {
 				err = fmt.Errorf("%v: manager.StopService: %w", err, closeErr)
 			}
@@ -423,11 +423,11 @@ errOccurred:
 	return err
 }
 
-func (independent *Extension) syncHandlerDepOutbounds() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.mushroomURL.AsDereference().String())
+func (ext *Extension) syncHandlerDepOutbounds() error {
+	tp := ext.topology()
+	serviceConfig, err := tp.Service(ext.mushroomURL.AsDereference().String())
 	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+		return fmt.Errorf("topology.Service('%s'): %w", ext.mushroomURL, err)
 	}
 	if len(serviceConfig.HandlerDeps) == 0 {
 		return nil
@@ -445,9 +445,9 @@ func (independent *Extension) syncHandlerDepOutbounds() error {
 		}
 		handler, ok := handlerVariant.AsIndependentHandler()
 		if !ok {
-			return fmt.Errorf("handler dep %q is not an independent handler", dep.Name)
+			return fmt.Errorf("handler dep %q is not an ext handler", dep.Name)
 		}
-		routes, err := independent.Setup.RouteCommands(dep.Name)
+		routes, err := ext.Setup.RouteCommands(dep.Name)
 		if err != nil {
 			return fmt.Errorf("handler dep %q route commands: %w", dep.Name, err)
 		}
@@ -457,11 +457,11 @@ func (independent *Extension) syncHandlerDepOutbounds() error {
 
 		for proxyIndex := range dep.Proxies {
 			proxyURL := dep.Proxies[proxyIndex]
-			outbound, commandOutbounds, err := independent.handlerDepProxyOutboundTargets(handler, dep.Proxies, proxyIndex, routes)
+			outbound, commandOutbounds, err := ext.handlerDepProxyOutboundTargets(handler, dep.Proxies, proxyIndex, routes)
 			if err != nil {
 				return fmt.Errorf("handler %q proxy %q outbound: %w", dep.Name, proxyURL, err)
 			}
-			if err := independent.syncHandlerDepProxyOutbounds(routes, proxyURL, outbound, commandOutbounds); err != nil {
+			if err := ext.syncHandlerDepProxyOutbounds(routes, proxyURL, outbound, commandOutbounds); err != nil {
 				return fmt.Errorf("handler %q proxy %q: %w", dep.Name, proxyURL, err)
 			}
 		}
@@ -471,26 +471,26 @@ func (independent *Extension) syncHandlerDepOutbounds() error {
 }
 
 // startIpcServices starts IPC services this service depends on.
-func (independent *Extension) startIpcServices() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.mushroomURL.AsDereference().String())
+func (ext *Extension) startIpcServices() error {
+	tp := ext.topology()
+	serviceConfig, err := tp.Service(ext.mushroomURL.AsDereference().String())
 	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+		return fmt.Errorf("topology.Service('%s'): %w", ext.mushroomURL, err)
 	}
 
 	startedRefs := make(map[string]struct{})
-	return independent.startIpcServicesFor(serviceConfig, startedRefs)
+	return ext.startIpcServicesFor(serviceConfig, startedRefs)
 }
 
-func (independent *Extension) startIpcServicesFor(serviceConfig config.Service, startedRefs map[string]struct{}) error {
-	tp := independent.topology()
+func (ext *Extension) startIpcServicesFor(serviceConfig config.Service, startedRefs map[string]struct{}) error {
+	tp := ext.topology()
 	for _, dep := range serviceConfig.HandlerDeps {
 		for _, proxy := range dep.Proxies {
 			link, err := tp.GetLink(proxy)
 			if err != nil {
 				return fmt.Errorf("topology.GetLink('%s'): %w", proxy, err)
 			}
-			if err := independent.startIpcService(link, startedRefs); err != nil {
+			if err := ext.startIpcService(link, startedRefs); err != nil {
 				return fmt.Errorf("handler dep %q proxy %q: %w", dep.Name, proxy, err)
 			}
 		}
@@ -499,7 +499,7 @@ func (independent *Extension) startIpcServicesFor(serviceConfig config.Service, 
 			if err != nil {
 				return fmt.Errorf("topology.GetLink('%s'): %w", extension, err)
 			}
-			if err := independent.startIpcService(link, startedRefs); err != nil {
+			if err := ext.startIpcService(link, startedRefs); err != nil {
 				return fmt.Errorf("handler dep %q extension %q: %w", dep.Name, extension, err)
 			}
 		}
@@ -516,7 +516,7 @@ func (independent *Extension) startIpcServicesFor(serviceConfig config.Service, 
 				if err != nil {
 					return fmt.Errorf("topology.GetLink('%s'): %w", proxy, err)
 				}
-				if err := independent.startIpcService(link, startedRefs); err != nil {
+				if err := ext.startIpcService(link, startedRefs); err != nil {
 					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxy, err)
 				}
 			}
@@ -525,7 +525,7 @@ func (independent *Extension) startIpcServicesFor(serviceConfig config.Service, 
 				if err != nil {
 					return fmt.Errorf("topology.GetLink('%s'): %w", extension, err)
 				}
-				if err := independent.startIpcService(link, startedRefs); err != nil {
+				if err := ext.startIpcService(link, startedRefs); err != nil {
 					return fmt.Errorf("handler %q command %q extension %q: %w", handler.Category, dep.Name, extension, err)
 				}
 			}
@@ -535,116 +535,7 @@ func (independent *Extension) startIpcServicesFor(serviceConfig config.Service, 
 	return nil
 }
 
-// waitServicesRunning waits for every direct dep service (IPC and inproc) to
-// become running, probing them all in parallel.
-// attempts=10 with the IPC probe timeout of ~100ms gives ~1s total per dep.
-func (independent *Extension) waitServicesRunning() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.mushroomURL.AsDereference().String())
-	if err != nil {
-		return fmt.Errorf("topology.Service: %w", err)
-	}
-
-	depURLs := make(map[string]struct{})
-
-	for _, hdep := range serviceConfig.HandlerDeps {
-		for _, u := range hdep.Proxies {
-			link, err := tp.GetLink(u)
-			if err != nil {
-				return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
-			}
-			proxyMushroomURL, err := mushroom.New(link)
-			if err != nil {
-				return fmt.Errorf("mushroom.New('%s'): %w", u, err)
-			}
-			svcDep, err := tp.Service(proxyMushroomURL.AsDereference().String())
-			if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
-				depURLs[proxyMushroomURL.AsDereference().String()] = struct{}{}
-			}
-		}
-		for _, u := range hdep.Extensions {
-			link, err := tp.GetLink(u)
-			if err != nil {
-				return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
-			}
-			proxyMushroomURL, err := mushroom.New(link)
-			if err != nil {
-				return fmt.Errorf("mushroom.New('%s'): %w", u, err)
-			}
-			svcDep, err := tp.Service(proxyMushroomURL.AsDereference().String())
-			if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
-				depURLs[proxyMushroomURL.AsDereference().String()] = struct{}{}
-			}
-		}
-	}
-	for _, variant := range serviceConfig.Handlers {
-		h, ok := variant.AsIndependentHandler()
-		if !ok {
-			continue
-		}
-		for _, cdep := range h.CommandDeps {
-			for _, u := range cdep.Proxies {
-				link, err := tp.GetLink(u)
-				if err != nil {
-					return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
-				}
-				proxyMushroomURL, err := mushroom.New(link)
-				if err != nil {
-					return fmt.Errorf("mushroom.New('%s'): %w", u, err)
-				}
-				svcDep, err := tp.Service(proxyMushroomURL.AsDereference().String())
-				if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
-					depURLs[proxyMushroomURL.AsDereference().String()] = struct{}{}
-				}
-			}
-			for _, u := range cdep.Extensions {
-				link, err := tp.GetLink(u)
-				if err != nil {
-					return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
-				}
-				proxyMushroomURL, err := mushroom.New(link)
-				if err != nil {
-					return fmt.Errorf("mushroom.New('%s'): %w", u, err)
-				}
-				svcDep, err := tp.Service(proxyMushroomURL.AsDereference().String())
-				if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
-					depURLs[proxyMushroomURL.AsDereference().String()] = struct{}{}
-				}
-			}
-		}
-	}
-
-	if len(depURLs) == 0 {
-		return nil
-	}
-
-	var wg sync.WaitGroup
-	errCh := make(chan error, len(depURLs))
-	for url := range depURLs {
-		wg.Add(1)
-		go func(depURL string) {
-			defer wg.Done()
-			running, runErr := independent.manager.IsServiceRunning(depURL, 10)
-			if runErr != nil {
-				errCh <- fmt.Errorf("service %q: %w", depURL, runErr)
-				return
-			}
-			if running {
-				return
-			}
-			errCh <- fmt.Errorf("service %q did not become running after %d attempts", depURL, 10)
-		}(url)
-	}
-	wg.Wait()
-	close(errCh)
-
-	for e := range errCh {
-		return e
-	}
-	return nil
-}
-
-func (independent *Extension) startIpcService(url string, startedRefs map[string]struct{}) error {
+func (ext *Extension) startIpcService(url string, startedRefs map[string]struct{}) error {
 	if url == "" {
 		return fmt.Errorf("dep mushroom url is empty")
 	}
@@ -653,7 +544,7 @@ func (independent *Extension) startIpcService(url string, startedRefs map[string
 		return fmt.Errorf("mushroom.New('%s'): %w", url, err)
 	}
 
-	depService, err := independent.topology().Service(mushroomURL.AsDereference().String())
+	depService, err := ext.topology().Service(mushroomURL.AsDereference().String())
 	if err != nil {
 		return err
 	}
@@ -662,7 +553,7 @@ func (independent *Extension) startIpcService(url string, startedRefs map[string
 	}
 	startedRefs[depService.Name] = struct{}{}
 
-	if err := independent.startIpcServicesFor(depService, startedRefs); err != nil {
+	if err := ext.startIpcServicesFor(depService, startedRefs); err != nil {
 		return fmt.Errorf("service %q ipc deps: %w", depService.Name, err)
 	}
 	if !depService.IsIpc() {
@@ -672,31 +563,45 @@ func (independent *Extension) startIpcService(url string, startedRefs map[string
 		return fmt.Errorf("service '%s' has no start command given", depService.Name)
 	}
 
-	running, err := independent.manager.IsServiceRunning(depService.Name)
+	derefURL := mushroomURL.AsDereference().String()
+	running, err := ext.manager.IsServiceRunning(derefURL)
 	if err != nil {
+		if errors.Is(err, message.ErrAccessDenied) {
+			return nil
+		}
 		return fmt.Errorf("manager.IsServiceRunning('%s'): %w", depService.Name, err)
 	}
 	if running {
 		return nil
 	}
-	if _, err := independent.manager.StartService(depService.Name); err != nil {
+	if _, err := ext.manager.StartService(depService.Name); err != nil {
 		return fmt.Errorf("manager.StartService('%s'): %w", depService.Name, err)
+	}
+	running, err = ext.manager.IsServiceRunning(derefURL, 10)
+	if err != nil {
+		if errors.Is(err, message.ErrAccessDenied) {
+			return nil
+		}
+		return fmt.Errorf("manager.IsServiceRunning('%s'): %w", depService.Name, err)
+	}
+	if !running {
+		return fmt.Errorf("service %q did not become running after start", depService.Name)
 	}
 	return nil
 }
 
-func (independent *Extension) allowServiceManager() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.mushroomURL.AsDereference().String())
+func (ext *Extension) allowServiceManager() error {
+	tp := ext.topology()
+	serviceConfig, err := tp.Service(ext.mushroomURL.AsDereference().String())
 	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+		return fmt.Errorf("topology.Service('%s'): %w", ext.mushroomURL, err)
 	}
 
-	managerLink, err := mushroom.New(independent.mushroomURL.New(config.ServiceManagerCategory).String())
+	managerLink, err := mushroom.New(ext.mushroomURL.New(config.ServiceManagerCategory).String())
 	if err != nil {
-		return fmt.Errorf("mushroom.New('%s'): %w", independent.mushroomURL.New(config.ServiceManagerCategory).String(), err)
+		return fmt.Errorf("mushroom.New('%s'): %w", ext.mushroomURL.New(config.ServiceManagerCategory).String(), err)
 	}
-	publicKey := independent.manager.PublicKey()
+	publicKey := ext.manager.PublicKey()
 
 	if serviceConfig.Parameters == nil {
 		serviceConfig.Parameters = datatype.New()
@@ -704,7 +609,7 @@ func (independent *Extension) allowServiceManager() error {
 	if existing, _ := serviceConfig.Parameters[manager.ManagerPublicKeyParam].(string); existing != publicKey {
 		serviceConfig.Parameters[manager.ManagerPublicKeyParam] = publicKey
 		if err := tp.SetService(serviceConfig); err != nil {
-			return fmt.Errorf("topology.SetService('%s') store public key: %w", independent.mushroomURL, err)
+			return fmt.Errorf("topology.SetService('%s') store public key: %w", ext.mushroomURL, err)
 		}
 	}
 
@@ -758,10 +663,10 @@ func (independent *Extension) allowServiceManager() error {
 		if err != nil {
 			return fmt.Errorf("topology.Service('%s'): %w", svcURL, err)
 		}
-		if !depServiceNeedsManagerAllow(depService.Parameters, managerLink, independent.mushroomURL.ResourcePublicKey()) {
+		if !mushroom.IsAllowedPublicKeyMatch(&depService, managerLink, ext.mushroomURL.ResourcePublicKey()) {
 			continue
 		}
-		setDepServiceManagerAllow(&depService, config.ServiceManagerCategory, managerLink, independent.mushroomURL.ResourcePublicKey())
+		mushroom.AddAllowedPublicKey(&depService, managerLink, ext.mushroomURL.ResourcePublicKey())
 		if err := tp.SetService(depService); err != nil {
 			return fmt.Errorf("topology.SetService('%s'): %w", depService.Name, err)
 		}
@@ -770,42 +675,42 @@ func (independent *Extension) allowServiceManager() error {
 	return nil
 }
 
-func (independent *Extension) addAllowedManagerClients(parameters datatype.KeyValue) error {
+func (ext *Extension) addAllowedManagerClients(parameters datatype.KeyValue) error {
 	if parameters == nil {
-		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: parameters not set, no one can access this service", "service", independent.mushroomURL)
+		if ext.logger != nil {
+			ext.logger.Warn("no allowed keys: parameters not set, no one can access this service", "service", ext.mushroomURL)
 		}
 		return nil
 	}
 
 	allowed, ok := parameters["allowed"]
 	if !ok {
-		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: 'allowed' parameter missing, no one can access this service", "service", independent.mushroomURL)
+		if ext.logger != nil {
+			ext.logger.Warn("no allowed keys: 'allowed' parameter missing, no one can access this service", "service", ext.mushroomURL)
 		}
 		return nil
 	}
 
 	categoryMap, ok := allowed.(map[string]interface{})
 	if !ok {
-		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: 'allowed' parameter has unexpected type", "service", independent.mushroomURL)
+		if ext.logger != nil {
+			ext.logger.Warn("no allowed keys: 'allowed' parameter has unexpected type", "service", ext.mushroomURL)
 		}
 		return nil
 	}
 
 	managerEntry, ok := categoryMap[config.ServiceManagerCategory]
 	if !ok {
-		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: service manager category not found in allowed", "service", independent.mushroomURL, "category", config.ServiceManagerCategory)
+		if ext.logger != nil {
+			ext.logger.Warn("no allowed keys: service manager category not found in allowed", "service", ext.mushroomURL, "category", config.ServiceManagerCategory)
 		}
 		return nil
 	}
 
 	entryMap, ok := managerEntry.(map[string]interface{})
 	if !ok {
-		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: manager allowed entry has unexpected type", "service", independent.mushroomURL)
+		if ext.logger != nil {
+			ext.logger.Warn("no allowed keys: manager allowed entry has unexpected type", "service", ext.mushroomURL)
 		}
 		return nil
 	}
@@ -815,8 +720,11 @@ func (independent *Extension) addAllowedManagerClients(parameters datatype.KeyVa
 		if !ok || pubKey == "" {
 			continue
 		}
-		independent.manager.Allow(pubKey)
-		fmt.Printf("The %s allowed to access: %s\n", independent.mushroomURL, link)
+		ext.manager.Allow(pubKey)
+		fmt.Printf("The %s allowed to access: %s\n", ext.mushroomURL, link)
+	}
+	if len(entryMap) > 0 {
+		ext.manager.RequireWhitelist()
 	}
 
 	return nil
@@ -824,11 +732,11 @@ func (independent *Extension) addAllowedManagerClients(parameters datatype.KeyVa
 
 // For every proxy in a command’s chain, figure out who it forwards to,
 // write that into the proxy’s config, save it, and tell the running proxy to reload.
-func (independent *Extension) syncCommandOutbounds() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.mushroomURL.AsDereference().String())
+func (ext *Extension) syncCommandOutbounds() error {
+	tp := ext.topology()
+	serviceConfig, err := tp.Service(ext.mushroomURL.AsDereference().String())
 	if err != nil {
-		return fmt.Errorf("topology.Service('%s'): %w", independent.mushroomURL, err)
+		return fmt.Errorf("topology.Service('%s'): %w", ext.mushroomURL, err)
 	}
 
 	for handlerIndex := range serviceConfig.Handlers {
@@ -850,12 +758,12 @@ func (independent *Extension) syncCommandOutbounds() error {
 					}
 					outboundURL, err = tp.GetFacade(proxyMushroomURL.AsDereference().String(), dep.Name)
 				} else {
-					outboundURL = independent.mushroomURL.New(handler.Category).String()
+					outboundURL = ext.mushroomURL.New(handler.Category).String()
 				}
 				if err != nil {
 					return err
 				}
-				if err := independent.syncCommandProxyOutbound(dep.Name, proxyURL, outboundURL); err != nil {
+				if err := ext.syncCommandProxyOutbound(dep.Name, proxyURL, outboundURL); err != nil {
 					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxyURL, err)
 				}
 			}
@@ -869,8 +777,8 @@ func (independent *Extension) syncCommandOutbounds() error {
 // 1) If there are another handler dependency, get that service facade
 // 2) If there are routes that matches the command deps, then get that outbound as secondary outbounds
 // 3) If no deps then get the service itself
-func (independent *Extension) handlerDepProxyOutboundTargets(handlerConfig config.Handler, proxies []string, proxyIndex int, routes []string) (string, map[string]string, error) {
-	tp := independent.topology()
+func (ext *Extension) handlerDepProxyOutboundTargets(handlerConfig config.Handler, proxies []string, proxyIndex int, routes []string) (string, map[string]string, error) {
+	tp := ext.topology()
 	if proxyIndex+1 < len(proxies) {
 		proxyMushroomURL, err := mushroom.New(proxies[proxyIndex+1])
 		if err != nil {
@@ -899,18 +807,18 @@ func (independent *Extension) handlerDepProxyOutboundTargets(handlerConfig confi
 
 	handler, ok := handlerConfig.AsIndependentHandler()
 	if !ok {
-		return "", nil, fmt.Errorf("handler is not an independent handler")
+		return "", nil, fmt.Errorf("handler is not an ext handler")
 	}
-	outboundURL := independent.mushroomURL.New(handler.Category).String()
+	outboundURL := ext.mushroomURL.New(handler.Category).String()
 	return outboundURL, commandOutbounds, nil
 }
 
-func (independent *Extension) syncHandlerDepProxyOutbounds(routes []string, proxyHandlerUrl string, outboundURL string, commandOutbounds map[string]string) error {
+func (ext *Extension) syncHandlerDepProxyOutbounds(routes []string, proxyHandlerUrl string, outboundURL string, commandOutbounds map[string]string) error {
 	proxyMushroomURL, err := mushroom.New(proxyHandlerUrl)
 	if err != nil {
 		return fmt.Errorf("mushroom.New('%s'): %w", proxyHandlerUrl, err)
 	}
-	handler, err := independent.topology().Handler(proxyMushroomURL.AsDereference().String())
+	handler, err := ext.topology().Handler(proxyMushroomURL.AsDereference().String())
 	if err != nil {
 		return err
 	}
@@ -945,15 +853,15 @@ func (independent *Extension) syncHandlerDepProxyOutbounds(routes []string, prox
 		updated = true
 	}
 	if updated {
-		if err := independent.setTopologyHandler(proxyHandler, proxyHandlerUrl); err != nil {
+		if err := ext.setTopologyHandler(proxyHandler, proxyHandlerUrl); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (independent *Extension) setTopologyHandler(handler config.Handler, mushroomURL string) error {
-	tp := independent.topology()
+func (ext *Extension) setTopologyHandler(handler config.Handler, mushroomURL string) error {
+	tp := ext.topology()
 	proxyMushroomURL, err := mushroom.New(mushroomURL)
 	if err != nil {
 		return fmt.Errorf("mushroom.New('%s'): %w", mushroomURL, err)
@@ -965,8 +873,8 @@ func (independent *Extension) setTopologyHandler(handler config.Handler, mushroo
 	return nil
 }
 
-func (independent *Extension) syncCommandProxyOutbound(command string, proxyHandlerUrl string, outboundURL string) error {
-	handler, err := independent.resolveTopologyHandler(proxyHandlerUrl)
+func (ext *Extension) syncCommandProxyOutbound(command string, proxyHandlerUrl string, outboundURL string) error {
+	handler, err := ext.resolveTopologyHandler(proxyHandlerUrl)
 	if err != nil {
 		return err
 	}
@@ -990,24 +898,24 @@ func (independent *Extension) syncCommandProxyOutbound(command string, proxyHand
 	updated = updated || updatedForward
 
 	if updated {
-		if err := independent.setTopologyHandler(proxyHandler, proxyHandlerUrl); err != nil {
+		if err := ext.setTopologyHandler(proxyHandler, proxyHandlerUrl); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (independent *Extension) Stop() error {
-	if independent.topologyClient != nil {
-		_ = independent.topologyClient.Close()
-		independent.topologyClient = nil
+func (ext *Extension) Stop() error {
+	if ext.topologyClient != nil {
+		_ = ext.topologyClient.Close()
+		ext.topologyClient = nil
 	}
-	return independent.manager.StopService(independent.mushroomURL.AsDereference().String())
+	return ext.manager.StopService(ext.mushroomURL.AsDereference().String())
 }
 
-func (independent *Extension) Wait() {
-	if independent.blocker == nil {
+func (ext *Extension) Wait() {
+	if ext.blocker == nil {
 		return
 	}
-	independent.blocker.Wait()
+	ext.blocker.Wait()
 }

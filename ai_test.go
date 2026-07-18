@@ -50,7 +50,6 @@ func TestNewAiServiceReadsParametersFromTopology(t *testing.T) {
 
 	ai, err := NewAiService()
 	require.NoError(t, err)
-	require.NoError(t, ai.ensureTopologyHandler())
 	require.NotNil(t, ai)
 	model, err := ai.ensureProvider()
 	require.NoError(t, err)

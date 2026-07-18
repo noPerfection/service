@@ -452,14 +452,14 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("registerOutbounds: %w", err)
 		goto errOccurred
 	}
-	if err = independent.manager.AddTopologyManagers(); err != nil {
-		err = fmt.Errorf("addTopologyManagers: %w", err)
-		goto errOccurred
-	}
+	// if err = independent.manager.AddTopologyManagers(); err != nil {
+	// 	err = fmt.Errorf("addTopologyManagers: %w", err)
+	// 	goto errOccurred
+	// }
 	// Wait for all IPC deps concurrently, reloading config on each probe so
 	// that public keys written by newly started services are discovered.
-	if err = independent.waitServicesRunning(); err != nil {
-		err = fmt.Errorf("waitServicesRunning: %w", err)
+	if err = independent.manager.Handshake(); err != nil {
+		err = fmt.Errorf("manager.Handshake: %w", err)
 		goto errOccurred
 	}
 	if err = independent.secureEdges(); err != nil {
@@ -931,10 +931,10 @@ func (independent *Independent) allowServiceManager() error {
 		if err != nil {
 			return fmt.Errorf("topology.Service('%s'): %w", svcURL, err)
 		}
-		if !depServiceNeedsManagerAllow(depService.Parameters, managerLink, independent.mushroomURL.ResourcePublicKey().AsDereference()) {
+		if !mushroom.IsAllowedPublicKeyMatch(&depService, managerLink, independent.mushroomURL.ResourcePublicKey()) {
 			continue
 		}
-		setDepServiceManagerAllow(&depService, config.ServiceManagerCategory, managerLink, independent.mushroomURL.ResourcePublicKey().AsDereference())
+		mushroom.AddAllowedPublicKey(&depService, managerLink, independent.mushroomURL.ResourcePublicKey())
 		if err := tp.SetService(depService); err != nil {
 			return fmt.Errorf("topology.SetService('%s'): %w", depService.Name, err)
 		}
@@ -994,68 +994,13 @@ func (independent *Independent) addAllowedManagerClients(parameters datatype.Key
 			continue
 		}
 		independent.manager.Allow(pubKey)
-		fmt.Printf("The %s allowed to access: %s\n", independent.rawMushroomURL, link)
+		fmt.Printf("The %s allowed to access %s\n", link, independent.rawMushroomURL)
+	}
+	if len(entryMap) > 0 {
+		independent.manager.RequireWhitelist()
 	}
 
 	return nil
-}
-
-// depServiceNeedsManagerAllow reports whether the manager allow entry is missing or stale.
-// Returns false when the stored value already matches.
-func depServiceNeedsManagerAllow(serviceParameters datatype.KeyValue, managerLink mushroom.TopologyURL, value mushroom.TopologyURL) bool {
-	if serviceParameters == nil {
-		return true
-	}
-	allowed, ok := serviceParameters["allowed"]
-	if !ok {
-		return true
-	}
-	categoryMap, ok := allowed.(map[string]any)
-	if !ok {
-		return true
-	}
-	catEntry, ok := categoryMap[config.ServiceManagerCategory]
-	if !ok {
-		return true
-	}
-	entryMap, ok := catEntry.(map[string]any)
-	if !ok {
-		return true
-	}
-	existing, exists := entryMap[managerLink.String()]
-	return !exists || existing != value.String()
-}
-
-// setDepServiceManagerAllow writes the manager allow entry into depService.Parameters.
-// value is a dereference URL pointing at the caller's public-key parameter.
-func setDepServiceManagerAllow(depService *config.Service, category string, managerLink, value mushroom.TopologyURL) {
-	if depService.Parameters == nil {
-		depService.Parameters = datatype.New()
-	}
-
-	var categoryMap map[string]interface{}
-	if allowed, ok := depService.Parameters["allowed"]; ok {
-		if cm, ok := allowed.(map[string]interface{}); ok {
-			categoryMap = cm
-		}
-	}
-	if categoryMap == nil {
-		categoryMap = make(map[string]interface{})
-	}
-
-	var entryMap map[string]interface{}
-	if catEntry, ok := categoryMap[category]; ok {
-		if em, ok := catEntry.(map[string]interface{}); ok {
-			entryMap = em
-		}
-	}
-	if entryMap == nil {
-		entryMap = make(map[string]interface{})
-	}
-
-	entryMap[managerLink.String()] = value.String()
-	categoryMap[category] = entryMap
-	depService.Parameters["allowed"] = categoryMap
 }
 
 func (independent *Independent) syncHandlerDepOutbounds() error {
@@ -1102,206 +1047,6 @@ func (independent *Independent) syncHandlerDepOutbounds() error {
 		}
 	}
 
-	return nil
-}
-
-// testDirectServiceManagerProbe creates a manager client in-process (without
-// manager.IsServiceRunning) using cached topology config only. For testing:
-// fails when the dep's public-key is not yet visible without topology.Reload.
-func (independent *Independent) testDirectServiceManagerProbe(depURL string) error {
-	tp := independent.topology()
-	depService, err := tp.Service(depURL)
-	if err != nil {
-		return fmt.Errorf("topology.Service(%q): %w", depURL, err)
-	}
-
-	managerHandler, err := depService.HandlerByCategory(config.ServiceManagerCategory)
-	if err != nil {
-		return fmt.Errorf("dep %q manager handler: %w", depService.Name, err)
-	}
-	ind, ok := managerHandler.AsIndependentHandler()
-	if !ok {
-		return fmt.Errorf("dep %q manager handler is invalid", depService.Name)
-	}
-
-	socket, err := protocolClient.New(ind.Endpoint.Id, ind.Endpoint.Port, protocolClient.SyncReplierType)
-	if err != nil {
-		return fmt.Errorf("client.New: %w", err)
-	}
-	defer socket.Close()
-
-	node := &topology.Client{Socket: socket}
-	node.Attempt(1)
-	node.Timeout(100 * time.Millisecond)
-
-	reply, err := node.Request(&message.Request{
-		Command:    manager.IsServiceRunning,
-		Parameters: datatype.New().Set("service", depService.Name),
-	})
-	fmt.Println("---------Testing direct manager probing for ", depURL, ": ", reply, ", erro: ", err)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (independent *Independent) testDirectSecureManagerProbe(depURL string) error {
-	tp := independent.topology()
-	depService, err := tp.Service(depURL)
-	if err != nil {
-		return fmt.Errorf("topology.Service(%q): %w", depURL, err)
-	}
-
-	managerHandler, err := depService.HandlerByCategory(config.ServiceManagerCategory)
-	if err != nil {
-		return fmt.Errorf("dep %q manager handler: %w", depService.Name, err)
-	}
-	ind, ok := managerHandler.AsIndependentHandler()
-	if !ok {
-		return fmt.Errorf("dep %q manager handler is invalid", depService.Name)
-	}
-
-	socket, err := protocolClient.New(ind.Endpoint.Id, ind.Endpoint.Port, protocolClient.SyncReplierType)
-	if err != nil {
-		return fmt.Errorf("client.New: %w", err)
-	}
-	defer socket.Close()
-
-	node := &topology.Client{Socket: socket}
-	if depService.Parameters != nil {
-		if pubKey, ok := depService.Parameters[manager.ManagerPublicKeyParam].(string); ok && pubKey != "" {
-			node.Socket.Allow(pubKey)
-		}
-	}
-	node.Socket.Secure(independent.manager.TestSecretKey())
-
-	node.Attempt(1)
-	node.Timeout(100 * time.Millisecond)
-
-	reply, err := node.Request(&message.Request{
-		Command:    manager.IsServiceRunning,
-		Parameters: datatype.New().Set("service", depService.Name),
-	})
-	fmt.Println("---------SEC Testing direct manager probing for ", depURL, ": ", reply, ", erro: ", err)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// waitServicesRunning waits for every direct dep service (IPC and inproc) to
-// become running, probing them all in parallel.  Transitive deps are not
-// visited here — each started service is responsible for waiting on its own
-// deps during its own Start().
-// attempts=10 with the IPC probe timeout of ~100ms gives ~1s total per dep.
-func (independent *Independent) waitServicesRunning() error {
-	tp := independent.topology()
-	serviceConfig, err := tp.Service(independent.dereference())
-	if err != nil {
-		return fmt.Errorf("topology.Service: %w", err)
-	}
-
-	depURLs := make(map[string]struct{})
-
-	for _, hdep := range serviceConfig.HandlerDeps {
-		for _, u := range hdep.Proxies {
-			link, err := tp.GetLink(u)
-			if err != nil {
-				return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
-			}
-			mushroomURL, err := mushroom.New(link)
-			if err != nil {
-				return fmt.Errorf("mushroom.New(%q): %w", link, err)
-			}
-			svcDep, err := tp.Service(mushroomURL.AsDereference().String())
-			if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
-				depURLs[mushroomURL.AsDereference().String()] = struct{}{}
-			}
-		}
-		for _, u := range hdep.Extensions {
-			link, err := tp.GetLink(u)
-			if err != nil {
-				return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
-			}
-			mushroomURL, err := mushroom.New(link)
-			if err != nil {
-				return fmt.Errorf("mushroom.New(%q): %w", link, err)
-			}
-			svcDep, err := tp.Service(mushroomURL.AsDereference().String())
-			if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
-				depURLs[mushroomURL.AsDereference().String()] = struct{}{}
-			}
-		}
-	}
-	for _, variant := range serviceConfig.Handlers {
-		h, ok := variant.AsIndependentHandler()
-		if !ok {
-			continue
-		}
-		for _, cdep := range h.CommandDeps {
-			for _, u := range cdep.Proxies {
-				link, err := tp.GetLink(u)
-				if err != nil {
-					return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
-				}
-				mushroomURL, err := mushroom.New(link)
-				if err != nil {
-					return fmt.Errorf("mushroom.New(%q): %w", link, err)
-				}
-				svcDep, err := tp.Service(mushroomURL.AsDereference().String())
-				if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
-					depURLs[mushroomURL.AsDereference().String()] = struct{}{}
-				}
-			}
-			for _, u := range cdep.Extensions {
-				link, err := tp.GetLink(u)
-				if err != nil {
-					return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
-				}
-				mushroomURL, err := mushroom.New(link)
-				if err != nil {
-					return fmt.Errorf("mushroom.New(%q): %w", link, err)
-				}
-				svcDep, err := tp.Service(mushroomURL.AsDereference().String())
-				if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
-					depURLs[mushroomURL.AsDereference().String()] = struct{}{}
-				}
-			}
-		}
-	}
-
-	if len(depURLs) == 0 {
-		return nil
-	}
-
-	var wg sync.WaitGroup
-	errCh := make(chan error, len(depURLs))
-	for url := range depURLs {
-		wg.Add(1)
-		go func(depURL string) {
-			defer wg.Done()
-			// Testing: direct client in service package without topology.Reload.
-			independent.testDirectServiceManagerProbe(depURL)
-			independent.testDirectSecureManagerProbe(depURL)
-			running, runErr := independent.manager.IsServiceRunning(depURL, 10)
-			if runErr != nil {
-				fmt.Printf("waitServicesRunning: probe error: %v\n", runErr)
-				errCh <- fmt.Errorf("manager.IsServiceRunning(serviceURL: %q, attempts: 10): %w", depURL, runErr)
-				return
-			}
-			if running {
-				fmt.Printf("waitServicesRunning: running: %s\n", depURL)
-				return
-			}
-			errCh <- fmt.Errorf("service %q did not become running after %d attempts", depURL, 10)
-		}(url)
-	}
-	wg.Wait()
-	close(errCh)
-
-	for e := range errCh {
-		return e
-	}
 	return nil
 }
 
@@ -1406,8 +1151,12 @@ func (independent *Independent) startIpcService(mushroomURL mushroom.TopologyURL
 		return fmt.Errorf("service '%s' has no start command given", depService.Name)
 	}
 
-	running, err := independent.manager.IsServiceRunning(depService.Name)
+	derefURL := mushroomURL.AsDereference().String()
+	running, err := independent.manager.IsServiceRunning(derefURL)
 	if err != nil {
+		if errors.Is(err, message.ErrAccessDenied) {
+			return nil
+		}
 		return fmt.Errorf("manager.IsServiceRunning('%s'): %w", depService.Name, err)
 	}
 	if running {
@@ -1415,6 +1164,16 @@ func (independent *Independent) startIpcService(mushroomURL mushroom.TopologyURL
 	}
 	if _, err := independent.manager.StartService(depService.Name); err != nil {
 		return fmt.Errorf("manager.StartService('%s'): %w", depService.Name, err)
+	}
+	running, err = independent.manager.IsServiceRunning(derefURL, 10)
+	if err != nil {
+		if errors.Is(err, message.ErrAccessDenied) {
+			return nil
+		}
+		return fmt.Errorf("manager.IsServiceRunning('%s'): %w", depService.Name, err)
+	}
+	if !running {
+		return fmt.Errorf("service %q did not become running after start", depService.Name)
 	}
 
 	return nil

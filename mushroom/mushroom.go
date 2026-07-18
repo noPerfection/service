@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ahmetson/mushroom"
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/topology/config"
 )
 
@@ -208,4 +209,112 @@ func (t TopologyURL) ResourcePublicKey() TopologyURL {
 	// (array filter), which would fail because parameters is a map, not an array.
 	pubKeyHypha, _ := paramsHypha.ChildResource(ManagerPublicKeyParam)
 	return TopologyURL(pubKeyHypha)
+}
+
+// Checks is depService's categories handler allows the managerLink to access or not.
+// If no categories are given, uses config.ServiceManagerCategory.
+func IsAllowedPublicKeyExist(depService *config.Service, managerLink TopologyURL, categories ...string) bool {
+	if depService.Parameters == nil {
+		return true
+	}
+	serviceParameters := depService.Parameters
+	if serviceParameters == nil {
+		return true
+	}
+	allowed, ok := serviceParameters["allowed"]
+	if !ok {
+		return true
+	}
+	categoryMap, ok := allowed.(map[string]any)
+	if !ok {
+		return true
+	}
+	category := config.ServiceManagerCategory
+	if len(categories) > 0 {
+		category = categories[0]
+	}
+	catEntry, ok := categoryMap[category]
+	if !ok {
+		return true
+	}
+	entryMap, ok := catEntry.(map[string]any)
+	if !ok {
+		return true
+	}
+	_, exists := entryMap[managerLink.String()]
+	return exists
+}
+
+// IsAllowedPublicKeyMatch reports whether the manager allow entry is missing or stale.
+// Returns false when the stored value already matches.
+//
+// Looks for the 'allowed' parameter of depService for the categories. If not given uses config.ServiceManagerCategory.
+// As a key uses managerLink, as a value uses the dereference of value.
+func IsAllowedPublicKeyMatch(depService *config.Service, managerLink, value TopologyURL, categories ...string) bool {
+	if depService.Parameters == nil {
+		return true
+	}
+	serviceParameters := depService.Parameters
+	if serviceParameters == nil {
+		return true
+	}
+	allowed, ok := serviceParameters["allowed"]
+	if !ok {
+		return true
+	}
+	categoryMap, ok := allowed.(map[string]any)
+	if !ok {
+		return true
+	}
+	category := config.ServiceManagerCategory
+	if len(categories) > 0 {
+		category = categories[0]
+	}
+	catEntry, ok := categoryMap[category]
+	if !ok {
+		return true
+	}
+	entryMap, ok := catEntry.(map[string]any)
+	if !ok {
+		return true
+	}
+	existing, exists := entryMap[managerLink.String()]
+	return !exists || existing != value.AsDereference().String()
+}
+
+// AddAllowedPublicKey writes the manager allow entry into depService.Parameters.
+// As a key uses managerLink, as a value uses the dereference of value.
+// If categories are given, uses the first one. If not given uses config.ServiceManagerCategory.
+func AddAllowedPublicKey(depService *config.Service, managerLink, value TopologyURL, categories ...string) {
+	if depService.Parameters == nil {
+		depService.Parameters = datatype.New()
+	}
+
+	var categoryMap map[string]any
+	if allowed, ok := depService.Parameters["allowed"]; ok {
+		if cm, ok := allowed.(map[string]any); ok {
+			categoryMap = cm
+		}
+	}
+	if categoryMap == nil {
+		categoryMap = make(map[string]any)
+	}
+
+	var entryMap map[string]any
+	category := config.ServiceManagerCategory
+	if len(categories) > 0 {
+		category = categories[0]
+	}
+	if catEntry, ok := categoryMap[category]; ok {
+		if em, ok := catEntry.(map[string]any); ok {
+			entryMap = em
+		}
+	}
+	if entryMap == nil {
+		entryMap = make(map[string]any)
+	}
+
+	entryMap[managerLink.String()] = value.AsDereference().String()
+	categoryMap[category] = entryMap
+	depService.Parameters["allowed"] = categoryMap
 }

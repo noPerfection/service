@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -36,6 +37,9 @@ type ProxyManager struct {
 	logger      *log.Logger
 	secretKey   string
 	pubKey      string
+	mu          sync.Mutex
+	inbounds    map[string]string
+	outbounds   map[string]string
 }
 
 // NewProxyManager creates a manager for a proxy service.
@@ -84,6 +88,8 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint, secre
 		serviceName: serviceName,
 		secretKey:   sec,
 		pubKey:      pub,
+		inbounds:    make(map[string]string),
+		outbounds:   make(map[string]string),
 	}
 
 	handler.SetEndpoint(managerEndpoint)
@@ -94,6 +100,37 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint, secre
 // PublicKey returns the CURVE public key for this proxy manager's handler.
 func (m *ProxyManager) PublicKey() string {
 	return m.pubKey
+}
+
+func proxyManagerWhitelistCommands() []string {
+	return []string{
+		IsServiceRunning,
+		StartService,
+		StopService,
+		Services,
+		handlers.SetProxyHandlerCommand,
+		handlers.IsProxyHandlerExistCommand,
+		handlers.IsProxyHandlerRunningCommand,
+		handlers.StartProxyHandlerCommand,
+		handlers.StopProxyHandlerCommand,
+		handlers.RemoveProxyHandlerCommand,
+	}
+}
+
+// RequireWhitelist marks every proxy manager route except handshake as requiring a whitelist entry.
+func (m *ProxyManager) RequireWhitelist() {
+	for _, cmd := range proxyManagerWhitelistCommands() {
+		m.Interface.RequireWhitelist(cmd)
+	}
+}
+
+func (m *ProxyManager) whitelistSecret(secret string) error {
+	for _, cmd := range proxyManagerWhitelistCommands() {
+		if err := m.Interface.Whitelist(cmd, secret); err != nil {
+			return fmt.Errorf(`handler.Whitelist("%s"): %w`, cmd, err)
+		}
+	}
+	return nil
 }
 
 func (m *ProxyManager) SetSharedBlocker(blocker **sync.WaitGroup) {
@@ -138,6 +175,20 @@ func (m *ProxyManager) StartService(serviceName string) (string, error) {
 	return "", fmt.Errorf("service name is not empty and not equal to the service name")
 }
 
+func (m *ProxyManager) getHmacSecret(serviceURL string) string {
+	if err := m.ensureTopologyClient(); err != nil {
+		return ""
+	}
+	key, err := outboundDereferenceKey(serviceURL, m.topology)
+	if err != nil {
+		return ""
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.outbounds[key]
+}
+
 // For now, lets just return manager.running.
 func (m *ProxyManager) IsServiceRunning(serviceName string, attempts ...int) (bool, error) {
 	if serviceName == "" || serviceName == m.serviceName {
@@ -146,7 +197,7 @@ func (m *ProxyManager) IsServiceRunning(serviceName string, attempts ...int) (bo
 	if err := m.ensureTopologyClient(); err != nil {
 		return false, err
 	}
-	return isServiceRunningWithReload(m.topology, serviceName, m.secretKey, attempts...)
+	return isServiceRunningWithReload(m.topology, serviceName, m.secretKey, m.getHmacSecret(serviceName), attempts...)
 }
 
 func (m *ProxyManager) StopService(serviceName string) error {
@@ -175,7 +226,7 @@ func (m *ProxyManager) StopService(serviceName string) error {
 	if err := m.ensureTopologyClient(); err != nil {
 		return err
 	}
-	if err := stopRemoteService(m.topology, serviceName, m.secretKey); err != nil {
+	if err := stopRemoteService(m.topology, serviceName, m.secretKey, m.getHmacSecret(serviceName)); err != nil {
 		if localErr := m.topology.StopService(serviceName); localErr == nil {
 			return nil
 		}
@@ -283,6 +334,208 @@ func (m *ProxyManager) onServices(req message.RequestInterface) message.ReplyInt
 	}
 
 	return req.Ok(datatype.New().Set("services", services))
+}
+
+func (m *ProxyManager) onHandshake(req message.RequestInterface) message.ReplyInterface {
+	secret, err := req.RouteParameters().StringValue("secret")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('secret'): %v", err))
+	}
+	if secret == "" {
+		return req.Fail("secret is required")
+	}
+
+	inboundURL, err := req.RouteParameters().StringValue("inbound-url")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('inbound-url'): %v", err))
+	}
+	if inboundURL == "" {
+		return req.Fail("inbound-url is required")
+	}
+
+	m.mu.Lock()
+	if _, ok := m.outbounds[inboundURL]; ok {
+		m.mu.Unlock()
+		return req.Fail("inbound-url conflicts with outbound")
+	}
+	if _, ok := m.inbounds[inboundURL]; ok {
+		m.mu.Unlock()
+		return req.Ok(datatype.New())
+	}
+	m.inbounds[inboundURL] = secret
+	m.mu.Unlock()
+
+	if err := m.whitelistSecret(secret); err != nil {
+		return req.Fail(fmt.Sprintf("whitelistSecret: %v", err))
+	}
+
+	return req.Ok(datatype.New())
+}
+
+func (m *ProxyManager) getDepURLs() (map[string]struct{}, error) {
+	if err := m.ensureTopologyClient(); err != nil {
+		return nil, err
+	}
+	link, err := m.topology.GetLink(m.serviceName)
+	if err != nil {
+		return nil, fmt.Errorf("topology.GetLink(%q): %w", m.serviceName, err)
+	}
+	mushroomURL, err := mushroom.New(link)
+	if err != nil {
+		return nil, fmt.Errorf("mushroom.New(%q): %w", link, err)
+	}
+	serviceConfig, err := m.topology.Service(mushroomURL.AsDereference().String())
+	if err != nil {
+		return nil, fmt.Errorf("topology.Service: %w", err)
+	}
+
+	depURLs := make(map[string]struct{})
+	addHandlerDep := func(u string) error {
+		depLink, err := m.topology.GetLink(u)
+		if err != nil {
+			return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
+		}
+		depMushroomURL, err := mushroom.New(depLink)
+		if err != nil {
+			return fmt.Errorf("mushroom.New(%q): %w", depLink, err)
+		}
+		derefU := depMushroomURL.AsDereference().String()
+		svcDep, err := m.topology.Service(derefU)
+		if err == nil && (svcDep.IsIpc() || svcDep.IsInproc()) {
+			depURLs[derefU] = struct{}{}
+		}
+		return nil
+	}
+
+	for _, hdep := range serviceConfig.HandlerDeps {
+		for _, u := range hdep.Proxies {
+			if err := addHandlerDep(u); err != nil {
+				return nil, err
+			}
+		}
+		for _, u := range hdep.Extensions {
+			if err := addHandlerDep(u); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return depURLs, nil
+}
+
+func (m *ProxyManager) handshakeOutbound(depURL string) error {
+	secret := m.secretKey
+
+	key, err := outboundDereferenceKey(depURL, m.topology)
+	if err != nil {
+		return fmt.Errorf("outboundDereferenceKey(%q): %w", depURL, err)
+	}
+
+	m.mu.Lock()
+	m.outbounds[key] = secret
+	m.mu.Unlock()
+
+	serviceLink, err := m.topology.GetLink(m.serviceName)
+	if err != nil {
+		return fmt.Errorf("topology.GetLink(%q): %w", m.serviceName, err)
+	}
+	managerLink, err := mushroom.New(serviceLink, topologyConfig.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("mushroom.New(%q, %q): %w", serviceLink, topologyConfig.ServiceManagerCategory, err)
+	}
+	inboundURL := managerLink.String()
+
+	depService, err := m.topology.Service(depURL)
+	if err != nil {
+		return fmt.Errorf("topology.Service(%q): %w", depURL, err)
+	}
+
+	managerHandler, err := depService.HandlerByCategory(topologyConfig.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("dep %q manager handler: %w", depService.Name, err)
+	}
+	ind, ok := managerHandler.AsIndependentHandler()
+	if !ok {
+		return fmt.Errorf("dep %q manager handler is invalid", depService.Name)
+	}
+
+	socket, err := protocolClient.New(ind.Endpoint.Id, ind.Endpoint.Port, protocolClient.SyncReplierType)
+	if err != nil {
+		return fmt.Errorf("client.New: %w", err)
+	}
+	defer socket.Close()
+
+	node := &topology.Client{Socket: socket}
+	if depService.Parameters != nil {
+		if pubKey, ok := depService.Parameters[ManagerPublicKeyParam].(string); ok && pubKey != "" {
+			node.Socket.Allow(pubKey)
+		}
+	}
+	node.Socket.Secure(m.secretKey)
+	node.Timeout(managerProbeTimeout(depService))
+	node.Attempt(2)
+
+	reply, err := node.Request(&message.Request{
+		Command: Handshake,
+		Parameters: datatype.New().
+			Set("secret", secret).
+			Set("inbound-url", inboundURL),
+	})
+	if err != nil {
+		return fmt.Errorf("socket.Request(%q): %w", Handshake, err)
+	}
+	if !reply.IsOK() {
+		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
+	}
+
+	return nil
+}
+
+// Handshake waits for IPC/inproc handler deps to become running and exchanges HMAC secrets.
+func (m *ProxyManager) Handshake() error {
+	depURLs, err := m.getDepURLs()
+	if err != nil {
+		return fmt.Errorf("getDepURLs: %w", err)
+	}
+	if len(depURLs) == 0 {
+		return nil
+	}
+
+	const attempts = 10
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(depURLs))
+	for url := range depURLs {
+		wg.Add(1)
+		go func(depURL string) {
+			defer wg.Done()
+			running, runErr := m.IsServiceRunning(depURL, attempts)
+			if runErr != nil {
+				if errors.Is(runErr, message.ErrAccessDenied) {
+					if err := m.handshakeOutbound(depURL); err != nil {
+						errCh <- fmt.Errorf("handshakeOutbound(%q): %w", depURL, err)
+						return
+					}
+					running, runErr = m.IsServiceRunning(depURL, attempts)
+				}
+				if runErr != nil {
+					errCh <- fmt.Errorf("IsServiceRunning(%q, attempts: %d): %w", depURL, attempts, runErr)
+					return
+				}
+			}
+			if running {
+				return
+			}
+			errCh <- fmt.Errorf("service %q did not become running after %d attempts", depURL, attempts)
+		}(url)
+	}
+	wg.Wait()
+	close(errCh)
+
+	for e := range errCh {
+		return e
+	}
+	return nil
 }
 
 func (m *ProxyManager) onSetProxyHandler(req message.RequestInterface) message.ReplyInterface {
@@ -470,6 +723,11 @@ func (m *ProxyManager) Start() error {
 	if !m.Interface.IsRouteExist(Services) {
 		if err := m.Interface.Route(Services, m.onServices); err != nil {
 			return fmt.Errorf(`handler.Route("%s"): %w`, Services, err)
+		}
+	}
+	if !m.Interface.IsRouteExist(Handshake) {
+		if err := m.Interface.Route(Handshake, m.onHandshake); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, Handshake, err)
 		}
 	}
 	if !m.Interface.IsRouteExist(handlers.SetProxyHandlerCommand) {
