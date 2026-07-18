@@ -10,6 +10,7 @@ import (
 	protocolClient "github.com/noPerfection/protocol/client"
 	protocolHandler "github.com/noPerfection/protocol/handler"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/mushroom"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,6 +51,13 @@ func setInprocHandlerEndpoint(t *testing.T, handler protocolHandler.Interface, e
 }
 
 const testServiceMushroomURL = "*pkg:$?var=services[name:test-service]"
+
+func testServiceTopologyURL(t *testing.T) mushroom.TopologyURL {
+	t.Helper()
+	serviceURL, err := mushroom.New(testServiceMushroomURL)
+	require.NoError(t, err)
+	return serviceURL
+}
 
 func registerInprocHandler(t *testing.T, manager *Setup, handlerType protocolHandler.HandlerType, category string) protocolHandler.Interface {
 	t.Helper()

@@ -203,7 +203,9 @@ func requireHandlerStopped(t *testing.T, handler protocolHandler.Interface) {
 func newTestManager(t *testing.T, service topologyConfig.Service, managerEndpoint message.Endpoint) *Manager {
 	t.Helper()
 
-	manager, err := New(service.Name, managerEndpoint)
+	serviceURL, err := mushroom.New("*pkg:$?var=services[name:" + service.Name + "]")
+	require.NoError(t, err)
+	manager, err := New(serviceURL, managerEndpoint)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = manager.Close()
@@ -248,7 +250,7 @@ func TestRemoteServicesReturnsConfiguredServices(t *testing.T) {
 	startTestRuntimeHandler(t, service)
 
 	manager := newTestManager(t, service, managerEndpoint)
-	require.NoError(t, manager.Start(""))
+	require.NoError(t, manager.Start())
 
 	client, err := protocolClient.NewSyncReplier(managerEndpoint.Id, managerEndpoint.Port)
 	require.NoError(t, err)
@@ -293,7 +295,7 @@ func TestStopServiceWithNilBlockerStopsConfiguredHandlers(t *testing.T) {
 	startTestRuntimeHandler(t, service)
 
 	manager := newTestManager(t, service, managerEndpoint)
-	require.NoError(t, manager.Start(""))
+	require.NoError(t, manager.Start())
 	require.True(t, manager.Running())
 	require.Len(t, manager.handlerControls, len(handlers))
 
@@ -318,7 +320,7 @@ func TestStopServiceWithNilSharedBlockerPointer(t *testing.T) {
 	manager := newTestManager(t, service, managerEndpoint)
 	var blocker *sync.WaitGroup
 	manager.SetSharedBlocker(&blocker)
-	require.NoError(t, manager.Start(""))
+	require.NoError(t, manager.Start())
 
 	require.NoError(t, manager.StopService(service.Name))
 
@@ -338,7 +340,7 @@ func TestRemoteStopServiceWithNilBlocker(t *testing.T) {
 	startTestRuntimeHandler(t, service)
 
 	manager := newTestManager(t, service, managerEndpoint)
-	require.NoError(t, manager.Start(""))
+	require.NoError(t, manager.Start())
 
 	client, err := protocolClient.NewSyncReplier(managerEndpoint.Id, managerEndpoint.Port)
 	require.NoError(t, err)
@@ -373,7 +375,7 @@ func TestStopServiceReleasesBlockerOnce(t *testing.T) {
 	blocker.Add(1)
 	sharedBlocker := blocker
 	manager.SetSharedBlocker(&sharedBlocker)
-	require.NoError(t, manager.Start(""))
+	require.NoError(t, manager.Start())
 
 	released := make(chan struct{})
 	go func() {
@@ -407,7 +409,7 @@ func TestCloseStopsConfiguredHandlersAndManagerSockets(t *testing.T) {
 	startTestRuntimeHandler(t, service)
 
 	manager := newTestManager(t, service, managerEndpoint)
-	require.NoError(t, manager.Start(""))
+	require.NoError(t, manager.Start())
 
 	require.NoError(t, manager.Close())
 
@@ -419,17 +421,21 @@ func TestCloseStopsConfiguredHandlersAndManagerSockets(t *testing.T) {
 
 func TestStartFailsWhenTopologyClientIsNil(t *testing.T) {
 	managerEndpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
-	manager, err := New("fake-service", managerEndpoint)
+	serviceURL, err := mushroom.New("*pkg:$?var=services[name:fake-service]")
+	require.NoError(t, err)
+	manager, err := New(serviceURL, managerEndpoint)
 	require.NoError(t, err)
 	manager.topology = nil
 
-	require.EqualError(t, manager.Start(""), "setHandlerControls: topology is nil")
+	require.EqualError(t, manager.Start(), "setHandlerControls: topology is nil")
 	require.False(t, manager.Running())
 }
 
 func TestServiceNameValidation(t *testing.T) {
 	managerEndpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
-	manager, err := New("fake-service", managerEndpoint)
+	serviceURL, err := mushroom.New("*pkg:$?var=services[name:fake-service]")
+	require.NoError(t, err)
+	manager, err := New(serviceURL, managerEndpoint)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = manager.Close()

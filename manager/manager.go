@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/noPerfection/datatype"
+	"github.com/noPerfection/log"
 	"github.com/noPerfection/protocol/client"
 	protocolClient "github.com/noPerfection/protocol/client"
 	protocolHandler "github.com/noPerfection/protocol/handler"
@@ -24,6 +25,8 @@ const (
 	StopService               = topology.StopService
 	Services                  = topology.Services
 	InprocTopologyServiceName = "inproc-topology"
+
+	defaultHandshakeInterval = 5 * time.Second
 
 	// Handshake is the manager route used to exchange command whitelist secrets.
 	// It is intentionally excluded from RequireWhitelist enforcement.
@@ -45,18 +48,23 @@ var _ topology.NodeInterface = (*Manager)(nil)
 // Manage this service from other parts.
 type Manager struct {
 	protocolHandler.Interface
-	serviceURL      mushroom.TopologyURL // mushroomURL of this service in the topology mycelium
-	handlerControls []*client.Control
-	topology        *topology.Client
-	blocker         **sync.WaitGroup
-	started         bool
-	running         bool
-	handshaked      bool
-	secretKey       string
-	pubKey          string
-	mu              sync.Mutex
-	inbounds        map[string]string // caller manager link -> HMAC secret
-	outbounds       map[string]string // dep service dereference URL -> HMAC secret
+	serviceURL        mushroom.TopologyURL // mushroomURL of this service in the topology mycelium
+	handlerControls   []*client.Control
+	topology          *topology.Client
+	blocker           **sync.WaitGroup
+	started           bool
+	running           bool
+	handshaked        bool
+	secretKey         string
+	pubKey            string
+	mu                sync.Mutex
+	inbounds          map[string]string // caller manager link -> HMAC secret
+	outbounds         map[string]string // dep service dereference URL -> HMAC secret
+	selfServiceName   string
+	logger            *log.Logger
+	handshakeStop     chan struct{}
+	handshakeDone     sync.WaitGroup
+	handshakeInterval time.Duration
 }
 
 // New creates a manager for an independent service.
@@ -128,6 +136,60 @@ func (m *Manager) RequireWhitelist() {
 	}
 }
 
+// SetLogger sets the optional logger for this manager.
+func (m *Manager) SetLogger(logger *log.Logger) error {
+	m.logger = logger
+	if err := m.Interface.SetLogger(logger); err != nil {
+		return fmt.Errorf("manager SetLogger: %w", err)
+	}
+	return nil
+}
+
+// SetHandshakeInterval overrides the background handshake period.
+// Zero restores the default interval. Negative disables the background loop.
+// Must be called before Start.
+func (m *Manager) SetHandshakeInterval(interval time.Duration) {
+	m.handshakeInterval = interval
+}
+
+func (m *Manager) handshakePeriod() time.Duration {
+	if m.handshakeInterval > 0 {
+		return m.handshakeInterval
+	}
+	return defaultHandshakeInterval
+}
+
+func (m *Manager) startBackgroundHandshake() {
+	if m.handshakeInterval < 0 {
+		return
+	}
+	stopCh := make(chan struct{})
+	m.handshakeStop = stopCh
+	m.handshakeDone.Go(func() {
+		ticker := time.NewTicker(m.handshakePeriod())
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-ticker.C:
+				if err := m.Handshake(); err != nil && m.logger != nil {
+					m.logger.Warn("background handshake failed", "error", err)
+				}
+			}
+		}
+	})
+}
+
+func (m *Manager) stopBackgroundHandshake() {
+	if m.handshakeStop == nil {
+		return
+	}
+	close(m.handshakeStop)
+	m.handshakeDone.Wait()
+	m.handshakeStop = nil
+}
+
 func (m *Manager) SetSharedBlocker(blocker **sync.WaitGroup) {
 	m.blocker = blocker
 }
@@ -176,18 +238,22 @@ func (m *Manager) matchesSelf(serviceURL string) (bool, error) {
 	if serviceURL == "" {
 		return true, nil
 	}
+	if m.selfServiceName != "" && serviceURL == m.selfServiceName {
+		return true, nil
+	}
 	if m.topology == nil {
 		return false, fmt.Errorf("topology is nil")
 	}
-	self, err := m.selfService()
+
+	selfLink, err := m.topology.GetLink(m.serviceURL.AsDereference().String())
 	if err != nil {
 		return false, err
 	}
-	other, err := m.topology.Service(serviceURL)
+	otherLink, err := m.topology.GetLink(serviceURL)
 	if err != nil {
 		return false, err
 	}
-	return self.Equal(other), nil
+	return selfLink == otherLink, nil
 }
 
 func (m *Manager) StartService(serviceURL string) (string, error) {
@@ -280,6 +346,8 @@ func (m *Manager) StopService(serviceURL string) error {
 		return m.topology.StopService(serviceURL)
 	}
 
+	m.stopBackgroundHandshake()
+
 	if m.topology != nil {
 		if err := m.topology.Close(); err != nil {
 			return fmt.Errorf("topology.Close: %w", err)
@@ -351,6 +419,18 @@ func (m *Manager) onIsServiceRunning(req message.RequestInterface) message.Reply
 	}
 
 	fmt.Println("---------onIsServiceRunning", serviceName)
+
+	if serviceName == m.selfServiceName || serviceName == "" {
+		return req.Ok(datatype.New().Set("running", m.running))
+	}
+
+	match, err := m.matchesSelf(serviceName)
+	if err != nil {
+		return req.Fail(fmt.Sprintf("manager.matchesSelf('%s'): %v", serviceName, err))
+	}
+	if match {
+		return req.Ok(datatype.New().Set("running", m.running))
+	}
 
 	running, err := m.IsServiceRunning(serviceName)
 	if err != nil {
@@ -711,6 +791,12 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("setHandlerControls: %w", err)
 	}
 
+	self, err := m.selfService()
+	if err != nil {
+		return fmt.Errorf("selfService: %w", err)
+	}
+	m.selfServiceName = self.Name
+
 	handlerLink := m.serviceURL.New(config.ServiceManagerCategory)
 	m.Interface.SetMushroomURL(handlerLink.String())
 
@@ -722,6 +808,7 @@ func (m *Manager) Start() error {
 
 	m.started = true
 	m.running = true
+	m.startBackgroundHandshake()
 
 	return nil
 }

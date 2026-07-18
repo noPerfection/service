@@ -42,7 +42,7 @@ func TestSetHandlerRejectsDuplicateCategory(t *testing.T) {
 func TestSetHandlerRejectsDuplicateAfterStart(t *testing.T) {
 	manager := NewSetup()
 	first := registerInprocHandler(t, manager, protocolHandler.SyncReplierType, "api")
-	require.NoError(t, manager.Start(testServiceMushroomURL))
+	require.NoError(t, manager.Start(testServiceTopologyURL(t)))
 	requireHandlerRunning(t, first)
 	t.Cleanup(func() {
 		require.NoError(t, manager.Close())
@@ -131,13 +131,13 @@ func TestStartRejectsRouteForMissingCategory(t *testing.T) {
 		return req.Ok(datatype.New())
 	}, "missing"))
 
-	require.EqualError(t, manager.Start(testServiceMushroomURL), "routed to a category that not exist: 'missing'")
+	require.EqualError(t, manager.Start(testServiceTopologyURL(t)), "routed to a category that not exist: 'missing'")
 }
 
 func TestRouteRejectsAfterStart(t *testing.T) {
 	manager := NewSetup()
 	registerInprocHandler(t, manager, protocolHandler.SyncReplierType, DefaultHandlerCategory)
-	require.NoError(t, manager.Start(testServiceMushroomURL))
+	require.NoError(t, manager.Start(testServiceTopologyURL(t)))
 	t.Cleanup(func() {
 		require.NoError(t, manager.Close())
 	})
@@ -159,7 +159,7 @@ func TestRouteIsUsedByStartedHandler(t *testing.T) {
 		return req.Ok(datatype.New().Set("reply", "hello "+name))
 	}))
 
-	require.NoError(t, manager.Start(testServiceMushroomURL))
+	require.NoError(t, manager.Start(testServiceTopologyURL(t)))
 	t.Cleanup(func() {
 		require.NoError(t, manager.Close())
 	})
@@ -185,7 +185,7 @@ func TestRouteIsUsedByStartedHandler(t *testing.T) {
 func TestStartNoHandlers(t *testing.T) {
 	manager := NewSetup()
 
-	require.EqualError(t, manager.Start(testServiceMushroomURL), "no handlers")
+	require.EqualError(t, manager.Start(testServiceTopologyURL(t)), "no handlers")
 }
 
 func TestStartRequiresHandlerConfig(t *testing.T) {
@@ -193,7 +193,7 @@ func TestStartRequiresHandlerConfig(t *testing.T) {
 	handler := protocolHandler.NewSyncReplier()
 	require.NoError(t, manager.SetHandler("sync", handler))
 
-	require.EqualError(t, manager.Start(testServiceMushroomURL), "handler of sync category has no config")
+	require.EqualError(t, manager.Start(testServiceTopologyURL(t)), "handler of sync category has no config")
 }
 
 func TestStartReturnsHandlerStartError(t *testing.T) {
@@ -233,7 +233,7 @@ func TestStartWithMultipleProtocolHandlers(t *testing.T) {
 	registerInprocHandler(t, manager, protocolHandler.PublisherType, "pub")
 	registerInprocHandler(t, manager, protocolHandler.WorkerType, "worker")
 
-	require.NoError(t, manager.Start(testServiceMushroomURL))
+	require.NoError(t, manager.Start(testServiceTopologyURL(t)))
 	t.Cleanup(func() {
 		require.NoError(t, manager.Close())
 	})
@@ -261,7 +261,7 @@ func TestCloseMarksHandlersClosed(t *testing.T) {
 	manager := NewSetup()
 	handler := registerInprocHandler(t, manager, protocolHandler.SyncReplierType, "sync")
 
-	require.NoError(t, manager.Start(testServiceMushroomURL))
+	require.NoError(t, manager.Start(testServiceTopologyURL(t)))
 	require.NoError(t, manager.Close())
 	requireHandlerClosed(t, handler)
 }
