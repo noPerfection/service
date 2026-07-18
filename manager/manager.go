@@ -467,6 +467,34 @@ func (m *Manager) onServices(req message.RequestInterface) message.ReplyInterfac
 	return req.Ok(datatype.New().Set("services", services))
 }
 
+func inboundManagerPublicKey(inboundURL string, tp *topology.Client) (string, error) {
+	u, err := mushroom.Parse(inboundURL)
+	if err != nil {
+		return "", fmt.Errorf("mushroom.Parse(%q): %w", inboundURL, err)
+	}
+	serviceURL := u.As(mushroom.SERVICE).AsDereference().String()
+	if tp != nil {
+		if link, err := tp.GetLink(serviceURL); err == nil {
+			if resolved, err := mushroom.Parse(link); err == nil {
+				serviceURL = resolved.As(mushroom.SERVICE).AsDereference().String()
+			}
+		}
+	}
+
+	service, err := tp.Service(serviceURL)
+	if err != nil {
+		return "", fmt.Errorf("topology.Service(%q): %w", serviceURL, err)
+	}
+	if service.Parameters == nil {
+		return "", fmt.Errorf("service %q has no parameters", service.Name)
+	}
+	pubKey, ok := service.Parameters[ManagerPublicKeyParam].(string)
+	if !ok || pubKey == "" {
+		return "", fmt.Errorf("service %q has no %q parameter", service.Name, ManagerPublicKeyParam)
+	}
+	return pubKey, nil
+}
+
 func (m *Manager) onHandshake(req message.RequestInterface) message.ReplyInterface {
 	secret, err := req.RouteParameters().StringValue("secret")
 	if err != nil {
@@ -482,6 +510,27 @@ func (m *Manager) onHandshake(req message.RequestInterface) message.ReplyInterfa
 	}
 	if inboundURL == "" {
 		return req.Fail("inbound-url is required")
+	}
+
+	signature, err := req.RouteParameters().StringValue("signature")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('signature'): %v", err))
+	}
+	if signature == "" {
+		return req.Fail("signature is required")
+	}
+
+	if m.topology == nil {
+		return req.Fail("topology is nil")
+	}
+	storedPublicKey, err := inboundManagerPublicKey(inboundURL, m.topology)
+	if err != nil {
+		return req.Fail(err.Error())
+	}
+
+	delete(req.RouteParameters(), "signature")
+	if err := message.Verify(req.String(), signature, storedPublicKey); err != nil {
+		return req.Fail(fmt.Sprintf("message.Verify: %v", err))
 	}
 
 	m.mu.Lock()
@@ -555,14 +604,21 @@ func (m *Manager) handshakeOutbound(depURL string) error {
 	}
 	node.Socket.Secure(m.secretKey)
 	node.Timeout(managerProbeTimeout(depService))
-	node.Attempt(2)
+	node.Attempt(1)
 
-	reply, err := node.Request(&message.Request{
+	msg := message.Request{
 		Command: Handshake,
 		Parameters: datatype.New().
 			Set("secret", secret).
 			Set("inbound-url", inboundURL),
-	})
+	}
+	signature, err := message.Sign(msg.String(), m.secretKey)
+	if err != nil {
+		return fmt.Errorf("message.Sign: %w", err)
+	}
+	msg.Parameters.Set("signature", signature)
+
+	reply, err := node.Request(&msg)
 	if err != nil {
 		return fmt.Errorf("socket.Request(%q): %w", Handshake, err)
 	}

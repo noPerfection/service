@@ -388,6 +388,27 @@ func (m *ProxyManager) onHandshake(req message.RequestInterface) message.ReplyIn
 		return req.Fail("inbound-url is required")
 	}
 
+	signature, err := req.RouteParameters().StringValue("signature")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('signature'): %v", err))
+	}
+	if signature == "" {
+		return req.Fail("signature is required")
+	}
+
+	if m.topology == nil {
+		return req.Fail("topology is nil")
+	}
+	storedPublicKey, err := inboundManagerPublicKey(inboundURL, m.topology)
+	if err != nil {
+		return req.Fail(err.Error())
+	}
+
+	delete(req.RouteParameters(), "signature")
+	if err := message.Verify(req.String(), signature, storedPublicKey); err != nil {
+		return req.Fail(fmt.Sprintf("message.Verify: %v", err))
+	}
+
 	m.mu.Lock()
 	if _, ok := m.outbounds[inboundURL]; ok {
 		m.mu.Unlock()
@@ -510,12 +531,19 @@ func (m *ProxyManager) handshakeOutbound(depURL string) error {
 	node.Timeout(managerProbeTimeout(depService))
 	node.Attempt(2)
 
-	reply, err := node.Request(&message.Request{
+	msg := &message.Request{
 		Command: Handshake,
 		Parameters: datatype.New().
 			Set("secret", secret).
 			Set("inbound-url", inboundURL),
-	})
+	}
+	signature, err := message.Sign(msg.String(), m.secretKey)
+	if err != nil {
+		return fmt.Errorf("message.Sign: %w", err)
+	}
+	msg.Parameters.Set("signature", signature)
+
+	reply, err := node.Request(msg)
 	if err != nil {
 		return fmt.Errorf("socket.Request(%q): %w", Handshake, err)
 	}

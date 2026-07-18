@@ -343,19 +343,29 @@ func TestHandshakeRouteRegisteredOnStart(t *testing.T) {
 	callerName := testEndpointID(t, "caller")
 	callerService, callerEndpoint := lifecycleCallerService(t, callerName)
 	startTestRuntimeHandler(t, callerService)
-	caller, _ := startLifecycleCallerManager(t, callerService, callerEndpoint, false)
+	caller, callerURL := startLifecycleCallerManager(t, callerService, callerEndpoint, false)
+
+	publishManagerPublicKey(t, callerService.Name, caller.PublicKey())
+
+	inboundURL, err := mushroom.New(callerURL.String(), topologyConfig.ServiceManagerCategory)
+	require.NoError(t, err)
+
+	msg := &message.Request{
+		Command: Handshake,
+		Parameters: datatype.New().
+			Set("secret", caller.secretKey).
+			Set("inbound-url", inboundURL.String()),
+	}
+	signature, err := message.Sign(msg.String(), caller.secretKey)
+	require.NoError(t, err)
+	msg.Parameters.Set("signature", signature)
 
 	client, err := protocolClient.NewSyncReplier(callerEndpoint.Id, callerEndpoint.Port)
 	require.NoError(t, err)
 	defer client.Close()
 	client.Secure(caller.secretKey)
 
-	reply, err := client.Request(&message.Request{
-		Command: Handshake,
-		Parameters: datatype.New().
-			Set("secret", "test-secret").
-			Set("inbound-url", "pkg:test/inbound"),
-	})
+	reply, err := client.Request(msg)
 	require.NoError(t, err)
 	require.True(t, reply.IsOK(), reply.ErrorMessage())
 }
