@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
@@ -38,8 +39,11 @@ type ProxyManager struct {
 	secretKey   string
 	pubKey      string
 	mu          sync.Mutex
-	inbounds    map[string]string
-	outbounds   map[string]string
+	inbounds            map[string]string
+	outbounds           map[string]string
+	handshakeStop       chan struct{}
+	handshakeDone       sync.WaitGroup
+	handshakeInterval   time.Duration
 }
 
 // NewProxyManager creates a manager for a proxy service.
@@ -88,8 +92,9 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint, secre
 		serviceName: serviceName,
 		secretKey:   sec,
 		pubKey:      pub,
-		inbounds:    make(map[string]string),
-		outbounds:   make(map[string]string),
+		inbounds:          make(map[string]string),
+		outbounds:         make(map[string]string),
+		handshakeInterval: defaultHandshakeInterval,
 	}
 
 	handler.SetEndpoint(managerEndpoint)
@@ -149,6 +154,34 @@ func (m *ProxyManager) SetLogger(logger *log.Logger) error {
 	return nil
 }
 
+func (m *ProxyManager) startBackgroundHandshake() {
+	stopCh := make(chan struct{})
+	m.handshakeStop = stopCh
+	m.handshakeDone.Go(func() {
+		ticker := time.NewTicker(m.handshakeInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-ticker.C:
+				if err := m.Handshake(); err != nil && m.logger != nil {
+					m.logger.Warn("background handshake failed", "error", err)
+				}
+			}
+		}
+	})
+}
+
+func (m *ProxyManager) stopBackgroundHandshake() {
+	if m.handshakeStop == nil {
+		return
+	}
+	close(m.handshakeStop)
+	m.handshakeDone.Wait()
+	m.handshakeStop = nil
+}
+
 // For now, let's make it not starting. It just returns its own name.
 // Later it will just keep almost identical to Start() data.
 func (m *ProxyManager) StartService(serviceName string) (string, error) {
@@ -202,6 +235,8 @@ func (m *ProxyManager) IsServiceRunning(serviceName string, attempts ...int) (bo
 
 func (m *ProxyManager) StopService(serviceName string) error {
 	if serviceName == "" || serviceName == m.serviceName {
+		m.stopBackgroundHandshake()
+
 		if err := m.proxyHandlersRequest(handlers.StopProxyHandlersCommand); err != nil {
 			return err
 		}
@@ -786,6 +821,7 @@ func (m *ProxyManager) Start() error {
 	}
 
 	m.running = true
+	m.startBackgroundHandshake()
 
 	return nil
 }

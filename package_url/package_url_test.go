@@ -2,6 +2,7 @@ package package_url
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
@@ -11,45 +12,45 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var readBuildInfo = debug.ReadBuildInfo
-
-func stubBuildInfo(t *testing.T, moduleURL string, ok bool) {
+func example009GoModDir(t *testing.T) string {
 	t.Helper()
+	t.Setenv("GOWORK", "off")
 
-	original := readBuildInfo
-	readBuildInfo = func() (*debug.BuildInfo, bool) {
-		if !ok {
-			return nil, false
-		}
-		return &debug.BuildInfo{
-			Main: debug.Module{Path: moduleURL},
-		}, true
-	}
+	goModDir, err := filepath.Abs(filepath.Join("..", "examples", "009-inproc-services"))
+	require.NoError(t, err)
+
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(goModDir))
 	t.Cleanup(func() {
-		readBuildInfo = original
+		_ = os.Chdir(wd)
 	})
+
+	return goModDir
 }
 
 func TestFillDefaultModuleURLUsesMainModulePath(t *testing.T) {
-	stubBuildInfo(t, "example.com/app", true)
+	buildInfo, ok := debug.ReadBuildInfo()
+	require.True(t, ok)
 
-	moduleURL, err := FillDefaultModuleURL()
+	dir := t.TempDir()
+	mainFile := filepath.Join(dir, "main.go")
+	require.NoError(t, os.WriteFile(mainFile, []byte("package main\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module fallback.example/app\n\ngo 1.25\n"), 0o644))
+
+	_, mainPackage, err := fileToModuleAndPackage(mainFile)
 	require.NoError(t, err)
-
-	require.Equal(t, "example.com/app", moduleURL)
+	require.Equal(t, buildInfo.Main.Path, mainPackage)
 }
 
 func TestFillDefaultModuleURLRequiresBuildInfo(t *testing.T) {
-	stubBuildInfo(t, "", false)
-
 	_, err := FillDefaultModuleURL()
 
 	require.EqualError(t, err, trimpathFlaggedError)
 }
 
 func TestNewResolves009MainPackage(t *testing.T) {
-	goModDir, err := filepath.Abs(filepath.Join("..", "examples", "009-inproc-services"))
-	require.NoError(t, err)
+	goModDir := example009GoModDir(t)
 
 	mainModule := "github.com/noPerfection/service/examples/009-inproc-services/cmd/service"
 	mainPackage := "github.com/noPerfection/service/examples/009-inproc-services"
@@ -110,14 +111,13 @@ func TestImportClause(t *testing.T) {
 }
 
 func TestIsFileExistMissingFile(t *testing.T) {
-	goModDir, err := filepath.Abs(filepath.Join("..", "examples", "009-inproc-services"))
-	require.NoError(t, err)
+	goModDir := example009GoModDir(t)
 
 	mainModule := "github.com/noPerfection/service/examples/009-inproc-services/cmd/service"
 	mainPackage := "github.com/noPerfection/service/examples/009-inproc-services"
 	mushroomURL := fmt.Sprintf("pkg:golang/%s#%s?root=%s&main=true", mainPackage, strings.ReplaceAll(mainModule, mainPackage, ""), goModDir)
 
-	_, err = IsFileExist(mushroomURL, "inproc_topology.go")
+	_, err := IsFileExist(mushroomURL, "missing_file.go")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "doesn't exist")
 }

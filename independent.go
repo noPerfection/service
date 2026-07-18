@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
@@ -1547,58 +1546,6 @@ func stringSlicesEqual(a []string, b []string) bool {
 		}
 	}
 	return true
-}
-
-func newProxyManagerClient(proxyService config.Service) (*protocolClient.SyncReplierClient, error) {
-	endpoint := manager.DefaultProxyManagerEndpoint(proxyService.Name)
-	if managerHandler, err := proxyService.HandlerByCategory(config.ServiceManagerCategory); err == nil {
-		handler, ok := managerHandler.AsIndependentHandler()
-		if ok {
-			endpoint = handler.Endpoint
-		}
-	}
-	client, err := protocolClient.NewSyncReplier(endpoint.Id, endpoint.Port)
-	if err != nil {
-		return nil, err
-	}
-	client.Timeout(time.Second)
-	client.Attempt(1)
-	return client, nil
-}
-
-func proxyHandlerExists(client *protocolClient.SyncReplierClient, serviceName string, category string) (bool, error) {
-	reply, err := proxyManagerRequest(client, handlers.IsProxyHandlerExistCommand, datatype.New().Set("service", serviceName).Set("category", category))
-	if err != nil {
-		return false, err
-	}
-	return reply.ReplyParameters().BoolValue("exists")
-}
-
-func proxyHandlerRunning(client *protocolClient.SyncReplierClient, serviceName string, category string) (bool, error) {
-	reply, err := proxyManagerRequest(client, handlers.IsProxyHandlerRunningCommand, datatype.New().Set("service", serviceName).Set("category", category))
-	if err != nil {
-		return false, err
-	}
-	return reply.ReplyParameters().BoolValue("running")
-}
-
-func setProxyHandler(client *protocolClient.SyncReplierClient, serviceName string, proxyConfig config.ProxyHandler) error {
-	configParams, err := datatype.NewFromInterface(proxyConfig)
-	if err != nil {
-		return fmt.Errorf("datatype.NewFromInterface: %w", err)
-	}
-	_, err = proxyManagerRequest(client, handlers.SetProxyHandlerCommand, datatype.New().Set("service", serviceName).Set("config", configParams))
-	return err
-}
-
-func startProxyHandler(client *protocolClient.SyncReplierClient, serviceName string, category string) error {
-	_, err := proxyManagerRequest(client, handlers.StartProxyHandlerCommand, datatype.New().Set("service", serviceName).Set("category", category))
-	return err
-}
-
-func stopProxyHandler(client *protocolClient.SyncReplierClient, serviceName string, category string) error {
-	_, err := proxyManagerRequest(client, handlers.StopProxyHandlerCommand, datatype.New().Set("service", serviceName).Set("category", category))
-	return err
 }
 
 func proxyManagerRequest(client *protocolClient.SyncReplierClient, command string, params datatype.KeyValue) (message.ReplyInterface, error) {

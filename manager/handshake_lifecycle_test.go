@@ -177,9 +177,9 @@ func startLifecycleCallerManager(
 	manager, err := New(serviceURL, endpoint)
 	require.NoError(t, err)
 	if background {
-		manager.SetHandshakeInterval(testHandshakeInterval)
+		manager.handshakeInterval = testHandshakeInterval
 	} else {
-		manager.SetHandshakeInterval(-1)
+		manager.handshakeInterval = -1
 	}
 	require.NoError(t, manager.Start())
 

@@ -107,14 +107,19 @@ func (t *InprocTopologyService) SetService(url string, svc Service) error {
 	if url == "" {
 		return fmt.Errorf("mushroom url is empty")
 	}
-	mushroomURL, err := mushroom.New(url)
-	if err != nil {
-		return fmt.Errorf("mushroom.New(%q): %w", mushroomURL, err)
-	}
 
 	tp := t.topology()
 	if tp == nil {
 		return fmt.Errorf("topology is nil")
+	}
+
+	serviceLink, err := tp.GetLink(url)
+	if err != nil {
+		return fmt.Errorf("topology.GetLink(%q): %w", url, err)
+	}
+	mushroomURL, err := mushroom.New(serviceLink)
+	if err != nil {
+		return fmt.Errorf("mushroom.New(%q): %w", serviceLink, err)
 	}
 
 	serviceConfig, err := tp.Service(mushroomURL.AsDereference().String())

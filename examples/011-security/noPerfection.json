@@ -35,8 +35,7 @@
           "manager": {
             "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "*pkg:json/.#noPerfection.json?var=services[name:hello-world].parameters.public-key"
           }
-        },
-        "public-key": "t?HIVrr5*dYjry7N943\u003cYZDXf=bBu8ocCMl}9dKT"
+        }
       },
       "start-command": "./bin/proxy",
       "type": "Proxy"
@@ -75,8 +74,7 @@
           "manager": {
             "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "*pkg:json/.#noPerfection.json?var=services[name:hello-world].parameters.public-key"
           }
-        },
-        "public-key": "\u003eq5QFzf65bG8R6Nk0-\u003egx#4cFgT0XQ\u0026+MtWBn{?i"
+        }
       },
       "start-command": "./bin/entrypoint",
       "type": "Proxy"
@@ -206,8 +204,7 @@
           "manager": {
             "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "*pkg:json/.#noPerfection.json?var=services[name:hello-world].parameters.public-key"
           }
-        },
-        "public-key": "Hs72m3QW^(ZyiI:np+I^G1CV(BUlotAu?kbBUJd="
+        }
       },
       "start-command": "./bin/metrics",
       "type": "Proxy"
@@ -247,8 +244,7 @@
           "manager": {
             "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "*pkg:json/.#noPerfection.json?var=services[name:hello-world].parameters.public-key"
           }
-        },
-        "public-key": "m#1sOdySwWuscd4=\u003e1hz5^gJds?6%BE9]%qrR(?N"
+        }
       },
       "start-command": "./bin/proxy2",
       "type": "Proxy"

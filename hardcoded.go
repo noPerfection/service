@@ -346,7 +346,7 @@ func (hardcoded *WithHardcodedTopology) addHardcodedEndpointsToTopology(tp topol
 		for handlerCategory, endpoint := range endpointsByHandler {
 			handlerVariant, err := serviceConfig.HandlerByCategory(handlerCategory)
 			if err != nil {
-				return fmt.Errorf("service.HandlerByCategory(%q): %w", handlerCategory, mushroomURL, err)
+				return fmt.Errorf("topology.Service(%q).HandlerByCategory(%q): %w", mushroomURL, handlerCategory, err)
 			}
 
 			serviceConfig.SetHandler(setHandlerEndpoint(handlerVariant, endpoint), true)
@@ -369,7 +369,7 @@ func (hardcoded *WithHardcodedTopology) addHardcodedCommandDepsToTopology(tp top
 		for handlerCategory, deps := range depsByHandler {
 			handlerVariant, err := serviceConfig.HandlerByCategory(handlerCategory)
 			if err != nil {
-				return fmt.Errorf("service.HandlerByCategory(%q): %w", handlerCategory, mushroomURL, err)
+				return fmt.Errorf("topology.Service(%q).HandlerByCategory(%q): %w", mushroomURL, handlerCategory, err)
 			}
 
 			updatedHandler := handlerVariant

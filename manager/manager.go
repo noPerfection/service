@@ -99,15 +99,16 @@ func New(serviceURL mushroom.TopologyURL, managerEndpoint message.Endpoint, secr
 	handler := protocolHandler.NewReplier()
 
 	h := &Manager{
-		Interface:       handler,
-		handlerControls: make([]*client.Control, 0),
-		topology:        topology,
-		serviceURL:      serviceURL,
-		secretKey:       sec,
-		handshaked:      false,
-		pubKey:          pub,
-		inbounds:        make(map[string]string),
-		outbounds:       make(map[string]string),
+		Interface:         handler,
+		handlerControls:   make([]*client.Control, 0),
+		topology:          topology,
+		serviceURL:        serviceURL,
+		secretKey:         sec,
+		handshaked:        false,
+		pubKey:            pub,
+		inbounds:          make(map[string]string),
+		outbounds:         make(map[string]string),
+		handshakeInterval: defaultHandshakeInterval,
 	}
 
 	handler.SetEndpoint(managerEndpoint)
@@ -145,20 +146,6 @@ func (m *Manager) SetLogger(logger *log.Logger) error {
 	return nil
 }
 
-// SetHandshakeInterval overrides the background handshake period.
-// Zero restores the default interval. Negative disables the background loop.
-// Must be called before Start.
-func (m *Manager) SetHandshakeInterval(interval time.Duration) {
-	m.handshakeInterval = interval
-}
-
-func (m *Manager) handshakePeriod() time.Duration {
-	if m.handshakeInterval > 0 {
-		return m.handshakeInterval
-	}
-	return defaultHandshakeInterval
-}
-
 func (m *Manager) startBackgroundHandshake() {
 	if m.handshakeInterval < 0 {
 		return
@@ -166,7 +153,7 @@ func (m *Manager) startBackgroundHandshake() {
 	stopCh := make(chan struct{})
 	m.handshakeStop = stopCh
 	m.handshakeDone.Go(func() {
-		ticker := time.NewTicker(m.handshakePeriod())
+		ticker := time.NewTicker(m.handshakeInterval)
 		defer ticker.Stop()
 		for {
 			select {

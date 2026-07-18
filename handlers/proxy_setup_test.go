@@ -500,12 +500,13 @@ func TestProxyHandlersSerializeDeserializeRequestOutbound(t *testing.T) {
 
 func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
 	serviceName := "outbound-forward"
+	publisherHandler, broadcastPublisherReply := startForwardPublisher(t, serviceName, "publisher", "publisher reply")
 	outboundHandlers := []topologyConfig.IndependentHandler{
 		startForwardOutboundHandler(t, protocolHandler.SyncReplierType, "sync", "sync reply"),
 		startForwardOutboundHandler(t, protocolHandler.ReplierType, "replier", "replier reply"),
 		startForwardOutboundHandler(t, protocolHandler.PairType, "pair", "pair reply"),
 		startForwardOutboundHandler(t, protocolHandler.WorkerType, "worker", "worker reply"),
-		startForwardPublisher(t, serviceName, "publisher", "publisher reply"),
+		publisherHandler,
 	}
 
 	outboundURLs := make([]string, 0, len(outboundHandlers))
@@ -547,6 +548,9 @@ func TestProxyRequestForwardUsesOutboundClients(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.category, func(t *testing.T) {
+			if tc.category == "publisher" {
+				broadcastPublisherReply()
+			}
 			reply, err := proxyForwardRequest(manager, proxyConfig.Category, serviceName, tc.category).Forward()
 			require.NoError(t, err)
 			require.True(t, reply.IsOK(), reply.ErrorMessage())
@@ -736,7 +740,7 @@ func startEchoOutboundHandler(t *testing.T, category string) topologyConfig.Inde
 	}
 }
 
-func startForwardPublisher(t *testing.T, serviceName string, category string, replyText string) topologyConfig.IndependentHandler {
+func startForwardPublisher(t *testing.T, serviceName string, category string, replyText string) (topologyConfig.IndependentHandler, func()) {
 	t.Helper()
 
 	handler := newProtocolHandler(t, protocolHandler.PublisherType)
@@ -758,22 +762,24 @@ func startForwardPublisher(t *testing.T, serviceName string, category string, re
 		_ = controlClient.Close()
 	})
 
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		_, _ = controlClient.Request(&message.Request{
+	broadcast := func() {
+		t.Helper()
+		reply, err := controlClient.Request(&message.Request{
 			Command: protocolHandler.Broadcast,
 			Parameters: datatype.New().Set(protocolHandler.BroadcastParameter, message.Reply{
 				Status:     message.OK,
 				Parameters: datatype.New().Set("message", replyText).Set("service", serviceName),
 			}),
 		})
-	}()
+		require.NoError(t, err)
+		require.True(t, reply.IsOK(), reply.ErrorMessage())
+	}
 
 	return topologyConfig.IndependentHandler{
 		Type:     topologyConfig.PublisherType,
 		Category: category,
 		Endpoint: endpoint,
-	}
+	}, broadcast
 }
 
 func proxyForwardRequest(manager *ProxySetup, proxifiedCategory string, serviceName string, handlerCategory string) *ProxyRequest {

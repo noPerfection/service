@@ -10,6 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func testAiExtensionServiceConfig() Config {
+	cfg := defaultAiExtensionServiceConfig()
+	cfg.Parameters = datatype.New().Set(aiModelParameter, defaultAiModel)
+	return cfg
+}
+
 func TestValidateInprocServiceManagers(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -70,7 +76,7 @@ func TestInprocessDepNumberIncludesManagerHandlerDep(t *testing.T) {
 		message.NewEndpoint("custom-service_manager", 0),
 	)))
 	require.NoError(t, independent.addHardcodedServicesToTopology(independent.topology()))
-	require.NoError(t, independent.topologyHandler.AddService(defaultAiExtensionServiceConfig()))
+	require.NoError(t, independent.topologyHandler.AddService(testAiExtensionServiceConfig()))
 	require.NoError(t, independent.SetHandlerDeps(topologyConfig.DepService{
 		Name:       ServiceManagerCategory,
 		Extensions: []string{aiExtensionServiceLink()},
@@ -94,7 +100,7 @@ func TestInprocessDepNumberSkipsNonInprocManagerHandlerDep(t *testing.T) {
 	)))
 	require.NoError(t, independent.addHardcodedServicesToTopology(independent.topology()))
 
-	remoteAI := defaultAiExtensionServiceConfig()
+	remoteAI := testAiExtensionServiceConfig()
 	remoteAI.Handlers = []topologyConfig.Handler{
 		topologyConfig.IndependentHandler{
 			Type:     topologyConfig.SyncReplierType,

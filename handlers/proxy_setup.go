@@ -645,7 +645,7 @@ func (manager *ProxySetup) resolveOutboundHandler(mushroomURL mushroom.TopologyU
 	}
 	defer topologyClient.Close()
 
-	record, err := topologyClient.Handler(mushroomURL.AsDereference().String())
+	record, err := topologyClient.Handler(mushroomURL.HandlerLink().AsDereference().String())
 	if err != nil {
 		return topologyConfig.IndependentHandler{}, err
 	}
@@ -662,9 +662,9 @@ func (manager *ProxySetup) newOutboundClients(proxyConfig topologyConfig.ProxyHa
 		if outboundURL == "" {
 			return nil, fmt.Errorf("outbounds[%d] url is required", i)
 		}
-		mushroomURL, err := mushroom.New(outboundURL)
+		mushroomURL, err := mushroom.Parse(outboundURL)
 		if err != nil {
-			return nil, fmt.Errorf("mushroom.New(%q): %w", outboundURL, err)
+			return nil, fmt.Errorf("mushroom.Parse(%q): %w", outboundURL, err)
 		}
 		handler, err := manager.resolveOutboundHandler(mushroomURL)
 		if err != nil {

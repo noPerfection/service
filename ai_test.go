@@ -1,9 +1,11 @@
 package service
 
 import (
+		"path/filepath"
 	"testing"
 
 	"github.com/noPerfection/datatype"
+	"github.com/noPerfection/service/mushroom"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,22 +37,23 @@ func TestAiParametersFromConfigReadsEmbeddedAPIKey(t *testing.T) {
 }
 
 func TestNewAiServiceReadsParametersFromTopology(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
+	configPath := filepath.Join(t.TempDir(), "noPerfection.json")
 
-	configPath := DefaultConfigPath
-	handler, err := newTopologyHandler(configPath)
+	ai, err := NewAiService()
 	require.NoError(t, err)
+	require.NoError(t, ai.SetTopologyParams(map[string]any{TopologyParamFilepath: configPath}))
 
 	serviceConfig := defaultAiExtensionServiceConfig()
 	serviceConfig.Parameters = datatype.New().
 		Set(aiAPIKeyParameter, "test-key").
 		Set(aiModelParameter, "claude-test")
-	require.NoError(t, handler.AddService(serviceConfig))
+	require.NoError(t, ai.topology().AddService(serviceConfig))
 
-	ai, err := NewAiService()
+	serviceLink, err := ai.topology().GetLink(ai.rawMushroomURL)
 	require.NoError(t, err)
-	require.NotNil(t, ai)
+	ai.mushroomURL, err = mushroom.New(serviceLink)
+	require.NoError(t, err)
+
 	model, err := ai.ensureProvider()
 	require.NoError(t, err)
 	require.Equal(t, "claude-test", model)

@@ -9,6 +9,7 @@ import (
 
 func writeInprocExtensionTopology(t *testing.T, services ...Config) string {
 	t.Helper()
+
 	path := testConfigPath(t)
 	handler, err := newTopologyHandler(path)
 	require.NoError(t, err)
@@ -115,10 +116,15 @@ func TestSetServiceAcceptsRegisteredTypes(t *testing.T) {
 }
 
 func TestInprocTopologyRegistryLifecycle(t *testing.T) {
+	requireIsolatedTopologyHandler(t)
+
 	path := writeInprocExtensionTopology(t, inprocProxyService("child"))
 	ext, err := NewInprocExtension()
 	require.NoError(t, err)
 	requireTopologyFilepath(t, ext, path)
+	t.Cleanup(func() {
+		closeTopologyHandler(t)
+	})
 
 	proxy, err := NewProxy("child")
 	require.NoError(t, err)

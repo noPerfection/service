@@ -15,13 +15,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func example009HostModuleURL(t *testing.T) string {
+func chdirExample009(t *testing.T) string {
 	t.Helper()
+	t.Setenv("GOWORK", "off")
 	goModDir, err := filepath.Abs(filepath.Join("examples", "009-inproc-services"))
 	require.NoError(t, err)
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(goModDir))
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+	return goModDir
+}
 
+func example009HostModuleURLFor(goModDir string) string {
 	mainModule := "github.com/noPerfection/service/examples/009-inproc-services/cmd/service"
 	mainPackage := "github.com/noPerfection/service/examples/009-inproc-services"
+	return example009MainModuleURLFor(goModDir, mainModule, mainPackage)
+}
+
+func example009ClientHostModuleURLFor(goModDir string) string {
+	mainModule := "github.com/noPerfection/service/examples/009-inproc-services/cmd/client"
+	mainPackage := "github.com/noPerfection/service/examples/009-inproc-services"
+	return example009MainModuleURLFor(goModDir, mainModule, mainPackage)
+}
+
+func example009MainModuleURLFor(goModDir, mainModule, mainPackage string) string {
 	return fmt.Sprintf(
 		"pkg:golang/%s#%s?root=%s&main=true",
 		mainPackage,
@@ -30,15 +50,23 @@ func example009HostModuleURL(t *testing.T) string {
 	)
 }
 
-func TestIsInprocIncludedInMain_NotImported(t *testing.T) {
-	hostURL := example009HostModuleURL(t)
+func example009HostModuleURL(t *testing.T) string {
+	t.Helper()
+	return example009HostModuleURLFor(chdirExample009(t))
+}
 
-	goModDir, err := filepath.Abs(filepath.Join("examples", "009-inproc-services"))
-	require.NoError(t, err)
-	inprocPkg, err := package_url.New(fmt.Sprintf(
+func example009InprocProxyPackageURL(goModDir string) string {
+	return fmt.Sprintf(
 		"pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#/services/proxy?root=%s",
 		goModDir,
-	))
+	)
+}
+
+func TestIsInprocIncludedInMain_NotImported(t *testing.T) {
+	goModDir := chdirExample009(t)
+	hostURL := example009ClientHostModuleURLFor(goModDir)
+
+	inprocPkg, err := package_url.New(example009InprocProxyPackageURL(goModDir))
 	require.NoError(t, err)
 
 	err = IsInprocIncludedInMain(hostURL, inprocPkg)
@@ -46,8 +74,7 @@ func TestIsInprocIncludedInMain_NotImported(t *testing.T) {
 }
 
 func TestIsInprocIncludedInMain_Imported(t *testing.T) {
-	goModDir, err := filepath.Abs(filepath.Join("examples", "009-inproc-services"))
-	require.NoError(t, err)
+	goModDir := chdirExample009(t)
 
 	mainModule := "github.com/noPerfection/service/examples/009-inproc-services/cmd/proxy"
 	mainPackage := "github.com/noPerfection/service/examples/009-inproc-services"
@@ -58,10 +85,7 @@ func TestIsInprocIncludedInMain_Imported(t *testing.T) {
 		goModDir,
 	)
 
-	inprocPkg, err := package_url.New(fmt.Sprintf(
-		"pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#/services/proxy?root=%s",
-		goModDir,
-	))
+	inprocPkg, err := package_url.New(example009InprocProxyPackageURL(goModDir))
 	require.NoError(t, err)
 
 	err = IsInprocIncludedInMain(hostURL, inprocPkg)
@@ -69,19 +93,27 @@ func TestIsInprocIncludedInMain_Imported(t *testing.T) {
 }
 
 func TestGetHardcodedModuleURL_009Proxy(t *testing.T) {
-	hostURL := example009HostModuleURL(t)
+	goModDir := chdirExample009(t)
+	hostURL := example009HostModuleURLFor(goModDir)
 
 	moduleURL, err := GetHardcodedModuleURL(hostURL, "default-name-proxy")
 	require.NoError(t, err)
-	require.Equal(t, "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#cmd/proxy", moduleURL)
+	require.Equal(t, fmt.Sprintf(
+		"pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/proxy?root=%s",
+		goModDir,
+	), moduleURL)
 }
 
 func TestGetHardcodedModuleURL_009Entrypoint(t *testing.T) {
-	hostURL := example009HostModuleURL(t)
+	goModDir := chdirExample009(t)
+	hostURL := example009HostModuleURLFor(goModDir)
 
 	moduleURL, err := GetHardcodedModuleURL(hostURL, "entrypoint")
 	require.NoError(t, err)
-	require.Equal(t, "pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#cmd/entrypoint", moduleURL)
+	require.Equal(t, fmt.Sprintf(
+		"pkg:golang/github.com/noPerfection/service/examples/009-inproc-services#services/entrypoint?root=%s",
+		goModDir,
+	), moduleURL)
 }
 
 func TestGetHardcodedModuleURL_NoMatch(t *testing.T) {

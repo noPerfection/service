@@ -2,14 +2,9 @@ package service
 
 import (
 	"fmt"
-	"testing"
 
 	topologyConfig "github.com/noPerfection/topology/config"
 )
-
-func stubBuildInfo(t *testing.T, moduleURL string, ok bool) {
-	t.Helper()
-}
 
 const rootServicesParent = "*pkg:$?var=services"
 
