@@ -41,6 +41,7 @@ type Independent struct {
 	manager        *manager.Manager // manage this service from other parts
 	logger         *log.Logger
 	aiClient       *AiClient
+	ipcStarted     map[string]struct{}
 }
 
 // Follows pkg:golang/github.com/noPerfection/service?object=Service&root=no_perfection.go
@@ -1165,6 +1166,7 @@ func (independent *Independent) startIpcService(mushroomURL mushroom.TopologyURL
 	if _, err := independent.manager.StartService(depService.Name); err != nil {
 		return fmt.Errorf("manager.StartService('%s'): %w", depService.Name, err)
 	}
+	independent.ipcStarted = markIpcStarted(independent.ipcStarted, depService.Name)
 	running, err = independent.manager.IsServiceRunning(derefURL, 10)
 	if err != nil {
 		if errors.Is(err, message.ErrAccessDenied) {
@@ -1629,17 +1631,45 @@ func containsString(values []string, value string) bool {
 	return false
 }
 
+func (independent *Independent) stopIpcServices() error {
+	tp := independent.topology()
+	serviceConfig, err := tp.Service(independent.dereference())
+	if err != nil {
+		return fmt.Errorf("topology.Service('%s'): %w", independent.dereference(), err)
+	}
+
+	lifecycle := &ipcLifecycle{
+		topology: tp,
+		manager:  independent.manager,
+		started:  independent.ipcStarted,
+	}
+	return lifecycle.stopOwnedIpcServices(serviceConfig)
+}
+
 func (independent *Independent) Stop() error {
+	if independent.manager != nil && !independent.manager.Running() {
+		return nil
+	}
+
+	var stopErr error
+	if err := independent.stopIpcServices(); err != nil {
+		stopErr = joinStopErrors(stopErr, err)
+	}
+	if independent.topologyHandler != nil {
+		if err := independent.topologyHandler.StopAllSpawnedProcesses(); err != nil {
+			stopErr = joinStopErrors(stopErr, err)
+		}
+	}
 	if independent.topologyClient != nil {
 		_ = independent.topologyClient.Close()
 		independent.topologyClient = nil
 	}
-	return independent.manager.StopService(independent.dereference())
+	if err := independent.manager.StopService(independent.dereference()); err != nil {
+		stopErr = joinStopErrors(stopErr, err)
+	}
+	return stopErr
 }
 
 func (independent *Independent) Wait() {
-	if independent.blocker == nil {
-		return
-	}
-	independent.blocker.Wait()
+	waitForShutdown(independent.blocker, independent.Stop)
 }

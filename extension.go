@@ -27,6 +27,7 @@ type Extension struct {
 	blocker        *sync.WaitGroup
 	manager        *manager.Manager // manage this service from other parts
 	logger         *log.Logger
+	ipcStarted     map[string]struct{}
 }
 
 // Follows pkg:golang/github.com/noPerfection/service?object=Service&root=no_perfection.go
@@ -577,6 +578,7 @@ func (ext *Extension) startIpcService(url string, startedRefs map[string]struct{
 	if _, err := ext.manager.StartService(depService.Name); err != nil {
 		return fmt.Errorf("manager.StartService('%s'): %w", depService.Name, err)
 	}
+	ext.ipcStarted = markIpcStarted(ext.ipcStarted, depService.Name)
 	running, err = ext.manager.IsServiceRunning(derefURL, 10)
 	if err != nil {
 		if errors.Is(err, message.ErrAccessDenied) {
@@ -905,17 +907,45 @@ func (ext *Extension) syncCommandProxyOutbound(command string, proxyHandlerUrl s
 	return nil
 }
 
+func (ext *Extension) stopIpcServices() error {
+	tp := ext.topology()
+	serviceConfig, err := tp.Service(ext.mushroomURL.AsDereference().String())
+	if err != nil {
+		return fmt.Errorf("topology.Service('%s'): %w", ext.mushroomURL, err)
+	}
+
+	lifecycle := &ipcLifecycle{
+		topology: tp,
+		manager:  ext.manager,
+		started:  ext.ipcStarted,
+	}
+	return lifecycle.stopOwnedIpcServices(serviceConfig)
+}
+
 func (ext *Extension) Stop() error {
+	if ext.manager != nil && !ext.manager.Running() {
+		return nil
+	}
+
+	var stopErr error
+	if err := ext.stopIpcServices(); err != nil {
+		stopErr = joinStopErrors(stopErr, err)
+	}
+	if ext.topologyHandler != nil {
+		if err := ext.topologyHandler.StopAllSpawnedProcesses(); err != nil {
+			stopErr = joinStopErrors(stopErr, err)
+		}
+	}
 	if ext.topologyClient != nil {
 		_ = ext.topologyClient.Close()
 		ext.topologyClient = nil
 	}
-	return ext.manager.StopService(ext.mushroomURL.AsDereference().String())
+	if err := ext.manager.StopService(ext.mushroomURL.AsDereference().String()); err != nil {
+		stopErr = joinStopErrors(stopErr, err)
+	}
+	return stopErr
 }
 
 func (ext *Extension) Wait() {
-	if ext.blocker == nil {
-		return
-	}
-	ext.blocker.Wait()
+	waitForShutdown(ext.blocker, ext.Stop)
 }

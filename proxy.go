@@ -400,6 +400,10 @@ func (proxy *Proxy) addAllowedManagerClients(parameters datatype.KeyValue) error
 }
 
 func (proxy *Proxy) Stop() error {
+	if proxy.manager != nil && !proxy.manager.Running() {
+		return nil
+	}
+
 	if err := proxy.TopologyConnection.closeTopologyClient(); err != nil {
 		return fmt.Errorf("closeTopologyClient: %w", err)
 	}
@@ -416,8 +420,5 @@ func (proxy *Proxy) Stop() error {
 }
 
 func (proxy *Proxy) Wait() {
-	if proxy.blocker == nil {
-		return
-	}
-	proxy.blocker.Wait()
+	waitForShutdown(proxy.blocker, proxy.Stop)
 }
