@@ -7,10 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"time"
 
-	"github.com/noPerfection/datatype"
-	protocolClient "github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/mushroom"
@@ -19,8 +16,7 @@ import (
 )
 
 const (
-	InprocTopologyServiceName  = "inproc-topology"
-	inprocTopologyProbeTimeout = 50 * time.Millisecond
+	InprocTopologyServiceName = "inproc-topology"
 )
 
 var (
@@ -352,43 +348,6 @@ func MainPackageToLibraryAI(ai *AiClient, mainPkg, modulePkg *package_url.Packag
 		return fmt.Errorf("write %q: %w", mainGoPath, err)
 	}
 	return nil
-}
-
-// ProbeInprocServiceRunning asks the service manager whether the inproc service is running.
-func ProbeInprocServiceRunning(service config.Service) (bool, error) {
-	endpoint, err := managerEndpointForService(service)
-	if err != nil {
-		return false, err
-	}
-
-	client, err := protocolClient.NewSyncReplier(endpoint.Id, endpoint.Port)
-	if err != nil {
-		return false, fmt.Errorf("client.NewSyncReplier: %w", err)
-	}
-	defer client.Close()
-
-	client.Timeout(inprocTopologyProbeTimeout)
-	client.Attempt(1)
-
-	reply, err := client.Request(&message.Request{
-		Command:    manager.IsServiceRunning,
-		Parameters: datatype.New().Set("service", service.Name),
-	})
-	if err != nil {
-		if errors.Is(err, message.RequestTimeoutError) {
-			return false, nil
-		}
-		return false, err
-	}
-	if !reply.IsOK() {
-		return false, fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
-	}
-
-	running, err := reply.ReplyParameters().BoolValue("running")
-	if err != nil {
-		return false, fmt.Errorf("reply.Parameters.GetBoolean('running'): %w", err)
-	}
-	return running, nil
 }
 
 func managerEndpointForService(service config.Service) (message.Endpoint, error) {

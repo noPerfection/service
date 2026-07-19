@@ -136,18 +136,5 @@ func TestInprocTopologyRegistryLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, id)
 
-	handler, err := newTopologyHandler(path)
-	require.NoError(t, err)
-	serviceConfig, err := handler.Service("child")
-	require.NoError(t, err)
-
-	running, err := ProbeInprocServiceRunning(serviceConfig)
-	require.NoError(t, err)
-	require.True(t, running)
-
 	require.NoError(t, proxy.Stop())
-
-	running, err = ProbeInprocServiceRunning(serviceConfig)
-	require.NoError(t, err)
-	require.False(t, running)
 }

@@ -466,6 +466,10 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("secureEdges: %w", err)
 		goto errOccurred
 	}
+	if err = independent.testAiConnection(); err != nil {
+		err = fmt.Errorf("testAiConnection: %w", err)
+		goto errOccurred
+	}
 
 errOccurred:
 	if err != nil {
@@ -547,13 +551,9 @@ func (independent *Independent) cleanupInproc(needToStart []config.Service) erro
 	if len(remaining) == 0 {
 		var failErr error
 
-		inprocTopology, err := tp.Service(InprocTopologyServiceName)
+		topologyRunning, err := independent.manager.IsServiceRunning(InprocTopologyServiceName)
 		if err != nil {
-			return fmt.Errorf("topology.Service(%q): %w", InprocTopologyServiceName, err)
-		}
-		topologyRunning, err := ProbeInprocServiceRunning(inprocTopology)
-		if err != nil {
-			return fmt.Errorf("probe inproc topology: %w", err)
+			return fmt.Errorf("manager.IsServiceRunning(%q): %w", InprocTopologyServiceName, err)
 		}
 		if topologyRunning {
 			if err := tp.StopService(InprocTopologyServiceName); err != nil {
@@ -678,13 +678,9 @@ func (independent *Independent) startInproc() ([]config.Service, error) {
 		}
 	}
 
-	inprocTopology, err := tp.Service(InprocTopologyServiceName)
+	topologyRunning, err := independent.manager.IsServiceRunning(InprocTopologyServiceName)
 	if err != nil {
-		return needToStart, fmt.Errorf("topology.Service(%q): %w", InprocTopologyServiceName, err)
-	}
-	topologyRunning, err := ProbeInprocServiceRunning(inprocTopology)
-	if err != nil {
-		return needToStart, fmt.Errorf("probe inproc topology: %w", err)
+		return needToStart, fmt.Errorf("manager.IsServiceRunning(%q): %w", InprocTopologyServiceName, err)
 	}
 
 	mainEdited := false
@@ -714,9 +710,9 @@ func (independent *Independent) startInproc() ([]config.Service, error) {
 			if _, err := independent.manager.StartService(service.Name); err != nil {
 				return needToStart, fmt.Errorf("manager.StartService(%q): %w", service.Name, err)
 			}
-			running, err := ProbeInprocServiceRunning(service)
+			running, err := independent.manager.IsServiceRunning(service.Name, 10)
 			if err != nil {
-				return needToStart, fmt.Errorf("probe inproc service %q: %w", service.Name, err)
+				return needToStart, fmt.Errorf("manager.IsServiceRunning(%q): %w", service.Name, err)
 			}
 			if !running {
 				return needToStart, fmt.Errorf("inproc service %q is not running", service.Name)
@@ -765,6 +761,23 @@ func (independent *Independent) removeInprocTopologyExtension(serviceConfig *con
 	return nil
 }
 
+// testAiConnection probes the linked ai extension over its main handler socket.
+// Services without an ai handler dep are skipped.
+func (independent *Independent) testAiConnection() error {
+	serviceConfig, err := independent.topology().Service(independent.dereference())
+	if err != nil {
+		return fmt.Errorf("topology.Service(%q): %w", independent.dereference(), err)
+	}
+	if err := independent.ensureAiExtension(serviceConfig); err != nil {
+		return err
+	}
+	if err := independent.aiClient.CheckConnection(); err != nil {
+		return fmt.Errorf("aiClient.CheckConnection: %w", err)
+	}
+	fmt.Println("ai CheckConnection succeeded")
+	return nil
+}
+
 // ensureAiExtension ensures that the ai extension is running and connected.
 // If so, it sets the independent.aiClient to connect to the ai extension.
 func (independent *Independent) ensureAiExtension(serviceConfig config.Service) error {
@@ -776,9 +789,9 @@ func (independent *Independent) ensureAiExtension(serviceConfig config.Service) 
 		return fmt.Errorf("ai extension is not linked: call the SetHandlerDeps(service.Dependency{Name: service.ServiceManagerCategory, Extensions: []string{%q}})", AiServiceName)
 	}
 
-	running, err := ProbeInprocServiceRunning(aiServiceConfig)
+	running, err := independent.manager.IsServiceRunning(aiServiceConfig.Name)
 	if err != nil {
-		return fmt.Errorf("probe ai extension: %w", err)
+		return fmt.Errorf("manager.IsServiceRunning(%q): %w", aiServiceConfig.Name, err)
 	}
 	if !running {
 		return fmt.Errorf("ai extension is not running: add ai, _ := service.NewAiService() in your main(), then call ai.Start()")
