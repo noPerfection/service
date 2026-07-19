@@ -14,6 +14,7 @@ import (
 
 const (
 	AiServiceName               = "ai"
+	CheckConnectionCommand      = "check-connection"
 	MainPackageToLibraryCommand = "main-package-to-library"
 	defaultAiModel              = "claude-haiku-4-5-20251001"
 	aiAPIKeyParameter           = "api-key"
@@ -118,6 +119,15 @@ func NewAiService() (*AiService, error) {
 }
 
 func (ai *AiService) registerRoutes() error {
+	if err := ai.Route(CheckConnectionCommand, func(req RequestInterface) ReplyInterface {
+		if err := ai.checkConnection(); err != nil {
+			return req.Fail(err.Error())
+		}
+		return req.Ok(KeyValue())
+	}); err != nil {
+		return err
+	}
+
 	return ai.Route(MainPackageToLibraryCommand, func(req RequestInterface) ReplyInterface {
 		packageName, err := req.RouteParameters().StringValue("package-name")
 		if err != nil || packageName == "" {
@@ -191,7 +201,15 @@ func (ai *AiService) Start() error {
 }
 
 // CheckConnection verifies that the Anthropic API key can make a minimal completion.
+// When the ai service is running, call via AiClient only; direct use is rejected.
 func (ai *AiService) CheckConnection() error {
+	if ai != nil && ai.running {
+		return fmt.Errorf("ai service is running: call CheckConnection via AiClient only")
+	}
+	return ai.checkConnection()
+}
+
+func (ai *AiService) checkConnection() error {
 	model, err := ai.ensureProvider()
 	if err != nil {
 		return err

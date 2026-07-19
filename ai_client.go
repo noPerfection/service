@@ -56,6 +56,33 @@ func (c *AiClient) Close() error {
 	return c.client.Close()
 }
 
+// CheckConnection asks the ai extension to verify its provider credentials.
+func (c *AiClient) CheckConnection() error {
+	if c == nil {
+		return fmt.Errorf("ai client is not connected")
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.client == nil {
+		return fmt.Errorf("ai client is not connected")
+	}
+
+	c.client.Timeout(aiClientTimeout).Attempt(1)
+	reply, err := c.client.Request(&message.Request{
+		Command:    CheckConnectionCommand,
+		Parameters: datatype.New(),
+	})
+	if err != nil {
+		return fmt.Errorf("request: %w", err)
+	}
+	if !reply.IsOK() {
+		return fmt.Errorf("%s", reply.ErrorMessage())
+	}
+	return nil
+}
+
 // MainPackageToLibrary asks the ai extension to extract a service library from main.go source.
 func (c *AiClient) MainPackageToLibrary(packageName, importClause, mainGo string) (serviceCode string, updatedMain string, err error) {
 	if c == nil {
