@@ -15,20 +15,13 @@ import (
 
 const ipcManagerProbeTimeout = 100 * time.Millisecond
 
-// IpcServiceStartAttempts is how many IPC manager probes startIpcServices waits after spawning a dep.
-const IpcServiceStartAttempts = 30
-
 func newServiceManagerClient(service config.Service, secretKey, hmacSecret string) (*topology.Client, error) {
-	handler, err := service.HandlerByCategory(config.ServiceManagerCategory)
+	endpoint, err := ManagerEndpointForService(service)
 	if err != nil {
-		return nil, fmt.Errorf("no manager found in the '%s' service, please set its config", service.Name)
+		return nil, fmt.Errorf("manager endpoint for %q: %w", service.Name, err)
 	}
 
-	independentHandler, ok := handler.AsIndependentHandler()
-	if !ok {
-		return nil, fmt.Errorf("manager handler in '%s' is invalid", service.Name)
-	}
-	socket, err := client.New(independentHandler.Endpoint.Id, independentHandler.Endpoint.Port, client.SyncReplierType)
+	socket, err := client.New(endpoint.Id, endpoint.Port, client.SyncReplierType)
 	if err != nil {
 		return nil, fmt.Errorf("client.New: %w", err)
 	}
@@ -59,6 +52,21 @@ func managerProbeTimeout(service config.Service) time.Duration {
 		return ipcManagerProbeTimeout
 	}
 	return topology.DefaultTimeout
+}
+
+// handlerControlTimeout is for local handler control calls (RequireSecure may restart the handler).
+func handlerControlTimeout(service config.Service) time.Duration {
+	return managerProbeTimeout(service) * 2
+}
+
+// handshakeRequestTimeout covers callee onHandshake work across multiple handler control/setup round-trips.
+func handshakeRequestTimeout(service config.Service) time.Duration {
+	timeout := handlerControlTimeout(service) * 6
+	min := topology.DefaultTimeout * 2
+	if timeout < min {
+		timeout = min
+	}
+	return timeout
 }
 
 func probeServiceRunning(service config.Service, secretKey, hmacSecret string) (bool, error) {

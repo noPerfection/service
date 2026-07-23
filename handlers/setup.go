@@ -21,9 +21,14 @@ type Setup struct {
 	// handler category -> handler.Interface
 	handlers map[string]protocolHandler.Interface
 	// handler category -> command -> handle function
-	routes  map[string]map[string]protocolHandler.HandleFunc
-	logger  *log.Logger
-	running bool
+	routes map[string]map[string]protocolHandler.HandleFunc
+	logger *log.Logger
+	// This is for an extreme edge case when
+	// user wants to call Route(), while the setup is already started.
+	// Because, after start, the handler won't receive the routes.
+	//
+	// This will avoid user from guessing why command is not handled. No problem with debug.
+	started bool
 }
 
 // NewSetup creates an empty handler manager.
@@ -67,7 +72,7 @@ func (setup *Setup) RouteCommands(category string) ([]string, error) {
 }
 
 func (setup *Setup) Route(command string, handleFunc protocolHandler.HandleFunc, handlerCategory ...string) error {
-	if setup.running {
+	if setup.started {
 		return fmt.Errorf("I cant route when its already started. Please stop the handler first or the best way to route before starting the handler")
 	}
 	if len(handlerCategory) > 1 {
@@ -150,7 +155,7 @@ func (setup *Setup) Start(mushroomURL mushroom.TopologyURL) error {
 		}
 		startedHandlers = append(startedHandlers, handler)
 	}
-	setup.running = true
+	setup.started = true
 	setup.routes = nil
 
 exitStartHandler:
@@ -188,7 +193,7 @@ func (setup *Setup) Close() error {
 		}
 	}
 	setup.routes = make(map[string]map[string]protocolHandler.HandleFunc)
-	setup.running = false
+	setup.started = false
 
 	return nil
 }

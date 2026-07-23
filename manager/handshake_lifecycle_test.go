@@ -20,7 +20,7 @@ const testHandshakeInterval = 50 * time.Millisecond
 
 func testServiceURL(t *testing.T, serviceName string) mushroom.TopologyURL {
 	t.Helper()
-	serviceURL, err := mushroom.New("*pkg:$?var=services[name:" + serviceName + "]")
+	serviceURL, err := mushroom.Parse("*pkg:$?var=services[name:" + serviceName + "]")
 	require.NoError(t, err)
 	return serviceURL
 }
@@ -95,7 +95,7 @@ func startFakeCalleeManager(t *testing.T, service topologyConfig.Service, allowe
 		if err != nil {
 			return req.Fail(err.Error())
 		}
-		inboundURL, err := req.RouteParameters().StringValue("inbound-url")
+		managerURL, err := req.RouteParameters().StringValue("manager-url")
 		if err != nil {
 			return req.Fail(err.Error())
 		}
@@ -104,7 +104,7 @@ func startFakeCalleeManager(t *testing.T, service topologyConfig.Service, allowe
 				return req.Fail(err.Error())
 			}
 		}
-		_ = inboundURL
+		_ = managerURL
 		return req.Ok(datatype.New())
 	}))
 	callee := &fakeCalleeManager{name: service.Name, endpoint: endpoint.Endpoint}
@@ -118,7 +118,7 @@ func startFakeCalleeManager(t *testing.T, service topologyConfig.Service, allowe
 		}
 		return req.Ok(datatype.New().Set("running", callee.running))
 	}))
-	mushroomURL, err := mushroom.New("*pkg:$?var=services[name:"+service.Name+"]", topologyConfig.ServiceManagerCategory)
+	mushroomURL, err := mushroom.As("*pkg:$?var=services[name:"+service.Name+"]", topologyConfig.ServiceManagerCategory)
 	require.NoError(t, err)
 	handler.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, handler.Start())
@@ -158,7 +158,7 @@ func refreshCalleeHandshake(t *testing.T, caller *Manager, calleeName string) {
 	depURL := calleeDepURL(t, calleeName)
 	running, runErr := caller.IsServiceRunning(depURL, 1)
 	if runErr != nil && errors.Is(runErr, message.ErrAccessDenied) {
-		require.NoError(t, caller.handshakeOutbound(depURL))
+		require.NoError(t, caller.whitelistSelfInDeps(depURL))
 		running, runErr = caller.IsServiceRunning(depURL, 1)
 	}
 	require.NoError(t, runErr)
@@ -347,23 +347,24 @@ func TestHandshakeRouteRegisteredOnStart(t *testing.T) {
 
 	publishManagerPublicKey(t, callerService.Name, caller.PublicKey())
 
-	inboundURL, err := mushroom.New(callerURL.String(), topologyConfig.ServiceManagerCategory)
+	managerURL, err := mushroom.As(callerURL.String(), topologyConfig.ServiceManagerCategory)
 	require.NoError(t, err)
 
 	msg := &message.Request{
 		Command: Handshake,
 		Parameters: datatype.New().
-			Set("secret", caller.secretKey).
-			Set("inbound-url", inboundURL.String()),
+			Set("secret", message.GenerateSecret()).
+			Set("manager-url", managerURL.String()).
+			Set("inbounds", datatype.New()),
 	}
-	signature, err := message.Sign(msg.String(), caller.secretKey)
+	signature, err := message.Sign(msg.String(), caller.curveSecretKey)
 	require.NoError(t, err)
 	msg.Parameters.Set("signature", signature)
 
 	client, err := protocolClient.NewSyncReplier(callerEndpoint.Id, callerEndpoint.Port)
 	require.NoError(t, err)
 	defer client.Close()
-	client.Secure(caller.secretKey)
+	client.Secure(caller.curveSecretKey)
 
 	reply, err := client.Request(msg)
 	require.NoError(t, err)

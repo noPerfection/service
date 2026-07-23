@@ -141,7 +141,7 @@ func startFakeServiceHandlers(t *testing.T, service topologyConfig.Service) []pr
 
 		handler := newProtocolHandler(t, configured.Type)
 		handler.SetEndpoint(configured.Endpoint)
-		mushroomURL, err := mushroom.New("*pkg:$?var=services[name:"+service.Name+"]", configured.Category)
+		mushroomURL, err := mushroom.As("*pkg:$?var=services[name:"+service.Name+"]", configured.Category)
 		require.NoError(t, err)
 		handler.SetMushroomURL(mushroomURL.String())
 		require.NoError(t, handler.Start())
@@ -150,15 +150,11 @@ func startFakeServiceHandlers(t *testing.T, service topologyConfig.Service) []pr
 
 	t.Cleanup(func() {
 		for _, handler := range startedHandlers {
-			_ = closeProtocolHandler(handler)
+			_ = handlers.CloseViaControl(handler)
 		}
 	})
 
 	return startedHandlers
-}
-
-func closeProtocolHandler(handler protocolHandler.Interface) error {
-	return handlers.CloseViaControl(handler)
 }
 
 func handlerControlStatus(handler protocolHandler.Interface) (string, error) {
@@ -203,7 +199,7 @@ func requireHandlerStopped(t *testing.T, handler protocolHandler.Interface) {
 func newTestManager(t *testing.T, service topologyConfig.Service, managerEndpoint message.Endpoint) *Manager {
 	t.Helper()
 
-	serviceURL, err := mushroom.New("*pkg:$?var=services[name:" + service.Name + "]")
+	serviceURL, err := mushroom.Parse("*pkg:$?var=services[name:" + service.Name + "]")
 	require.NoError(t, err)
 	manager, err := New(serviceURL, managerEndpoint)
 	require.NoError(t, err)
@@ -232,14 +228,19 @@ func TestSetHandlerControlsMatchesFakeServiceConfig(t *testing.T) {
 	require.NoError(t, manager.setHandlerControls())
 	require.Len(t, manager.handlerControls, len(handlers))
 
-	for i, controlClient := range manager.handlerControls {
+	for _, handlerVariant := range service.Handlers {
+		handler, ok := handlerVariant.AsIndependentHandler()
+		if !ok || handler.Category == topologyConfig.ServiceManagerCategory {
+			continue
+		}
+
+		controlClient, ok := manager.handlerControls[handler.Category]
+		require.True(t, ok)
+
 		handlerControlConfig, err := controlClient.HandlerConfig()
 		require.NoError(t, err)
-
-		expected, ok := service.Handlers[i+1].AsIndependentHandler()
-		require.True(t, ok)
-		require.Equal(t, expected.Endpoint.Id, handlerControlConfig.Id)
-		require.Equal(t, expected.Endpoint.Port, handlerControlConfig.Port)
+		require.Equal(t, handler.Endpoint.Id, handlerControlConfig.Id)
+		require.Equal(t, handler.Endpoint.Port, handlerControlConfig.Port)
 	}
 }
 
@@ -421,7 +422,7 @@ func TestCloseStopsConfiguredHandlersAndManagerSockets(t *testing.T) {
 
 func TestStartFailsWhenTopologyClientIsNil(t *testing.T) {
 	managerEndpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
-	serviceURL, err := mushroom.New("*pkg:$?var=services[name:fake-service]")
+	serviceURL, err := mushroom.Parse("*pkg:$?var=services[name:fake-service]")
 	require.NoError(t, err)
 	manager, err := New(serviceURL, managerEndpoint)
 	require.NoError(t, err)
@@ -433,7 +434,7 @@ func TestStartFailsWhenTopologyClientIsNil(t *testing.T) {
 
 func TestServiceNameValidation(t *testing.T) {
 	managerEndpoint := message.NewEndpoint(testEndpointID(t, "manager"), 0)
-	serviceURL, err := mushroom.New("*pkg:$?var=services[name:fake-service]")
+	serviceURL, err := mushroom.Parse("*pkg:$?var=services[name:fake-service]")
 	require.NoError(t, err)
 	manager, err := New(serviceURL, managerEndpoint)
 	require.NoError(t, err)
@@ -476,7 +477,7 @@ func startRecordingInprocTopologyExtension(t *testing.T, endpoint message.Endpoi
 		recorder.started[serviceName] = true
 		return req.Ok(datatype.New().Set("id", "1"))
 	}))
-	mushroomURL, err := mushroom.New("*pkg:$?var=services[name:inproc-topology]", handlers.DefaultHandlerCategory)
+	mushroomURL, err := mushroom.As("*pkg:$?var=services[name:inproc-topology]", handlers.DefaultHandlerCategory)
 	require.NoError(t, err)
 	handler.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, handler.Start())
@@ -516,7 +517,7 @@ func startRecordingServiceManager(t *testing.T, endpoint message.Endpoint) *reco
 		recorder.probe[serviceName] = false
 		return req.Ok(datatype.New())
 	}))
-	mushroomURL, err := mushroom.New("*pkg:$?var=services[name:test-service]", topologyConfig.ServiceManagerCategory)
+	mushroomURL, err := mushroom.As("*pkg:$?var=services[name:test-service]", topologyConfig.ServiceManagerCategory)
 	require.NoError(t, err)
 	handler.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, handler.Start())

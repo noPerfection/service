@@ -202,7 +202,7 @@ func TestStartReturnsHandlerStartError(t *testing.T) {
 	sharedEndpoint := testEndpointID(t, "sync-bind")
 	blocker := protocolHandler.NewSyncReplier()
 	setInprocHandlerEndpoint(t, blocker, sharedEndpoint)
-	mushroomURL, err := mushroom.New(testServiceMushroomURL, "blocker")
+	mushroomURL, err := mushroom.As(testServiceMushroomURL, "blocker")
 	require.NoError(t, err)
 	blocker.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, blocker.Start())
@@ -217,7 +217,7 @@ func TestStartReturnsHandlerStartError(t *testing.T) {
 	setInprocHandlerEndpoint(t, handler, sharedEndpoint)
 	require.NoError(t, manager.SetHandler("sync", handler))
 
-	handlerLink, err := mushroom.New(testServiceMushroomURL, "sync")
+	handlerLink, err := mushroom.As(testServiceMushroomURL, "sync")
 	require.NoError(t, err)
 	handler.SetMushroomURL(handlerLink.String())
 	err = handler.Start()

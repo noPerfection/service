@@ -2,85 +2,208 @@ package manager
 
 import (
 	"fmt"
-	"strings"
+	"time"
 
-	protocolHandler "github.com/noPerfection/protocol/handler"
+	"github.com/noPerfection/datatype"
+	"github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
 
-// AddTopologyManagers authorizes this manager's message.Any route to call every
-// other service manager registered in npac. Call after outbound registration.
-func (m *Manager) AddTopologyManagers() error {
-	if m.topology == nil {
-		return fmt.Errorf("topology is nil")
+// inprocTopologyEndpoint is the endpoint of the inproc topology extension service.
+func startInprocService(inprocTopologyEndpoint message.Endpoint, handlerType config.HandlerType, serviceName string) (string, error) {
+	socket, err := client.New(inprocTopologyEndpoint.Id, inprocTopologyEndpoint.Port, client.HandlerType(handlerType))
+	if err != nil {
+		return "", fmt.Errorf("client.New: %w", err)
 	}
-	return addTopologyManagers(m.topology, m.serviceURL.AsDereference().String(), m.Interface)
+	defer socket.Close()
+
+	socket.Timeout(time.Second)
+	socket.Attempt(3)
+
+	reply, err := socket.Request(&message.Request{
+		Command:    StartService,
+		Parameters: datatype.New().Set("service", serviceName),
+	})
+	if err != nil {
+		return "", fmt.Errorf("socket.Request('%s'): %w", StartService, err)
+	}
+	if !reply.IsOK() {
+		return "", fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
+	}
+
+	id, err := reply.ReplyParameters().StringValue("id")
+	if err != nil {
+		return "", fmt.Errorf("reply.Parameters.GetString('id'): %w", err)
+	}
+	return id, nil
 }
 
-// AddTopologyManagers authorizes this proxy manager's message.Any route to call
-// every other service manager registered in npac. Call after outbound registration.
-func (m *ProxyManager) AddTopologyManagers() error {
-	if err := m.ensureTopologyClient(); err != nil {
-		return err
+func inprocTopologyExtensionEndpoint(topologyClient *topology.Client) (message.Endpoint, config.HandlerType, error) {
+	if topologyClient == nil {
+		return message.Endpoint{}, "", fmt.Errorf("topology is nil")
 	}
-	return addTopologyManagers(m.topology, m.serviceName, m.Interface)
+	record, err := topologyClient.Service(InprocTopologyServiceName)
+	if err != nil {
+		return message.Endpoint{}, "", fmt.Errorf("topology.Service(%q): %w", InprocTopologyServiceName, err)
+	}
+	extensionHandler, err := record.HandlerByCategory(handlers.DefaultHandlerCategory)
+	if err != nil {
+		return message.Endpoint{}, "", fmt.Errorf("inproc topology extension handler: %w", err)
+	}
+	handler, ok := extensionHandler.AsIndependentHandler()
+	if !ok {
+		return message.Endpoint{}, "", fmt.Errorf("inproc topology extension handler is not independent")
+	}
+	return handler.Endpoint, handler.Type, nil
 }
 
-func addTopologyManagers(tp *topology.Client, serviceName string, handler protocolHandler.Interface) error {
-	replier, err := handlerWithAutocontext(handler)
+func getPublicKeyFromConfig(inboundURL string, tp *topology.Client) (string, error) {
+	u, err := mushroom.Parse(inboundURL)
 	if err != nil {
-		return err
+		return "", fmt.Errorf("mushroom.Parse(%q): %w", inboundURL, err)
+	}
+	serviceURL := u.As(mushroom.SERVICE).AsDereference().String()
+	if tp != nil {
+		if link, err := tp.GetLink(serviceURL); err == nil {
+			if resolved, err := mushroom.Parse(link); err == nil {
+				serviceURL = resolved.As(mushroom.SERVICE).AsDereference().String()
+			}
+		}
 	}
 
-	self, err := tp.Service(serviceName)
+	service, err := tp.Service(serviceURL)
 	if err != nil {
-		return fmt.Errorf("topology.Service(%q): %w", serviceName, err)
+		return "", fmt.Errorf("topology.Service(%q): %w", serviceURL, err)
 	}
-
-	services, err := tp.Services()
-	if err != nil {
-		return fmt.Errorf("topology.Services: %w", err)
+	if service.Parameters == nil {
+		return "", fmt.Errorf("service %q has no parameters", service.Name)
 	}
+	pubKey, ok := service.Parameters[ManagerPublicKeyParam].(string)
+	if !ok || pubKey == "" {
+		return "", fmt.Errorf("service %q has no %q parameter", service.Name, ManagerPublicKeyParam)
+	}
+	return pubKey, nil
+}
 
-	for _, service := range services {
-		if service.Equal(self) {
+// filter out outboundServiceURL in the topology of serviceDeref.
+func filterTopologyOutbounds(topologyOutbounds map[string]map[string]string, serviceURL, outboundServiceURL mushroom.TopologyURL) (map[string]mushroom.TopologyURL, error) {
+	allOutbounds, hasOutbounds := topologyOutbounds[serviceURL.AsDereference().String()]
+
+	outbounds := make(map[string]mushroom.TopologyURL)
+	if len(allOutbounds) == 0 || !hasOutbounds {
+		return outbounds, nil
+	}
+	// Example (dep-service: entrypoint-proxy, this-service: hello-world)
+	// Outbounds[entrypoint-proxy.main.hello] = {
+	//   RouteURL: entrypoint-proxy.main.hello,
+	//   PublicKey: hello-world.main.public-key,
+	//   Secret: hello-world.main.secret,
+	// }
+	// Outbounds to this service from dep. On Handshake, the service registers outbounds.
+	// onHandshake should return the public key of the entrypoint-proxy.main.hello handler.
+	// And here it will be recorded as allow via a control.
+	for route, outboundRoute := range allOutbounds {
+		outboundURL, err := mushroom.Parse(outboundRoute)
+		if err != nil {
+			return nil, fmt.Errorf("mushroom.Parse(%q): %w", outboundRoute, err)
+		}
+		if outboundURL.As(mushroom.SERVICE).AsDereference().String() != outboundServiceURL.As(mushroom.SERVICE).AsDereference().String() {
 			continue
 		}
-		if _, err := service.HandlerByCategory(config.ServiceManagerCategory); err != nil {
-			continue
-		}
+		outbounds[route] = outboundURL
+	}
+	return outbounds, nil
+}
 
-		serviceLink, err := tp.GetLink(service.Name)
-		if err != nil {
-			return fmt.Errorf("topology.GetLink(%q): %w", service.Name, err)
-		}
+func filterTopologyInbounds(topologyInbounds map[string]map[string][]string, depServiceURL, inboundServiceURL mushroom.TopologyURL) (map[string]mushroom.TopologyURL, error) {
+	// topologyInbounds is keyed by the service that owns the protected routes (this service).
+	// Each entry lists remote routes allowed to call a local route; here we keep remote dep
+	// routes that reach this service — the same edge as filterTopologyOutbounds, viewed from inbounds.
+	allInbounds, hasInbounds := topologyInbounds[depServiceURL.As(mushroom.SERVICE).String()]
+	if !hasInbounds {
+		allInbounds, hasInbounds = topologyInbounds[inboundServiceURL.AsDereference().String()]
+	}
 
-		outbound, err := mushroom.New(serviceLink, config.ServiceManagerCategory, message.Any)
-		if err != nil {
-			return fmt.Errorf("mushroom.New(%q, %q, %q): %w", serviceLink, config.ServiceManagerCategory, message.Any, err)
-		}
+	inbounds := make(map[string]mushroom.TopologyURL)
+	if !hasInbounds || len(allInbounds) == 0 {
+		return inbounds, nil
+	}
 
-		if err := replier.NpacSecureEdgeCase(outbound.String(), message.Any); err != nil {
-			if strings.Contains(err.Error(), "already whitelisted") {
+	for route, inboundRoutes := range allInbounds {
+		for _, inboundRoute := range inboundRoutes {
+			inboundURL, err := mushroom.Parse(inboundRoute)
+			if err != nil {
+				return nil, fmt.Errorf("mushroom.Parse(%q): %w", inboundRoute, err)
+			}
+			if inboundURL.As(mushroom.SERVICE).AsDereference().String() != inboundServiceURL.As(mushroom.SERVICE).AsDereference().String() {
 				continue
 			}
-			return fmt.Errorf("NpacSecureEdgeCase(%q): %w", service.Name, err)
+			inbounds[route] = inboundURL
+		}
+	}
+	return inbounds, nil
+}
+
+func endpointForRouteURL(routeURL string, tp *topology.Client) (message.Endpoint, error) {
+	routeMushroomURL, err := mushroom.Parse(routeURL)
+	if err != nil {
+		return message.Endpoint{}, fmt.Errorf("mushroom.Parse(%q): %w", routeURL, err)
+	}
+
+	service, err := tp.Service(routeMushroomURL.As(mushroom.SERVICE).AsDereference().String())
+	if err != nil {
+		return message.Endpoint{}, fmt.Errorf("topology.Service: %w", err)
+	}
+
+	handler, err := service.HandlerByCategory(routeMushroomURL.HandlerLink().HandlerCategory())
+	if err != nil {
+		return message.Endpoint{}, fmt.Errorf("HandlerByCategory(%q): %w", routeMushroomURL.HandlerLink().HandlerCategory(), err)
+	}
+	ind, ok := handler.AsIndependentHandler()
+	if !ok {
+		return message.Endpoint{}, fmt.Errorf("route %q is not an independent handler", routeURL)
+	}
+
+	return ind.Endpoint, nil
+}
+
+func buildTopologyOutbounds(
+	topologyInbounds map[string]map[string][]string,
+	depDerefs map[string]struct{},
+	selfServiceDeref string,
+) (map[string]map[string]string, error) {
+	outbounds := make(map[string]map[string]string, len(depDerefs)+1)
+	for handlerDeref := range depDerefs {
+		handlerURL, err := mushroom.Parse(handlerDeref)
+		if err != nil {
+			return nil, fmt.Errorf("mushroom.Parse(%q): %w", handlerDeref, err)
+		}
+		serviceLink := handlerURL.As(mushroom.SERVICE).AsDereference().String()
+		outbounds[serviceLink] = make(map[string]string)
+	}
+	if selfServiceDeref != "" {
+		outbounds[selfServiceDeref] = make(map[string]string)
+	}
+
+	for _, routeInbounds := range topologyInbounds {
+		for route, inboundRoutes := range routeInbounds {
+			for _, inboundRoute := range inboundRoutes {
+				inboundURL, err := mushroom.Parse(inboundRoute)
+				if err != nil {
+					return nil, fmt.Errorf("mushroom.Parse(%q): %w", inboundRoute, err)
+				}
+				outboundDeref := inboundURL.As(mushroom.SERVICE).AsDereference().String()
+				if _, ok := outbounds[outboundDeref]; !ok {
+					return nil, fmt.Errorf("outbound deref %q is not whitelisted", outboundDeref)
+				}
+				outbounds[outboundDeref][inboundRoute] = route
+			}
 		}
 	}
 
-	return nil
-}
-
-func handlerWithAutocontext(handler protocolHandler.Interface) (*protocolHandler.Replier, error) {
-	replier, ok := handler.(*protocolHandler.Replier)
-	if !ok {
-		return nil, fmt.Errorf("manager handler is not a replier")
-	}
-	if replier.Autocontext == nil {
-		return nil, fmt.Errorf("manager handler autocontext is nil")
-	}
-	return replier, nil
+	return outbounds, nil
 }

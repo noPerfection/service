@@ -54,7 +54,7 @@ const testServiceMushroomURL = "*pkg:$?var=services[name:test-service]"
 
 func testServiceTopologyURL(t *testing.T) mushroom.TopologyURL {
 	t.Helper()
-	serviceURL, err := mushroom.New(testServiceMushroomURL)
+	serviceURL, err := mushroom.Parse(testServiceMushroomURL)
 	require.NoError(t, err)
 	return serviceURL
 }

@@ -63,7 +63,7 @@ func setIndependentMushroomURL(t *testing.T, independent *Independent, configPat
 		filepath.Base(abs),
 		independent.rawMushroomURL,
 	)
-	independent.mushroomURL, err = mushroom.New(link)
+	independent.mushroomURL, err = mushroom.Parse(link)
 	require.NoError(t, err)
 }
 
@@ -77,7 +77,7 @@ func setProxyMushroomURL(t *testing.T, proxy *Proxy, configPath string) {
 		filepath.Base(abs),
 		proxy.name,
 	)
-	proxy.mushroomURL, err = mushroom.New(link)
+	proxy.mushroomURL, err = mushroom.Parse(link)
 	require.NoError(t, err)
 }
 
@@ -636,7 +636,7 @@ func TestCommandOutboundTargetUsesFacadeURL(t *testing.T) {
 	require.NoError(t, err)
 	serviceLink, err := independent.topology().GetLink(independent.rawMushroomURL)
 	require.NoError(t, err)
-	outboundURL, err := mushroom.New(serviceLink, "api")
+	outboundURL, err := mushroom.As(serviceLink, "api")
 	require.NoError(t, err)
 	require.Contains(t, outboundURL.String(), "services[name:custom-service]&category=api")
 }

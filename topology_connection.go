@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
@@ -132,18 +133,18 @@ func depMushroomURL(tp topology.TopologyInterface, url string) (mushroom.Topolog
 	if err != nil {
 		return mushroom.TopologyURL{}, fmt.Errorf("topology.GetLink(%q): %w", url, err)
 	}
-	u, err := mushroom.New(link)
+	u, err := mushroom.Parse(link)
 	if err != nil {
-		return mushroom.TopologyURL{}, fmt.Errorf("mushroom.New(%q): %w", link, err)
+		return mushroom.TopologyURL{}, fmt.Errorf("mushroom.Parse(%q): %w", link, err)
 	}
 	return u, nil
 }
 
 func (topologyConnection *TopologyConnection) setTopologyHandler(handler config.Handler, url string) error {
 	tp := topologyConnection.topology()
-	mushroomURL, err := mushroom.New(url)
+	mushroomURL, err := mushroom.Parse(url)
 	if err != nil {
-		return fmt.Errorf("mushroom.New(%q): %w", url, err)
+		return fmt.Errorf("mushroom.Parse(%q): %w", url, err)
 	}
 	handlerURL := mushroomURL.HandlerLink().AsDereference().String()
 	if err := tp.SetHandler(handler, handlerURL); err != nil {
@@ -184,7 +185,7 @@ func (topologyConnection *TopologyConnection) resolveTopologyHandler(url string)
 	if svcErr != nil {
 		return nil, fmt.Errorf("topology.Service(%q): %w", mushroomURL, svcErr)
 	}
-	endpoint, epErr := managerEndpointForService(service)
+	endpoint, epErr := manager.ManagerEndpointForService(service)
 	if epErr != nil {
 		return nil, epErr
 	}

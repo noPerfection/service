@@ -39,13 +39,13 @@ func TestProxyManagerOnProxyHandlerRunningForwardsToProxyHandlers(t *testing.T) 
 		_ = proxyHandlers.Close()
 	})
 
-	proxyHandlersClient, err := protocolClient.NewSyncReplier(serviceName+handlers.ProxyHandlersCategory, 0)
+	proxyHandlersClient, err := protocolClient.NewPair(serviceName+handlers.ProxyHandlersCategory, 0)
 	require.NoError(t, err)
 	defer proxyHandlersClient.Close()
 
 	manager := &ProxyManager{
 		serviceName: serviceName,
-		handlers:    proxyHandlersClient,
+		setup:       proxyHandlersClient,
 	}
 
 	reply := manager.onSetProxyHandler(&message.Request{

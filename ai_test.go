@@ -1,7 +1,7 @@
 package service
 
 import (
-		"path/filepath"
+	"path/filepath"
 	"testing"
 
 	"github.com/noPerfection/datatype"
@@ -51,7 +51,7 @@ func TestNewAiServiceReadsParametersFromTopology(t *testing.T) {
 
 	serviceLink, err := ai.topology().GetLink(ai.rawMushroomURL)
 	require.NoError(t, err)
-	ai.mushroomURL, err = mushroom.New(serviceLink)
+	ai.mushroomURL, err = mushroom.Parse(serviceLink)
 	require.NoError(t, err)
 
 	model, err := ai.ensureProvider()

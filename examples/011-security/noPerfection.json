@@ -36,7 +36,7 @@
             "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "*pkg:json/.#noPerfection.json?var=services[name:hello-world].parameters.public-key"
           }
         },
-        "public-key": "3s9s.5jrq7B}M+7/xn^hJCp]$fO.d{nN@Y-@VI}3"
+        "public-key": "?Hs1)Pa*#XR)5wzLj\u003emamt=%u]w6\u0026zHZLuwPvTX?"
       },
       "start-command": "./bin/proxy",
       "type": "Proxy"
@@ -76,7 +76,7 @@
             "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "*pkg:json/.#noPerfection.json?var=services[name:hello-world].parameters.public-key"
           }
         },
-        "public-key": "BZYk)q9zGT\u003eL*[txE.]2WJp3TKq%.0wAXUWFZ9^M"
+        "public-key": "U}tTS}gt\u00266u5MpEz/Pf8gmbFZ1EK)nA=FfA!}WTp"
       },
       "start-command": "./bin/entrypoint",
       "type": "Proxy"
@@ -149,7 +149,7 @@
             "id": "ai",
             "port": 0
           },
-          "inbounds": null,
+          "inbounds": [],
           "type": "Replier"
         }
       ],
@@ -207,7 +207,7 @@
             "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "*pkg:json/.#noPerfection.json?var=services[name:hello-world].parameters.public-key"
           }
         },
-        "public-key": "th@cddSN%k0AeZ%b%]3NAPjGE7H?x$*Bu(q?so@w"
+        "public-key": "Q.LD\u003eM.yK1Rq4dqS7$6z+YSs@Lh\u003em(?fABhT$:63"
       },
       "start-command": "./bin/metrics",
       "type": "Proxy"
@@ -248,7 +248,7 @@
             "pkg:json/.#noPerfection.json?var=services[name:hello-world]\u0026category=manager": "*pkg:json/.#noPerfection.json?var=services[name:hello-world].parameters.public-key"
           }
         },
-        "public-key": "w}DF+cd(k-UFvO#Q:ZpBwwQnty6\u003e\u003c*q*ffAb{UC?"
+        "public-key": "t.7LQhM^tVwPdkxA^?$EN\u003eY=Byw7q=\u003ek=TA/zTw-"
       },
       "start-command": "./bin/proxy2",
       "type": "Proxy"

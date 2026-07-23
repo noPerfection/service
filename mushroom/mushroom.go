@@ -26,7 +26,7 @@ const ManagerPublicKeyParam = "public-key"
 //
 // If no optional parameters, category and command embedded in serviceLink are stripped.
 // Use Parse to preserve them when re-parsing a handler or route URL.
-func New(serviceLink string, params ...string) (TopologyURL, error) {
+func As(serviceLink string, params ...string) (TopologyURL, error) {
 	var soil mushroom.Soil
 	hypha, err := soil.Hypha(serviceLink)
 	if err != nil {
@@ -185,7 +185,7 @@ func (t TopologyURL) Equal(b any, kind int) bool {
 		o = b
 	case string:
 		var err error
-		o, err = New(b)
+		o, err = Parse(b)
 		if err != nil {
 			return false
 		}

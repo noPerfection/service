@@ -317,9 +317,9 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("topology.GetLink('%s'): %w", independent.rawMushroomURL, err)
 		goto errOccurred
 	} else {
-		independent.mushroomURL, err = mushroom.New(serviceLink)
+		independent.mushroomURL, err = mushroom.Parse(serviceLink)
 		if err != nil {
-			err = fmt.Errorf("mushroom.New('%s'): %w", serviceLink, err)
+			err = fmt.Errorf("mushroom.Parse('%s'): %w", serviceLink, err)
 			goto errOccurred
 		}
 	}
@@ -462,13 +462,8 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("manager.Handshake: %w", err)
 		goto errOccurred
 	}
-	if err = independent.secureEdges(); err != nil {
-		err = fmt.Errorf("secureEdges: %w", err)
-		goto errOccurred
-	}
-	if err = independent.testAiConnection(); err != nil {
-		err = fmt.Errorf("testAiConnection: %w", err)
-		goto errOccurred
+	if aiErr := independent.testAiConnection(); aiErr != nil {
+		fmt.Println("testAiConnection: %w", aiErr)
 	}
 
 errOccurred:
@@ -556,8 +551,8 @@ func (independent *Independent) cleanupInproc(needToStart []config.Service) erro
 			return fmt.Errorf("manager.IsServiceRunning(%q): %w", InprocTopologyServiceName, err)
 		}
 		if topologyRunning {
-			if err := tp.StopService(InprocTopologyServiceName); err != nil {
-				return fmt.Errorf("topology.StopService(%q): %w", InprocTopologyServiceName, err)
+			if err := independent.manager.StopService(InprocTopologyServiceName); err != nil {
+				return fmt.Errorf("manager.StopService(%q): %w", InprocTopologyServiceName, err)
 			}
 		}
 
@@ -734,9 +729,13 @@ func (independent *Independent) removeInprocTopologyExtension(serviceConfig *con
 		}
 		filtered := make([]string, 0, len(dep.Extensions))
 		for _, extension := range dep.Extensions {
-			extensionMushroomURL, err := mushroom.New(extension)
+			extensionLink, err := tp.GetLink(extension)
 			if err != nil {
-				return fmt.Errorf("mushroom.New(%q): %w", extension, err)
+				return fmt.Errorf("topology.GetLink(%q): %w", extension, err)
+			}
+			extensionMushroomURL, err := mushroom.Parse(extensionLink)
+			if err != nil {
+				return fmt.Errorf("mushroom.Parse(%q): %w", extensionLink, err)
 			}
 			svc, err := tp.Service(extensionMushroomURL.AsDereference().String())
 			if err != nil {
@@ -774,7 +773,7 @@ func (independent *Independent) testAiConnection() error {
 	if err := independent.aiClient.CheckConnection(); err != nil {
 		return fmt.Errorf("aiClient.CheckConnection: %w", err)
 	}
-	fmt.Println("ai CheckConnection succeeded")
+	fmt.Println("testAiConnection: ai CheckConnection succeeded within ", independent.rawMushroomURL)
 	return nil
 }
 
@@ -817,9 +816,13 @@ func (independent *Independent) addInprocTopologyExtension(serviceConfig *config
 			continue
 		}
 		for _, extension := range dep.Extensions {
-			extensionMushroomURL, err := mushroom.New(extension)
+			extensionLink, err := tp.GetLink(extension)
 			if err != nil {
-				return fmt.Errorf("mushroom.New(%q): %w", extension, err)
+				return fmt.Errorf("topology.GetLink(%q): %w", extension, err)
+			}
+			extensionMushroomURL, err := mushroom.Parse(extensionLink)
+			if err != nil {
+				return fmt.Errorf("mushroom.Parse(%q): %w", extensionLink, err)
 			}
 			svc, err := tp.Service(extensionMushroomURL.AsDereference().String())
 			if err != nil {
@@ -936,9 +939,9 @@ func (independent *Independent) allowServiceManager() error {
 	}
 
 	for svcURL := range depServiceURLs {
-		mushroomURL, err := mushroom.New(svcURL)
+		mushroomURL, err := mushroom.Parse(svcURL)
 		if err != nil {
-			return fmt.Errorf("mushroom.New(%q): %w", svcURL, err)
+			return fmt.Errorf("mushroom.Parse(%q): %w", svcURL, err)
 		}
 		depService, err := tp.Service(mushroomURL.AsDereference().String())
 		if err != nil {
@@ -1007,7 +1010,7 @@ func (independent *Independent) addAllowedManagerClients(parameters datatype.Key
 			continue
 		}
 		independent.manager.Allow(pubKey)
-		fmt.Printf("The %s allowed to access %s\n", link, independent.rawMushroomURL)
+		fmt.Printf("The %s allowed %s to access itself\n", link, independent.rawMushroomURL)
 	}
 	if len(entryMap) > 0 {
 		independent.manager.RequireWhitelist()
@@ -1083,9 +1086,9 @@ func (independent *Independent) startIpcDepsFor(serviceConfig config.Service, st
 			if err != nil {
 				return fmt.Errorf("topology.GetLink('%s'): %w", proxy, err)
 			}
-			proxyMushroomURL, err := mushroom.New(link)
+			proxyMushroomURL, err := mushroom.Parse(link)
 			if err != nil {
-				return fmt.Errorf("mushroom.New(%q): %w", proxy, err)
+				return fmt.Errorf("mushroom.Parse(%q): %w", proxy, err)
 			}
 			if err := independent.startIpcService(proxyMushroomURL, startedRefs); err != nil {
 				return fmt.Errorf("HandlerDeps[name: %q].Proxies[%q]: %w", dep.Name, proxy, err)
@@ -1096,9 +1099,9 @@ func (independent *Independent) startIpcDepsFor(serviceConfig config.Service, st
 			if err != nil {
 				return fmt.Errorf("topology.GetLink('%s'): %w", extension, err)
 			}
-			extensionMushroomURL, err := mushroom.New(link)
+			extensionMushroomURL, err := mushroom.Parse(link)
 			if err != nil {
-				return fmt.Errorf("mushroom.New(%q): %w", extension, err)
+				return fmt.Errorf("mushroom.Parse(%q): %w", extension, err)
 			}
 			if err := independent.startIpcService(extensionMushroomURL, startedRefs); err != nil {
 				return fmt.Errorf("HandlerDeps[name: %q].Extensions[%q]: %w", dep.Name, extension, err)
@@ -1117,9 +1120,9 @@ func (independent *Independent) startIpcDepsFor(serviceConfig config.Service, st
 				if err != nil {
 					return fmt.Errorf("topology.GetLink('%s'): %w", proxy, err)
 				}
-				proxyMushroomURL, err := mushroom.New(link)
+				proxyMushroomURL, err := mushroom.Parse(link)
 				if err != nil {
-					return fmt.Errorf("mushroom.New(%q): %w", proxy, err)
+					return fmt.Errorf("mushroom.Parse(%q): %w", proxy, err)
 				}
 				if err := independent.startIpcService(proxyMushroomURL, startedRefs); err != nil {
 					return fmt.Errorf("Handlers[category: %q].CommandDeps[name: %q].Proxies[%q]: %w", handler.Category, dep.Name, proxy, err)
@@ -1130,9 +1133,9 @@ func (independent *Independent) startIpcDepsFor(serviceConfig config.Service, st
 				if err != nil {
 					return fmt.Errorf("topology.GetLink('%s'): %w", extension, err)
 				}
-				extensionMushroomURL, err := mushroom.New(link)
+				extensionMushroomURL, err := mushroom.Parse(link)
 				if err != nil {
-					return fmt.Errorf("mushroom.New(%q): %w", extension, err)
+					return fmt.Errorf("mushroom.Parse(%q): %w", extension, err)
 				}
 				if err := independent.startIpcService(extensionMushroomURL, startedRefs); err != nil {
 					return fmt.Errorf("Handlers[category: %q].CommandDeps[name: %q].Extensions[%q]: %w", handler.Category, dep.Name, extension, err)
@@ -1239,9 +1242,9 @@ func (independent *Independent) registerOutbounds() error {
 	}
 
 	registerDepManager := func(facadeURL string) error {
-		managerMushroomURL, err := mushroom.New(facadeURL, config.ServiceManagerCategory)
+		managerMushroomURL, err := mushroom.As(facadeURL, config.ServiceManagerCategory)
 		if err != nil {
-			return fmt.Errorf("mushroom.New(%q): %w", facadeURL, err)
+			return fmt.Errorf("mushroom.As(%q): %w", facadeURL, err)
 		}
 		return registerFacade(managerMushroomURL.String())
 	}
@@ -1252,9 +1255,9 @@ func (independent *Independent) registerOutbounds() error {
 			if err != nil {
 				return fmt.Errorf("topology.GetLink('%s'): %w", proxy, err)
 			}
-			proxyMushroomURL, err := mushroom.New(link)
+			proxyMushroomURL, err := mushroom.Parse(link)
 			if err != nil {
-				return fmt.Errorf("mushroom.New(%q): %w", link, err)
+				return fmt.Errorf("mushroom.Parse(%q): %w", link, err)
 			}
 			facadeURL, err := tp.GetFacade(proxyMushroomURL.AsDereference().String())
 			if err != nil {
@@ -1272,9 +1275,9 @@ func (independent *Independent) registerOutbounds() error {
 			if err != nil {
 				return fmt.Errorf("topology.GetLink('%s'): %w", extension, err)
 			}
-			extensionMushroomURL, err := mushroom.New(link)
+			extensionMushroomURL, err := mushroom.Parse(link)
 			if err != nil {
-				return fmt.Errorf("mushroom.New(%q): %w", extension, err)
+				return fmt.Errorf("mushroom.Parse(%q): %w", extension, err)
 			}
 			facadeURL, err := tp.GetFacade(extensionMushroomURL.AsDereference().String())
 			if err != nil {
@@ -1300,9 +1303,9 @@ func (independent *Independent) registerOutbounds() error {
 				if err != nil {
 					return fmt.Errorf("topology.GetLink('%s'): %w", proxy, err)
 				}
-				proxyMushroomURL, err := mushroom.New(link)
+				proxyMushroomURL, err := mushroom.Parse(link)
 				if err != nil {
-					return fmt.Errorf("mushroom.New(%q): %w", link, err)
+					return fmt.Errorf("mushroom.Parse(%q): %w", link, err)
 				}
 				facadeURL, err := tp.GetFacade(proxyMushroomURL.AsDereference().String(), dep.Name)
 				if err != nil {
@@ -1320,9 +1323,9 @@ func (independent *Independent) registerOutbounds() error {
 				if err != nil {
 					return fmt.Errorf("topology.GetLink('%s'): %w", extension, err)
 				}
-				extensionMushroomURL, err := mushroom.New(link)
+				extensionMushroomURL, err := mushroom.Parse(link)
 				if err != nil {
-					return fmt.Errorf("mushroom.New(%q): %w", link, err)
+					return fmt.Errorf("mushroom.Parse(%q): %w", link, err)
 				}
 				facadeURL, err := tp.GetFacade(extensionMushroomURL.AsDereference().String(), dep.Name)
 				if err != nil {
@@ -1387,9 +1390,9 @@ func (independent *Independent) syncCommandOutbounds() error {
 				proxyURL := dep.Proxies[proxyIndex]
 				var outboundURL string
 				if proxyIndex+1 < len(dep.Proxies) {
-					proxyMushroomURL, err := mushroom.New(dep.Proxies[proxyIndex+1])
+					proxyMushroomURL, err := mushroom.Parse(dep.Proxies[proxyIndex+1])
 					if err != nil {
-						return fmt.Errorf("mushroom.New(%q): %w", dep.Proxies[proxyIndex+1], err)
+						return fmt.Errorf("mushroom.Parse(%q): %w", dep.Proxies[proxyIndex+1], err)
 					}
 					outboundURL, err = tp.GetFacade(proxyMushroomURL.AsDereference().String(), dep.Name)
 					if err != nil {
@@ -1398,7 +1401,6 @@ func (independent *Independent) syncCommandOutbounds() error {
 				} else {
 					outboundURL = independent.mushroomURL.New(handler.Category).String()
 				}
-				fmt.Println("syncCommandProxyOutbound: cmd=", dep.Name, "proxy-url=", proxyURL, "outbound-url=", outboundURL)
 				if err := independent.syncCommandProxyOutbound(dep.Name, proxyURL, outboundURL); err != nil {
 					return fmt.Errorf("handler %q command %q proxy %q: %w", handler.Category, dep.Name, proxyURL, err)
 				}
@@ -1416,9 +1418,9 @@ func (independent *Independent) syncCommandOutbounds() error {
 func (independent *Independent) handlerDepProxyOutboundTargets(handlerConfig config.Handler, proxies []string, proxyIndex int, routes []string) (string, map[string]string, error) {
 	tp := independent.topology()
 	if proxyIndex+1 < len(proxies) {
-		proxyMushroomURL, err := mushroom.New(proxies[proxyIndex+1])
+		proxyMushroomURL, err := mushroom.Parse(proxies[proxyIndex+1])
 		if err != nil {
-			return "", nil, fmt.Errorf("mushroom.New(%q): %w", proxies[proxyIndex+1], err)
+			return "", nil, fmt.Errorf("mushroom.Parse(%q): %w", proxies[proxyIndex+1], err)
 		}
 		outboundURL, err := tp.GetFacade(proxyMushroomURL.AsDereference().String())
 		return outboundURL, nil, err
@@ -1430,9 +1432,9 @@ func (independent *Independent) handlerDepProxyOutboundTargets(handlerConfig con
 		if !ok || len(commandDep.Proxies) == 0 {
 			continue
 		}
-		proxyMushroomURL, err := mushroom.New(commandDep.Proxies[0])
+		proxyMushroomURL, err := mushroom.Parse(commandDep.Proxies[0])
 		if err != nil {
-			return "", nil, fmt.Errorf("mushroom.New(%q): %w", commandDep.Proxies[0], err)
+			return "", nil, fmt.Errorf("mushroom.Parse(%q): %w", commandDep.Proxies[0], err)
 		}
 		outboundURL, err := tp.GetFacade(proxyMushroomURL.AsDereference().String())
 		if err != nil {

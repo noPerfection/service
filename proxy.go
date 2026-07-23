@@ -153,7 +153,6 @@ func (proxy *Proxy) ensureServiceManager() error {
 		return fmt.Errorf("manager.NewProxyManager: %w", err)
 	}
 	proxy.manager = m
-
 	if err := proxy.addAllowedManagerClients(serviceConfig.Parameters); err != nil {
 		return fmt.Errorf("addAllowedManagerClients: %w", err)
 	}
@@ -180,9 +179,9 @@ func (proxy *Proxy) Start() error {
 		err = fmt.Errorf("topology.GetLink('%s'): %w", proxy.name, err)
 		goto errOccurred
 	}
-	proxy.mushroomURL, err = mushroom.New(serviceLink)
+	proxy.mushroomURL, err = mushroom.Parse(serviceLink)
 	if err != nil {
-		err = fmt.Errorf("mushroom.New('%s'): %w", serviceLink, err)
+		err = fmt.Errorf("mushroom.Parse('%s'): %w", serviceLink, err)
 		goto errOccurred
 	}
 
@@ -281,9 +280,9 @@ func (proxy *Proxy) allowServiceManager() error {
 	}
 	serviceLink := proxy.mushroomURL.String()
 
-	managerLink, err := mushroom.New(serviceLink, config.ServiceManagerCategory)
+	managerLink, err := mushroom.As(serviceLink, config.ServiceManagerCategory)
 	if err != nil {
-		return fmt.Errorf("mushroom.New(%q, %q): %w", serviceLink, config.ServiceManagerCategory, err)
+		return fmt.Errorf("mushroom.As(%q, %q): %w", serviceLink, config.ServiceManagerCategory, err)
 	}
 	publicKey := proxy.manager.PublicKey()
 
@@ -339,9 +338,9 @@ func (proxy *Proxy) allowServiceManager() error {
 	}
 
 	for svcURL := range depServiceURLs {
-		mushroomURL, err := mushroom.New(svcURL)
+		mushroomURL, err := mushroom.Parse(svcURL)
 		if err != nil {
-			return fmt.Errorf("mushroom.New('%s'): %w", svcURL, err)
+			return fmt.Errorf("mushroom.Parse('%s'): %w", svcURL, err)
 		}
 		depService, err := tp.Service(mushroomURL.AsDereference().String())
 		if err != nil {

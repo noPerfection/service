@@ -12,7 +12,6 @@ import (
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/service/package_url"
-	"github.com/noPerfection/topology/config"
 )
 
 const (
@@ -113,9 +112,9 @@ func (t *InprocTopologyService) SetService(url string, svc Service) error {
 	if err != nil {
 		return fmt.Errorf("topology.GetLink(%q): %w", url, err)
 	}
-	mushroomURL, err := mushroom.New(serviceLink)
+	mushroomURL, err := mushroom.Parse(serviceLink)
 	if err != nil {
-		return fmt.Errorf("mushroom.New(%q): %w", serviceLink, err)
+		return fmt.Errorf("mushroom.Parse(%q): %w", serviceLink, err)
 	}
 
 	serviceConfig, err := tp.Service(mushroomURL.AsDereference().String())
@@ -348,26 +347,4 @@ func MainPackageToLibraryAI(ai *AiClient, mainPkg, modulePkg *package_url.Packag
 		return fmt.Errorf("write %q: %w", mainGoPath, err)
 	}
 	return nil
-}
-
-func managerEndpointForService(service config.Service) (message.Endpoint, error) {
-	managerHandler, err := service.HandlerByCategory(config.ServiceManagerCategory)
-	if err == nil {
-		handler, ok := managerHandler.AsIndependentHandler()
-		if !ok {
-			return message.Endpoint{}, fmt.Errorf("service %q manager handler is not independent", service.Name)
-		}
-		return handler.Endpoint, nil
-	}
-
-	switch service.Type {
-	case ProxyType:
-		return manager.DefaultProxyManagerEndpoint(service.Name), nil
-	case ExtensionType:
-		return manager.DefaultExtensionManagerEndpoint(service.Name), nil
-	case IndependentType:
-		return DefaultServiceManagerEndpoint, nil
-	default:
-		return message.Endpoint{}, err
-	}
 }

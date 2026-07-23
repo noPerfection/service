@@ -69,9 +69,9 @@ func (lifecycle *ipcLifecycle) stopIpcService(url string, stoppedRefs map[string
 	if err != nil {
 		return fmt.Errorf("topology.GetLink(%q): %w", url, err)
 	}
-	mushroomURL, err := mushroom.New(link)
+	mushroomURL, err := mushroom.Parse(link)
 	if err != nil {
-		return fmt.Errorf("mushroom.New(%q): %w", link, err)
+		return fmt.Errorf("mushroom.Parse(%q): %w", link, err)
 	}
 
 	depService, err := lifecycle.topology.Service(mushroomURL.AsDereference().String())
