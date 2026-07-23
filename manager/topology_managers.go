@@ -2,6 +2,7 @@ package manager
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/noPerfection/datatype"
@@ -68,6 +69,9 @@ func getPublicKeyFromConfig(inboundURL string, tp *topology.Client) (string, err
 	}
 	serviceURL := u.As(mushroom.SERVICE).AsDereference().String()
 	if tp != nil {
+		if err := tp.Reload(); err != nil {
+			return "", fmt.Errorf("topology.Reload: %w", err)
+		}
 		if link, err := tp.GetLink(serviceURL); err == nil {
 			if resolved, err := mushroom.Parse(link); err == nil {
 				serviceURL = resolved.As(mushroom.SERVICE).AsDereference().String()
@@ -79,18 +83,39 @@ func getPublicKeyFromConfig(inboundURL string, tp *topology.Client) (string, err
 	if err != nil {
 		return "", fmt.Errorf("topology.Service(%q): %w", serviceURL, err)
 	}
-	if service.Parameters == nil {
-		return "", fmt.Errorf("service %q has no parameters", service.Name)
+	if service.Parameters != nil {
+		if pubKey, ok := service.Parameters[ManagerPublicKeyParam].(string); ok && pubKey != "" {
+			return pubKey, nil
+		}
 	}
-	pubKey, ok := service.Parameters[ManagerPublicKeyParam].(string)
-	if !ok || pubKey == "" {
+
+	serviceLink, err := tp.GetLink(serviceURL)
+	if err != nil {
+		return "", fmt.Errorf("service %q has no %q parameter", service.Name, ManagerPublicKeyParam)
+	}
+	resolvedService, err := mushroom.Parse(serviceLink)
+	if err != nil {
+		return "", fmt.Errorf("mushroom.Parse(%q): %w", serviceLink, err)
+	}
+	pubKeyLink, err := tp.GetLink(resolvedService.As(mushroom.SERVICE).ResourcePublicKey().String())
+	if err != nil {
+		return "", fmt.Errorf("service %q has no %q parameter", service.Name, ManagerPublicKeyParam)
+	}
+	pubKey := pubKeyLink
+	if strings.HasPrefix(pubKeyLink, "*") || strings.HasPrefix(pubKeyLink, "pkg:") {
+		if resolved, err := tp.GetLink(pubKeyLink); err == nil && resolved != "" {
+			pubKey = resolved
+		}
+	}
+	if pubKey == "" {
 		return "", fmt.Errorf("service %q has no %q parameter", service.Name, ManagerPublicKeyParam)
 	}
 	return pubKey, nil
 }
 
 // filter out outboundServiceURL in the topology of serviceDeref.
-func filterTopologyOutbounds(topologyOutbounds map[string]map[string]string, serviceURL, outboundServiceURL mushroom.TopologyURL) (map[string]mushroom.TopologyURL, error) {
+// When excludeOutboundService is true, matching routes are skipped instead of kept.
+func filterTopologyOutbounds(topologyOutbounds map[string]map[string]string, serviceURL, outboundServiceURL mushroom.TopologyURL, excludeOutboundService bool) (map[string]mushroom.TopologyURL, error) {
 	allOutbounds, hasOutbounds := topologyOutbounds[serviceURL.AsDereference().String()]
 
 	outbounds := make(map[string]mushroom.TopologyURL)
@@ -112,6 +137,10 @@ func filterTopologyOutbounds(topologyOutbounds map[string]map[string]string, ser
 			return nil, fmt.Errorf("mushroom.Parse(%q): %w", outboundRoute, err)
 		}
 		if outboundURL.As(mushroom.SERVICE).AsDereference().String() != outboundServiceURL.As(mushroom.SERVICE).AsDereference().String() {
+			if !excludeOutboundService {
+				continue
+			}
+		} else if excludeOutboundService {
 			continue
 		}
 		outbounds[route] = outboundURL
@@ -119,7 +148,9 @@ func filterTopologyOutbounds(topologyOutbounds map[string]map[string]string, ser
 	return outbounds, nil
 }
 
-func filterTopologyInbounds(topologyInbounds map[string]map[string][]string, depServiceURL, inboundServiceURL mushroom.TopologyURL) (map[string]mushroom.TopologyURL, error) {
+// filterTopologyInbounds filters dep inbounds for routes whose inbound service matches inboundServiceURL.
+// When excludeInboundService is true, matching routes are skipped instead of kept.
+func filterTopologyInbounds(topologyInbounds map[string]map[string][]string, depServiceURL, inboundServiceURL mushroom.TopologyURL, excludeInboundService bool) (map[string]mushroom.TopologyURL, error) {
 	// topologyInbounds is keyed by the service that owns the protected routes (this service).
 	// Each entry lists remote routes allowed to call a local route; here we keep remote dep
 	// routes that reach this service — the same edge as filterTopologyOutbounds, viewed from inbounds.
@@ -139,7 +170,12 @@ func filterTopologyInbounds(topologyInbounds map[string]map[string][]string, dep
 			if err != nil {
 				return nil, fmt.Errorf("mushroom.Parse(%q): %w", inboundRoute, err)
 			}
-			if inboundURL.As(mushroom.SERVICE).AsDereference().String() != inboundServiceURL.As(mushroom.SERVICE).AsDereference().String() {
+			match := inboundURL.Equal(inboundServiceURL, mushroom.SERVICE)
+			if excludeInboundService {
+				if match {
+					continue
+				}
+			} else if !match {
 				continue
 			}
 			inbounds[route] = inboundURL

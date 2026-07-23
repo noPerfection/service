@@ -33,6 +33,12 @@ const (
 	// It is intentionally excluded from RequireWhitelist enforcement.
 	Handshake = "handshake"
 
+	// SecureEdges secures topology edges after Handshake using the handshake HMAC secret.
+	SecureEdges = "secure-edges"
+
+	SecureEdgesProgressParam         = "progress"
+	SecureEdgesProgressManagerInDeps = "manager-in-deps"
+
 	// ManagerPublicKeyParam is the service Parameters key under which the manager's
 	// CURVE public key is stored by allowServiceManager.
 	ManagerPublicKeyParam = "public-key"
@@ -167,6 +173,7 @@ func managerWhitelistCommands() []string {
 		StartService,
 		StopService,
 		Services,
+		SecureEdges,
 	}
 }
 
@@ -482,7 +489,6 @@ func (m *Manager) onHandshake(req message.RequestInterface) message.ReplyInterfa
 		return req.Fail(fmt.Sprintf("message.Verify: %v", err))
 	}
 
-	// ----------
 	secret, err := req.RouteParameters().StringValue("manager-hmac-secret")
 	if err != nil {
 		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('manager-hmac-secret'): %v", err))
@@ -567,6 +573,60 @@ func (m *Manager) onHandshake(req message.RequestInterface) message.ReplyInterfa
 	}
 
 	return req.Ok(datatype.New().Set("inbounds", replyInbounds).Set("outbounds", replyOutbounds))
+}
+
+func (m *Manager) onSecureEdges(req message.RequestInterface) message.ReplyInterface {
+	if m.topology == nil {
+		return req.Fail("topology is nil")
+	}
+
+	progress, _ := req.RouteParameters().StringValue(SecureEdgesProgressParam)
+	if progress == "" {
+		return req.Fail("progress is required")
+	}
+
+	outboundsRaw, err := req.RouteParameters().NestedValue("outbounds")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('outbounds'): %v", err))
+	}
+	outbounds := make(map[string]string)
+	if err := outboundsRaw.Interface(&outbounds); err != nil {
+		return req.Fail(fmt.Sprintf("outboundsRaw.Interface: %v", err))
+	}
+
+	switch progress {
+	case SecureEdgesProgressManagerInDeps:
+		for depRoute, depURL := range outbounds {
+			if depURL == "" {
+				return req.Fail(fmt.Sprintf("outbound %q has no dep", depRoute))
+			}
+			if err := m.allowOutboundManager(depURL); err != nil {
+				return req.Fail(fmt.Sprintf("allowOutboundManager(%q from %q): %v", depURL, depRoute, err))
+			}
+		}
+		return req.Ok(datatype.New())
+	default:
+		return req.Fail(fmt.Sprintf("unknown secure-edges progress %q", progress))
+	}
+}
+
+func (m *Manager) allowOutboundManager(outboundRouteURL string) error {
+	outboundURL, err := mushroom.Parse(outboundRouteURL)
+	if err != nil {
+		return fmt.Errorf("mushroom.Parse(%q): %w", outboundRouteURL, err)
+	}
+
+	managerLink := outboundURL.As(mushroom.SERVICE).New(config.ServiceManagerCategory)
+	pubKey, err := getPublicKeyFromConfig(managerLink.String(), m.topology)
+	if err != nil {
+		return fmt.Errorf("getPublicKeyFromConfig(%q): %w", managerLink.String(), err)
+	}
+	if pubKey == "" {
+		return fmt.Errorf("manager public key is empty for %q", managerLink.String())
+	}
+
+	m.Interface.Allow(pubKey)
+	return nil
 }
 
 // inbound url within this service is secured. Whitelist is set.
@@ -756,7 +816,6 @@ func (m *Manager) registerOutboundContext(inboundURL, outboundURL, secret, remot
 func (m *Manager) allowPublicKey(inboundURL string, routeTopologyURL mushroom.TopologyURL, depPublicKey string) error {
 	handlerCategory := routeTopologyURL.HandlerLink().HandlerCategory()
 	if handlerCategory == config.ServiceManagerCategory {
-		fmt.Printf("\tallow outbound manager %s public key %s\n", inboundURL, depPublicKey)
 		m.Interface.Allow(depPublicKey)
 		return nil
 	}
@@ -765,7 +824,6 @@ func (m *Manager) allowPublicKey(inboundURL string, routeTopologyURL mushroom.To
 	if !ok {
 		return fmt.Errorf("handler control of %s category is not found", handlerCategory)
 	}
-	fmt.Printf("\tallow outbound %s public key %s\n", inboundURL, depPublicKey)
 	if err := control.Allow(depPublicKey); err != nil {
 		return fmt.Errorf("control.Allow(%q): %w", handlerCategory, err)
 	}
@@ -824,7 +882,7 @@ func (m *Manager) whitelistSelfInDeps(depURL string) error {
 	node.Timeout(handshakeRequestTimeout(depServiceConfig))
 	node.Attempt(1)
 
-	depOutbounds, err := filterTopologyOutbounds(m.topologyOutbounds, depServiceURL, m.serviceURL)
+	depOutbounds, err := filterTopologyOutbounds(m.topologyOutbounds, depServiceURL, m.serviceURL, false)
 	if err != nil {
 		return fmt.Errorf("filterTopologyOutbounds: %w", err)
 	}
@@ -858,7 +916,7 @@ func (m *Manager) whitelistSelfInDeps(depURL string) error {
 		}
 	}
 
-	depInbounds, err := filterTopologyInbounds(m.topologyInbounds, depServiceURL, m.serviceURL)
+	depInbounds, err := filterTopologyInbounds(m.topologyInbounds, depServiceURL, m.serviceURL, false)
 	if err != nil {
 		return fmt.Errorf("filterTopologyInbounds: %w", err)
 	}
@@ -880,8 +938,8 @@ func (m *Manager) whitelistSelfInDeps(depURL string) error {
 	}
 
 	fmt.Printf("whitelist-self-in-deps: sending handshake to %s\n", depFullURL.As(mushroom.SERVICE).String())
-	fmt.Printf("whitelist-self-in-deps: in-inbounds: %v\n", inInbounds)
-	fmt.Printf("whitelist-self-in-deps: in-outbounds: %v \n", inOutbounds)
+	fmt.Printf("whitelist-self-in-deps: in-inbounds: %v\n", len(inInbounds))
+	fmt.Printf("whitelist-self-in-deps: in-outbounds: %v \n", len(inOutbounds))
 
 	msg := message.Request{
 		Command: Handshake,
@@ -1049,6 +1107,100 @@ func (m *Manager) buildTopologyOutbounds() error {
 	return nil
 }
 
+func (m *Manager) whitelistManagerInDeps(depURL string) error {
+	depFullURL, err := asTopologyURL(depURL, m.topology)
+	if err != nil {
+		return fmt.Errorf("asTopologyURL(%q): %w", depURL, err)
+	}
+
+	depServiceURL := depFullURL.As(mushroom.SERVICE)
+
+	m.mu.Lock()
+	secret := m.outboundHmacSecrets[depServiceURL.AsDereference().String()]
+	m.mu.Unlock()
+	if secret == "" {
+		return fmt.Errorf("dep %q has no self-in-deps handshake secret", depURL)
+	}
+
+	depServiceConfig, err := m.topology.Service(depServiceURL.AsDereference().String())
+	if err != nil {
+		return fmt.Errorf("topology.Service(%q): %w", depServiceURL.AsDereference().String(), err)
+	}
+
+	depManagerConfig, err := depServiceConfig.HandlerByCategory(config.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("dep %q manager handler: %w", depServiceConfig.Name, err)
+	}
+	depManagerAsIndependent, ok := depManagerConfig.AsIndependentHandler()
+	if !ok {
+		return fmt.Errorf("dep %q manager handler is invalid", depServiceConfig.Name)
+	}
+
+	socket, err := protocolClient.New(
+		depManagerAsIndependent.Endpoint.Id,
+		depManagerAsIndependent.Endpoint.Port,
+		protocolClient.HandlerType(depManagerAsIndependent.Type),
+	)
+	if err != nil {
+		return fmt.Errorf("client.New: %w", err)
+	}
+	defer socket.Close()
+
+	node := &topology.Client{Socket: socket}
+	depManagerLink := depServiceURL.New(config.ServiceManagerCategory)
+	pubKey, err := getPublicKeyFromConfig(depManagerLink.String(), m.topology)
+	if err != nil {
+		return fmt.Errorf("getPublicKeyFromConfig(%q): %w", depManagerLink.String(), err)
+	}
+	node.Socket.Allow(pubKey)
+	node.Socket.Secure(m.curveSecretKey)
+	node.Timeout(handshakeRequestTimeout(depServiceConfig))
+	node.Attempt(1)
+
+	depOutbounds, err := filterTopologyOutbounds(m.topologyOutbounds, depServiceURL, m.serviceURL, true)
+	if err != nil {
+		return fmt.Errorf("filterTopologyOutbounds: %w", err)
+	}
+
+	outbounds := make(map[string]string, len(depOutbounds))
+	fmt.Printf("whitelist-manager-in-deps: %s\n", depServiceURL.AsDereference().String())
+	for route, outboundURL := range depOutbounds {
+		dep := outboundURL.As(mushroom.SERVICE).AsDereference().String()
+		depManagerLink := outboundURL.As(mushroom.SERVICE).New(config.ServiceManagerCategory)
+		if _, err := getPublicKeyFromConfig(depManagerLink.String(), m.topology); err != nil {
+			fmt.Printf("\tskip %s -> %s: %v\n", route, dep, err)
+			continue
+		}
+		fmt.Printf("\t%s -> %s\n", route, dep)
+		outbounds[route] = dep
+	}
+	if len(outbounds) == 0 {
+		return nil
+	}
+
+	fmt.Printf("whitelist-manager-in-deps: sending to %s\n", depServiceURL.AsDereference().String())
+
+	if err := node.Socket.Whitelist(message.Any, secret); err != nil {
+		return fmt.Errorf("socket.Whitelist(%q): %w", message.Any, err)
+	}
+
+	msg := message.Request{
+		Command: SecureEdges,
+		Parameters: datatype.New().
+			Set(SecureEdgesProgressParam, SecureEdgesProgressManagerInDeps).
+			Set("outbounds", outbounds),
+	}
+
+	reply, err := node.Request(&msg)
+	if err != nil {
+		return fmt.Errorf("socket.Request(%q): %w", SecureEdges, err)
+	}
+	if !reply.IsOK() {
+		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
+	}
+	return nil
+}
+
 // Handshake waits for deps to become running and exchanges HMAC secrets.
 func (m *Manager) Handshake() error {
 	depURLs, err := m.getDepDereferences()
@@ -1062,7 +1214,9 @@ func (m *Manager) Handshake() error {
 	const attempts = 10
 
 	var wg sync.WaitGroup
-	errCh := make(chan error, len(depURLs))
+	var mu sync.Mutex
+	selfInDepsDone := make([]string, 0, len(depURLs))
+	errCh := make(chan error, len(depURLs)*2)
 	for url := range depURLs {
 		wg.Add(1)
 		go func(depURL string) {
@@ -1071,29 +1225,42 @@ func (m *Manager) Handshake() error {
 			running, runErr := m.IsServiceRunning(depURL, attempts)
 			// fmt.Println("m.IsServiceRunning for ", depURL, " running: ", running, ", error: ", runErr)
 			// m.testDirectSecureManagerProbe(depURL, "---------SEC after topology reload")
+			handshaked := false
 			if runErr != nil {
 				if errors.Is(runErr, message.ErrAccessDenied) {
 					if err := m.whitelistSelfInDeps(depURL); err != nil {
 						errCh <- fmt.Errorf("whitelistSelfInDeps(%q): %w", depURL, err)
 						return
 					}
+					handshaked = true
 					running, runErr = m.IsServiceRunning(depURL, attempts)
-					// m.testDirectSecureManagerProbe(depURL, "---------SEC after handshake")
-					// fmt.Println("m.IsServiceRunning handshaked ", depURL, " running: ", running, ", error: ", runErr)
-
 				}
 				if runErr != nil {
-					fmt.Printf("waitServicesRunning: probe error: %v\n", runErr)
 					errCh <- fmt.Errorf("IsServiceRunning(%q, attempts: %d): %w", depURL, attempts, runErr)
 					return
 				}
 			}
-			if running {
-				fmt.Printf("waitServicesRunning: running: %s\n", depURL)
+			if !running {
+				errCh <- fmt.Errorf("service %q did not become running after %d attempts", depURL, attempts)
 				return
 			}
-			errCh <- fmt.Errorf("service %q did not become running after %d attempts", depURL, attempts)
+			if handshaked {
+				mu.Lock()
+				selfInDepsDone = append(selfInDepsDone, depURL)
+				mu.Unlock()
+			}
 		}(url)
+	}
+	wg.Wait()
+
+	for _, depURL := range selfInDepsDone {
+		wg.Add(1)
+		go func(depURL string) {
+			defer wg.Done()
+			if err := m.whitelistManagerInDeps(depURL); err != nil {
+				errCh <- fmt.Errorf("whitelistManagerInDeps(%q): %w", depURL, err)
+			}
+		}(depURL)
 	}
 	wg.Wait()
 	close(errCh)
@@ -1101,6 +1268,7 @@ func (m *Manager) Handshake() error {
 	for e := range errCh {
 		return e
 	}
+
 	return nil
 }
 
@@ -1163,6 +1331,9 @@ func (m *Manager) Start() error {
 	}
 	if err := m.Interface.Route(Handshake, m.onHandshake); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, Handshake, err)
+	}
+	if err := m.Interface.Route(SecureEdges, m.onSecureEdges); err != nil {
+		return fmt.Errorf(`handler.Route("%s"): %w`, SecureEdges, err)
 	}
 
 	if err := m.setHandlerControls(); err != nil {
