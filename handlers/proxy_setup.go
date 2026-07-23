@@ -647,28 +647,53 @@ func (manager *ProxySetup) onRegisterHandlerOutbounds(req message.RequestInterfa
 		publicKey = ""
 	}
 
-	outboundURL, _ := req.RouteParameters().StringValue("outbound-url")
+	outboundURL, err := req.RouteParameters().StringValue("outbound-url")
+	if err != nil || outboundURL == "" {
+		return req.Fail("outbound-url is required")
+	}
 	localCmd, _ := req.RouteParameters().StringValue("local-command")
+
+	remoteMushroomURL, err := mushroom.Parse(outboundURL)
+	if err != nil {
+		return req.Fail(fmt.Sprintf("mushroom.Parse(%q): %v", outboundURL, err))
+	}
+	remoteService, err := manager.resolveOutboundService(remoteMushroomURL)
+	if err != nil {
+		return req.Fail(err.Error())
+	}
 
 	proxified := manager.handlers[Category(category)]
 	if proxified == nil || proxified.handler == nil {
 		return req.Fail(fmt.Sprintf("handler of %s category is not found", category))
 	}
 
-	controlClient, err := manager.proxifiedHandlerControl(Category(category))
-	if err != nil {
-		return req.Fail(err.Error())
-	}
-	defer controlClient.Close()
-
-	if err := controlClient.RegisterOutbounds(endpoint, publicKey, commands, "", ""); err != nil {
-		return req.Fail(fmt.Sprintf("control.RegisterOutbounds(%q): %v", category, err))
-	}
-
-	if outboundURL != "" && localCmd != "" {
-		if err := npacSecureEdgeCaseOnHandler(proxified.handler, outboundURL, localCmd); err != nil {
-			return req.Fail(fmt.Sprintf("NpacSecureEdgeCase(%q, %q): %v", outboundURL, localCmd, err))
+	switch remoteService.Type {
+	case topologyConfig.ProxyType, topologyConfig.IndependentType:
+		if remoteMushroomURL.HandlerLink().HandlerCategory() == topologyConfig.ServiceManagerCategory {
+			return req.Fail(fmt.Sprintf("cannot register manager handler %q as outbound on proxy", outboundURL))
 		}
+		if err := manager.ensureProxifiedOutboundClient(proxified, outboundURL, publicKey); err != nil {
+			return req.Fail(fmt.Sprintf("ensureProxifiedOutboundClient(%q): %v", outboundURL, err))
+		}
+
+	case topologyConfig.ExtensionType:
+		controlClient, err := manager.proxifiedHandlerControl(Category(category))
+		if err != nil {
+			return req.Fail(err.Error())
+		}
+		defer controlClient.Close()
+
+		if err := controlClient.RegisterOutbounds(endpoint, publicKey, commands, "", ""); err != nil {
+			return req.Fail(fmt.Sprintf("control.RegisterOutbounds(%q): %v", category, err))
+		}
+		if localCmd != "" {
+			if err := npacSecureEdgeCaseOnHandler(proxified.handler, outboundURL, localCmd); err != nil {
+				return req.Fail(fmt.Sprintf("NpacSecureEdgeCase(%q, %q): %v", outboundURL, localCmd, err))
+			}
+		}
+
+	default:
+		return req.Fail(fmt.Sprintf("unsupported outbound service type %q for %q", remoteService.Type, outboundURL))
 	}
 
 	return req.Ok(datatype.New())
@@ -999,6 +1024,64 @@ func validateProxyHandlerOutbounds(proxyConfig topologyConfig.ProxyHandler) erro
 		}
 	}
 
+	return nil
+}
+
+func (manager *ProxySetup) resolveOutboundService(mushroomURL mushroom.TopologyURL) (topologyConfig.Service, error) {
+	topologyClient, err := topology.NewClient()
+	if err != nil {
+		return topologyConfig.Service{}, err
+	}
+	defer topologyClient.Close()
+
+	serviceURL := mushroomURL.As(mushroom.SERVICE).AsDereference().String()
+	if link, err := topologyClient.GetLink(serviceURL); err == nil {
+		if resolved, err := mushroom.Parse(link); err == nil {
+			serviceURL = resolved.As(mushroom.SERVICE).AsDereference().String()
+		}
+	}
+
+	service, err := topologyClient.Service(serviceURL)
+	if err != nil {
+		return topologyConfig.Service{}, fmt.Errorf("topology.Service(%q): %w", serviceURL, err)
+	}
+	return service, nil
+}
+
+func (manager *ProxySetup) ensureProxifiedOutboundClient(proxified *ProxifiedHandler, outboundURL, publicKey string) error {
+	if proxified == nil {
+		return fmt.Errorf("proxified handler is nil")
+	}
+	if proxified.outboundClients == nil {
+		proxified.outboundClients = make(map[string]outboundClient)
+	}
+	if client, ok := proxified.outboundClients[outboundURL]; ok && client != nil {
+		if publicKey != "" {
+			client.Allow(publicKey)
+		}
+		return nil
+	}
+
+	mushroomURL, err := mushroom.Parse(outboundURL)
+	if err != nil {
+		return fmt.Errorf("mushroom.Parse(%q): %w", outboundURL, err)
+	}
+	handler, err := manager.resolveOutboundHandler(mushroomURL)
+	if err != nil {
+		return err
+	}
+	client, err := newOutboundClient(handler)
+	if err != nil {
+		return err
+	}
+	if publicKey != "" {
+		client.Allow(publicKey)
+	}
+	configureOutboundReceiver(client)
+	proxified.outboundClients[outboundURL] = client
+	if receiver, ok := client.(protocolClient.ReceiveInterface); ok {
+		go receiver.Receive()
+	}
 	return nil
 }
 
