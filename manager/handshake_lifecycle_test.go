@@ -91,11 +91,7 @@ func startFakeCalleeManager(t *testing.T, service topologyConfig.Service, allowe
 		handler.RequireWhitelist(cmd)
 	}
 	require.NoError(t, handler.Route(Handshake, func(req message.RequestInterface) message.ReplyInterface {
-		secret, err := req.RouteParameters().StringValue("secret")
-		if err != nil {
-			return req.Fail(err.Error())
-		}
-		managerURL, err := req.RouteParameters().StringValue("manager-url")
+		secret, err := req.RouteParameters().StringValue("manager-hmac-secret")
 		if err != nil {
 			return req.Fail(err.Error())
 		}
@@ -104,8 +100,7 @@ func startFakeCalleeManager(t *testing.T, service topologyConfig.Service, allowe
 				return req.Fail(err.Error())
 			}
 		}
-		_ = managerURL
-		return req.Ok(datatype.New())
+		return req.Ok(datatype.New().Set("inbounds", map[string]string{}).Set("outbounds", map[string]string{}))
 	}))
 	callee := &fakeCalleeManager{name: service.Name, endpoint: endpoint.Endpoint}
 	require.NoError(t, handler.Route(IsServiceRunning, func(req message.RequestInterface) message.ReplyInterface {
@@ -353,9 +348,10 @@ func TestHandshakeRouteRegisteredOnStart(t *testing.T) {
 	msg := &message.Request{
 		Command: Handshake,
 		Parameters: datatype.New().
-			Set("secret", message.GenerateSecret()).
+			Set("manager-hmac-secret", message.GenerateSecret()).
 			Set("manager-url", managerURL.String()).
-			Set("inbounds", datatype.New()),
+			Set("in-inbounds", datatype.New()).
+			Set("in-outbounds", datatype.New()),
 	}
 	signature, err := message.Sign(msg.String(), caller.curveSecretKey)
 	require.NoError(t, err)

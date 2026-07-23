@@ -38,6 +38,7 @@ const (
 
 	SecureEdgesProgressParam         = "progress"
 	SecureEdgesProgressManagerInDeps = "manager-in-deps"
+	SecureEdgesProgressDepsInDeps    = "deps-in-deps"
 
 	// ManagerPublicKeyParam is the service Parameters key under which the manager's
 	// CURVE public key is stored by allowServiceManager.
@@ -585,23 +586,49 @@ func (m *Manager) onSecureEdges(req message.RequestInterface) message.ReplyInter
 		return req.Fail("progress is required")
 	}
 
-	outboundsRaw, err := req.RouteParameters().NestedValue("outbounds")
-	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('outbounds'): %v", err))
-	}
-	outbounds := make(map[string]string)
-	if err := outboundsRaw.Interface(&outbounds); err != nil {
-		return req.Fail(fmt.Sprintf("outboundsRaw.Interface: %v", err))
-	}
-
 	switch progress {
 	case SecureEdgesProgressManagerInDeps:
+		outboundsRaw, err := req.RouteParameters().NestedValue("outbounds")
+		if err != nil {
+			return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('outbounds'): %v", err))
+		}
+		outbounds := make(map[string]string)
+		if err := outboundsRaw.Interface(&outbounds); err != nil {
+			return req.Fail(fmt.Sprintf("outboundsRaw.Interface: %v", err))
+		}
 		for depRoute, depURL := range outbounds {
 			if depURL == "" {
 				return req.Fail(fmt.Sprintf("outbound %q has no dep", depRoute))
 			}
 			if err := m.allowOutboundManager(depURL); err != nil {
 				return req.Fail(fmt.Sprintf("allowOutboundManager(%q from %q): %v", depURL, depRoute, err))
+			}
+		}
+		return req.Ok(datatype.New())
+	case SecureEdgesProgressDepsInDeps:
+		inboundsRaw, err := req.RouteParameters().NestedValue("inbounds")
+		if err != nil {
+			return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('inbounds'): %v", err))
+		}
+		inbounds := make(map[string]string)
+		if err := inboundsRaw.Interface(&inbounds); err != nil {
+			return req.Fail(fmt.Sprintf("inboundsRaw.Interface: %v", err))
+		}
+		grouped := make(map[string]map[string]string)
+		for protectedRouteURL, inboundRouteURL := range inbounds {
+			inboundURL, err := asTopologyURL(inboundRouteURL, m.topology)
+			if err != nil {
+				return req.Fail(fmt.Sprintf("asTopologyURL(%q): %v", inboundRouteURL, err))
+			}
+			depURL := inboundURL.As(mushroom.SERVICE).AsDereference().String()
+			if grouped[depURL] == nil {
+				grouped[depURL] = make(map[string]string)
+			}
+			grouped[depURL][protectedRouteURL] = inboundRouteURL
+		}
+		for depURL, callerInbounds := range grouped {
+			if err := m.handshakeCallerInboundDep(depURL, callerInbounds); err != nil {
+				return req.Fail(fmt.Sprintf("handshakeCallerInboundDep(%q): %v", depURL, err))
 			}
 		}
 		return req.Ok(datatype.New())
@@ -646,8 +673,12 @@ func (m *Manager) secureInbound(inboundURL mushroom.TopologyURL, secret string, 
 	if !inboundURL.IsRouteExist() {
 		return "", fmt.Errorf("inboundURL.IsRouteExist() is false: %q", inboundURL.String())
 	}
-	if inboundURL.As(mushroom.SERVICE).AsDereference().String() != m.serviceURL.AsDereference().String() {
-		return "", fmt.Errorf("inboundURL.As(mushroom.SERVICE).AsDereference().String() != m.serviceURL.AsDereference().String(): %q != %q", inboundURL.As(mushroom.SERVICE).AsDereference().String(), m.serviceURL.AsDereference().String())
+	selfServiceURL, err := asTopologyURL(m.serviceURL.String(), m.topology)
+	if err != nil {
+		return "", fmt.Errorf("asTopologyURL(self): %w", err)
+	}
+	if !inboundURL.Equal(selfServiceURL, mushroom.SERVICE) {
+		return "", fmt.Errorf("inbound route %q is not on this service", inboundURL.String())
 	}
 
 	cmd := inboundURL.AdditionalProps["command"]
@@ -686,8 +717,12 @@ func (m *Manager) prepareOutboundContext(outboundURL mushroom.TopologyURL) (stri
 	if !outboundURL.IsRouteExist() {
 		return "", fmt.Errorf("outboundURL.IsRouteExist() is false: %q", outboundURL.String())
 	}
-	if outboundURL.As(mushroom.SERVICE).AsDereference().String() != m.serviceURL.AsDereference().String() {
-		return "", fmt.Errorf("outboundURL.As(mushroom.SERVICE).AsDereference().String() != m.serviceURL.AsDereference().String(): %q != %q", outboundURL.As(mushroom.SERVICE).AsDereference().String(), m.serviceURL.AsDereference().String())
+	selfServiceURL, err := asTopologyURL(m.serviceURL.String(), m.topology)
+	if err != nil {
+		return "", fmt.Errorf("asTopologyURL(self): %w", err)
+	}
+	if !outboundURL.Equal(selfServiceURL, mushroom.SERVICE) {
+		return "", fmt.Errorf("outbound route %q is not on this service", outboundURL.String())
 	}
 	handlerCategory := outboundURL.HandlerLink().HandlerCategory()
 
@@ -840,8 +875,18 @@ func (m *Manager) whitelistSelfInDeps(depURL string) error {
 	}
 
 	depServiceURL := depFullURL.As(mushroom.SERVICE)
-	secret := message.GenerateSecret()
 
+	depOutbounds, err := filterTopologyOutbounds(m.topologyOutbounds, depServiceURL, m.serviceURL, false)
+	if err != nil {
+		return fmt.Errorf("filterTopologyOutbounds: %w", err)
+	}
+
+	fmt.Printf("whitelist-self-in-deps: %s\n", depServiceURL.AsDereference().String())
+	if len(depOutbounds) > 0 {
+		fmt.Println("Operations with the outbounds of this dependency: ", depServiceURL.AsDereference().String())
+	}
+
+	secret := message.GenerateSecret()
 	m.mu.Lock()
 	m.outboundHmacSecrets[depServiceURL.AsDereference().String()] = secret
 	m.mu.Unlock()
@@ -882,24 +927,9 @@ func (m *Manager) whitelistSelfInDeps(depURL string) error {
 	node.Timeout(handshakeRequestTimeout(depServiceConfig))
 	node.Attempt(1)
 
-	depOutbounds, err := filterTopologyOutbounds(m.topologyOutbounds, depServiceURL, m.serviceURL, false)
-	if err != nil {
-		return fmt.Errorf("filterTopologyOutbounds: %w", err)
-	}
-
 	selfService, err := m.selfService()
 	if err != nil {
 		return fmt.Errorf("selfService: %w", err)
-	}
-
-	fmt.Printf("whitelist-self-in-deps: %s\n", depServiceURL.AsDereference().String())
-	//
-	// If outbounds of this dependency has this service itself,
-	// Then, for this service's handlers require whitelisting.
-	// And pass the secrets as well.
-	//
-	if len(depOutbounds) > 0 {
-		fmt.Println("Operations with the outbounds of this dependency: ", depServiceURL.AsDereference().String())
 	}
 
 	inOutbounds := make(map[string]RouteCredential)
@@ -907,7 +937,7 @@ func (m *Manager) whitelistSelfInDeps(depURL string) error {
 		hmacSecret := message.GenerateSecret()
 		publicKey, err := m.secureInbound(outboundURL, hmacSecret, handlerControlTimeout(selfService))
 		if err != nil {
-			return fmt.Errorf("secureInbound: %w", err)
+			return fmt.Errorf("secureInbound(%q): %w", route, err)
 		}
 		inOutbounds[route] = RouteCredential{
 			RouteURL:  outboundURL.String(),
@@ -968,8 +998,6 @@ func (m *Manager) whitelistSelfInDeps(depURL string) error {
 		replyInboundsKV = datatype.New()
 	}
 
-	// inbounds are inbounds for dependency.
-	// for calle they are reversed. so inbound url becomes outbound here.
 	for outboundRouteURL, cred := range inInbounds {
 		localRoute := cred.RouteURL
 		depPublicKey, err := replyInboundsKV.StringValue(outboundRouteURL)
@@ -997,6 +1025,126 @@ func (m *Manager) whitelistSelfInDeps(depURL string) error {
 		}
 		if err := m.allowPublicKey(cred.RouteURL, routeTopologyURL, depPublicKey); err != nil {
 			return fmt.Errorf("allowPublicKey(%q): %w", route, err)
+		}
+	}
+
+	return nil
+}
+
+func (m *Manager) handshakeCallerInboundDep(depURL string, callerInbounds map[string]string) error {
+	depFullURL, err := asTopologyURL(depURL, m.topology)
+	if err != nil {
+		return fmt.Errorf("asTopologyURL(%q): %w", depURL, err)
+	}
+
+	depServiceURL := depFullURL.As(mushroom.SERVICE)
+	secret := message.GenerateSecret()
+
+	m.mu.Lock()
+	m.outboundHmacSecrets[depServiceURL.AsDereference().String()] = secret
+	m.mu.Unlock()
+
+	managerLink := m.serviceURL.New(config.ServiceManagerCategory)
+
+	depServiceConfig, err := m.topology.Service(depServiceURL.AsDereference().String())
+	if err != nil {
+		return fmt.Errorf("topology.Service(%q): %w", depServiceURL.AsDereference().String(), err)
+	}
+
+	depManagerConfig, err := depServiceConfig.HandlerByCategory(config.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("dep %q manager handler: %w", depServiceConfig.Name, err)
+	}
+	depManagerAsIndependent, ok := depManagerConfig.AsIndependentHandler()
+	if !ok {
+		return fmt.Errorf("dep %q manager handler is invalid", depServiceConfig.Name)
+	}
+
+	socket, err := protocolClient.New(
+		depManagerAsIndependent.Endpoint.Id,
+		depManagerAsIndependent.Endpoint.Port,
+		protocolClient.HandlerType(depManagerAsIndependent.Type),
+	)
+	if err != nil {
+		return fmt.Errorf("client.New: %w", err)
+	}
+	defer socket.Close()
+
+	node := &topology.Client{Socket: socket}
+	if depServiceConfig.Parameters != nil {
+		if pubKey, ok := depServiceConfig.Parameters[ManagerPublicKeyParam].(string); ok && pubKey != "" {
+			node.Socket.Allow(pubKey)
+		}
+	}
+	node.Socket.Secure(m.curveSecretKey)
+	node.Timeout(handshakeRequestTimeout(depServiceConfig))
+	node.Attempt(1)
+
+	selfService, err := m.selfService()
+	if err != nil {
+		return fmt.Errorf("selfService: %w", err)
+	}
+
+	inOutbounds := make(map[string]RouteCredential)
+	for protectedRouteURL, inboundRouteURL := range callerInbounds {
+		protectedURL, err := asTopologyURL(protectedRouteURL, m.topology)
+		if err != nil {
+			return fmt.Errorf("asTopologyURL(%q): %w", protectedRouteURL, err)
+		}
+		inboundURL, err := asTopologyURL(inboundRouteURL, m.topology)
+		if err != nil {
+			return fmt.Errorf("asTopologyURL(%q): %w", inboundRouteURL, err)
+		}
+		hmacSecret := message.GenerateSecret()
+		publicKey, err := m.secureInbound(protectedURL, hmacSecret, handlerControlTimeout(selfService))
+		if err != nil {
+			return fmt.Errorf("secureInbound(%q): %w", protectedRouteURL, err)
+		}
+		inOutbounds[inboundURL.String()] = RouteCredential{
+			RouteURL:  protectedURL.String(),
+			PublicKey: publicKey,
+			Secret:    hmacSecret,
+		}
+	}
+
+	msg := message.Request{
+		Command: Handshake,
+		Parameters: datatype.New().
+			Set("manager-hmac-secret", secret).
+			Set("manager-url", managerLink.String()).
+			Set("in-inbounds", map[string]RouteCredential{}).
+			Set("in-outbounds", inOutbounds),
+	}
+	signature, err := message.Sign(msg.String(), m.curveSecretKey)
+	if err != nil {
+		return fmt.Errorf("message.Sign: %w", err)
+	}
+	msg.Parameters.Set("signature", signature)
+
+	reply, err := node.Request(&msg)
+	if err != nil {
+		return fmt.Errorf("socket.Request(%q): %w", Handshake, err)
+	}
+	if !reply.IsOK() {
+		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
+	}
+
+	replyOutboundsKV, err := reply.ReplyParameters().NestedValue("outbounds")
+	if err != nil {
+		replyOutboundsKV = datatype.New()
+	}
+
+	for _, cred := range inOutbounds {
+		protectedURL, err := mushroom.Parse(cred.RouteURL)
+		if err != nil {
+			return fmt.Errorf("mushroom.Parse(%q): %w", cred.RouteURL, err)
+		}
+		depPublicKey, err := replyOutboundsKV.StringValue(cred.RouteURL)
+		if err != nil {
+			return fmt.Errorf("reply outbounds public key for %q: %w", cred.RouteURL, err)
+		}
+		if err := m.allowPublicKey(cred.RouteURL, protectedURL, depPublicKey); err != nil {
+			return fmt.Errorf("allowPublicKey(%q): %w", cred.RouteURL, err)
 		}
 	}
 
@@ -1204,6 +1352,95 @@ func (m *Manager) whitelistManagerInDeps(depURL string) error {
 	return nil
 }
 
+func (m *Manager) whitelistDepsInDeps(depURL string) error {
+	depFullURL, err := asTopologyURL(depURL, m.topology)
+	if err != nil {
+		return fmt.Errorf("asTopologyURL(%q): %w", depURL, err)
+	}
+
+	depServiceURL := depFullURL.As(mushroom.SERVICE)
+
+	m.mu.Lock()
+	secret := m.outboundHmacSecrets[depServiceURL.AsDereference().String()]
+	m.mu.Unlock()
+	if secret == "" {
+		return fmt.Errorf("dep %q has no self-in-deps handshake secret", depURL)
+	}
+
+	depServiceConfig, err := m.topology.Service(depServiceURL.AsDereference().String())
+	if err != nil {
+		return fmt.Errorf("topology.Service(%q): %w", depServiceURL.AsDereference().String(), err)
+	}
+
+	depManagerConfig, err := depServiceConfig.HandlerByCategory(config.ServiceManagerCategory)
+	if err != nil {
+		return fmt.Errorf("dep %q manager handler: %w", depServiceConfig.Name, err)
+	}
+	depManagerAsIndependent, ok := depManagerConfig.AsIndependentHandler()
+	if !ok {
+		return fmt.Errorf("dep %q manager handler is invalid", depServiceConfig.Name)
+	}
+
+	socket, err := protocolClient.New(
+		depManagerAsIndependent.Endpoint.Id,
+		depManagerAsIndependent.Endpoint.Port,
+		protocolClient.HandlerType(depManagerAsIndependent.Type),
+	)
+	if err != nil {
+		return fmt.Errorf("client.New: %w", err)
+	}
+	defer socket.Close()
+
+	node := &topology.Client{Socket: socket}
+	depManagerLink := depServiceURL.New(config.ServiceManagerCategory)
+	pubKey, err := getPublicKeyFromConfig(depManagerLink.String(), m.topology)
+	if err != nil {
+		return fmt.Errorf("getPublicKeyFromConfig(%q): %w", depManagerLink.String(), err)
+	}
+	node.Socket.Allow(pubKey)
+	node.Socket.Secure(m.curveSecretKey)
+	node.Timeout(handshakeRequestTimeout(depServiceConfig))
+	node.Attempt(1)
+
+	depInbounds, err := filterTopologyInbounds(m.topologyInbounds, depServiceURL, m.serviceURL, true)
+	if err != nil {
+		return fmt.Errorf("filterTopologyInbounds: %w", err)
+	}
+
+	inbounds := make(map[string]string, len(depInbounds))
+	for route, inboundURL := range depInbounds {
+		inbounds[route] = inboundURL.String()
+	}
+	if len(inbounds) == 0 {
+		return nil
+	}
+
+	fmt.Printf("whitelist-deps-in-deps: sending to %s %d inbounds\n", depServiceURL.AsDereference().String(), len(inbounds))
+	for route, inboundRoute := range inbounds {
+		fmt.Printf("\tinbound%s <- %s\n", route, inboundRoute)
+	}
+
+	if err := node.Socket.Whitelist(message.Any, secret); err != nil {
+		return fmt.Errorf("socket.Whitelist(%q): %w", message.Any, err)
+	}
+
+	msg := message.Request{
+		Command: SecureEdges,
+		Parameters: datatype.New().
+			Set(SecureEdgesProgressParam, SecureEdgesProgressDepsInDeps).
+			Set("inbounds", inbounds),
+	}
+
+	reply, err := node.Request(&msg)
+	if err != nil {
+		return fmt.Errorf("socket.Request(%q): %w", SecureEdges, err)
+	}
+	if !reply.IsOK() {
+		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
+	}
+	return nil
+}
+
 // Handshake waits for deps to become running and exchanges HMAC secrets.
 func (m *Manager) Handshake() error {
 	depURLs, err := m.getDepDereferences()
@@ -1256,12 +1493,31 @@ func (m *Manager) Handshake() error {
 	}
 	wg.Wait()
 
+	managerInDepWhitelisted := make(map[string]bool, len(selfInDepsDone))
 	for _, depURL := range selfInDepsDone {
 		wg.Add(1)
 		go func(depURL string) {
 			defer wg.Done()
 			if err := m.whitelistManagerInDeps(depURL); err != nil {
 				errCh <- fmt.Errorf("whitelistManagerInDeps(%q): %w", depURL, err)
+				return
+			}
+			mu.Lock()
+			managerInDepWhitelisted[depURL] = true
+			mu.Unlock()
+		}(depURL)
+	}
+	wg.Wait()
+
+	for _, depURL := range selfInDepsDone {
+		if !managerInDepWhitelisted[depURL] {
+			continue
+		}
+		wg.Add(1)
+		go func(depURL string) {
+			defer wg.Done()
+			if err := m.whitelistDepsInDeps(depURL); err != nil {
+				errCh <- fmt.Errorf("whitelistDepsInDeps(%q): %w", depURL, err)
 			}
 		}(depURL)
 	}
