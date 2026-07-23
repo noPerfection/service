@@ -1178,7 +1178,10 @@ func (m *Manager) whitelistManagerInDeps(depURL string) error {
 		return nil
 	}
 
-	fmt.Printf("whitelist-manager-in-deps: sending to %s\n", depServiceURL.AsDereference().String())
+	fmt.Printf("whitelist-manager-in-deps: sending to %s %d outbounds\n", depServiceURL.AsDereference().String(), len(outbounds))
+	for route, dep := range outbounds {
+		fmt.Printf("\toutbound%s -> %s\n", route, dep)
+	}
 
 	if err := node.Socket.Whitelist(message.Any, secret); err != nil {
 		return fmt.Errorf("socket.Whitelist(%q): %w", message.Any, err)
