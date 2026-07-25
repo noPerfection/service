@@ -1,12 +1,37 @@
-# noPerfection/service
+# noPerfection
 
-Use this go module to turn your go app, package into a noPerfect microservice.
+**noPerfection** is a  golang framework as a library. Its to create a scalable application without worrying about speed:
 
-> We omit the **micro** prefix from now on.
+- Create a modular monolith as MVP.
+- As you need to refactor code, convert any package into a concurrent thread.
+- Convert a thread into a separate process.
+- Your app got million users? Convert the separate process into a cluster of nodes in the cloud.
 
-Service at its core a collection of [zeromq](https://zeromq.org/) sockets called [handlers](https://github.com/noPerfection/protocol/handler).
+All, without breaking the business logic itself. 
 
-# Tutorial 1: Hello World
+#### Features:
+
+1. The noPerfection services are managing the child services, including security, handshaking and spawning them.
+2. Service to service access can be managed via access control. One thread function ensures it receives message from user defined threads only. *If you define Database thread, and said only ** and shopping card can access it, then only they would access to database, while any other function will fail*
+3. **NoPerfection is built to create smart apps, the apps that maintaince itself**
+4. Since its a library, using zeromq sockets, as you need to optimize some code application, you can rewrite it in another programming language, without breaking all code as well. Just make sure it communicates using zeromq and noPerfection message formats.
+
+> License? **Public Domain**.
+
+## Requirements
+
+NoPerfection under the hood uses [zeromq](https://zeromq.org/) sockets. Zeromq is a networking library with no message queue, no central broker. With zeromq, the app components communicate to other app components directly via zeromq sockets.
+
+### Install the Zeromq's C library
+
+noPerfection uses the `pebbe/zmq4`, a go wrapper of C library. Check out the [pebbe/zmq4#requirements](https://github.com/pebbe/zmq4#requirements) to download the C library and prepare the operating system itself.
+
+### Install the libsodium
+
+noPerfection uses the Zeromq's CURVE which is based on libsodium cryptography library.
+Download libsodium first on your machine as well [jedisct1/libsodium](https://github.com/jedisct1/libsodium).
+
+## Hello World
 
 Install the module
 
@@ -964,7 +989,7 @@ To use a stable, hardcoded key add `manager-secret-key` to the service's `parame
 }
 ```
 
-You can generate a keypair using [`base.GenerateCurveKey`](pkg:golang/github.com/noPerfection/protocol/handler#base?var=GenerateCurveKey):
+You can generate a keypair using `[base.GenerateCurveKey](pkg:golang/github.com/noPerfection/protocol/handler#base?var=GenerateCurveKey)`:
 
 ```go
 import "github.com/noPerfection/protocol/handler/base"
