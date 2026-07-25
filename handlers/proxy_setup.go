@@ -30,6 +30,7 @@ const (
 	RequireWhitelistCommand      = "require-whitelist-command"
 	CommandsCommand              = "commands-command"
 	RequireSecureHandlerCommand  = "require-secure-handler-command"
+	SecureOutboundHandlerCommand = "secure-outbound-handler-command"
 	AllowHandlerCommand          = "allow-handler-command"
 	RequireInboundWhitelistCommand = "require-inbound-whitelist-command"
 	RegisterHandlerOutboundsCommand = "register-handler-outbounds-command"
@@ -457,6 +458,9 @@ func (manager *ProxySetup) Start(serviceLink string) error {
 	if err := manager.Interface.Route(RequireSecureHandlerCommand, manager.onRequireSecureHandler); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", RequireSecureHandlerCommand, err)
 	}
+	if err := manager.Interface.Route(SecureOutboundHandlerCommand, manager.onSecureOutboundHandler); err != nil {
+		return fmt.Errorf("proxy manager Route('%s'): %w", SecureOutboundHandlerCommand, err)
+	}
 	if err := manager.Interface.Route(AllowHandlerCommand, manager.onAllowHandler); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", AllowHandlerCommand, err)
 	}
@@ -562,6 +566,26 @@ func (manager *ProxySetup) onRequireSecureHandler(req message.RequestInterface) 
 	pubKey, err := controlClient.RequireSecure()
 	if err != nil {
 		return req.Fail(fmt.Sprintf("control.RequireSecure(%q): %v", category, err))
+	}
+
+	return req.Ok(datatype.New().Set("public-key", pubKey))
+}
+
+func (manager *ProxySetup) onSecureOutboundHandler(req message.RequestInterface) message.ReplyInterface {
+	category, err := req.RouteParameters().StringValue("category")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('category'): %v", err))
+	}
+
+	controlClient, err := manager.proxifiedHandlerControl(Category(category))
+	if err != nil {
+		return req.Fail(err.Error())
+	}
+	defer controlClient.Close()
+
+	pubKey, err := controlClient.SecureOutbound()
+	if err != nil {
+		return req.Fail(fmt.Sprintf("control.SecureOutbound(%q): %v", category, err))
 	}
 
 	return req.Ok(datatype.New().Set("public-key", pubKey))

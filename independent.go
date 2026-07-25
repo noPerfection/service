@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
@@ -302,6 +303,7 @@ func (independent *Independent) Start() error {
 	var topologySnapshot string = ""
 	var serviceLink string
 	var tp topology.TopologyInterface
+	var npacAnyContextPushed bool
 
 	if err = npac.New().Start(); err != nil {
 		err = fmt.Errorf("npac.Start: %w", err)
@@ -410,6 +412,18 @@ func (independent *Independent) Start() error {
 		goto errOccurred
 	}
 
+	// Now you can call AI extension without security worry.
+	if err = independent.manager.NpacPushAnyContext(independent.Start); err != nil {
+		err = fmt.Errorf("manager.NpacPushAnyContext: %w", err)
+		goto errOccurred
+	}
+	npacAnyContextPushed = true
+	defer func() {
+		if npacAnyContextPushed && independent.manager != nil {
+			_ = independent.manager.NpacPopAnyContext(independent.Start)
+		}
+	}()
+
 	if err = independent.syncCommandOutbounds(); err != nil {
 		err = fmt.Errorf("syncCommandOutbounds: %w", err)
 		goto errOccurred
@@ -452,12 +466,7 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("registerOutbounds: %w", err)
 		goto errOccurred
 	}
-	// if err = independent.manager.AddTopologyManagers(); err != nil {
-	// 	err = fmt.Errorf("addTopologyManagers: %w", err)
-	// 	goto errOccurred
-	// }
-	// Wait for all IPC deps concurrently, reloading config on each probe so
-	// that public keys written by newly started services are discovered.
+
 	if err = independent.manager.Handshake(); err != nil {
 		err = fmt.Errorf("manager.Handshake: %w", err)
 		goto errOccurred
@@ -770,6 +779,9 @@ func (independent *Independent) testAiConnection() error {
 	if err := independent.ensureAiExtension(serviceConfig); err != nil {
 		return err
 	}
+	independent.aiClient.client.Timeout(5 * time.Second)
+	independent.aiClient.client.Attempt(3)
+
 	if err := independent.aiClient.CheckConnection(); err != nil {
 		return fmt.Errorf("aiClient.CheckConnection: %w", err)
 	}
@@ -796,7 +808,16 @@ func (independent *Independent) ensureAiExtension(serviceConfig config.Service) 
 		return fmt.Errorf("ai extension is not running: add ai, _ := service.NewAiService() in your main(), then call ai.Start()")
 	}
 
-	client, err := NewAiClient(aiServiceConfig)
+	handler, err := aiServiceConfig.HandlerByCategory(DefaultHandlerCategory)
+	if err != nil {
+		return fmt.Errorf("ai handler: %w", err)
+	}
+	indHandler, ok := handler.AsIndependentHandler()
+	if !ok {
+		return fmt.Errorf("ai handler is not an independent handler")
+	}
+
+	client, err := NewAiClient(indHandler.Endpoint)
 	if err != nil {
 		return err
 	}
@@ -1004,13 +1025,12 @@ func (independent *Independent) addAllowedManagerClients(parameters datatype.Key
 		return nil
 	}
 
-	for link, pubKeyVal := range entryMap {
+	for _, pubKeyVal := range entryMap {
 		pubKey, ok := pubKeyVal.(string)
 		if !ok || pubKey == "" {
 			continue
 		}
 		independent.manager.Allow(pubKey)
-		fmt.Printf("The %s allowed %s to access itself\n", link, independent.rawMushroomURL)
 	}
 	if len(entryMap) > 0 {
 		independent.manager.RequireWhitelist()

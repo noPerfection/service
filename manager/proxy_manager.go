@@ -44,13 +44,15 @@ type ProxyManager struct {
 	// service url -> secret cached
 	inboundSecrets map[string]string
 	// service url -> secret
-	outboundSecrets      map[string]string
-	handshakeStop        chan struct{}
-	handshakeDone        sync.WaitGroup
-	handshakeInterval    time.Duration
-	inbounds             map[string]map[string][]string
-	outbounds            map[string]map[string]string
-	whitelistedOutbounds map[string]struct{}
+	outboundSecrets         map[string]string
+	handshakeStop           chan struct{}
+	handshakeDone           sync.WaitGroup
+	handshakeBackgroundOnce sync.Once
+	handshakeInterval       time.Duration
+	handshakeMu             sync.Mutex
+	inbounds                map[string]map[string][]string
+	outbounds               map[string]map[string]string
+	whitelistedOutbounds    map[string]struct{}
 }
 
 // NewProxyManager creates a manager for a proxy service.
@@ -153,6 +155,24 @@ func (m *ProxyManager) SetSharedBlocker(blocker **sync.WaitGroup) {
 	m.blocker = blocker
 }
 
+// NpacPushAnyContext pushes message.Any for functionPath onto npac's handler context stack.
+func (m *ProxyManager) NpacPushAnyContext(functionPath any) error {
+	ac, ok := protocolHandler.AsAutocontextHandler(m.Interface)
+	if !ok {
+		return fmt.Errorf("proxy manager handler %T has no autocontext", m.Interface)
+	}
+	return ac.NpacPushAnyContext(functionPath)
+}
+
+// NpacPopAnyContext pops the message.Any route for functionPath from npac's context stack.
+func (m *ProxyManager) NpacPopAnyContext(functionPath any) error {
+	ac, ok := protocolHandler.AsAutocontextHandler(m.Interface)
+	if !ok {
+		return fmt.Errorf("proxy manager handler %T has no autocontext", m.Interface)
+	}
+	return ac.NpacPopAnyContext(functionPath)
+}
+
 // SetLogger sets the optional logger for the proxy manager.
 func (m *ProxyManager) SetLogger(logger *log.Logger) error {
 	m.logger = logger
@@ -165,7 +185,19 @@ func (m *ProxyManager) SetLogger(logger *log.Logger) error {
 	return nil
 }
 
+func (m *ProxyManager) maybeStartBackgroundHandshake() {
+	m.handshakeBackgroundOnce.Do(func() {
+		m.startBackgroundHandshake()
+	})
+}
+
 func (m *ProxyManager) startBackgroundHandshake() {
+	if m.handshakeInterval < 0 {
+		return
+	}
+	if m.handshakeStop != nil {
+		return
+	}
 	stopCh := make(chan struct{})
 	m.handshakeStop = stopCh
 	m.handshakeDone.Go(func() {
@@ -507,9 +539,9 @@ func (m *ProxyManager) prepareOutboundContext(outboundURL mushroom.TopologyURL) 
 	if err != nil {
 		return "", fmt.Errorf("proxySelfService: %w", err)
 	}
-	publicKey, err := m.proxySetupRequireSecure(handlerCategory, handlerControlTimeout(selfService))
+	publicKey, err := m.proxySetupSecureOutbound(handlerCategory, handlerControlTimeout(selfService))
 	if err != nil {
-		return "", fmt.Errorf("proxySetupRequireSecure(%q): %w", handlerCategory, err)
+		return "", fmt.Errorf("proxySetupSecureOutbound(%q): %w", handlerCategory, err)
 	}
 	return publicKey, nil
 }
@@ -552,6 +584,30 @@ func (m *ProxyManager) proxySetupRequireSecure(category string, timeout time.Dur
 	}
 	if !reply.IsOK() {
 		return "", fmt.Errorf("proxySetup.Receive(%q): %s", handlers.RequireSecureHandlerCommand, reply.ErrorMessage())
+	}
+
+	pubKey, err := reply.ReplyParameters().StringValue("public-key")
+	if err != nil {
+		return "", fmt.Errorf("reply.ReplyParameters().StringValue('public-key'): %w", err)
+	}
+	return pubKey, nil
+}
+
+func (m *ProxyManager) proxySetupSecureOutbound(category string, timeout time.Duration) (string, error) {
+	params := datatype.New().Set("category", category)
+	if timeout > 0 {
+		params.Set("timeout", uint64(timeout))
+	}
+
+	reply, err := m.proxySetupRoundTrip(&message.Request{
+		Command:    handlers.SecureOutboundHandlerCommand,
+		Parameters: params,
+	})
+	if err != nil {
+		return "", err
+	}
+	if !reply.IsOK() {
+		return "", fmt.Errorf("proxySetup.Receive(%q): %s", handlers.SecureOutboundHandlerCommand, reply.ErrorMessage())
 	}
 
 	pubKey, err := reply.ReplyParameters().StringValue("public-key")
@@ -791,17 +847,10 @@ func (m *ProxyManager) onHandshake(req message.RequestInterface) message.ReplyIn
 		m.mu.Unlock()
 		return req.Fail("manager-url conflicts with outbound")
 	}
-	if foundSecret, ok := m.inboundSecrets[managerURL]; ok {
-		m.mu.Unlock()
-		if foundSecret != secret {
-			return req.Fail("secret conflicts with inbound")
-		}
-	} else {
-		m.inboundSecrets[managerURL] = secret
-		m.mu.Unlock()
-		if err := m.whitelistSecret(secret); err != nil {
-			return req.Fail(fmt.Sprintf("whitelistSecret: %v", err))
-		}
+	m.inboundSecrets[managerURL] = secret
+	m.mu.Unlock()
+	if err := m.whitelistSecret(secret); err != nil {
+		return req.Fail(fmt.Sprintf("whitelistSecret: %v", err))
 	}
 
 	selfService, err := m.proxySelfService()
@@ -809,9 +858,6 @@ func (m *ProxyManager) onHandshake(req message.RequestInterface) message.ReplyIn
 		return req.Fail(fmt.Sprintf("proxySelfService: %v", err))
 	}
 	controlTimeout := handlerControlTimeout(selfService)
-	if controlTimeout < topology.DefaultTimeout {
-		controlTimeout = topology.DefaultTimeout
-	}
 
 	replyInbounds := make(map[string]string, len(inbounds))
 	for depRoute, raw := range inbounds {
@@ -932,7 +978,6 @@ func (m *ProxyManager) allowOutboundManager(depURL string) error {
 		return fmt.Errorf("manager public key is empty for %q", managerLink.String())
 	}
 
-	fmt.Printf("\tallow outbound manager %s public key %s\n", depURL, pubKey)
 	m.Interface.Allow(pubKey)
 	return nil
 }
@@ -1010,7 +1055,6 @@ func (m *ProxyManager) whitelistInbounds() error {
 
 	m.outbounds = outbounds
 
-	// logWhitelistInbounds(m.logger, outbounds, depDerefs)
 	return nil
 }
 
@@ -1376,22 +1420,17 @@ func (m *ProxyManager) whitelistManagerInDeps(depURL string) error {
 	}
 
 	outbounds := make(map[string]string, len(depOutbounds))
-	fmt.Printf("whitelist-manager-in-deps: %s\n", depServiceURL.AsDereference().String())
 	for route, outboundURL := range depOutbounds {
 		dep := outboundURL.As(mushroom.SERVICE).AsDereference().String()
 		depManagerLink := outboundURL.As(mushroom.SERVICE).New(topologyConfig.ServiceManagerCategory)
 		if _, err := getPublicKeyFromConfig(depManagerLink.String(), m.topology); err != nil {
-			fmt.Printf("\tskip %s -> %s: %v\n", route, dep, err)
 			continue
 		}
-		fmt.Printf("\t%s -> %s\n", route, dep)
 		outbounds[route] = dep
 	}
 	if len(outbounds) == 0 {
 		return nil
 	}
-
-	fmt.Printf("whitelist-manager-in-deps: sending to %s\n", depServiceURL.AsDereference().String())
 
 	if err := node.Socket.Whitelist(message.Any, secret); err != nil {
 		return fmt.Errorf("socket.Whitelist(%q): %w", message.Any, err)
@@ -1478,8 +1517,6 @@ func (m *ProxyManager) whitelistDepsInDeps(depURL string) error {
 		return nil
 	}
 
-	fmt.Printf("whitelist-deps-in-deps: sending to %s\n", depServiceURL.AsDereference().String())
-
 	if err := node.Socket.Whitelist(message.Any, secret); err != nil {
 		return fmt.Errorf("socket.Whitelist(%q): %w", message.Any, err)
 	}
@@ -1503,11 +1540,15 @@ func (m *ProxyManager) whitelistDepsInDeps(depURL string) error {
 
 // Handshake waits for IPC/inproc handler deps to become running and exchanges HMAC secrets.
 func (m *ProxyManager) Handshake() error {
+	m.handshakeMu.Lock()
+	defer m.handshakeMu.Unlock()
+
 	depDerefs, err := m.getDepDereferences()
 	if err != nil {
 		return fmt.Errorf("getDepDereferences: %w", err)
 	}
 	if len(depDerefs) == 0 {
+		m.maybeStartBackgroundHandshake()
 		return nil
 	}
 
@@ -1584,6 +1625,7 @@ func (m *ProxyManager) Handshake() error {
 	for e := range errCh {
 		return e
 	}
+	m.maybeStartBackgroundHandshake()
 	return nil
 }
 
@@ -1862,7 +1904,6 @@ func (m *ProxyManager) Start() error {
 		return fmt.Errorf("getRouteInbounds: %w", err)
 	}
 	m.inbounds = inbounds
-	m.startBackgroundHandshake()
 	if err := m.whitelistInbounds(); err != nil {
 		return fmt.Errorf("whitelistInbounds: %w", err)
 	}

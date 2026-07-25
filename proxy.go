@@ -165,6 +165,7 @@ func (proxy *Proxy) Start() error {
 	var err error
 	var topologySnapshot string
 	var serviceLink string
+	var npacAnyContextPushed bool
 
 	if err = npac.New().Start(); err != nil {
 		err = fmt.Errorf("npac.Start: %w", err)
@@ -172,16 +173,6 @@ func (proxy *Proxy) Start() error {
 	}
 	if err = proxy.TopologyConnection.setupTopologyConnection(); err != nil {
 		err = fmt.Errorf("setupTopologyConnection: %w", err)
-		goto errOccurred
-	}
-	serviceLink, err = proxy.topology().GetLink(proxy.name)
-	if err != nil {
-		err = fmt.Errorf("topology.GetLink('%s'): %w", proxy.name, err)
-		goto errOccurred
-	}
-	proxy.mushroomURL, err = mushroom.Parse(serviceLink)
-	if err != nil {
-		err = fmt.Errorf("mushroom.Parse('%s'): %w", serviceLink, err)
 		goto errOccurred
 	}
 
@@ -202,10 +193,26 @@ func (proxy *Proxy) Start() error {
 		err = fmt.Errorf("addHardcodedHandlersToTopology: %w", err)
 		goto errOccurred
 	}
+	if err = proxy.WithHardcodedTopology.addHardcodedHandlerDepsToTopology(proxy.topology()); err != nil {
+		err = fmt.Errorf("addHardcodedHandlerDepsToTopology: %w", err)
+		goto errOccurred
+	}
 	if err = proxy.WithHardcodedTopology.addHardcodedEndpointsToTopology(proxy.topology()); err != nil {
 		err = fmt.Errorf("addHardcodedEndpointsToTopology: %w", err)
 		goto errOccurred
 	}
+
+	serviceLink, err = proxy.topology().GetLink(proxy.name)
+	if err != nil {
+		err = fmt.Errorf("topology.GetLink('%s'): %w", proxy.name, err)
+		goto errOccurred
+	}
+	proxy.mushroomURL, err = mushroom.Parse(serviceLink)
+	if err != nil {
+		err = fmt.Errorf("mushroom.Parse('%s'): %w", serviceLink, err)
+		goto errOccurred
+	}
+
 	if err = proxy.ensureServiceManager(); err != nil {
 		err = fmt.Errorf("ensureServiceManager: %w", err)
 		goto errOccurred
@@ -245,6 +252,17 @@ func (proxy *Proxy) Start() error {
 		err = fmt.Errorf("proxy.manager.Start: %w", err)
 		goto errOccurred
 	}
+
+	if err = proxy.manager.NpacPushAnyContext(proxy.Start); err != nil {
+		err = fmt.Errorf("manager.NpacPushAnyContext: %w", err)
+		goto errOccurred
+	}
+	npacAnyContextPushed = true
+	defer func() {
+		if npacAnyContextPushed && proxy.manager != nil {
+			_ = proxy.manager.NpacPopAnyContext(proxy.Start)
+		}
+	}()
 
 	if err = proxy.manager.Handshake(); err != nil {
 		err = fmt.Errorf("manager.Handshake: %w", err)
@@ -383,13 +401,12 @@ func (proxy *Proxy) addAllowedManagerClients(parameters datatype.KeyValue) error
 		return nil
 	}
 
-	for link, pubKeyVal := range entryMap {
+	for _, pubKeyVal := range entryMap {
 		pubKey, ok := pubKeyVal.(string)
 		if !ok || pubKey == "" {
 			continue
 		}
 		proxy.manager.Allow(pubKey)
-		fmt.Printf("The %s allowed to access: %s\n", proxy.name, link)
 	}
 	if len(entryMap) > 0 {
 		proxy.manager.RequireWhitelist()

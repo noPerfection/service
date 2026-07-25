@@ -66,7 +66,7 @@ func (topologyConnection *TopologyConnection) topology() topology.TopologyInterf
 	return topologyConnection.topologyHandler
 }
 
-// setupTopologyConnection sets up the topology connection.
+// setupTopologyConnection starts topology handler if not started and sets the client.
 func (topologyConnection *TopologyConnection) setupTopologyConnection() error {
 	if err := topologyConnection.connectTopologyClientIfRunning(); err != nil {
 		return fmt.Errorf("connectTopologyClientIfRunning: %w", err)

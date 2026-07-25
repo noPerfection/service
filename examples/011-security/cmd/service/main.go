@@ -242,6 +242,20 @@ func main() {
 
 	fmt.Println("Started and ready!")
 
+	aiClient, err := service.NewAiClient()
+	if err != nil {
+		panic(err)
+	}
+	defer aiClient.Close()
+	aiClient.Timeout(5 * time.Second)
+	aiClient.Attempt(1)
+
+	if err := aiClient.CheckConnection(); err != nil {
+		fmt.Println("direct ai client CheckConnection failed as expected:", err)
+	} else {
+		panic("expected direct ai client CheckConnection to fail without request-as-context")
+	}
+
 	app.Wait()
 }
 
@@ -249,6 +263,20 @@ func onAgeVerification(req service.RequestInterface) service.ReplyInterface {
 	age, err := req.RouteParameters().Uint64Value("age")
 	if err != nil {
 		return req.Fail("age is required")
+	}
+
+	aiClient, err := service.NewAiClient()
+	if err != nil {
+		fmt.Println("onAgeVerification: ai client:", err)
+	} else {
+		aiClient.Timeout(5 * time.Second)
+		aiClient.Attempt(1)
+		if err := aiClient.CheckConnection(); err != nil {
+			fmt.Println("onAgeVerification: direct ai client CheckConnection failed as expected:", err)
+		} else {
+			fmt.Println("onAgeVerification: direct ai client CheckConnection succeeded unexpectedly")
+		}
+		_ = aiClient.Close()
 	}
 
 	return req.Ok(map[string]any{"passed": age >= 18})

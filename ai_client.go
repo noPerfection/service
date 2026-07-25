@@ -8,7 +8,6 @@ import (
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/protocol/message"
-	"github.com/noPerfection/service/handlers"
 )
 
 const (
@@ -21,24 +20,49 @@ type AiClient struct {
 	client *client.Socket
 }
 
-// NewAiClient returns a client connected to the ai extension described by service configuration.
-func NewAiClient(aiExtension Config) (*AiClient, error) {
-	handler, err := aiExtension.HandlerByCategory(handlers.DefaultHandlerCategory)
-	if err != nil {
-		return nil, fmt.Errorf("ai handler: %w", err)
-	}
-	indHandler, ok := handler.AsIndependentHandler()
-	if !ok {
-		return nil, fmt.Errorf("ai handler is not an independent handler")
+// NewAiClient returns a client connected to the ai extension main handler.
+// When endpoint is omitted, DefaultAiEndpoint is used.
+func NewAiClient(endpoint ...message.Endpoint) (*AiClient, error) {
+	ep := DefaultAiEndpoint
+	if len(endpoint) > 0 {
+		ep = endpoint[0]
 	}
 
-	socket, err := Client(indHandler.Endpoint.Id, indHandler.Endpoint.Port)
+	socket, err := Client(ep.Id, ep.Port)
 	if err != nil {
 		return nil, fmt.Errorf("ai client: %w", err)
 	}
 	socket.Timeout(aiClientTimeout).Attempt(1)
 
 	return &AiClient{client: socket}, nil
+}
+
+// Timeout sets how long each request attempt waits for a reply.
+func (c *AiClient) Timeout(timeout time.Duration) {
+	if c == nil {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.client != nil {
+		c.client.Timeout(timeout)
+	}
+}
+
+// Attempt sets how many timeout windows are tried before giving up.
+func (c *AiClient) Attempt(attempt uint8) {
+	if c == nil {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.client != nil {
+		c.client.Attempt(attempt)
+	}
 }
 
 // Close closes the underlying connection.
@@ -69,7 +93,6 @@ func (c *AiClient) CheckConnection() error {
 		return fmt.Errorf("ai client is not connected")
 	}
 
-	c.client.Timeout(aiClientTimeout).Attempt(1)
 	reply, err := c.client.Request(&message.Request{
 		Command:    CheckConnectionCommand,
 		Parameters: datatype.New(),

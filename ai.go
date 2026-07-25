@@ -235,7 +235,6 @@ func (ai *AiService) checkConnection() error {
 		}
 		return err
 	}
-
 	replyContent := ""
 	if len(reply.Choices) > 0 {
 		replyContent = fmt.Sprint(reply.Choices[0].Message.Content)

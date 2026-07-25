@@ -264,6 +264,7 @@ func (ext *Extension) Start() error {
 	var topologySnapshot string
 	var serviceLink string
 	var tp topology.TopologyInterface
+	var npacAnyContextPushed bool
 	if err = npac.New().Start(); err != nil {
 		err = fmt.Errorf("npac.Start: %w", err)
 		goto errOccurred
@@ -382,6 +383,18 @@ func (ext *Extension) Start() error {
 		err = fmt.Errorf("service.manager.Start: %w", err)
 		goto errOccurred
 	}
+
+	// Now you can start AI extension.
+	if err = ext.manager.NpacPushAnyContext(ext.Start); err != nil {
+		err = fmt.Errorf("manager.NpacPushAnyContext: %w", err)
+		goto errOccurred
+	}
+	npacAnyContextPushed = true
+	defer func() {
+		if npacAnyContextPushed && ext.manager != nil {
+			_ = ext.manager.NpacPopAnyContext(ext.Start)
+		}
+	}()
 
 	if err = ext.syncCommandOutbounds(); err != nil {
 		err = fmt.Errorf("syncCommandOutbounds: %w", err)
@@ -714,13 +727,12 @@ func (ext *Extension) addAllowedManagerClients(parameters datatype.KeyValue) err
 		return nil
 	}
 
-	for link, pubKeyVal := range entryMap {
+	for _, pubKeyVal := range entryMap {
 		pubKey, ok := pubKeyVal.(string)
 		if !ok || pubKey == "" {
 			continue
 		}
 		ext.manager.Allow(pubKey)
-		fmt.Printf("The %s allowed to access: %s\n", ext.mushroomURL, link)
 	}
 	if len(entryMap) > 0 {
 		ext.manager.RequireWhitelist()
