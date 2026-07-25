@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/log"
@@ -471,9 +470,6 @@ func (independent *Independent) Start() error {
 		err = fmt.Errorf("manager.Handshake: %w", err)
 		goto errOccurred
 	}
-	if aiErr := independent.testAiConnection(); aiErr != nil {
-		fmt.Println("testAiConnection: %w", aiErr)
-	}
 
 errOccurred:
 	if err != nil {
@@ -766,26 +762,6 @@ func (independent *Independent) removeInprocTopologyExtension(serviceConfig *con
 		}
 		return nil
 	}
-	return nil
-}
-
-// testAiConnection probes the linked ai extension over its main handler socket.
-// Services without an ai handler dep are skipped.
-func (independent *Independent) testAiConnection() error {
-	serviceConfig, err := independent.topology().Service(independent.dereference())
-	if err != nil {
-		return fmt.Errorf("topology.Service(%q): %w", independent.dereference(), err)
-	}
-	if err := independent.ensureAiExtension(serviceConfig); err != nil {
-		return err
-	}
-	independent.aiClient.client.Timeout(5 * time.Second)
-	independent.aiClient.client.Attempt(3)
-
-	if err := independent.aiClient.CheckConnection(); err != nil {
-		return fmt.Errorf("aiClient.CheckConnection: %w", err)
-	}
-	fmt.Println("testAiConnection: ai CheckConnection succeeded within ", independent.rawMushroomURL)
 	return nil
 }
 
