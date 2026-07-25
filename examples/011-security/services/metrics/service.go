@@ -8,11 +8,8 @@ import (
 )
 
 const (
-	proxyName            = "metrics"
-	proxyCategory        = "main"
-	entrypointName       = "entrypoint"
-	entrypointUrl        = "tmp/entrypoint"
-	entrypointManagerUrl = "tmp/entrypoint_manager"
+	proxyName     = "metrics"
+	proxyCategory = "main"
 )
 
 func New() (*service.Proxy, error) {
