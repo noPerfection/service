@@ -3,7 +3,9 @@ package service
 import (
 	"testing"
 
+	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/handlers"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,6 +36,44 @@ func inprocProxyService(name string) Config {
 			},
 		},
 	}
+}
+
+func inprocOutboundService(name string) Config {
+	return Config{
+		Type:      IndependentType,
+		Name:      name,
+		ModuleUrl: DefaultModuleUrl,
+		Handlers: []Handler{
+			IndependentHandler{
+				Type:     SyncReplierType,
+				Category: DefaultHandlerCategory,
+				Endpoint: message.NewEndpoint(name, 0),
+			},
+		},
+	}
+}
+
+func startableInprocProxyService(name, outboundName string) Config {
+	return Config{
+		Type:      ProxyType,
+		Name:      name,
+		ModuleUrl: DefaultModuleUrl,
+		Handlers: []Handler{
+			ProxyHandler{
+				IndependentHandler: IndependentHandler{
+					Type:     SyncReplierType,
+					Category: DefaultHandlerCategory,
+					Endpoint: message.NewEndpoint(name, 0),
+				},
+				Routes:    []string{message.Any},
+				Outbounds: []string{outboundLink(outboundName, DefaultHandlerCategory)},
+			},
+		},
+	}
+}
+
+func inprocProxyOKRoute(req handlers.ProxyRequest) handlers.ProxyReply {
+	return handlers.ProxyReply{Reply: *req.Ok(datatype.New()).(*message.Reply)}
 }
 
 func ipcProxyService(name string) Config {
@@ -118,7 +158,14 @@ func TestSetServiceAcceptsRegisteredTypes(t *testing.T) {
 func TestInprocTopologyRegistryLifecycle(t *testing.T) {
 	requireIsolatedTopologyHandler(t)
 
-	path := writeInprocExtensionTopology(t, inprocProxyService("child"))
+	const (
+		childProxyName    = "child"
+		childOutboundName = "child-outbound"
+	)
+	path := writeInprocExtensionTopology(t,
+		inprocOutboundService(childOutboundName),
+		startableInprocProxyService(childProxyName, childOutboundName),
+	)
 	ext, err := NewInprocExtension()
 	require.NoError(t, err)
 	requireTopologyFilepath(t, ext, path)
@@ -126,13 +173,14 @@ func TestInprocTopologyRegistryLifecycle(t *testing.T) {
 		closeTopologyHandler(t)
 	})
 
-	proxy, err := NewProxy("child")
+	proxy, err := NewProxy(childProxyName)
 	require.NoError(t, err)
 	requireTopologyFilepath(t, proxy, path)
 	require.NoError(t, err)
-	require.NoError(t, ext.SetService("child", proxy))
+	require.NoError(t, proxy.Route(message.Any, inprocProxyOKRoute, DefaultHandlerCategory))
+	require.NoError(t, ext.SetService(childProxyName, proxy))
 
-	id, err := ext.startService("child")
+	id, err := ext.startService(childProxyName)
 	require.NoError(t, err)
 	require.NotEmpty(t, id)
 
