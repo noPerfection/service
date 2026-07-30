@@ -63,6 +63,10 @@ const (
 // Alias for noPerfection/protocol/message.NewEndpoint
 var NewEndpoint = message.NewEndpoint
 
+// Alias for noPerfection/protocol/message.GenerateCurveKey.
+var GenerateCurveKey = message.GenerateCurveKey
+var GenerateSecret = message.GenerateSecret
+
 // Alias for noPerfection/datatype.New, create map[string]any with helper functions.
 var NewKeyValue = datatype.New
 
