@@ -88,7 +88,7 @@ func probeServiceRunning(service config.Service, secretKey, hmacSecret string) (
 		Parameters: datatype.New().Set("service", service.Name),
 	})
 	if err != nil {
-		if errors.Is(err, message.RequestTimeoutError) {
+		if errors.Is(err, message.ErrReqTimeout) {
 			return false, nil
 		}
 		return false, err
