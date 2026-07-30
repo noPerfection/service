@@ -60,14 +60,16 @@ const (
 	ServiceManagerCategory = topologyConfig.ServiceManagerCategory
 )
 
-// Create a new import. Alias for noPerfection/protocol/message.NewEndpoint
-var Endpoint = message.NewEndpoint
-var KeyValue = datatype.New
+// Alias for noPerfection/protocol/message.NewEndpoint
+var NewEndpoint = message.NewEndpoint
 
-// Client connects to a service handler. All parameters are optional.
+// Alias for noPerfection/datatype.New, create map[string]any with helper functions.
+var NewKeyValue = datatype.New
+
+// NewClient connects to a service handler. All parameters are optional.
 // Pass id (string), port (uint, uint64, or int), and handler type (HandlerType) in any order.
 // Defaults: localhost, 8000, ReplierType.
-func Client(params ...any) (*client.Socket, error) {
+func NewClient(params ...any) (*client.Socket, error) {
 	id := handlers.DefaultHandlerEndpoint.Id
 	port := handlers.DefaultHandlerEndpoint.Port
 	handlerType := ReplierType

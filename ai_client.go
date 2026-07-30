@@ -28,7 +28,7 @@ func NewAiClient(endpoint ...message.Endpoint) (*AiClient, error) {
 		ep = endpoint[0]
 	}
 
-	socket, err := Client(ep.Id, ep.Port)
+	socket, err := NewClient(ep.Id, ep.Port)
 	if err != nil {
 		return nil, fmt.Errorf("ai client: %w", err)
 	}

@@ -88,7 +88,7 @@ func (t *InprocTopologyService) onStartService(req RequestInterface) ReplyInterf
 	if err != nil {
 		return req.Fail(fmt.Sprintf("startService(%q): %v", serviceName, err))
 	}
-	return req.Ok(KeyValue().Set("id", id))
+	return req.Ok(NewKeyValue().Set("id", id))
 }
 
 // SetService registers an in-process service instance for a topology mushroom URL.

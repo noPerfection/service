@@ -123,7 +123,7 @@ func (ai *AiService) registerRoutes() error {
 		if err := ai.checkConnection(); err != nil {
 			return req.Fail(err.Error())
 		}
-		return req.Ok(KeyValue())
+		return req.Ok(NewKeyValue())
 	}); err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (ai *AiService) registerRoutes() error {
 		if err != nil {
 			return req.Fail(err.Error())
 		}
-		return req.Ok(KeyValue().
+		return req.Ok(NewKeyValue().
 			Set("service-code", serviceCode).
 			Set("main-go", updatedMain))
 	})
