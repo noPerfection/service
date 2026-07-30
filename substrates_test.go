@@ -24,7 +24,7 @@ func (s stubSubstrate) Sow(url mushroom.Hypha, data any) error { return nil }
 func TestSubstratesForTopologyIncludesOSSubstrate(t *testing.T) {
 	merged := substratesForTopology()
 	require.NotEmpty(t, merged)
-	require.Equal(t, "pkg:os$", merged[len(merged)-1].MushroomURL())
+	require.Equal(t, "pkg:os$#$", merged[len(merged)-1].MushroomURL())
 }
 
 func TestRegisterBuiltinSubstrate(t *testing.T) {
@@ -42,5 +42,5 @@ func TestRegisterBuiltinSubstrate(t *testing.T) {
 	merged := substratesForTopology()
 	require.GreaterOrEqual(t, len(merged), 2)
 	require.Equal(t, substrate, merged[len(merged)-2])
-	require.Equal(t, "pkg:os$", merged[len(merged)-1].MushroomURL())
+	require.Equal(t, "pkg:os$#$", merged[len(merged)-1].MushroomURL())
 }

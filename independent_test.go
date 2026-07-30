@@ -538,6 +538,37 @@ func TestAddHardcodedEndpointsToTopologyUpdatesExplicitHandlerAndService(t *test
 	require.Equal(t, endpoint, managerHandler.Endpoint)
 }
 
+func TestAddHardcodedEndpointsToTopologyCreatesDefaultManagerHandler(t *testing.T) {
+	configPath := testConfigPath(t)
+	endpoint := message.NewEndpoint(testEndpointID(t, "manager"), 4100)
+	existingService := topologyConfig.Service{
+		Type:      topologyConfig.IndependentType,
+		Name:      "custom-service",
+		ModuleUrl: DefaultModuleUrl,
+		Handlers: testHandlers(topologyConfig.IndependentHandler{
+			Type:     topologyConfig.ReplierType,
+			Category: handlers.DefaultHandlerCategory,
+			Endpoint: handlers.DefaultHandlerEndpoint,
+		}),
+	}
+	appConfig, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	require.NoError(t, appConfig.AddService(existingService, rootServicesParent))
+	require.NoError(t, appConfig.Save())
+
+	independent, err := New("custom-service")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, configPath)
+	require.NoError(t, independent.SetEndpoint(endpoint, topologyConfig.ServiceManagerCategory))
+	require.NoError(t, independent.addHardcodedEndpointsToTopology(independent.topology()))
+
+	serviceConfig, err := independent.topologyHandler.Service("custom-service")
+	require.NoError(t, err)
+	managerHandler := requireServiceHandler(t, serviceConfig, topologyConfig.ServiceManagerCategory)
+	require.Equal(t, endpoint, managerHandler.Endpoint)
+	require.Equal(t, topologyConfig.SyncReplierType, managerHandler.Type)
+}
+
 func TestAddHardcodedCommandDepsToTopologyAddsDepsToExplicitHandlerAndService(t *testing.T) {
 	handler := topologyConfig.IndependentHandler{
 		Type:     topologyConfig.ReplierType,

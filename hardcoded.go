@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
+	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
@@ -346,7 +348,12 @@ func (hardcoded *WithHardcodedTopology) addHardcodedEndpointsToTopology(tp topol
 		for handlerCategory, endpoint := range endpointsByHandler {
 			handlerVariant, err := serviceConfig.HandlerByCategory(handlerCategory)
 			if err != nil {
-				return fmt.Errorf("topology.Service(%q).HandlerByCategory(%q): %w", mushroomURL, handlerCategory, err)
+				if errors.Is(err, message.ErrNotFound) && handlerCategory == config.ServiceManagerCategory {
+					handlerVariant, err = manager.DefaultManagerHandlerForService(serviceConfig)
+				}
+				if err != nil {
+					return fmt.Errorf("topology.Service(%q).HandlerByCategory(%q): %w", mushroomURL, handlerCategory, err)
+				}
 			}
 
 			serviceConfig.SetHandler(setHandlerEndpoint(handlerVariant, endpoint), true)

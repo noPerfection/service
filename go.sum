@@ -1,4 +1,5 @@
 github.com/ahmetson/mushroom v1.0.0 h1:9yxvn/KRepI0jo9NT0ZPtTf9shzPYmN1d31wXJbifJg=
+github.com/ahmetson/mushroom v1.0.0/go.mod h1:MjXkhsMWBqK5QhlnzukN9XpqH8bptgEcQUlsocdZ1O8=
 github.com/anthropics/anthropic-sdk-go v1.26.0 h1:oUTzFaUpAevfuELAP1sjL6CQJ9HHAfT7CoSYSac11PY=
 github.com/anthropics/anthropic-sdk-go v1.26.0/go.mod h1:qUKmaW+uuPB64iy1l+4kOSvaLqPXnHTTBKH6RVZ7q5Q=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=
@@ -45,14 +46,19 @@ github.com/muesli/reflow v0.3.0/go.mod h1:pbwTDkVPibjO2kyvBQRBxTWEEGDGq0FlB1BIKt
 github.com/muesli/termenv v0.15.2 h1:GohcuySI0QmI3wN8Ok9PtKGkgkFIk7y6Vpb5PvrY+Wo=
 github.com/muesli/termenv v0.15.2/go.mod h1:Epx+iuz8sNs7mNKhxzH4fWXGNpZwUaJKRS1noLXviQ8=
 github.com/noPerfection/datatype v0.1.0 h1:vX0Vc4+jBBBXkdTB0F+XyyUM6eO7FkRaciW8OgXOQ5w=
+github.com/noPerfection/datatype v0.1.0/go.mod h1:B1U0zt1tmcVZbN+kU5ytBrY2HfkXowb4nCtTKEz7Tgs=
 github.com/noPerfection/log v0.1.0 h1:Os63FgYRVjEDf9BTRH3gVUOLby1tEOqKCuHLo/BkYOM=
+github.com/noPerfection/log v0.1.0/go.mod h1:21mXSyPQg0o6iVGTQL6PJqxL+KH7gc1yZqMAvEZ+tvA=
 github.com/noPerfection/os v0.1.1 h1:KbqP2n17wV4fLMkdt6wnn5cdLbB+0OOAoRMuwYQEfc0=
+github.com/noPerfection/os v0.1.1/go.mod h1:/H+Hsfq4KL8wICc2yEQwPq8AJomCqvP/t+Kq8Y5t2Ko=
 github.com/noPerfection/protocol/client v0.1.1 h1:x2tkR/CQaQ2ddj9vvAXHZtnRrf3ojA8Rd74niMufMzE=
 github.com/noPerfection/protocol/client v0.1.1/go.mod h1:38KKmLocCoxCG5EecEKZWwQAnQ0WKB6eiLwzdSjgbhg=
 github.com/noPerfection/protocol/handler v0.1.1 h1:7sCOyqRQ22ktBnU9qNsVptbbegpexkToqFvfUP970Xw=
+github.com/noPerfection/protocol/handler v0.1.1/go.mod h1:rcLdc5OEYPrnw3r1p5h0SoaRdSAcNUeJzN/+5BekYZ8=
 github.com/noPerfection/protocol/message v0.1.1 h1:A48T1IxqwdyHzGBFS2kZ7t9xo65ydceueT1eOL9a/3g=
 github.com/noPerfection/protocol/message v0.1.1/go.mod h1:FmEDkGEp9QwUd1b0KjBMamsbaq6fCwNTl7WZuTxLMqU=
 github.com/noPerfection/topology v0.1.2 h1:tqaXH2cdWwvjR7Du2R70ss7cogiDMnOa03iezwCpTAY=
+github.com/noPerfection/topology v0.1.2/go.mod h1:HOMv6C8IcVLrqfPZfE0ughBTtYE3x7by9c4lEiB/NWo=
 github.com/noPerfection/topology/config v0.1.2 h1:M4PkzJGX8NO1hvSK0GghmSIxsroRd9zu6OC8fQkvk14=
 github.com/noPerfection/topology/config v0.1.2/go.mod h1:+S2AkFMNCbfybGANZPak4ZddKdKAUtzHxjPfpPaqOmo=
 github.com/pebbe/zmq4 v1.2.10 h1:wQkqRZ3CZeABIeidr3e8uQZMMH5YAykA/WN0L5zkd1c=

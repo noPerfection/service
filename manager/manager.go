@@ -80,6 +80,21 @@ func ManagerEndpointForService(service config.Service) (message.Endpoint, error)
 	}
 }
 
+// DefaultManagerHandlerForService returns the default manager handler config for a service.
+// When the service record has a manager handler, that config is returned;
+// otherwise the default config for the service type is returned.
+func DefaultManagerHandlerForService(service config.Service) (config.Handler, error) {
+	endpoint, err := ManagerEndpointForService(service)
+	if err != nil {
+		return nil, err
+	}
+	return config.IndependentHandler{
+		Type:     config.SyncReplierType,
+		Category: config.ServiceManagerCategory,
+		Endpoint: endpoint,
+	}, nil
+}
+
 var _ topology.NodeInterface = (*Manager)(nil)
 
 // The Manager keeps all necessary parameters of the service.
