@@ -303,3 +303,14 @@ GOFLAGS=-modfile=go.local.mod go build ./...
 GOFLAGS=-modfile=go.local.mod go run ./cmd/your-app
 cd config && GOFLAGS=-modfile=go.local.mod go test ./...
 ```
+
+If you use VSCode or its forks, create the `.vscode/settings.json`:
+
+```json
+{
+  "markdown.preview.security.level": "allowScriptsAndAllContent",
+  "go.toolsEnvVars": {
+    "GOFLAGS": "-modfile=go.local.mod"
+  }
+}
+```
