@@ -1193,5 +1193,18 @@ Call `SetTopologyParams(map[string]any{"filepath": "your-path.json"})` before `S
 The hardcoded config of handlers, endpoints, and services set by `SetHandlerConfig`, `SetEndpoint`, and `SetServiceConfig`
 are priority followed by the json config. So, you can stop, edit the ports and start service again.
 
-Note, that each of the service could have it's own configuration, which means it
+Note, that each of the service could have it's own configuration, which means it  
 can have its own extensions and proxies that it can manage by itself.
+
+## Local development
+
+For local testing, building, and running, prefix each command with `GOFLAGS=-modfile=go.local.mod`:
+
+```sh
+GOFLAGS=-modfile=go.local.mod go test ./...
+GOFLAGS=-modfile=go.local.mod go build ./...
+GOFLAGS=-modfile=go.local.mod go run ./cmd/your-app
+cd config && GOFLAGS=-modfile=go.local.mod go test ./...
+```
+
+`make test` and `make build` already use `go.local.mod`. Use `make test-remote` or plain `go test ./...` without `GOFLAGS` for the remote module file.

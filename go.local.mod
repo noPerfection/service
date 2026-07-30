@@ -2,6 +2,24 @@ module github.com/noPerfection/service
 
 go 1.25.0
 
+replace github.com/ahmetson/mushroom => ../../ahmetson/mushroom
+
+replace github.com/noPerfection/topology/config => ../topology/config
+
+replace github.com/noPerfection/datatype => ../datatype
+
+replace github.com/noPerfection/protocol/client => ../protocol/client
+
+replace github.com/noPerfection/protocol/handler => ../protocol/handler
+
+replace github.com/noPerfection/protocol/message => ../protocol/message
+
+replace github.com/noPerfection/os => ../os
+
+replace github.com/noPerfection/topology => ../topology
+
+replace github.com/noPerfection/log => ../log
+
 require (
 	github.com/ahmetson/mushroom v1.0.0
 	github.com/mozilla-ai/any-llm-go v0.9.0
@@ -11,8 +29,8 @@ require (
 	github.com/noPerfection/protocol/client v0.1.1
 	github.com/noPerfection/protocol/handler v0.1.1
 	github.com/noPerfection/protocol/message v0.1.1
-	github.com/noPerfection/topology v0.1.2
-	github.com/noPerfection/topology/config v0.1.2
+	github.com/noPerfection/topology v0.0.0
+	github.com/noPerfection/topology/config v0.0.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/tools v0.46.0
 )
