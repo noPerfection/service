@@ -25,6 +25,8 @@ type (
 	Dependency         = topologyConfig.DepService
 	ProxyRequest       = handlers.ProxyRequest
 	ProxyReply         = handlers.ProxyReply
+	Request            = message.Request
+	Reply              = message.Reply
 )
 
 // Service can be Proxy, Independent, or Extension.

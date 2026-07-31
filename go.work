@@ -1,0 +1,13 @@
+go 1.25.0
+
+use (
+	.
+	../datatype
+	../log
+	../os
+	../protocol/client
+	../protocol/handler
+	../protocol/message
+	../topology
+	../topology/config
+)
