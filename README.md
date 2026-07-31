@@ -295,7 +295,15 @@ can have its own extensions and proxies that it can manage by itself.
 
 ## Local development
 
-For local testing, building, and running, prefix each command with `GOFLAGS=-modfile=go.local.mod`:
+For local testing, building, and running, use the repo `go.work` file (it wires sibling modules under `noPerfection/`). With it present, plain `go` commands resolve local packages automatically:
+
+```sh
+go test ./...
+go build ./...
+go run ./cmd/your-app
+```
+
+Alternatively, prefix commands with `GOFLAGS=-modfile=go.local.mod` if you prefer not to use `go.work`:
 
 ```sh
 go test -modfile=go.local.mod ./...
@@ -303,13 +311,15 @@ go build -modfile=go.local.mod ./...
 go run -modfile=go.local.mod ./cmd/your-app
 ```
 
-If you use VSCode or its forks, create the `.vscode/settings.json`:
+For VSCode/Cursor, open the **`service`** folder as the workspace root (not the parent `noPerfection/` folder). The included `go.work` is enough for gopls; no extra Go settings are required. If you still see *consider opening a new workspace folder*, run **Go: Restart Language Server** after opening `service/`.
+
+Optional `.vscode/settings.json`:
 
 ```json
 {
   "markdown.preview.security.level": "allowScriptsAndAllContent",
-  "go.toolsEnvVars": {
-    "GOFLAGS": "-modfile=go.local.mod"
+  "gopls": {
+    "build.directoryFilters": ["-examples", "-vendor"]
   }
 }
 ```
