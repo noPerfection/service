@@ -1747,7 +1747,6 @@ func (m *ProxyManager) setProxyHandlers() error {
 		}
 		if len(proxyHandler.Outbounds) == 0 {
 			m.warnProxyHandlerNoOutbounds(proxyHandler)
-			continue
 		}
 
 		if err := m.setProxyHandler(proxyHandler); err != nil {
@@ -1760,11 +1759,11 @@ func (m *ProxyManager) setProxyHandlers() error {
 
 func (m *ProxyManager) warnProxyHandlerNoOutbounds(proxyHandler topologyConfig.ProxyHandler) {
 	if m.logger == nil {
-		fmt.Printf("warning: proxy %q has no outbounds, please set it before starting the proxy, it wont be started yet\n", proxyHandler.Category)
+		fmt.Printf("warning: proxy %q has no outbounds yet; forwarding will fail until they are configured\n", proxyHandler.Category)
 		return
 	}
 	m.logger.Warn(
-		"proxy has no outbounds, please set it before starting the proxy, it wont be started yet",
+		"proxy has no outbounds yet; forwarding will fail until they are configured",
 		"category", proxyHandler.Category,
 	)
 }
@@ -1772,6 +1771,9 @@ func (m *ProxyManager) warnProxyHandlerNoOutbounds(proxyHandler topologyConfig.P
 func (m *ProxyManager) setProxyHandler(proxyHandler topologyConfig.ProxyHandler) error {
 	if m.setup == nil {
 		return fmt.Errorf("proxyHandlersClient is nil")
+	}
+	if proxyHandler.Outbounds == nil {
+		proxyHandler.Outbounds = []string{}
 	}
 	configParams, err := datatype.NewFromInterface(proxyHandler)
 	if err != nil {
