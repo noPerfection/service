@@ -209,9 +209,8 @@ func TestValidateProxyHandlerOutboundsRequiresURL(t *testing.T) {
 		expectedErr string
 	}{
 		{
-			name:        "empty",
-			outbounds:   nil,
-			expectedErr: "not possible to send since no outbound yet",
+			name:      "empty",
+			outbounds: []string{},
 		},
 		{
 			name:        "missing url",
@@ -264,8 +263,12 @@ func TestProxyHandlersSetProxyHandler(t *testing.T) {
 	noOutbounds := proxyConfig
 	noOutbounds.Outbounds = []string{}
 	reply = proxyManagerRequest(t, client, SetProxyHandlerCommand, proxyManagerConfigParams(t, noOutbounds))
-	require.False(t, reply.IsOK())
-	require.Equal(t, "not possible to send since no outbound yet", reply.ErrorMessage())
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	requireProxyHandlerExists(t, client, category, true)
+
+	reply = proxyManagerRequest(t, client, RemoveProxyHandlerCommand, proxyManagerCategoryParams(category))
+	require.True(t, reply.IsOK(), reply.ErrorMessage())
+	requireProxyHandlerExists(t, client, category, false)
 
 	noProxyHandle := validProxyHandlerConfig(t, "without-proxy-handle")
 	noProxyHandle.Routes = nil

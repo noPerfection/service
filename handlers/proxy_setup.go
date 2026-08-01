@@ -18,21 +18,21 @@ import (
 )
 
 const (
-	ProxyHandlersCategory        = "_proxy_manager_noperf"
-	SetProxyHandlerCommand       = "set-proxy-handler-command"
-	IsProxyHandlerExistCommand   = "is-proxy-handler-exist-command"
-	IsProxyHandlerRunningCommand = "is-proxy-handler-running-command"
-	StartProxyHandlerCommand     = "start-proxy-handler-command"
-	StopProxyHandlerCommand      = "stop-proxy-handler-command"
-	StartProxyHandlersCommand    = "start-proxy-handlers-command"
-	StopProxyHandlersCommand     = "stop-proxy-handlers-command"
-	RemoveProxyHandlerCommand    = "remove-proxy-handler-command"
-	RequireWhitelistCommand      = "require-whitelist-command"
-	CommandsCommand              = "commands-command"
-	RequireSecureHandlerCommand  = "require-secure-handler-command"
-	SecureOutboundHandlerCommand = "secure-outbound-handler-command"
-	AllowHandlerCommand          = "allow-handler-command"
-	RequireInboundWhitelistCommand = "require-inbound-whitelist-command"
+	ProxyHandlersCategory           = "_proxy_manager_noperf"
+	SetProxyHandlerCommand          = "set-proxy-handler-command"
+	IsProxyHandlerExistCommand      = "is-proxy-handler-exist-command"
+	IsProxyHandlerRunningCommand    = "is-proxy-handler-running-command"
+	StartProxyHandlerCommand        = "start-proxy-handler-command"
+	StopProxyHandlerCommand         = "stop-proxy-handler-command"
+	StartProxyHandlersCommand       = "start-proxy-handlers-command"
+	StopProxyHandlersCommand        = "stop-proxy-handlers-command"
+	RemoveProxyHandlerCommand       = "remove-proxy-handler-command"
+	RequireWhitelistCommand         = "require-whitelist-command"
+	CommandsCommand                 = "commands-command"
+	RequireSecureHandlerCommand     = "require-secure-handler-command"
+	SecureOutboundHandlerCommand    = "secure-outbound-handler-command"
+	AllowHandlerCommand             = "allow-handler-command"
+	RequireInboundWhitelistCommand  = "require-inbound-whitelist-command"
 	RegisterHandlerOutboundsCommand = "register-handler-outbounds-command"
 
 	proxyBroadcastListenTimeout = 5 * time.Minute
@@ -61,7 +61,7 @@ type ProxifiedHandler struct {
 	handler           protocolHandler.Interface
 	outboundClients   map[string]outboundClient
 	outboundWhitelist map[string]outboundWhitelistEntry
-	routes            map[string]ProxyHandleFunc // command => handleFunc; user can do whatever he wants
+	routes            map[string]ProxyHandleFunc  // command => handleFunc; user can do whatever he wants
 	proxyConfig       topologyConfig.ProxyHandler // handler's information
 	running           bool
 	wasStarted        bool
@@ -78,7 +78,9 @@ type outboundClient interface {
 	Whitelist(cmd string, secrets ...string) error
 }
 
-type syncReplierOutbound struct{ *protocolClient.SyncReplierClient }
+type syncReplierOutbound struct {
+	*protocolClient.SyncReplierClient
+}
 
 func (c *syncReplierOutbound) Allow(handlerPublicKey string) {
 	c.SyncReplierClient.Allow(handlerPublicKey)
@@ -90,7 +92,9 @@ func (c *replierOutbound) Allow(handlerPublicKey string) {
 	c.ReplierClient.Allow(handlerPublicKey)
 }
 
-type publisherOutbound struct{ *protocolClient.PublisherClient }
+type publisherOutbound struct {
+	*protocolClient.PublisherClient
+}
 
 func (c *publisherOutbound) Allow(handlerPublicKey string) {
 	c.PublisherClient.Allow(handlerPublicKey)
@@ -324,6 +328,7 @@ func (manager *ProxySetup) applyConfiguredForward(proxified *ProxifiedHandler, r
 }
 
 func (proxified *ProxifiedHandler) resolveConfiguredForward(forwardURL string) (string, string, error) {
+	fmt.Println("resolveConfiguredForward", forwardURL, "outbounds", proxified.proxyConfig.Outbounds)
 	for _, outboundURL := range proxified.proxyConfig.Outbounds {
 		if outboundURL == forwardURL {
 			return proxified.proxyConfig.Category, outboundURL, nil
@@ -1038,10 +1043,6 @@ func servicePublicKey(mushroomURL mushroom.TopologyURL) (string, error) {
 }
 
 func validateProxyHandlerOutbounds(proxyConfig topologyConfig.ProxyHandler) error {
-	if len(proxyConfig.Outbounds) == 0 {
-		return fmt.Errorf("not possible to send since no outbound yet")
-	}
-
 	for i, outboundURL := range proxyConfig.Outbounds {
 		if outboundURL == "" {
 			return fmt.Errorf("outbounds[%d] url is required", i)
