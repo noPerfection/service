@@ -226,16 +226,20 @@ func (m *Manager) startBackgroundHandshake() {
 	stopCh := make(chan struct{})
 	m.handshakeStop = stopCh
 	m.handshakeDone.Go(func() {
-		ticker := time.NewTicker(m.handshakeInterval)
-		defer ticker.Stop()
+		timer := time.NewTimer(m.handshakeInterval)
+		defer timer.Stop()
 		for {
 			select {
 			case <-stopCh:
+				if !timer.Stop() {
+					<-timer.C
+				}
 				return
-			case <-ticker.C:
+			case <-timer.C:
 				if err := m.Handshake(); err != nil && m.logger != nil {
 					m.logger.Warn("background handshake failed", "error", err)
 				}
+				timer.Reset(m.handshakeInterval)
 			}
 		}
 	})
@@ -246,7 +250,6 @@ func (m *Manager) stopBackgroundHandshake() {
 		return
 	}
 	close(m.handshakeStop)
-	m.handshakeDone.Wait()
 	m.handshakeStop = nil
 }
 
@@ -1474,7 +1477,7 @@ func (m *Manager) Handshake() error {
 		return nil
 	}
 
-	const attempts = 10
+	const attempts = 3
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -1484,8 +1487,11 @@ func (m *Manager) Handshake() error {
 		wg.Add(1)
 		go func(depURL string) {
 			defer wg.Done()
+			start := time.Now()
+			fmt.Printf("> is %s service running, attempts %d, time: %s\n", depURL, attempts, start)
 			running, runErr := m.IsServiceRunning(depURL, attempts)
 			handshaked := false
+			fmt.Printf("< is %s service running? %t, err: %v, time: %s\n", depURL, running, runErr, time.Since(start))
 			if runErr != nil {
 				if errors.Is(runErr, message.ErrAccessDenied) {
 					if err := m.whitelistSelfInDeps(depURL); err != nil {

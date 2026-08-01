@@ -201,16 +201,20 @@ func (m *ProxyManager) startBackgroundHandshake() {
 	stopCh := make(chan struct{})
 	m.handshakeStop = stopCh
 	m.handshakeDone.Go(func() {
-		ticker := time.NewTicker(m.handshakeInterval)
-		defer ticker.Stop()
+		timer := time.NewTimer(m.handshakeInterval)
+		defer timer.Stop()
 		for {
 			select {
 			case <-stopCh:
+				if !timer.Stop() {
+					<-timer.C
+				}
 				return
-			case <-ticker.C:
+			case <-timer.C:
 				if err := m.Handshake(); err != nil && m.logger != nil {
 					m.logger.Warn("background handshake failed", "error", err)
 				}
+				timer.Reset(m.handshakeInterval)
 			}
 		}
 	})
@@ -221,7 +225,6 @@ func (m *ProxyManager) stopBackgroundHandshake() {
 		return
 	}
 	close(m.handshakeStop)
-	m.handshakeDone.Wait()
 	m.handshakeStop = nil
 }
 
