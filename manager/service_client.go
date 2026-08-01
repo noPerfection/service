@@ -40,17 +40,15 @@ func newServiceManagerClient(service config.Service, secretKey, hmacSecret strin
 }
 
 func managerProbeTimeout(service config.Service) time.Duration {
-	managerHandler, err := service.HandlerByCategory(config.ServiceManagerCategory)
-	if err != nil {
-		return topology.DefaultTimeout
+	// For IPC or Inproc manager handlers, use a shorter timeout.
+	if managerHandler, err := service.HandlerByCategory(config.ServiceManagerCategory); err == nil {
+		if handler, ok := managerHandler.AsIndependentHandler(); ok {
+			if handler.Endpoint.IsIpc() || handler.Endpoint.IsInproc() {
+				return ipcManagerProbeTimeout
+			}
+		}
 	}
-	handler, ok := managerHandler.AsIndependentHandler()
-	if !ok {
-		return topology.DefaultTimeout
-	}
-	if handler.Endpoint.IsIpc() || handler.Endpoint.IsInproc() {
-		return ipcManagerProbeTimeout
-	}
+	// For TCP use seconds.
 	return topology.DefaultTimeout
 }
 
