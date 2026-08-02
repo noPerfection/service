@@ -31,7 +31,6 @@ const (
 	CommandsCommand                 = "commands-command"
 	RequireSecureHandlerCommand     = "require-secure-handler-command"
 	SecureOutboundHandlerCommand    = "secure-outbound-handler-command"
-	AllowHandlerCommand             = "allow-handler-command"
 	RequireInboundWhitelistCommand  = "require-inbound-whitelist-command"
 	RegisterHandlerOutboundsCommand = "register-handler-outbounds-command"
 
@@ -466,9 +465,6 @@ func (manager *ProxySetup) Start(serviceLink string) error {
 	if err := manager.Interface.Route(SecureOutboundHandlerCommand, manager.onSecureOutboundHandler); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", SecureOutboundHandlerCommand, err)
 	}
-	if err := manager.Interface.Route(AllowHandlerCommand, manager.onAllowHandler); err != nil {
-		return fmt.Errorf("proxy manager Route('%s'): %w", AllowHandlerCommand, err)
-	}
 	if err := manager.Interface.Route(RequireInboundWhitelistCommand, manager.onRequireInboundWhitelist); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", RequireInboundWhitelistCommand, err)
 	}
@@ -594,29 +590,6 @@ func (manager *ProxySetup) onSecureOutboundHandler(req message.RequestInterface)
 	}
 
 	return req.Ok(datatype.New().Set("public-key", pubKey))
-}
-
-func (manager *ProxySetup) onAllowHandler(req message.RequestInterface) message.ReplyInterface {
-	category, err := req.RouteParameters().StringValue("category")
-	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('category'): %v", err))
-	}
-	publicKey, err := req.RouteParameters().StringValue("public-key")
-	if err != nil || publicKey == "" {
-		return req.Fail("public-key is required")
-	}
-
-	controlClient, err := manager.proxifiedHandlerControl(Category(category))
-	if err != nil {
-		return req.Fail(err.Error())
-	}
-	defer controlClient.Close()
-
-	if err := controlClient.Allow(publicKey); err != nil {
-		return req.Fail(fmt.Sprintf("control.Allow(%q): %v", category, err))
-	}
-
-	return req.Ok(datatype.New())
 }
 
 func (manager *ProxySetup) onRequireInboundWhitelist(req message.RequestInterface) message.ReplyInterface {

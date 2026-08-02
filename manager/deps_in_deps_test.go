@@ -8,6 +8,7 @@ import (
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/mushroom"
+	"github.com/noPerfection/service/zap"
 	topologyConfig "github.com/noPerfection/topology/config"
 	"github.com/stretchr/testify/require"
 )
@@ -67,8 +68,8 @@ func TestFilterTopologyOutboundsExcludeOutboundService(t *testing.T) {
 
 	topologyOutbounds := map[string]map[string]string{
 		metricsURL.AsDereference().String(): {
-			metricsHelloRoute:  helloWorldHelloRoute,
-			metricsProxyRoute:  proxyHelloRoute,
+			metricsHelloRoute: helloWorldHelloRoute,
+			metricsProxyRoute: proxyHelloRoute,
 		},
 	}
 
@@ -107,7 +108,11 @@ func startFakeDepsInDepsEntrypointManager(t *testing.T, entrypointService topolo
 	pub, sec, err := message.GenerateCurveKey()
 	require.NoError(t, err)
 	handler.Secure(sec)
-	handler.Allow(metricsManager.PublicKey())
+	mushroomURL, err := mushroom.As("*pkg:$?var=services[name:"+entrypointService.Name+"]", topologyConfig.ServiceManagerCategory)
+	require.NoError(t, err)
+	handler.SetMushroomURL(mushroomURL.String())
+	require.NoError(t, zap.Start())
+	zap.AuthCurveAdd(mushroomURL.As(mushroom.HANDLER).String(), metricsManager.PublicKey())
 	for _, cmd := range managerWhitelistCommands() {
 		handler.RequireWhitelist(cmd)
 	}
@@ -139,9 +144,6 @@ func startFakeDepsInDepsEntrypointManager(t *testing.T, entrypointService topolo
 		return req.Ok(datatype.New().Set("inbounds", map[string]string{}).Set("outbounds", replyOutbounds))
 	}))
 
-	mushroomURL, err := mushroom.As("*pkg:$?var=services[name:"+entrypointService.Name+"]", topologyConfig.ServiceManagerCategory)
-	require.NoError(t, err)
-	handler.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, handler.Start())
 
 	publishManagerPublicKey(t, entrypointService.Name, pub)

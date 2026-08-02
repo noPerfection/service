@@ -15,6 +15,7 @@ import (
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/service/package_url"
+	"github.com/noPerfection/service/zap"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
@@ -236,9 +237,11 @@ func (independent *Independent) ensureServiceManager() error {
 		return fmt.Errorf("manager.SetLogger: %w", err)
 	}
 
-	if err := independent.addAllowedManagerClients(serviceConfig.Parameters); err != nil {
+	if err := independent.addAllowedManagerClients(serviceConfig); err != nil {
 		return fmt.Errorf("addAllowedManagerClients: %w", err)
 	}
+
+	independent.manager.RequireWhitelist()
 
 	return nil
 }
@@ -306,6 +309,11 @@ func (independent *Independent) Start() error {
 
 	if err = npac.New().Start(); err != nil {
 		err = fmt.Errorf("npac.Start: %w", err)
+		goto errOccurred
+	}
+
+	if err = zap.Start(); err != nil {
+		err = fmt.Errorf("zap.Start: %w", err)
 		goto errOccurred
 	}
 
@@ -956,60 +964,30 @@ func (independent *Independent) allowServiceManager() error {
 	return nil
 }
 
-// addAllowedManagerClients reads the "allowed" parameters of this service and calls
-// manager.Allow for every public key listed under the ServiceManagerCategory.
+// addAllowedManagerClients reads the "allowed" parameters of this service and registers
+// every public key listed under the ServiceManagerCategory with ZAP.
 // The topology resolves dereference URLs (via Fruit) before returning the
 // service config, so values are always plain key strings by the time they arrive
 // here. Missing or empty allowed entries are logged as warnings.
-func (independent *Independent) addAllowedManagerClients(parameters datatype.KeyValue) error {
-	if parameters == nil {
-		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: parameters not set, no one can access this service", "service", independent.rawMushroomURL)
-		}
-		return nil
-	}
-
-	allowed, ok := parameters["allowed"]
-	if !ok {
-		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: 'allowed' parameter missing, no one can access this service", "service", independent.rawMushroomURL)
-		}
-		return nil
-	}
-
-	categoryMap, ok := allowed.(map[string]interface{})
-	if !ok {
-		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: 'allowed' parameter has unexpected type", "service", independent.rawMushroomURL)
-		}
-		return nil
-	}
-
-	managerEntry, ok := categoryMap[config.ServiceManagerCategory]
-	if !ok {
-		if independent.logger != nil {
-			independent.logger.Warn("no allowed keys: service manager category not found in allowed", "service", independent.rawMushroomURL, "category", config.ServiceManagerCategory)
-		}
-		return nil
-	}
-
-	entryMap, ok := managerEntry.(map[string]interface{})
-	if !ok {
+func (independent *Independent) addAllowedManagerClients(serviceConfig config.Service) error {
+	entryMap := mushroom.AllowedKeyValues(&serviceConfig, config.ServiceManagerCategory)
+	if entryMap == nil {
 		if independent.logger != nil {
 			independent.logger.Warn("no allowed keys: manager allowed entry has unexpected type", "service", independent.rawMushroomURL)
 		}
 		return nil
 	}
 
-	for _, pubKeyVal := range entryMap {
+	for url, pubKeyVal := range entryMap {
 		pubKey, ok := pubKeyVal.(string)
 		if !ok || pubKey == "" {
 			continue
 		}
-		independent.manager.Allow(pubKey)
-	}
-	if len(entryMap) > 0 {
-		independent.manager.RequireWhitelist()
+		mushroomURL, err := mushroom.Parse(url)
+		if err != nil {
+			return fmt.Errorf("entryMap.mushroom.Parse('%s'): %w", url, err)
+		}
+		zap.AuthCurveAdd(independent.mushroomURL.As(mushroom.HANDLER).String(), pubKey, mushroomURL.As(mushroom.HANDLER))
 	}
 
 	return nil

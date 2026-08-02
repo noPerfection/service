@@ -16,6 +16,7 @@ import (
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/mushroom"
+	"github.com/noPerfection/service/zap"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
@@ -698,7 +699,7 @@ func (m *Manager) allowOutboundManager(outboundRouteURL string) error {
 		return fmt.Errorf("manager public key is empty for %q", managerLink.String())
 	}
 
-	m.Interface.Allow(pubKey)
+	zap.AuthCurveAdd(m.serviceURL.As(mushroom.HANDLER).String(), pubKey, managerLink.As(mushroom.HANDLER))
 	return nil
 }
 
@@ -895,19 +896,45 @@ func (m *Manager) registerOutboundContext(inboundURL, outboundURL, secret, remot
 }
 
 func (m *Manager) allowPublicKey(inboundURL string, routeTopologyURL mushroom.TopologyURL, depPublicKey string) error {
-	handlerCategory := routeTopologyURL.HandlerLink().HandlerCategory()
-	if handlerCategory == config.ServiceManagerCategory {
-		m.Interface.Allow(depPublicKey)
+	inboundMushroomURL, err := mushroom.Parse(inboundURL)
+	if err != nil {
+		return fmt.Errorf("mushroom.Parse(%q): %w", inboundURL, err)
+	}
+	zap.AuthCurveAdd(inboundMushroomURL.As(mushroom.HANDLER).String(), depPublicKey, routeTopologyURL.As(mushroom.HANDLER))
+	return nil
+}
+
+// allowSelfInDep ensures this manager's CURVE public key is listed in dep's
+// parameters.allowed so the dep manager handler can authenticate us.
+func (m *Manager) allowSelfInDep(depURL string) error {
+	if m.topology == nil {
+		return fmt.Errorf("topology is nil")
+	}
+	if m.pubKey == "" {
+		return fmt.Errorf("manager public key is empty")
+	}
+
+	depFullURL, err := asTopologyURL(depURL, m.topology)
+	if err != nil {
+		return fmt.Errorf("asTopologyURL(%q): %w", depURL, err)
+	}
+
+	depServiceURL := depFullURL.As(mushroom.SERVICE)
+	depService, err := m.topology.Service(depServiceURL.AsDereference().String())
+	if err != nil {
+		return fmt.Errorf("topology.Service(%q): %w", depServiceURL.AsDereference().String(), err)
+	}
+
+	if mushroom.IsAllowedClientPublicKey(&depService, m.pubKey, config.ServiceManagerCategory) {
 		return nil
 	}
 
-	control, ok := m.handlerControls[handlerCategory]
-	if !ok {
-		return fmt.Errorf("handler control of %s category is not found", handlerCategory)
+	managerLink := m.serviceURL.New(config.ServiceManagerCategory)
+	mushroom.AddAllowedPublicKey(&depService, managerLink, m.serviceURL.ResourcePublicKey())
+	if err := m.topology.SetService(depService); err != nil {
+		return fmt.Errorf("topology.SetService(%q): %w", depService.Name, err)
 	}
-	if err := control.Allow(depPublicKey); err != nil {
-		return fmt.Errorf("control.Allow(%q): %w", handlerCategory, err)
-	}
+
 	return nil
 }
 
@@ -1499,7 +1526,21 @@ func (m *Manager) Handshake() error {
 						return
 					}
 					handshaked = true
-					running, runErr = m.IsServiceRunning(depURL, attempts)
+					running, runErr = m.IsServiceRunning(depURL, 1)
+				} else if errors.Is(runErr, message.ErrNoCurveKey) {
+					if err := m.allowSelfInDep(depURL); err != nil {
+						errCh <- fmt.Errorf("allowSelfInDep(%q): %w", depURL, err)
+						return
+					}
+					running, runErr = m.IsServiceRunning(depURL, 1)
+					if runErr != nil {
+						if err := m.whitelistSelfInDeps(depURL); err != nil {
+							errCh <- fmt.Errorf("whitelistSelfInDeps(%q): %w", depURL, err)
+							return
+						}
+						handshaked = true
+						running, runErr = m.IsServiceRunning(depURL, 1)
+					}
 				}
 				if runErr != nil {
 					errCh <- fmt.Errorf("IsServiceRunning(%q, attempts: %d): %w", depURL, attempts, runErr)
@@ -1507,7 +1548,7 @@ func (m *Manager) Handshake() error {
 				}
 			}
 			if !running {
-				errCh <- fmt.Errorf("service %q did not become running after %d attempts", depURL, attempts)
+				errCh <- fmt.Errorf("service %q not running, attempts: %d", depURL, attempts)
 				return
 			}
 			if handshaked {
@@ -1593,6 +1634,7 @@ func (m *Manager) Start() error {
 	m.Interface.SetMushroomURL(handlerLink.String())
 
 	m.Interface.Secure(m.curveSecretKey)
+	zap.AuthDynamicAllow(handlerLink.String())
 
 	if err := m.Interface.Start(); err != nil {
 		return fmt.Errorf("handler.Start: %w", err)

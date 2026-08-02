@@ -211,23 +211,21 @@ func (t TopologyURL) ResourcePublicKey() TopologyURL {
 	return TopologyURL(pubKeyHypha)
 }
 
-// Checks is depService's categories handler allows the managerLink to access or not.
-// If no categories are given, uses config.ServiceManagerCategory.
-func IsAllowedPublicKeyExist(depService *config.Service, managerLink TopologyURL, categories ...string) bool {
+func AllowedKeyValues(depService *config.Service, categories ...string) map[string]any {
 	if depService.Parameters == nil {
-		return true
+		return nil
 	}
 	serviceParameters := depService.Parameters
 	if serviceParameters == nil {
-		return true
+		return nil
 	}
 	allowed, ok := serviceParameters["allowed"]
 	if !ok {
-		return true
+		return nil
 	}
 	categoryMap, ok := allowed.(map[string]any)
 	if !ok {
-		return true
+		return nil
 	}
 	category := config.ServiceManagerCategory
 	if len(categories) > 0 {
@@ -235,14 +233,35 @@ func IsAllowedPublicKeyExist(depService *config.Service, managerLink TopologyURL
 	}
 	catEntry, ok := categoryMap[category]
 	if !ok {
-		return true
+		return nil
 	}
 	entryMap, ok := catEntry.(map[string]any)
 	if !ok {
-		return true
+		return nil
 	}
-	_, exists := entryMap[managerLink.String()]
-	return exists
+	return entryMap
+}
+
+// IsAllowedClientPublicKey reports whether clientKey appears as a value under
+// parameters.allowed[category][categories...] === clientKey?
+// If categories are omitted, config.ServiceManagerCategory is used.
+func IsAllowedClientPublicKey(depService *config.Service, clientKey string, categories ...string) bool {
+	if clientKey == "" {
+		return false
+	}
+
+	entryMap := AllowedKeyValues(depService, categories...)
+	if entryMap == nil {
+		return false
+	}
+
+	for _, pubKeyVal := range entryMap {
+		pubKey, ok := pubKeyVal.(string)
+		if ok && pubKey == clientKey {
+			return true
+		}
+	}
+	return false
 }
 
 // IsAllowedPublicKeyMatch reports whether the manager allow entry is missing or stale.
@@ -251,31 +270,8 @@ func IsAllowedPublicKeyExist(depService *config.Service, managerLink TopologyURL
 // Looks for the 'allowed' parameter of depService for the categories. If not given uses config.ServiceManagerCategory.
 // As a key uses managerLink, as a value uses the dereference of value.
 func IsAllowedPublicKeyMatch(depService *config.Service, managerLink, value TopologyURL, categories ...string) bool {
-	if depService.Parameters == nil {
-		return true
-	}
-	serviceParameters := depService.Parameters
-	if serviceParameters == nil {
-		return true
-	}
-	allowed, ok := serviceParameters["allowed"]
-	if !ok {
-		return true
-	}
-	categoryMap, ok := allowed.(map[string]any)
-	if !ok {
-		return true
-	}
-	category := config.ServiceManagerCategory
-	if len(categories) > 0 {
-		category = categories[0]
-	}
-	catEntry, ok := categoryMap[category]
-	if !ok {
-		return true
-	}
-	entryMap, ok := catEntry.(map[string]any)
-	if !ok {
+	entryMap := AllowedKeyValues(depService, categories...)
+	if entryMap == nil {
 		return true
 	}
 	existing, exists := entryMap[managerLink.String()]

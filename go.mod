@@ -13,6 +13,7 @@ require (
 	github.com/noPerfection/protocol/message v0.1.1
 	github.com/noPerfection/topology v0.1.2
 	github.com/noPerfection/topology/config v0.1.2
+	github.com/pebbe/zmq4 v1.2.10
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/tools v0.46.0
 )
@@ -39,7 +40,6 @@ require (
 	github.com/cakturk/go-netstat v0.0.0-20200220111822-e5b49efee7a5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/joho/godotenv v1.4.0 // indirect
-	github.com/pebbe/zmq4 v1.2.10 // indirect
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect

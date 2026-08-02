@@ -11,6 +11,7 @@ import (
 	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/handlers"
 	"github.com/noPerfection/service/mushroom"
+	"github.com/noPerfection/service/zap"
 	"github.com/noPerfection/topology"
 	topologyConfig "github.com/noPerfection/topology/config"
 	"github.com/stretchr/testify/require"
@@ -84,8 +85,12 @@ func startFakeCalleeManager(t *testing.T, service topologyConfig.Service, allowe
 	pub, sec, err := message.GenerateCurveKey()
 	require.NoError(t, err)
 	handler.Secure(sec)
+	mushroomURL, err := mushroom.As("*pkg:$?var=services[name:"+service.Name+"]", topologyConfig.ServiceManagerCategory)
+	require.NoError(t, err)
+	handler.SetMushroomURL(mushroomURL.String())
+	require.NoError(t, zap.Start())
 	if allowedCallerPubKey != "" {
-		handler.Allow(allowedCallerPubKey)
+		zap.AuthCurveAdd(mushroomURL.As(mushroom.HANDLER).String(), allowedCallerPubKey)
 	}
 	for _, cmd := range managerWhitelistCommands() {
 		handler.RequireWhitelist(cmd)
@@ -113,9 +118,6 @@ func startFakeCalleeManager(t *testing.T, service topologyConfig.Service, allowe
 		}
 		return req.Ok(datatype.New().Set("running", callee.running))
 	}))
-	mushroomURL, err := mushroom.As("*pkg:$?var=services[name:"+service.Name+"]", topologyConfig.ServiceManagerCategory)
-	require.NoError(t, err)
-	handler.SetMushroomURL(mushroomURL.String())
 	require.NoError(t, handler.Start())
 
 	publishManagerPublicKey(t, service.Name, pub)

@@ -11,6 +11,7 @@ import (
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/service/package_url"
+	"github.com/noPerfection/service/zap"
 	"github.com/noPerfection/topology/config"
 )
 
@@ -153,9 +154,11 @@ func (proxy *Proxy) ensureServiceManager() error {
 		return fmt.Errorf("manager.NewProxyManager: %w", err)
 	}
 	proxy.manager = m
-	if err := proxy.addAllowedManagerClients(serviceConfig.Parameters); err != nil {
+	if err := proxy.addAllowedManagerClients(serviceConfig); err != nil {
 		return fmt.Errorf("addAllowedManagerClients: %w", err)
 	}
+
+	proxy.manager.RequireWhitelist()
 
 	return nil
 }
@@ -169,6 +172,10 @@ func (proxy *Proxy) Start() error {
 
 	if err = npac.New().Start(); err != nil {
 		err = fmt.Errorf("npac.Start: %w", err)
+		goto errOccurred
+	}
+	if err = zap.Start(); err != nil {
+		err = fmt.Errorf("zap.Start: %w", err)
 		goto errOccurred
 	}
 	if err = proxy.TopologyConnection.setupTopologyConnection(); err != nil {
@@ -376,40 +383,22 @@ func (proxy *Proxy) allowServiceManager() error {
 	return nil
 }
 
-func (proxy *Proxy) addAllowedManagerClients(parameters datatype.KeyValue) error {
-	if parameters == nil {
+func (proxy *Proxy) addAllowedManagerClients(serviceConfig config.Service) error {
+	entryMap := mushroom.AllowedKeyValues(&serviceConfig, config.ServiceManagerCategory)
+	if entryMap == nil {
 		return nil
 	}
 
-	allowed, ok := parameters["allowed"]
-	if !ok {
-		return nil
-	}
-
-	categoryMap, ok := allowed.(map[string]interface{})
-	if !ok {
-		return nil
-	}
-
-	managerEntry, ok := categoryMap[config.ServiceManagerCategory]
-	if !ok {
-		return nil
-	}
-
-	entryMap, ok := managerEntry.(map[string]interface{})
-	if !ok {
-		return nil
-	}
-
-	for _, pubKeyVal := range entryMap {
+	for url, pubKeyVal := range entryMap {
 		pubKey, ok := pubKeyVal.(string)
 		if !ok || pubKey == "" {
 			continue
 		}
-		proxy.manager.Allow(pubKey)
-	}
-	if len(entryMap) > 0 {
-		proxy.manager.RequireWhitelist()
+		mushroomURL, err := mushroom.Parse(url)
+		if err != nil {
+			return fmt.Errorf("entryMap.mushroom.Parse('%s'): %w", url, err)
+		}
+		zap.AuthCurveAdd(proxy.mushroomURL.As(mushroom.HANDLER).String(), pubKey, mushroomURL.As(mushroom.HANDLER))
 	}
 
 	return nil

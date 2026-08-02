@@ -13,6 +13,7 @@ import (
 	"github.com/noPerfection/service/manager"
 	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/service/package_url"
+	"github.com/noPerfection/service/zap"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
@@ -216,9 +217,11 @@ func (ext *Extension) ensureServiceManager() error {
 		return fmt.Errorf("manager.SetLogger: %w", err)
 	}
 
-	if err := ext.addAllowedManagerClients(serviceConfig.Parameters); err != nil {
+	if err := ext.addAllowedManagerClients(serviceConfig); err != nil {
 		return fmt.Errorf("addAllowedManagerClients: %w", err)
 	}
+
+	ext.manager.RequireWhitelist()
 
 	return nil
 }
@@ -267,6 +270,10 @@ func (ext *Extension) Start() error {
 	var npacAnyContextPushed bool
 	if err = npac.New().Start(); err != nil {
 		err = fmt.Errorf("npac.Start: %w", err)
+		goto errOccurred
+	}
+	if err = zap.Start(); err != nil {
+		err = fmt.Errorf("zap.Start: %w", err)
 		goto errOccurred
 	}
 	if err = ext.TopologyConnection.setupTopologyConnection(); err != nil {
@@ -687,55 +694,22 @@ func (ext *Extension) allowServiceManager() error {
 	return nil
 }
 
-func (ext *Extension) addAllowedManagerClients(parameters datatype.KeyValue) error {
-	if parameters == nil {
-		if ext.logger != nil {
-			ext.logger.Warn("no allowed keys: parameters not set, no one can access this service", "service", ext.mushroomURL)
-		}
+func (ext *Extension) addAllowedManagerClients(serviceConfig config.Service) error {
+	entryMap := mushroom.AllowedKeyValues(&serviceConfig, config.ServiceManagerCategory)
+	if entryMap == nil {
 		return nil
 	}
 
-	allowed, ok := parameters["allowed"]
-	if !ok {
-		if ext.logger != nil {
-			ext.logger.Warn("no allowed keys: 'allowed' parameter missing, no one can access this service", "service", ext.mushroomURL)
-		}
-		return nil
-	}
-
-	categoryMap, ok := allowed.(map[string]interface{})
-	if !ok {
-		if ext.logger != nil {
-			ext.logger.Warn("no allowed keys: 'allowed' parameter has unexpected type", "service", ext.mushroomURL)
-		}
-		return nil
-	}
-
-	managerEntry, ok := categoryMap[config.ServiceManagerCategory]
-	if !ok {
-		if ext.logger != nil {
-			ext.logger.Warn("no allowed keys: service manager category not found in allowed", "service", ext.mushroomURL, "category", config.ServiceManagerCategory)
-		}
-		return nil
-	}
-
-	entryMap, ok := managerEntry.(map[string]interface{})
-	if !ok {
-		if ext.logger != nil {
-			ext.logger.Warn("no allowed keys: manager allowed entry has unexpected type", "service", ext.mushroomURL)
-		}
-		return nil
-	}
-
-	for _, pubKeyVal := range entryMap {
+	for url, pubKeyVal := range entryMap {
 		pubKey, ok := pubKeyVal.(string)
 		if !ok || pubKey == "" {
 			continue
 		}
-		ext.manager.Allow(pubKey)
-	}
-	if len(entryMap) > 0 {
-		ext.manager.RequireWhitelist()
+		mushroomURL, err := mushroom.Parse(url)
+		if err != nil {
+			return fmt.Errorf("entryMap.mushroom.Parse('%s'): %w", url, err)
+		}
+		zap.AuthCurveAdd(ext.mushroomURL.As(mushroom.HANDLER).String(), pubKey, mushroomURL.As(mushroom.HANDLER))
 	}
 
 	return nil

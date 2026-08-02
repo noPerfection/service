@@ -124,11 +124,13 @@ func isServiceRunningWithReload(tp *topology.Client, serviceURL, secretKey, hmac
 			return false, err
 		}
 
+		fmt.Printf("probeServiceRunning %v, curve key %s, hmac: %s\n", service.Name, secretKey, hmacSecret)
 		running, err := probeServiceRunning(service, secretKey, hmacSecret)
+		fmt.Printf("probeServiceRunning %v, running: %v, err: %v\n", service.Name, running, err)
 		if err != nil {
 			if errors.Is(err, message.ErrNoCurveKey) {
-				if !reload {
-					return false, nil
+				if !reload || i+1 == n {
+					return false, fmt.Errorf("probe %q after %d attempts: %w", service.Name, n, err)
 				} else {
 					continue
 				}
