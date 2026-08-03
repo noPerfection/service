@@ -117,14 +117,14 @@ func (m *ProxyManager) routeHandlerCommands(category string) ([]string, error) {
 // getRouteInbounds returns route to route relationships in this service topology.
 // It traverses within dependencies and builds their inbounds defined by this service's topology.
 //
-// Returns list of services, and their inbounds for each route links.
-//
-// Return format:
-//
-//	map(service-link):
+//	map(service-link): // Return format:
 //		map(route-link): []inbounds
 //
-// Inbound is the route link that can access to route-link
+// For example: service 1: hello-world; service 2: default-name.
+//
+//	getRouteInbounds returns:
+//	map(hello-world):
+//		map(hello-world.main.hello): [default-name.main.hello]
 func getRouteInbounds(host routeInboundsHost) (map[string]map[string][]string, error) {
 	tp := host.routeInboundsTopology()
 	serviceDeref, err := host.routeInboundsServiceDeref()
@@ -154,6 +154,22 @@ func getRouteInbounds(host routeInboundsHost) (map[string]map[string][]string, e
 			return nil, fmt.Errorf("secure handler edges: %w", err)
 		}
 		maps.Copy(inbounds, handlerInbounds)
+	}
+
+	if _, err := serviceConfig.HandlerByCategory(config.ServiceManagerCategory); err != nil {
+		defaultManager, err := DefaultManagerHandlerForService(serviceConfig)
+		if err != nil {
+			return nil, fmt.Errorf("DefaultManagerHandlerForService: %w", err)
+		}
+		managerHandler, ok := defaultManager.AsIndependentHandler()
+		if !ok {
+			return nil, fmt.Errorf("default manager handler is not independent")
+		}
+		managerInbounds, err := getHandlerInbounds(host, tp, serviceConfig, serviceMushroomURL, managerHandler)
+		if err != nil {
+			return nil, fmt.Errorf("secure handler edges (manager): %w", err)
+		}
+		maps.Copy(inbounds, managerInbounds)
 	}
 
 	serviceInbounds := make(map[string]map[string][]string)
