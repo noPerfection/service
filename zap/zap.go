@@ -2,7 +2,6 @@
 package zap
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"sync"
@@ -133,10 +132,8 @@ func zapHasDeny(domain string) bool {
 }
 
 func zapDoHandler() {
-	fmt.Println("zapDoHandler receive...")
 	for {
 		msg, err := zapHandler.RecvMessage(0)
-		fmt.Println("zapDoHandler msg", msg, "err", err)
 		if err != nil {
 			if zapVerbose() {
 				log.Println("ZAP: Quitting:", err)
@@ -184,8 +181,6 @@ func zapDoHandler() {
 
 		allowed := false
 		denied := false
-
-		fmt.Println("zapIsAllowed domain", domain, "address", address)
 
 		if zapHasAllow(domain) {
 			if zapIsAllowed(domain, address) {
@@ -274,8 +269,6 @@ func zapAuthenticatePlain(domain, username, password string) bool {
 }
 
 func zapAuthenticateCurve(domain, clientKey string) bool {
-	fmt.Printf("ZAP: zapAuthenticateCurve(domain=%q clientKey=%q):\n", domain, clientKey)
-	fmt.Printf("ZAP:                               zapPubkeys=%v\n", zapPubkeys[domain])
 	for _, dom := range []string{domain, "*"} {
 		if m, ok := zapPubkeys[dom]; ok {
 			if _, ok := m[curveAllowAny]; ok {
@@ -310,8 +303,6 @@ func Start() error {
 		return nil
 	}
 
-	AuthSetVerbose(true)
-
 	var err error
 	zapHandler, err = zmq.NewSocket(zmq.REP)
 	if err != nil {
@@ -338,8 +329,6 @@ func Start() error {
 	if err := initTopologyClient(); err != nil && zapVerbose() {
 		log.Printf("ZAP: topology client: %v\n", err)
 	}
-
-	fmt.Println("zapStart")
 
 	go zapDoHandler()
 
@@ -470,7 +459,6 @@ func AuthDynamicAllow(domain string) {
 // When url is given, any existing pubkey for that allowed reference is removed
 // first, then the ref and pubkey entries are overwritten for the domain.
 func AuthCurveAdd(domain, pubkey string, url ...mushroom.TopologyURL) {
-	fmt.Printf("ZAP: AuthCurveAdd(domain=%q, pubkey=%q, url=%v)\n", domain, pubkey, url)
 	if _, ok := zapPubkeys[domain]; !ok {
 		zapPubkeys[domain] = make(map[string]bool)
 	}
@@ -567,10 +555,8 @@ func closeTopologyClient() {
 
 func dynamicAllowsCurve(domain, clientKey string) bool {
 	if clientKey == "" || !zapIsDynamicAllow(domain) {
-		fmt.Printf("ZAP: !zapIsDynamicAllow(domain=%q) or clientKey is empty: %v\n", domain, clientKey == "")
 		return false
 	}
-	fmt.Printf("ZAP\tallow dynamic: zapTopologyClient is not nil: %v\n", zapTopologyClient != nil)
 	if zapTopologyClient == nil {
 		if zapVerbose() {
 			log.Printf("ZAP: topology client not initialized\n")
@@ -591,26 +577,20 @@ func dynamicAllowsCurve(domain, clientKey string) bool {
 		}
 		return false
 	}
-	fmt.Printf("ZAP\tallow dynamic: handlerURL=%v\n", handlerURL)
 
 	category := handlerURL.HandlerCategory()
 	serviceURL := handlerURL.As(mushroom.SERVICE).AsDereference().String()
-	fmt.Printf("ZAP\tallow dynamic: serviceURL=%v\n", serviceURL)
 
 	if allowedClientPublicKey(serviceURL, category, clientKey) {
-		fmt.Printf("ZAP\tallow dynamic: allowedClientPublicKey return true\n")
 		return true
 	}
 
-	fmt.Printf("ZAP\tallow dynamic: reload...\n")
 	if err := zapTopologyClient.Reload(); err != nil {
-		fmt.Printf("ZAP\tallow dynamic: reload: %v\n", err)
 		if zapVerbose() {
 			log.Printf("ZAP: topology reload failed domain=%q: %v\n", domain, err)
 		}
 		return false
 	}
-	fmt.Printf("ZAP\tallow dynamic: reload: allowedClientPublicKey return true %s\n", clientKey)
 	return allowedClientPublicKey(serviceURL, category, clientKey)
 }
 
@@ -622,6 +602,5 @@ func allowedClientPublicKey(serviceURL, category, clientKey string) bool {
 		}
 		return false
 	}
-	fmt.Printf("ZAP\tallow dynamic: mushroom.IsAllowedClientPublicKey(&svc, %q, %q)\n", clientKey, svc.Parameters)
 	return mushroom.IsAllowedClientPublicKey(&svc, clientKey, category)
 }

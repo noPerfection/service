@@ -698,6 +698,8 @@ func (manager *ProxySetup) onRegisterHandlerOutbounds(req message.RequestInterfa
 		return req.Fail(fmt.Sprintf("unsupported outbound service type %q for %q", remoteService.Type, outboundURL))
 	}
 
+	proxified.proxyConfig.SetOutbound(outboundURL)
+
 	return req.Ok(datatype.New())
 }
 

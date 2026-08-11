@@ -24,13 +24,6 @@ type RouteCredential struct {
 	Secret string `json:"secret"`
 }
 
-type routeInboundsHost interface {
-	routeInboundsTopology() *topology.Client
-	routeInboundsServiceDeref() (string, error)
-	routeInboundsMushroomURL() (mushroom.TopologyURL, error)
-	routeHandlerCommands(category string) ([]string, error)
-}
-
 func (m *Manager) routeInboundsTopology() *topology.Client {
 	return m.topology
 }
@@ -125,9 +118,9 @@ func (m *ProxyManager) routeHandlerCommands(category string) ([]string, error) {
 //	getRouteInbounds returns:
 //	map(hello-world):
 //		map(hello-world.main.hello): [default-name.main.hello]
-func getRouteInbounds(host routeInboundsHost) (map[string]map[string][]string, error) {
-	tp := host.routeInboundsTopology()
-	serviceDeref, err := host.routeInboundsServiceDeref()
+func getRouteInbounds(m ManagerInterface) (map[string]map[string][]string, error) {
+	tp := m.routeInboundsTopology()
+	serviceDeref, err := m.routeInboundsServiceDeref()
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +130,7 @@ func getRouteInbounds(host routeInboundsHost) (map[string]map[string][]string, e
 		return nil, fmt.Errorf("topology.Service(%q): %w", serviceDeref, err)
 	}
 
-	serviceMushroomURL, err := host.routeInboundsMushroomURL()
+	serviceMushroomURL, err := m.routeInboundsMushroomURL()
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +142,7 @@ func getRouteInbounds(host routeInboundsHost) (map[string]map[string][]string, e
 		if !ok {
 			return nil, fmt.Errorf("handler %q is not an independent handler", variant)
 		}
-		handlerInbounds, err := getHandlerInbounds(host, tp, serviceConfig, serviceMushroomURL, handler)
+		handlerInbounds, err := getHandlerInbounds(m, tp, serviceConfig, serviceMushroomURL, handler)
 		if err != nil {
 			return nil, fmt.Errorf("secure handler edges: %w", err)
 		}
@@ -165,7 +158,7 @@ func getRouteInbounds(host routeInboundsHost) (map[string]map[string][]string, e
 		if !ok {
 			return nil, fmt.Errorf("default manager handler is not independent")
 		}
-		managerInbounds, err := getHandlerInbounds(host, tp, serviceConfig, serviceMushroomURL, managerHandler)
+		managerInbounds, err := getHandlerInbounds(m, tp, serviceConfig, serviceMushroomURL, managerHandler)
 		if err != nil {
 			return nil, fmt.Errorf("secure handler edges (manager): %w", err)
 		}
@@ -191,8 +184,8 @@ func getRouteInbounds(host routeInboundsHost) (map[string]map[string][]string, e
 // getHandlerInbounds computes the inbound route map for the given handler and returns it.
 // The map key is a route URL (handler hypha + command prop), the value is the list of
 // route URLs that are allowed to call that route.
-func getHandlerInbounds(host routeInboundsHost, tp *topology.Client, serviceConfig config.Service, serviceMushroomURL mushroom.TopologyURL, handler config.IndependentHandler) (map[string][]string, error) {
-	cmds, err := host.routeHandlerCommands(handler.Category)
+func getHandlerInbounds(m ManagerInterface, tp *topology.Client, serviceConfig config.Service, serviceMushroomURL mushroom.TopologyURL, handler config.IndependentHandler) (map[string][]string, error) {
+	cmds, err := m.routeHandlerCommands(handler.Category)
 	if err != nil {
 		return nil, fmt.Errorf("commands(%q): %w", handler.Category, err)
 	}

@@ -405,22 +405,26 @@ func (proxy *Proxy) addAllowedManagerClients(serviceConfig config.Service) error
 }
 
 func (proxy *Proxy) Stop() error {
-	if proxy.manager != nil && !proxy.manager.Running() {
+	if proxy.manager != nil && proxy.manager.Running() {
+		if err := proxy.TopologyConnection.closeTopologyClient(); err != nil {
+			return fmt.Errorf("closeTopologyClient: %w", err)
+		}
+		if err := proxy.manager.StopService(proxy.name); err != nil {
+			return err
+		}
+		if err := proxy.ProxySetup.Close(); err != nil {
+			return fmt.Errorf("proxyHandlers.Close: %w", err)
+		}
 		return nil
 	}
 
-	if err := proxy.TopologyConnection.closeTopologyClient(); err != nil {
-		return fmt.Errorf("closeTopologyClient: %w", err)
-	}
-	if proxy.manager == nil {
-		return proxy.ProxySetup.Close()
-	}
-	if err := proxy.manager.StopService(proxy.name); err != nil {
-		return err
+	if proxy.manager != nil {
+		_ = proxy.manager.StopService(proxy.name)
 	}
 	if err := proxy.ProxySetup.Close(); err != nil {
 		return fmt.Errorf("proxyHandlers.Close: %w", err)
 	}
+	releaseBlocker(proxy.blocker)
 	return nil
 }
 

@@ -113,8 +113,8 @@ func getPublicKeyFromConfig(inboundURL string, tp *topology.Client) (string, err
 	return pubKey, nil
 }
 
-// filter out outboundServiceURL in the topology of serviceDeref.
-// When excludeOutboundService is true, matching routes are skipped instead of kept.
+// filterTopologyOutbounds filters out topologyOutbounds where serviceURL has outboundServiceURL as its outbound.
+// If excludeOutboundService is true, then it does reverse, filters all except outboundServiceURL.
 func filterTopologyOutbounds(topologyOutbounds map[string]map[string]string, serviceURL, outboundServiceURL mushroom.TopologyURL, excludeOutboundService bool) (map[string]mushroom.TopologyURL, error) {
 	allOutbounds, hasOutbounds := topologyOutbounds[serviceURL.AsDereference().String()]
 
@@ -122,15 +122,6 @@ func filterTopologyOutbounds(topologyOutbounds map[string]map[string]string, ser
 	if len(allOutbounds) == 0 || !hasOutbounds {
 		return outbounds, nil
 	}
-	// Example (dep-service: entrypoint-proxy, this-service: hello-world)
-	// Outbounds[entrypoint-proxy.main.hello] = {
-	//   RouteURL: entrypoint-proxy.main.hello,
-	//   PublicKey: hello-world.main.public-key,
-	//   Secret: hello-world.main.secret,
-	// }
-	// Outbounds to this service from dep. On Handshake, the service registers outbounds.
-	// onHandshake should return the public key of the entrypoint-proxy.main.hello handler.
-	// And here it will be recorded as allow via a control.
 	for route, outboundRoute := range allOutbounds {
 		outboundURL, err := mushroom.Parse(outboundRoute)
 		if err != nil {
@@ -221,9 +212,6 @@ func buildTopologyOutbounds(
 		serviceLink := handlerURL.As(mushroom.SERVICE).AsDereference().String()
 		outbounds[serviceLink] = make(map[string]string)
 	}
-	if selfServiceDeref != "" {
-		outbounds[selfServiceDeref] = make(map[string]string)
-	}
 
 	for _, routeInbounds := range topologyInbounds {
 		for route, inboundRoutes := range routeInbounds {
@@ -234,7 +222,11 @@ func buildTopologyOutbounds(
 				}
 				outboundDeref := inboundURL.As(mushroom.SERVICE).AsDereference().String()
 				if _, ok := outbounds[outboundDeref]; !ok {
-					return nil, fmt.Errorf("outbound deref %q is not whitelisted", outboundDeref)
+					if outboundDeref == selfServiceDeref {
+						outbounds[selfServiceDeref] = make(map[string]string)
+					} else {
+						return nil, fmt.Errorf("outbound deref %q is not whitelisted", outboundDeref)
+					}
 				}
 				outbounds[outboundDeref][inboundRoute] = route
 			}

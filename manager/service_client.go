@@ -9,6 +9,7 @@ import (
 	"github.com/noPerfection/datatype"
 	"github.com/noPerfection/protocol/client"
 	"github.com/noPerfection/protocol/message"
+	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/topology"
 	"github.com/noPerfection/topology/config"
 )
@@ -39,6 +40,15 @@ func newServiceManagerClient(service config.Service, secretKey, hmacSecret strin
 	return node, nil
 }
 
+func probeTimeout(protocol string) time.Duration {
+	// For IPC or Inproc manager handlers, use a shorter timeout.
+	if protocol == "inproc" || protocol == "ipc" {
+		return ipcManagerProbeTimeout
+	}
+	// For TCP use seconds.
+	return topology.DefaultTimeout
+}
+
 func managerProbeTimeout(service config.Service) time.Duration {
 	// For IPC or Inproc manager handlers, use a shorter timeout.
 	if managerHandler, err := service.HandlerByCategory(config.ServiceManagerCategory); err == nil {
@@ -57,6 +67,16 @@ func handlerControlTimeout(service config.Service) time.Duration {
 	return managerProbeTimeout(service) * 2
 }
 
+// handshakeRequestTimeoutByProtocol covers callee onHandshake work across multiple handler control/setup round-trips.
+func handshakeRequestTimeoutByProtocol(protocol string) time.Duration {
+	timeout := probeTimeout(protocol) * 6
+	min := topology.DefaultTimeout * 2
+	if timeout < min {
+		timeout = min
+	}
+	return timeout
+}
+
 // handshakeRequestTimeout covers callee onHandshake work across multiple handler control/setup round-trips.
 func handshakeRequestTimeout(service config.Service) time.Duration {
 	timeout := handlerControlTimeout(service) * 6
@@ -67,23 +87,11 @@ func handshakeRequestTimeout(service config.Service) time.Duration {
 	return timeout
 }
 
-func probeServiceRunning(service config.Service, secretKey, hmacSecret string) (bool, error) {
-	if service.Type == config.IndependentType {
-		return true, nil
-	}
-
-	node, err := newServiceManagerClient(service, secretKey, hmacSecret)
-	if err != nil {
-		return false, err
-	}
-	defer node.Close()
-
+func probeServiceRunning(node *topology.Client, serviceURL mushroom.TopologyURL) (bool, error) {
 	node.Attempt(1)
-	node.Timeout(managerProbeTimeout(service))
-
 	running, err := node.Request(&message.Request{
 		Command:    topology.IsServiceRunning,
-		Parameters: datatype.New().Set("service", service.Name),
+		Parameters: datatype.New().Set("service", serviceURL.As(mushroom.SERVICE).AsDereference().String()),
 	})
 	if err != nil {
 		if errors.Is(err, message.ErrReqTimeout) {
@@ -98,50 +106,7 @@ func probeServiceRunning(service config.Service, secretKey, hmacSecret string) (
 		}
 		return false, fmt.Errorf("reply.Message: %s", msg)
 	}
-	isRunning, err := running.ReplyParameters().BoolValue("running")
-	if err != nil {
-		return false, fmt.Errorf("reply.Parameters.BoolValue('running'): %w", err)
-	}
-	return isRunning, nil
-}
-
-func isServiceRunningWithReload(tp *topology.Client, serviceURL, secretKey, hmacSecret string, attempts ...int) (bool, error) {
-	n := 1
-	if len(attempts) > 0 && attempts[0] > 1 {
-		n = attempts[0]
-	}
-	reload := n > 1
-
-	for i := 0; i < n; i++ {
-		if reload {
-			if err := tp.Reload(); err != nil {
-				return false, fmt.Errorf("topology.Reload: %w", err)
-			}
-		}
-
-		service, err := tp.Service(serviceURL)
-		if err != nil {
-			return false, err
-		}
-
-		fmt.Printf("probeServiceRunning %v, curve key %s, hmac: %s\n", service.Name, secretKey, hmacSecret)
-		running, err := probeServiceRunning(service, secretKey, hmacSecret)
-		fmt.Printf("probeServiceRunning %v, running: %v, err: %v\n", service.Name, running, err)
-		if err != nil {
-			if errors.Is(err, message.ErrNoCurveKey) {
-				if !reload || i+1 == n {
-					return false, fmt.Errorf("probe %q after %d attempts: %w", service.Name, n, err)
-				} else {
-					continue
-				}
-			}
-			return false, err
-		}
-		if running {
-			return true, nil
-		}
-	}
-	return false, nil
+	return true, nil
 }
 
 func stopRemoteService(tp *topology.Client, serviceURL, secretKey, hmacSecret string) error {
