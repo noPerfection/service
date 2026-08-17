@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -27,10 +26,8 @@ const (
 	StartProxyHandlersCommand       = "start-proxy-handlers-command"
 	StopProxyHandlersCommand        = "stop-proxy-handlers-command"
 	RemoveProxyHandlerCommand       = "remove-proxy-handler-command"
-	RequireWhitelistCommand         = "require-whitelist-command"
 	CommandsCommand                 = "commands-command"
 	RequireSecureHandlerCommand     = "require-secure-handler-command"
-	SecureOutboundHandlerCommand    = "secure-outbound-handler-command"
 	RequireInboundWhitelistCommand  = "require-inbound-whitelist-command"
 	RegisterHandlerOutboundsCommand = "register-handler-outbounds-command"
 
@@ -57,59 +54,120 @@ type ProxyHandleFunc func(req ProxyRequest) ProxyReply
 type Category string
 
 type ProxifiedHandler struct {
-	handler           protocolHandler.Interface
-	outboundClients   map[string]outboundClient
-	outboundWhitelist map[string]outboundWhitelistEntry
-	routes            map[string]ProxyHandleFunc  // command => handleFunc; user can do whatever he wants
-	proxyConfig       topologyConfig.ProxyHandler // handler's information
-	running           bool
-	wasStarted        bool
-}
-
-type outboundWhitelistEntry struct {
-	secret  string
-	command string
+	handler          protocolHandler.Interface
+	handlerSecret    string
+	handlerPublicKey string
+	outboundClients  map[string]outboundClient
+	routes           map[string]ProxyHandleFunc  // command => handleFunc; user can do whatever he wants
+	proxyConfig      topologyConfig.ProxyHandler // handler's information
+	running          bool
+	wasStarted       bool
 }
 
 type outboundClient interface {
 	Close() error
 	Allow(handlerPublicKey string)
 	Whitelist(cmd string, secrets ...string) error
+	Secure(secret string)
+	HandlerType() topologyConfig.HandlerType
 }
+
+var _ outboundClient = &syncReplierOutbound{}
 
 type syncReplierOutbound struct {
 	*protocolClient.SyncReplierClient
+	handlerType topologyConfig.HandlerType
+}
+
+func (c *syncReplierOutbound) HandlerType() topologyConfig.HandlerType {
+	return c.handlerType
 }
 
 func (c *syncReplierOutbound) Allow(handlerPublicKey string) {
 	c.SyncReplierClient.Allow(handlerPublicKey)
 }
 
-type replierOutbound struct{ *protocolClient.ReplierClient }
+func (c *syncReplierOutbound) Secure(secret string) {
+	c.SyncReplierClient.Secure(secret)
+}
+
+var _ outboundClient = &syncReplierOutbound{}
+
+type replierOutbound struct {
+	*protocolClient.ReplierClient
+	handlerType topologyConfig.HandlerType
+}
 
 func (c *replierOutbound) Allow(handlerPublicKey string) {
 	c.ReplierClient.Allow(handlerPublicKey)
 }
 
+func (c *replierOutbound) Secure(secret string) {
+	c.ReplierClient.Secure(secret)
+}
+
+func (c *replierOutbound) HandlerType() topologyConfig.HandlerType {
+	return c.handlerType
+}
+
+var _ outboundClient = &replierOutbound{}
+
 type publisherOutbound struct {
 	*protocolClient.PublisherClient
+	handlerType topologyConfig.HandlerType
 }
 
 func (c *publisherOutbound) Allow(handlerPublicKey string) {
 	c.PublisherClient.Allow(handlerPublicKey)
 }
 
-type pairOutbound struct{ *protocolClient.PairClient }
+func (c *publisherOutbound) Secure(secret string) {
+	c.PublisherClient.Secure(secret)
+}
+
+func (c *publisherOutbound) HandlerType() topologyConfig.HandlerType {
+	return c.handlerType
+}
+
+var _ outboundClient = &publisherOutbound{}
+
+type pairOutbound struct {
+	*protocolClient.PairClient
+	handlerType topologyConfig.HandlerType
+}
 
 func (c *pairOutbound) Allow(handlerPublicKey string) {
 	c.PairClient.Allow(handlerPublicKey)
 }
 
-type workerOutbound struct{ *protocolClient.WorkerClient }
+func (c *pairOutbound) Secure(secure string) {
+	c.PairClient.Secure(secure)
+}
+
+func (c *pairOutbound) HandlerType() topologyConfig.HandlerType {
+	return c.handlerType
+}
+
+var _ outboundClient = &pairOutbound{}
+
+type workerOutbound struct {
+	*protocolClient.WorkerClient
+	handlerType topologyConfig.HandlerType
+}
 
 func (c *workerOutbound) Allow(handlerPublicKey string) {
 	c.WorkerClient.Allow(handlerPublicKey)
 }
+
+func (c *workerOutbound) Secure(secret string) {
+	c.Secure(secret)
+}
+
+func (c *workerOutbound) HandlerType() topologyConfig.HandlerType {
+	return c.handlerType
+}
+
+var _ outboundClient = &workerOutbound{}
 
 type outboundReceiveOptions interface {
 	Timeout(time.Duration)
@@ -137,9 +195,6 @@ var _ message.Packer = (*ProxySetup)(nil)
 func (request *ProxyRequest) Forward() (ProxyReply, error) {
 	proxified := request.manager.handlers[Category(request.proxifiedHandler)]
 	client := proxified.outboundClients[request.outboundURL]
-	if err := request.applyOutboundWhitelist(proxified, client); err != nil {
-		return ProxyReply{}, err
-	}
 
 	switch c := client.(type) {
 	case protocolClient.RequestInterface:
@@ -153,14 +208,21 @@ func (request *ProxyRequest) Forward() (ProxyReply, error) {
 			return ProxyReply{}, err
 		}
 		return ProxyReply{Reply: *request.Ok(datatype.New()).(*message.Reply)}, nil
-	case interface {
-		protocolClient.SendInterface
-		protocolClient.ReceiveInterface
-	}:
-		if err := c.Send(&request.Request); err != nil {
+	case *replierOutbound:
+		if err := c.ReplierClient.Send(&request.Request); err != nil {
 			return ProxyReply{}, err
 		}
-		return receiveProxyReply(c.Receive())
+		reply := <-c.ReplierClient.Receive()
+		newReq := message.Request{
+			Command:    request.Request.Command,
+			Parameters: request.Request.Parameters,
+		}
+		if err := c.ReplierClient.Send(&newReq); err != nil {
+			return ProxyReply{}, err
+		}
+		reply = <-c.ReplierClient.Receive()
+
+		return proxyReplyFromReply(reply)
 	case protocolClient.SendInterface:
 		if err := c.Send(&request.Request); err != nil {
 			return ProxyReply{}, err
@@ -171,57 +233,6 @@ func (request *ProxyRequest) Forward() (ProxyReply, error) {
 	default:
 		return ProxyReply{}, fmt.Errorf("unsupported outbound client for %q", request.outboundURL)
 	}
-}
-
-func (request *ProxyRequest) applyOutboundWhitelist(proxified *ProxifiedHandler, client outboundClient) error {
-	if proxified == nil || client == nil {
-		return nil
-	}
-
-	entry, ok := proxified.outboundWhitelistEntry(request.outboundURL, request.CommandName())
-	if !ok {
-		return nil
-	}
-
-	if mushroomURL, err := mushroom.Parse(request.outboundURL); err == nil {
-		if publicKey, err := servicePublicKey(mushroomURL); err == nil {
-			client.Allow(publicKey)
-		}
-	}
-
-	if entry.secret == "" {
-		return nil
-	}
-
-	cmd := request.CommandName()
-	if entry.command == cmd || entry.command == "" {
-		return client.Whitelist(cmd, entry.secret)
-	}
-	if entry.command == message.Any {
-		return client.Whitelist(message.Any, entry.secret)
-	}
-	return client.Whitelist(cmd, entry.secret)
-}
-
-func (proxified *ProxifiedHandler) outboundWhitelistEntry(outboundURL, command string) (outboundWhitelistEntry, bool) {
-	if proxified == nil || proxified.outboundWhitelist == nil {
-		return outboundWhitelistEntry{}, false
-	}
-
-	if entry, ok := proxified.outboundWhitelist[outboundURL]; ok && entry.secret != "" {
-		return entry, true
-	}
-
-	for _, entry := range proxified.outboundWhitelist {
-		if entry.secret == "" {
-			continue
-		}
-		if entry.command == command || entry.command == message.Any {
-			return entry, true
-		}
-	}
-
-	return outboundWhitelistEntry{}, false
 }
 
 func proxyReplyFromReply(reply message.ReplyInterface) (ProxyReply, error) {
@@ -327,7 +338,6 @@ func (manager *ProxySetup) applyConfiguredForward(proxified *ProxifiedHandler, r
 }
 
 func (proxified *ProxifiedHandler) resolveConfiguredForward(forwardURL string) (string, string, error) {
-	fmt.Println("resolveConfiguredForward", forwardURL, "outbounds", proxified.proxyConfig.Outbounds)
 	for _, outboundURL := range proxified.proxyConfig.Outbounds {
 		if outboundURL == forwardURL {
 			return proxified.proxyConfig.Category, outboundURL, nil
@@ -367,6 +377,8 @@ func proxyConfigAllowsCommand(proxyConfig topologyConfig.ProxyHandler, command s
 	return false
 }
 
+// Route the request. Optionally define the handler type.
+// Adds a new proxified handler if it doesn't exist
 func (manager *ProxySetup) Route(command string, handleFunc ProxyHandleFunc, handlerCategory ...string) error {
 	if manager.running {
 		return fmt.Errorf("I cant route when its already started. Please stop the handler first or the best way to route before starting the handler")
@@ -391,6 +403,9 @@ func (manager *ProxySetup) Route(command string, handleFunc ProxyHandleFunc, han
 		proxified = &ProxifiedHandler{
 			routes: make(map[string]ProxyHandleFunc),
 		}
+		p, s, _ := message.GenerateCurveKey()
+		proxified.handlerSecret = s
+		proxified.handlerPublicKey = p
 		manager.handlers[category] = proxified
 	}
 	proxified.routes[command] = handleFunc
@@ -418,6 +433,10 @@ func (manager *ProxySetup) SetLogger(logger *log.Logger) error {
 	}
 
 	return nil
+}
+
+func (s *ProxySetup) GetHandlersAmount() int {
+	return len(s.handlers)
 }
 
 // Start starts proxy handlers when any are registered.
@@ -453,18 +472,13 @@ func (manager *ProxySetup) Start(serviceLink string) error {
 	if err := manager.Interface.Route(RemoveProxyHandlerCommand, manager.onRemoveProxyHandler); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", RemoveProxyHandlerCommand, err)
 	}
-	if err := manager.Interface.Route(RequireWhitelistCommand, manager.onRequireWhitelist); err != nil {
-		return fmt.Errorf("proxy manager Route('%s'): %w", RequireWhitelistCommand, err)
-	}
 	if err := manager.Interface.Route(CommandsCommand, manager.onCommands); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", CommandsCommand, err)
 	}
 	if err := manager.Interface.Route(RequireSecureHandlerCommand, manager.onRequireSecureHandler); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", RequireSecureHandlerCommand, err)
 	}
-	if err := manager.Interface.Route(SecureOutboundHandlerCommand, manager.onSecureOutboundHandler); err != nil {
-		return fmt.Errorf("proxy manager Route('%s'): %w", SecureOutboundHandlerCommand, err)
-	}
+
 	if err := manager.Interface.Route(RequireInboundWhitelistCommand, manager.onRequireInboundWhitelist); err != nil {
 		return fmt.Errorf("proxy manager Route('%s'): %w", RequireInboundWhitelistCommand, err)
 	}
@@ -572,26 +586,6 @@ func (manager *ProxySetup) onRequireSecureHandler(req message.RequestInterface) 
 	return req.Ok(datatype.New().Set("public-key", pubKey))
 }
 
-func (manager *ProxySetup) onSecureOutboundHandler(req message.RequestInterface) message.ReplyInterface {
-	category, err := req.RouteParameters().StringValue("category")
-	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('category'): %v", err))
-	}
-
-	controlClient, err := manager.proxifiedHandlerControl(Category(category))
-	if err != nil {
-		return req.Fail(err.Error())
-	}
-	defer controlClient.Close()
-
-	pubKey, err := controlClient.SecureOutbound()
-	if err != nil {
-		return req.Fail(fmt.Sprintf("control.SecureOutbound(%q): %v", category, err))
-	}
-
-	return req.Ok(datatype.New().Set("public-key", pubKey))
-}
-
 func (manager *ProxySetup) onRequireInboundWhitelist(req message.RequestInterface) message.ReplyInterface {
 	category, err := req.RouteParameters().StringValue("category")
 	if err != nil {
@@ -621,12 +615,16 @@ func (manager *ProxySetup) onRequireInboundWhitelist(req message.RequestInterfac
 }
 
 func (manager *ProxySetup) onRegisterHandlerOutbounds(req message.RequestInterface) message.ReplyInterface {
-	category, err := req.RouteParameters().StringValue("category")
+	inboundURLStr, err := req.RouteParameters().StringValue("inbound-url")
 	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('category'): %v", err))
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('inbound-url'): %v", err))
+	}
+	secret, err := req.RouteParameters().StringValue("hmac-secret")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('hmac-secret'): %v", err))
 	}
 
-	endpointKV, err := req.RouteParameters().NestedValue("endpoint")
+	endpointKV, err := req.RouteParameters().NestedValue("outbound-endpoint")
 	if err != nil {
 		return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('endpoint'): %v", err))
 	}
@@ -635,48 +633,58 @@ func (manager *ProxySetup) onRegisterHandlerOutbounds(req message.RequestInterfa
 		return req.Fail(fmt.Sprintf("endpoint param: %v", err))
 	}
 
-	commandsKV, err := req.RouteParameters().NestedValue("commands")
-	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('commands'): %v", err))
-	}
-	var commands map[string]string
-	if err := commandsKV.Interface(&commands); err != nil {
-		return req.Fail(fmt.Sprintf("commands param: %v", err))
-	}
-
-	publicKey, err := req.RouteParameters().StringValue("public-key")
+	publicKey, err := req.RouteParameters().StringValue("outbound-public-key")
 	if err != nil {
 		publicKey = ""
 	}
 
-	outboundURL, err := req.RouteParameters().StringValue("outbound-url")
-	if err != nil || outboundURL == "" {
+	outboundUrlStr, err := req.RouteParameters().StringValue("outbound-url")
+	if err != nil || outboundUrlStr == "" {
 		return req.Fail("outbound-url is required")
 	}
-	localCmd, _ := req.RouteParameters().StringValue("local-command")
 
-	remoteMushroomURL, err := mushroom.Parse(outboundURL)
+	inboundURL, err := mushroom.Parse(inboundURLStr)
 	if err != nil {
-		return req.Fail(fmt.Sprintf("mushroom.Parse(%q): %v", outboundURL, err))
+		return req.Fail(fmt.Sprintf("mushroom.Parse(%q): %v", inboundURLStr, err))
 	}
-	remoteService, err := manager.resolveOutboundService(remoteMushroomURL)
+	outboundURL, err := mushroom.Parse(outboundUrlStr)
+	if err != nil {
+		return req.Fail(fmt.Sprintf("mushroom.Parse(%q): %v", outboundUrlStr, err))
+	}
+	outboundServiceConfig, err := manager.resolveOutboundService(outboundURL)
 	if err != nil {
 		return req.Fail(err.Error())
 	}
+	category := Category(inboundURL.HandlerCategory())
 
-	proxified := manager.handlers[Category(category)]
+	proxified := manager.handlers[category]
 	if proxified == nil || proxified.handler == nil {
 		return req.Fail(fmt.Sprintf("handler of %s category is not found", category))
 	}
 
-	switch remoteService.Type {
+	//---
+	controlClient, err := manager.proxifiedHandlerControl(Category(category))
+	if err != nil {
+		return req.Fail(err.Error())
+	}
+	defer controlClient.Close()
+
+	//
+
+	routePublicKey := ""
+	switch outboundServiceConfig.Type {
 	case topologyConfig.ProxyType, topologyConfig.IndependentType:
-		if remoteMushroomURL.HandlerLink().HandlerCategory() == topologyConfig.ServiceManagerCategory {
-			return req.Fail(fmt.Sprintf("cannot register manager handler %q as outbound on proxy", outboundURL))
+		if proxified.handlerPublicKey == "" {
+			p, s, _ := message.GenerateCurveKey()
+			proxified.handlerPublicKey = p
+			proxified.handlerSecret = s
 		}
-		if err := manager.ensureProxifiedOutboundClient(proxified, outboundURL, publicKey); err != nil {
+		if err := manager.ensureProxifiedOutboundClient(proxified, outboundURL, publicKey, secret); err != nil {
 			return req.Fail(fmt.Sprintf("ensureProxifiedOutboundClient(%q): %v", outboundURL, err))
 		}
+		routePublicKey = proxified.handlerPublicKey
+
+		proxified.proxyConfig.SetOutbound(outboundURL.String())
 
 	case topologyConfig.ExtensionType:
 		controlClient, err := manager.proxifiedHandlerControl(Category(category))
@@ -685,39 +693,21 @@ func (manager *ProxySetup) onRegisterHandlerOutbounds(req message.RequestInterfa
 		}
 		defer controlClient.Close()
 
-		if err := controlClient.RegisterOutbounds(endpoint, publicKey, commands, "", ""); err != nil {
-			return req.Fail(fmt.Sprintf("control.RegisterOutbounds(%q): %v", category, err))
+		routePublicKey, err = controlClient.SecureOutbound()
+		if err != nil {
+			return req.Fail(fmt.Sprintf("control.SecureOutbound(%q): %v", category, err))
 		}
-		if localCmd != "" {
-			if err := npacSecureEdgeCaseOnHandler(proxified.handler, outboundURL, localCmd); err != nil {
-				return req.Fail(fmt.Sprintf("NpacSecureEdgeCase(%q, %q): %v", outboundURL, localCmd, err))
-			}
+
+		cmd := outboundURL.AdditionalProps["command"]
+		if err := controlClient.RegisterOutbounds(endpoint, publicKey, map[string]string{cmd: secret}, "", ""); err != nil {
+			return req.Fail(fmt.Sprintf("control.RegisterOutbounds(%q): %v", category, err))
 		}
 
 	default:
-		return req.Fail(fmt.Sprintf("unsupported outbound service type %q for %q", remoteService.Type, outboundURL))
+		return req.Fail(fmt.Sprintf("unsupported outbound service type %q for %q", outboundServiceConfig.Type, outboundURL))
 	}
 
-	proxified.proxyConfig.SetOutbound(outboundURL)
-
-	return req.Ok(datatype.New())
-}
-
-func npacSecureEdgeCaseOnHandler(h protocolHandler.Interface, outboundRouteURL, localCmd string) error {
-	type secureEdgeCase interface {
-		NpacSecureEdgeCase(outbound, cmd string) error
-	}
-	edgeCase, ok := h.(secureEdgeCase)
-	if !ok {
-		return fmt.Errorf("handler does not support npac secure edge case")
-	}
-	if err := edgeCase.NpacSecureEdgeCase(outboundRouteURL, localCmd); err != nil {
-		if errors.Is(err, protocolHandler.ErrAlreadyWhitelisted) {
-			return nil
-		}
-		return err
-	}
-	return nil
+	return req.Ok(datatype.New().Set("inbound-public-key", routePublicKey))
 }
 
 // Requires 'category' (string) parameter, returns 'exists' (boolean)
@@ -817,8 +807,12 @@ func (manager *ProxySetup) startProxyHandler(proxified *ProxifiedHandler) error 
 			return fmt.Errorf("new outbound clients: %v", err)
 		}
 		proxified.outboundClients = outboundClients
+		if proxified.handlerSecret == "" {
+			p, s, _ := message.GenerateCurveKey()
+			proxified.handlerSecret = s
+			proxified.handlerPublicKey = p
+		}
 	}
-	startOutboundSubscribers(proxified.outboundClients)
 	if proxified.wasStarted {
 		controlClient, err := newHandlerControlClient(proxified.handler)
 		if err != nil {
@@ -947,76 +941,6 @@ func (manager *ProxySetup) onSetProxyHandler(req message.RequestInterface) messa
 	return req.Ok(datatype.New())
 }
 
-// Requires 'outbound-url' (string) and optional 'secret' (string) parameters.
-func (manager *ProxySetup) onRequireWhitelist(req message.RequestInterface) message.ReplyInterface {
-	outboundURL, err := req.RouteParameters().StringValue("outbound-url")
-	if err != nil {
-		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('outbound-url'): %v", err))
-	}
-	if outboundURL == "" {
-		return req.Fail("outbound-url is required")
-	}
-
-	secret, err := req.RouteParameters().StringValue("secret")
-	if err != nil {
-		secret = ""
-	}
-
-	mushroomURL, err := mushroom.Parse(outboundURL)
-	if err != nil {
-		return req.Fail(fmt.Sprintf("mushroom.Parse(%q): %v", outboundURL, err))
-	}
-
-	category := Category(mushroomURL.HandlerCategory())
-	proxified := manager.handlers[category]
-	if proxified == nil || proxified.handler == nil {
-		return req.Fail(fmt.Sprintf("handler of %s category is not found", category))
-	}
-
-	cmd := mushroomURL.AdditionalProps["command"]
-	if cmd == "" {
-		return req.Fail(fmt.Sprintf("outbound-url %q has no command", outboundURL))
-	}
-
-	if proxified.outboundWhitelist == nil {
-		proxified.outboundWhitelist = make(map[string]outboundWhitelistEntry)
-	}
-	proxified.outboundWhitelist[outboundURL] = outboundWhitelistEntry{
-		secret:  secret,
-		command: cmd,
-	}
-
-	return req.Ok(datatype.New())
-}
-
-func servicePublicKey(mushroomURL mushroom.TopologyURL) (string, error) {
-	topologyClient, err := topology.NewClient()
-	if err != nil {
-		return "", fmt.Errorf("topology.NewClient: %w", err)
-	}
-	defer topologyClient.Close()
-
-	serviceURL := mushroomURL.As(mushroom.SERVICE).AsDereference().String()
-	if link, err := topologyClient.GetLink(serviceURL); err == nil {
-		if resolved, err := mushroom.Parse(link); err == nil {
-			serviceURL = resolved.As(mushroom.SERVICE).AsDereference().String()
-		}
-	}
-
-	service, err := topologyClient.Service(serviceURL)
-	if err != nil {
-		return "", fmt.Errorf("topology.Service(%q): %w", serviceURL, err)
-	}
-	if service.Parameters == nil {
-		return "", fmt.Errorf("service %q has no parameters", service.Name)
-	}
-	pubKey, ok := service.Parameters["public-key"].(string)
-	if !ok || pubKey == "" {
-		return "", fmt.Errorf("service %q has no public-key parameter", service.Name)
-	}
-	return pubKey, nil
-}
-
 func validateProxyHandlerOutbounds(proxyConfig topologyConfig.ProxyHandler) error {
 	for i, outboundURL := range proxyConfig.Outbounds {
 		if outboundURL == "" {
@@ -1048,40 +972,36 @@ func (manager *ProxySetup) resolveOutboundService(mushroomURL mushroom.TopologyU
 	return service, nil
 }
 
-func (manager *ProxySetup) ensureProxifiedOutboundClient(proxified *ProxifiedHandler, outboundURL, publicKey string) error {
+func (manager *ProxySetup) ensureProxifiedOutboundClient(proxified *ProxifiedHandler, outboundURL mushroom.TopologyURL, allowKey string, hmacSecret string) error {
 	if proxified == nil {
 		return fmt.Errorf("proxified handler is nil")
 	}
 	if proxified.outboundClients == nil {
 		proxified.outboundClients = make(map[string]outboundClient)
 	}
-	if client, ok := proxified.outboundClients[outboundURL]; ok && client != nil {
-		if publicKey != "" {
-			client.Allow(publicKey)
+	if client, ok := proxified.outboundClients[outboundURL.String()]; ok && client != nil {
+		if err := client.Close(); err != nil {
+			return fmt.Errorf("client.Close: %w", err)
 		}
-		return nil
 	}
 
-	mushroomURL, err := mushroom.Parse(outboundURL)
+	handler, err := manager.resolveOutboundHandler(outboundURL)
 	if err != nil {
-		return fmt.Errorf("mushroom.Parse(%q): %w", outboundURL, err)
-	}
-	handler, err := manager.resolveOutboundHandler(mushroomURL)
-	if err != nil {
-		return err
+		return fmt.Errorf(`this.resolveOutboundHandler: %w`, err)
 	}
 	client, err := newOutboundClient(handler)
 	if err != nil {
-		return err
+		return fmt.Errorf(`newOutboundClient: %w`, err)
 	}
-	if publicKey != "" {
-		client.Allow(publicKey)
+	if allowKey != "" {
+		client.Allow(allowKey)
 	}
+	client.Secure(proxified.handlerSecret)
 	configureOutboundReceiver(client)
-	proxified.outboundClients[outboundURL] = client
-	if receiver, ok := client.(protocolClient.ReceiveInterface); ok {
-		go receiver.Receive()
-	}
+	cmd := outboundURL.AdditionalProps["command"]
+	client.Whitelist(cmd, hmacSecret)
+
+	proxified.outboundClients[outboundURL.String()] = client
 	return nil
 }
 
@@ -1120,8 +1040,7 @@ func (manager *ProxySetup) newOutboundClients(proxyConfig topologyConfig.ProxyHa
 		}
 		client, err := newOutboundClient(handler)
 		if err != nil {
-			_ = closeOutboundClients(clients)
-			return nil, fmt.Errorf("outbounds[%d] %q: %w", i, outboundURL, err)
+			return nil, fmt.Errorf("outbounds[%d].newOutboundClient('%q'): %w", i, outboundURL, err)
 		}
 		clients[outboundURL] = client
 	}
@@ -1133,35 +1052,40 @@ func newOutboundClient(handler topologyConfig.IndependentHandler) (outboundClien
 	case topologyConfig.SyncReplierType:
 		client, err := protocolClient.NewSyncReplier(handler.Endpoint.Id, handler.Endpoint.Port)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf(`protocol/client.NewSyncReplier: %s`, err)
 		}
-		return &syncReplierOutbound{client}, nil
+
+		var c outboundClient = &syncReplierOutbound{
+			client,
+			handler.Type,
+		}
+		return c, nil
 	case topologyConfig.ReplierType:
 		client, err := protocolClient.NewReplier(handler.Endpoint.Id, handler.Endpoint.Port)
 		if err != nil {
 			return nil, err
 		}
-		return &replierOutbound{client}, nil
+		return &replierOutbound{client, handler.Type}, nil
 	case topologyConfig.PublisherType:
 		client, err := protocolClient.NewPublisher(handler.Endpoint.Id, handler.Endpoint.Port)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf(`protocol/client.NewPublisher: %w`, err)
 		}
-		outbound := &publisherOutbound{client}
+		outbound := &publisherOutbound{client, handler.Type}
 		configureOutboundReceiver(outbound)
 		return outbound, nil
 	case topologyConfig.PairType:
 		client, err := protocolClient.NewPair(handler.Endpoint.Id, handler.Endpoint.Port)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf(`protocol/client.NewPair: %w`, err)
 		}
-		return &pairOutbound{client}, nil
+		return &pairOutbound{client, handler.Type}, nil
 	case topologyConfig.WorkerType:
 		client, err := protocolClient.NewWorker(handler.Endpoint.Id, handler.Endpoint.Port)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf(`protocol/client.NewWorker: %w`, err)
 		}
-		return &workerOutbound{client}, nil
+		return &workerOutbound{client, handler.Type}, nil
 	default:
 		return nil, fmt.Errorf("unsupported outbound handler type: %s", handler.Type)
 	}
@@ -1188,16 +1112,6 @@ func closeOutboundClients(clients map[string]outboundClient) error {
 	return nil
 }
 
-func startOutboundSubscribers(clients map[string]outboundClient) {
-	for _, client := range clients {
-		receiver, ok := client.(protocolClient.ReceiveInterface)
-		if !ok {
-			continue
-		}
-		go receiver.Receive()
-	}
-}
-
 func (manager *ProxySetup) defaultOutbound() (string, string, error) {
 	proxified, err := manager.firstProxifiedHandler()
 	if err != nil {
@@ -1207,7 +1121,7 @@ func (manager *ProxySetup) defaultOutbound() (string, string, error) {
 		return "", "", fmt.Errorf("first proxified handler has no proxy config")
 	}
 	if len(proxified.proxyConfig.Outbounds) == 0 {
-		return "", "", fmt.Errorf("first proxified handler has no outbounds")
+		return "", "", fmt.Errorf("where to forward request? the first proxified handler(url:%s) has no outbounds", proxified.handler.MushroomURL())
 	}
 
 	return proxified.proxyConfig.Category, proxified.proxyConfig.Outbounds[0], nil

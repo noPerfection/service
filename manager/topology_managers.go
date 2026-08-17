@@ -235,3 +235,74 @@ func buildTopologyOutbounds(
 
 	return outbounds, nil
 }
+
+// Returns handler dereferences as full paths built from dependencies.
+// Dependency URLs may be service or handler links; when no handler category
+// is present (e.g. proxy or extension deps), the default category (main) is applied.
+//
+// Returns the list of dependencies as a handler link dereference.
+// Dependencies are all its handler-deps and command-deps.
+//
+// Example:
+//
+//	service: hello-world
+//	dependencies:
+//	  - proxy: entrypoint-proxy.main
+//	  - extension: ai.main
+//
+//	returns:
+//	  - *pkg:json/./#noPerfection.json?var=services[name:default-name-proxy]&category=main = {}
+//	  - *pkg:json/./#noPerfection.json?var=services[name:ai]&category=main = {}
+func getDepDereferences(serviceURL mushroom.TopologyURL, m ManagerInterface, topology topology.TopologyInterface) (map[string]struct{}, error) {
+	serviceConfig, err := topology.Service(serviceURL.AsDereference().String())
+	if err != nil {
+		return nil, fmt.Errorf("topology.Service: %w", err)
+	}
+
+	depURLs := make(map[string]struct{})
+	addDep := func(u string) error {
+		link, err := topology.GetLink(u)
+		if err != nil {
+			return fmt.Errorf("topology.GetLink('%s'): %w", u, err)
+		}
+		mushroomURL, err := mushroom.Parse(link)
+		if err != nil {
+			return fmt.Errorf("mushroom.Parse(%q): %w", link, err)
+		}
+		depURLs[mushroomURL.HandlerLink().AsDereference().String()] = struct{}{}
+		return nil
+	}
+
+	for _, hdep := range serviceConfig.HandlerDeps {
+		for _, u := range hdep.Proxies {
+			if err := addDep(u); err != nil {
+				return nil, err
+			}
+		}
+		for _, u := range hdep.Extensions {
+			if err := addDep(u); err != nil {
+				return nil, err
+			}
+		}
+	}
+	for _, variant := range serviceConfig.Handlers {
+		h, ok := variant.AsIndependentHandler()
+		if !ok {
+			continue
+		}
+		for _, cdep := range h.CommandDeps {
+			for _, u := range cdep.Proxies {
+				if err := addDep(u); err != nil {
+					return nil, err
+				}
+			}
+			for _, u := range cdep.Extensions {
+				if err := addDep(u); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	return depURLs, nil
+}

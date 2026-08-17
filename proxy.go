@@ -57,12 +57,16 @@ func NewProxy(name string) (*Proxy, error) {
 		return nil, fmt.Errorf("name argument is required")
 	}
 
-	return &Proxy{
-		ProxySetup:            handlers.NewProxyHandlers(name),
+	setup := handlers.NewProxyHandlers(name)
+
+	proxy := Proxy{
+		ProxySetup:            setup,
 		WithHardcodedTopology: NewHardcodedTopologies(name),
 		TopologyConnection:    newTopologyConnection(),
 		name:                  name,
-	}, nil
+	}
+
+	return &proxy, nil
 }
 
 // EnableLogger toggles the optional proxy logger.

@@ -117,9 +117,9 @@ func (t TopologyURL) HandlerCategory() string {
 // HandlerLink returns a handler topology URL, applying DefaultCategory when category is missing.
 func (t TopologyURL) HandlerLink() TopologyURL {
 	if t.IsHandlerExist() {
-		return t
+		return t.As(HANDLER)
 	}
-	return t.New(config.DefaultCategory)
+	return t.New(config.DefaultCategory).As(HANDLER)
 }
 
 func (t TopologyURL) AsDereference() TopologyURL {

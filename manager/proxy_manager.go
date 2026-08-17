@@ -94,9 +94,7 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint, secre
 		}
 	}
 
-	handler := protocolHandler.NewSyncReplier()
-
-	fmt.Printf("NewProxyManager: %v\n", managerEndpoint.ClientUrl())
+	handler := protocolHandler.NewReplier()
 
 	h := &ProxyManager{
 		Interface:            handler,
@@ -137,6 +135,14 @@ func proxyManagerWhitelistCommands() []string {
 		handlers.StartProxyHandlerCommand,
 		handlers.StopProxyHandlerCommand,
 		handlers.RemoveProxyHandlerCommand,
+
+		GetServiceStatus,
+		SecureOutbounds,
+		SecureInbounds,
+		SecureOutboundConnections,
+		SecureInboundConnections,
+		SecureOutboundEdges,
+		SecureInboundEdges,
 	}
 }
 
@@ -278,7 +284,6 @@ func (m *ProxyManager) getHmacSecret(serviceURL string) string {
 
 // For now, lets just return manager.running.
 func (m *ProxyManager) IsServiceRunning(serviceURL string, attempts ...int) (bool, error) {
-	fmt.Printf(">> IsServiceRunning(%q): running? %v\n", serviceURL, m.running)
 	if serviceURL == m.serviceName {
 		return m.running, nil
 	}
@@ -292,10 +297,8 @@ func (m *ProxyManager) IsServiceRunning(serviceURL string, attempts ...int) (boo
 		return false, fmt.Errorf("topology.Service(%q): %w", serviceURL, err)
 	}
 	if serviceConfig.Name == m.serviceName {
-		fmt.Printf(">> IsServiceRunning(%q): %v\n", serviceURL, m.running)
 		return m.running, nil
 	}
-	fmt.Printf(">> IsServiceRunning(%q): %v\n", serviceURL, false)
 	return false, fmt.Errorf("Not implemented isServiceRunning for " + serviceURL)
 	// return isServiceRunningWithReload(m.topology, serviceName, m.secretKey, m.getHmacSecret(serviceName), attempts...)
 }
@@ -508,10 +511,6 @@ func (m *ProxyManager) secureInbound(inboundURL mushroom.TopologyURL, secret str
 
 	handlerCategory := inboundURL.HandlerLink().HandlerCategory()
 	if handlerCategory == topologyConfig.ServiceManagerCategory {
-		if !m.Interface.IsSecure() {
-			m.Interface.Secure(m.secretKey)
-			zap.AuthDynamicAllow(m.Interface.MushroomURL())
-		}
 		if err := m.Interface.Whitelist(cmd, secret); err != nil {
 			return "", fmt.Errorf("Interface.Whitelist(%q): %w", cmd, err)
 		}
@@ -582,52 +581,10 @@ func (m *ProxyManager) allowSelfInDep(depURL string) error {
 	return nil
 }
 
-func (m *ProxyManager) prepareOutboundContext(outboundURL mushroom.TopologyURL) (string, error) {
-	serviceURL, err := m.proxyServiceURL()
+func (m *ProxyManager) proxyEndpointForRouteURL(routeURL mushroom.TopologyURL, service topologyConfig.Service) (message.Endpoint, error) {
+	handler, err := service.HandlerByCategory(routeURL.HandlerLink().HandlerCategory())
 	if err != nil {
-		return "", err
-	}
-	if outboundURL.As(mushroom.SERVICE).AsDereference().String() != serviceURL.AsDereference().String() {
-		return "", fmt.Errorf("outbound route %q is not on this service", outboundURL.String())
-	}
-
-	handlerCategory := outboundURL.HandlerLink().HandlerCategory()
-	if handlerCategory == topologyConfig.ServiceManagerCategory {
-		if !m.Interface.IsSecure() {
-			m.Interface.Secure(m.secretKey)
-			zap.AuthDynamicAllow(m.Interface.MushroomURL())
-		}
-		if m.pubKey == "" {
-			return "", fmt.Errorf("manager public key is empty")
-		}
-		return m.pubKey, nil
-	}
-
-	selfService, err := m.proxySelfService()
-	if err != nil {
-		return "", fmt.Errorf("proxySelfService: %w", err)
-	}
-	publicKey, err := m.proxySetupSecureOutbound(handlerCategory, handlerControlTimeout(selfService))
-	if err != nil {
-		return "", fmt.Errorf("proxySetupSecureOutbound(%q): %w", handlerCategory, err)
-	}
-	return publicKey, nil
-}
-
-func (m *ProxyManager) proxyEndpointForRouteURL(routeURL string) (message.Endpoint, error) {
-	routeMushroomURL, err := mushroom.Parse(routeURL)
-	if err != nil {
-		return message.Endpoint{}, fmt.Errorf("mushroom.Parse(%q): %w", routeURL, err)
-	}
-
-	service, err := m.topology.Service(routeMushroomURL.As(mushroom.SERVICE).AsDereference().String())
-	if err != nil {
-		return message.Endpoint{}, fmt.Errorf("topology.Service: %w", err)
-	}
-
-	handler, err := service.HandlerByCategory(routeMushroomURL.HandlerLink().HandlerCategory())
-	if err != nil {
-		return message.Endpoint{}, fmt.Errorf("HandlerByCategory(%q): %w", routeMushroomURL.HandlerLink().HandlerCategory(), err)
+		return message.Endpoint{}, fmt.Errorf("HandlerByCategory(%q): %w", routeURL.HandlerLink().HandlerCategory(), err)
 	}
 	ind, ok := handler.AsIndependentHandler()
 	if !ok {
@@ -661,30 +618,6 @@ func (m *ProxyManager) proxySetupRequireSecure(category string, timeout time.Dur
 	return pubKey, nil
 }
 
-func (m *ProxyManager) proxySetupSecureOutbound(category string, timeout time.Duration) (string, error) {
-	params := datatype.New().Set("category", category)
-	if timeout > 0 {
-		params.Set("timeout", uint64(timeout))
-	}
-
-	reply, err := m.proxySetupRoundTrip(&message.Request{
-		Command:    handlers.SecureOutboundHandlerCommand,
-		Parameters: params,
-	})
-	if err != nil {
-		return "", err
-	}
-	if !reply.IsOK() {
-		return "", fmt.Errorf("proxySetup.Receive(%q): %s", handlers.SecureOutboundHandlerCommand, reply.ErrorMessage())
-	}
-
-	pubKey, err := reply.ReplyParameters().StringValue("public-key")
-	if err != nil {
-		return "", fmt.Errorf("reply.ReplyParameters().StringValue('public-key'): %w", err)
-	}
-	return pubKey, nil
-}
-
 func (m *ProxyManager) proxySetupRequireInboundWhitelist(category, cmd, secret string) error {
 	params := datatype.New().
 		Set("category", category).
@@ -706,28 +639,19 @@ func (m *ProxyManager) proxySetupRequireInboundWhitelist(category, cmd, secret s
 	return nil
 }
 
-func (m *ProxyManager) proxySetupRegisterOutbounds(category string, endpoint message.Endpoint, publicKey string, commands map[string]string, outboundURL, localCmd string) error {
+func (m *ProxyManager) proxySetupRegisterOutbounds(inboundURL, outboundURL string, endpoint message.Endpoint, outboundPublicKey string, secret string) (string, error) {
 	endpointKV, err := datatype.NewFromInterface(endpoint)
 	if err != nil {
-		return fmt.Errorf("datatype.NewFromInterface(endpoint): %w", err)
-	}
-	commandsKV, err := datatype.NewFromInterface(commands)
-	if err != nil {
-		return fmt.Errorf("datatype.NewFromInterface(commands): %w", err)
+		return "", fmt.Errorf("datatype.NewFromInterface(endpoint): %w", err)
 	}
 
 	params := datatype.New().
-		Set("category", category).
-		Set("endpoint", endpointKV).
-		Set("commands", commandsKV)
-	if publicKey != "" {
-		params.Set("public-key", publicKey)
-	}
-	if outboundURL != "" {
-		params.Set("outbound-url", outboundURL)
-	}
-	if localCmd != "" {
-		params.Set("local-command", localCmd)
+		Set("inbound-url", inboundURL).
+		Set("outbound-endpoint", endpointKV).
+		Set("hmac-secret", secret).
+		Set("outbound-url", outboundURL)
+	if outboundPublicKey != "" {
+		params.Set("outbound-public-key", outboundPublicKey)
 	}
 
 	reply, err := m.proxySetupRoundTrip(&message.Request{
@@ -735,12 +659,16 @@ func (m *ProxyManager) proxySetupRegisterOutbounds(category string, endpoint mes
 		Parameters: params,
 	})
 	if err != nil {
-		return err
+		return "", fmt.Errorf(`proxySetup.Request(register-handler-outbounds-command): %w`, err)
 	}
 	if !reply.IsOK() {
-		return fmt.Errorf("proxySetup.Receive(%q): %s", handlers.RegisterHandlerOutboundsCommand, reply.ErrorMessage())
+		return "", fmt.Errorf("proxySetup.Reply(%q): %s", handlers.RegisterHandlerOutboundsCommand, reply.ErrorMessage())
 	}
-	return nil
+	routePublicKey, err := reply.ReplyParameters().StringValue("inbound-public-key")
+	if err != nil && outboundPublicKey != "" {
+		return "", fmt.Errorf("reply.ReplyParameters('inbound-public-key'): %w", err)
+	}
+	return routePublicKey, nil
 }
 
 func (m *ProxyManager) proxyManagerControlClient() (*protocolClient.Control, error) {
@@ -752,90 +680,83 @@ func (m *ProxyManager) proxyManagerControlClient() (*protocolClient.Control, err
 	return protocolClient.NewControl(controlEndpoint.Id, controlEndpoint.Port)
 }
 
-func (m *ProxyManager) registerOutboundContext(inboundURL, outboundURL, secret, remotePublicKey string) error {
-	localURL, err := mushroom.Parse(inboundURL)
+// its confusing, since it uses setup for managing handlers.
+// so this one is changed.
+// if its targeting to the manager, then acts as Manager. Otherwise forwards to the ProxySetup.
+func (m *ProxyManager) registerOutboundContext(inboundURL, outboundURL mushroom.TopologyURL, secret, outboundPublicKey string) (string, error) {
+	handlerCategory := inboundURL.HandlerLink().HandlerCategory()
+
+	outboundServiceConfig, err := m.topology.Service(outboundURL.As(mushroom.SERVICE).AsDereference().String())
 	if err != nil {
-		return fmt.Errorf("mushroom.Parse(%q): %w", inboundURL, err)
-	}
-	localCmd := localURL.AdditionalProps["command"]
-	if localCmd == "" {
-		return fmt.Errorf("route %q has no command", inboundURL)
+		return "", fmt.Errorf("topology.Service(%q): %w", outboundURL.As(mushroom.SERVICE).AsDereference().String(), err)
 	}
 
-	remoteURL, err := mushroom.Parse(outboundURL)
+	outboundEndpoint, err := m.proxyEndpointForRouteURL(outboundURL, outboundServiceConfig)
 	if err != nil {
-		return fmt.Errorf("mushroom.Parse(%q): %w", outboundURL, err)
-	}
-	cmd := remoteURL.AdditionalProps["command"]
-	if cmd == "" {
-		return fmt.Errorf("route %q has no command", outboundURL)
+		return "", fmt.Errorf("m.proxyEndpointForRouteURL('%s'): %v", err)
 	}
 
-	endpoint, err := m.proxyEndpointForRouteURL(outboundURL)
-	if err != nil {
-		return err
-	}
-
-	if m.topology == nil {
-		return fmt.Errorf("topology is nil")
-	}
-	remoteService, err := m.topology.Service(remoteURL.As(mushroom.SERVICE).AsDereference().String())
-	if err != nil {
-		return fmt.Errorf("topology.Service(%q): %w", remoteURL.As(mushroom.SERVICE).AsDereference().String(), err)
-	}
-
-	handlerCategory := localURL.HandlerLink().HandlerCategory()
-	remoteHandlerCategory := remoteURL.HandlerLink().HandlerCategory()
-	commands := map[string]string{cmd: secret}
-
-	switch remoteService.Type {
-	case topologyConfig.ProxyType, topologyConfig.IndependentType:
-		if remoteHandlerCategory == topologyConfig.ServiceManagerCategory {
-			return fmt.Errorf("cannot register manager handler %q as outbound on proxy", outboundURL)
+	publicKey := ""
+	if handlerCategory == config.ServiceManagerCategory {
+		if m.topology == nil {
+			return "", fmt.Errorf("topology is nil")
 		}
-		if handlerCategory == topologyConfig.ServiceManagerCategory {
-			return fmt.Errorf("cannot register proxy/independent outbound on proxy manager handler")
-		}
-		if err := m.proxySetupRegisterOutbounds(handlerCategory, endpoint, remotePublicKey, commands, outboundURL, localCmd); err != nil {
-			return err
-		}
-		return m.requireProxyOutboundWhitelist(inboundURL, secret)
 
-	case topologyConfig.ExtensionType:
+		if outboundServiceConfig.Type != topologyConfig.ExtensionType {
+			return "", fmt.Errorf("'%s' proxy's manager must not register %s outbound", m.serviceName, outboundServiceConfig.Type)
+		}
+
+		publicKey, _ = m.Interface.PublicKey()
+
+		control, err := m.proxyManagerControlClient()
+		if err != nil {
+			return "", fmt.Errorf("m.managerControlClient: %w", err)
+		}
+		control.Timeout(1 * time.Second)
+		control.Attempt(1)
+		defer func() { _ = control.Close() }()
+
+		localCmd := inboundURL.AdditionalProps["command"]
+		cmd := outboundURL.AdditionalProps["command"]
+
+		if err := control.RegisterOutbounds(outboundEndpoint, outboundPublicKey, map[string]string{cmd: secret}, outboundURL.String(), localCmd); err != nil {
+			return "", fmt.Errorf("control.RegisterOutbounds(%q): %w", outboundURL, err)
+		}
+	} else {
+		localCmd := inboundURL.AdditionalProps["command"]
+		if localCmd == "" {
+			return "", fmt.Errorf("route %q has no command", inboundURL)
+		}
+
+		cmd := outboundURL.AdditionalProps["command"]
+		if cmd == "" {
+			return "", fmt.Errorf("route %q has no command", outboundURL)
+		}
+
+		publicKey, err = m.proxySetupRegisterOutbounds(inboundURL.String(), outboundURL.String(), outboundEndpoint, outboundPublicKey, secret)
+		if err != nil {
+			return "", fmt.Errorf("m.proxySetupRegisterOutbounds(inboundURL: '%s', outboundUrl: '%s'): %v", inboundURL.String(), outboundURL.String(), err)
+		}
+	}
+
+	// any outbound of the manager or if the outbound itself is extension then available for the npac.
+	// if not manager but normal handler, and dependency that it outbounds is another proxy or an independent service then,
+	// it will create an outbound client for it.
+	if handlerCategory == config.ServiceManagerCategory || outboundServiceConfig.Type == topologyConfig.ExtensionType {
 		autocontext := protocolClient.NewAutocontext()
 		if autocontext == nil {
-			return fmt.Errorf("failed to create npac autocontext")
+			return "", fmt.Errorf("failed to create npac autocontext")
 		}
 		defer func() { _ = autocontext.Close() }()
 
-		remoteHandlerURL := remoteURL.As(mushroom.HANDLER).String()
-		if err := autocontext.RegisterOutbound(endpoint, remoteHandlerURL, remotePublicKey); err != nil {
+		if err := autocontext.RegisterOutbound(outboundEndpoint, outboundURL.HandlerLink().String(), outboundPublicKey); err != nil {
 			if !strings.Contains(err.Error(), "already registered") {
-				return fmt.Errorf("npac.RegisterOutbound(%q): %w", remoteHandlerURL, err)
+				return "", fmt.Errorf("npac.RegisterOutbound(%q): %w", outboundURL.HandlerLink().String(), err)
 			}
 		}
-
-		if handlerCategory == topologyConfig.ServiceManagerCategory {
-			control, err := m.proxyManagerControlClient()
-			if err != nil {
-				return err
-			}
-			defer func() { _ = control.Close() }()
-
-			if err := control.RegisterOutbounds(endpoint, remotePublicKey, commands, outboundURL, localCmd); err != nil {
-				return fmt.Errorf("control.RegisterOutbounds(%q): %w", outboundURL, err)
-			}
-			return nil
-		}
-
-		if err := m.proxySetupRegisterOutbounds(handlerCategory, endpoint, remotePublicKey, commands, outboundURL, localCmd); err != nil {
-			return err
-		}
-		return m.requireProxyOutboundWhitelist(inboundURL, secret)
-
-	default:
-		return fmt.Errorf("unsupported outbound service type %q for %q", remoteService.Type, outboundURL)
 	}
+
+	return publicKey, nil
 }
 
 func (m *ProxyManager) onSecureInbounds(req message.RequestInterface) message.ReplyInterface {
@@ -937,18 +858,14 @@ func (m *ProxyManager) onSecureInbounds(req message.RequestInterface) message.Re
 		if !ok || cred.RouteURL == "" {
 			continue
 		}
-		routeURL, err := mushroom.Parse(depRoute)
-		if err != nil {
-			return req.Fail(fmt.Sprintf("mushroom.Parse(%q): %v", depRoute, err))
-		}
-		pubKey, err := m.prepareOutboundContext(routeURL)
-		if err != nil {
-			return req.Fail(fmt.Sprintf("prepareOutboundContext(%q): %v", depRoute, err))
-		}
-		if err := m.registerOutboundContext(depRoute, cred.RouteURL, cred.Secret, cred.PublicKey); err != nil {
-			return req.Fail(fmt.Sprintf("registerOutboundContext(%q): %v", depRoute, err))
-		}
-		replyOutbounds[cred.RouteURL] = pubKey
+		// routeURL, err := mushroom.Parse(depRoute)
+		// if err != nil {
+		// return req.Fail(fmt.Sprintf("mushroom.Parse(%q): %v", depRoute, err))
+		// }
+		// if err := m.registerOutboundContext(depRoute, cred.RouteURL, cred.Secret, cred.PublicKey); err != nil {
+		return req.Fail(fmt.Sprintf("registerOutboundContext(%q): not implemented", depRoute))
+		// }
+		// replyOutbounds[cred.RouteURL] = pubKey
 	}
 
 	return req.Ok(datatype.New().Set("inbounds", replyInbounds).Set("outbounds", replyOutbounds))
@@ -1087,26 +1004,6 @@ func (m *ProxyManager) getDepDereferences() (map[string]struct{}, error) {
 	}
 
 	return depURLs, nil
-}
-
-func (m *ProxyManager) requireProxyOutboundWhitelist(outboundURL, secret string) error {
-	params := datatype.New().Set("outbound-url", outboundURL)
-	if secret != "" {
-		params.Set("secret", secret)
-	}
-
-	reply, err := m.proxySetupRoundTrip(&message.Request{
-		Command:    handlers.RequireWhitelistCommand,
-		Parameters: params,
-	})
-	if err != nil {
-		return err
-	}
-	if !reply.IsOK() {
-		return fmt.Errorf("proxySetup.Receive(%q): %s", handlers.RequireWhitelistCommand, reply.ErrorMessage())
-	}
-
-	return nil
 }
 
 func (m *ProxyManager) handshakeCallerInboundDep(depURL string, callerInbounds map[string]string) error {
@@ -1574,14 +1471,12 @@ func (m *ProxyManager) setProxyHandlers() error {
 }
 
 func (m *ProxyManager) warnProxyHandlerNoOutbounds(proxyHandler topologyConfig.ProxyHandler) {
-	if m.logger == nil {
-		fmt.Printf("warning: proxy %q has no outbounds yet; forwarding will fail until they are configured\n", proxyHandler.Category)
-		return
+	if m.logger != nil {
+		m.logger.Warn(
+			"proxy has no outbounds yet; forwarding will fail until they are configured",
+			"category", proxyHandler.Category,
+		)
 	}
-	m.logger.Warn(
-		"proxy has no outbounds yet; forwarding will fail until they are configured",
-		"category", proxyHandler.Category,
-	)
 }
 
 func (m *ProxyManager) setProxyHandler(proxyHandler topologyConfig.ProxyHandler) error {
@@ -1722,6 +1617,16 @@ func (m *ProxyManager) Start() error {
 			return fmt.Errorf(`handler.Route("%s"): %w`, Handshake, err)
 		}
 	}
+	if !m.Interface.IsRouteExist(GetServiceStatus) {
+		if err := m.Interface.Route(GetServiceStatus, m.NodeHandshake.onGetServiceStatus); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, GetServiceStatus, err)
+		}
+	}
+	if !m.Interface.IsRouteExist(SecureOutbounds) {
+		if err := m.Interface.Route(SecureOutbounds, m.NodeHandshake.onSecureOutbounds); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, SecureOutbounds, err)
+		}
+	}
 	if err := m.NodeHandshake.start(); err != nil {
 		return fmt.Errorf("NodeHandshake.start: %w", err)
 	}
@@ -1730,8 +1635,6 @@ func (m *ProxyManager) Start() error {
 		return fmt.Errorf("handler.Start: %w", err)
 	}
 	m.NodeHandshake.Print()
-
-	fmt.Printf("ProxyManager.Start: %v\n", m.Interface.MushroomURL())
 
 	m.running = true
 
