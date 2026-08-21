@@ -1,60 +1,56 @@
 # noPerfection
 
-**noPerfection** is a golang framework for writing scalable backend fast without worrying about technical debt. 
+**noPerfection** is the **first [zeromq](https://zeromq.org/) based framework** for writing distributed systems. Written in golang.
 
-> ### 🔥It's a different framework
->
-> But it doesn't impose a file structure. NoPerfection comes as a library.
->
-> In theory it can work with any applications.
+I wrote it for myself to quickly write backends, deamons, desktop apps without worrying in the technical debts. Super glad to share it for others. Released under **public domain**.
 
- The goal is to follow the following rule:
+> For now it has no production code yet except alpha version. For the roadmap and details visit the website [ara.foundation](https://ara.foundation/)
 
-- Start your app as a modular monolith for MVP.
-- Pick any directory and convert into a microservice living in a thread running parallel. 
-- Convert a multi-thread application into a distributed system with multiple processes.
-- Convert a process into a cluster of nodes in the cloud.
+It supports all major zeromq sockets: `PUB/SUB`, `REQ/REP`, `ROUTER/DEALER`, `PAIR` and `PUSH/PULL`. Additionally, it introduces few higher level concepts to organize sockets into a scalable, self-modifiable and secure module tree.
 
-All, without breaking the business logic itself, because you run them incrementally.
+### Roadmap
 
-Security is built in. Handshake, liveness and services are managed by the app itself.
-
-Without worrying on data race. noPerfection defines clear dependency tree by defining service types, socket types.
-
-Without worrying long term limitation. Whether you want to create server that replies apps, a deamon that only receives messages or need to broadcast to thousands of connected nodes. They are all supported. And license is public domain too.
-
-> ### 🆓 License is public domain
-
-### Cross-language framework
-
-`noPerfection` also abstracts away the code implementation. Each service gets the universal identity based on [package url.](https://packageulr.org). You can rewrite some services in any programming language. The securitty, network and whole coherent topology will remain unchanged.
-
-Because now, programmers like Rust programming language, they want to rewrite some critical services in rust. With noPerfection its possible to do slowly. One service at a time.
-
-This is the tutorials for a patient reader to start using noPerfection. To save some time, it will omit error checking and other parts. So its not for production.
-
-## Installation
-
-NoPerfection under the hood uses [zeromq](https://zeromq.org/) sockets. Zeromq is a networking library with no message queue, no central broker. With zeromq, the app components communicate to other app components directly via zeromq sockets.
-
-### Install the Zeromq's C library
-
-noPerfection uses the `pebbe/zmq4`, a go wrapper of C library. Check out the [pebbe/zmq4#requirements](https://github.com/pebbe/zmq4#requirements) to download the C library and prepare the operating system itself.
-
-### Install the libsodium
-
-noPerfection uses the Zeromq's CURVE which is based on libsodium cryptography library.
-Download libsodium first on your machine as well [jedisct1/libsodium](https://github.com/jedisct1/libsodium).
-
-### Install noPerfection/service core library
-
-```bash
-go get github.com/noPerfection/service
-```
+* ✅ Supports major zeromq sockets, plus TCP, IPC and Inproc protocols.
+* ✅ Tutorial and samples [https://github.com/noPerfection/showcase]
+* ✅ Security enabled and handled internally using Curve (socket-to-socket) and HMAC (per-route).
+* 🠞 API Reference
+* 🠞 Docs and Guidelines
+* 🠞 Package Manager **CascadeFund**
+* 🠞 Protocol spec
+* 🠞 Official website
 
 ## Hello World
 
-Write the main file at `cmd/server/main.go`
+First follow the [installation](./README.md#installation) instructions, then create a new golang project.
+
+1. Open a command prompt and cd to your home directory.
+On Linux or Mac:
+
+```bash
+cd
+```
+
+On Windows:
+
+```bash
+cd %HOMEPATH%
+```
+
+2. Create a hello directory for your go source code.
+
+```bash
+mkdir hello-world
+cd hello-world
+```
+
+3. Initialize go to start tracking dependencies and download noPerfection module.
+
+```bash
+go mod init example/hello
+go get github.com/noPerfection/service
+```
+4. The hello-world service.
+Copy-paste the following source code at `cmd/server/main.go`
 
 ```go
 package main
@@ -84,9 +80,8 @@ func onHello(req service.RequestInterface) service.ReplyInterface {
 }
 ```
 
-Then, launch it `go run ./cmd/service/main.go`, it should be running.
-
-It's time to test by sending our name. Lets create a new app at`cmd/client/main.go`
+5. The client that sends a message to the service.
+Copy-paste the following source code at`cmd/client/main.go`
 
 ```go
 package main
@@ -108,190 +103,86 @@ func main() {
 }
 ```
 
-if we launch our app on a new terminal tab we will see the greetings:  
-`go run ./cmd/client/main.go`.
+6. Test
+In the first command prompt start the service.
 
-See [github showcase](https://github.com/noPerfection/showcase) for tutorial with readme walkthrough and various examples.
-
-## Substrates
-
-Topology configuration is stored as a [Mushroom](https://github.com/ahmetson/mushroom) mycelium. The topology package itself only germinates the **json** colony (`pkg:json`). Other mushroom types are resolved through **substrates** registered by the caller.
-
-The **service** package owns built-in substrates in `[substrates.go](./substrates.go)`. When you call `SetTopologyParams` or when `Start` creates the default topology handler, substrates are passed into `topology.NewHandler` → `config.Load` → `json_substrate.Root`. Topology stays minimal; it does not register substrates on its own.
-
-By default, the service layer supports three mushroom types:
-
-
-| Type         | Module                                                                                                                             | Role                                                                                                                                                                                                        |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pkg:golang` | [github.com/noPerfection/service/package_url](./package_url/)                                                                      | Resolves Go module and package links (`module-url`, inproc services, `func=` factories).                                                                                                                    |
-| `pkg:json`   | [github.com/ahmetson/mushroom/substrates/json_substrate](https://github.com/ahmetson/mushroom/tree/main/substrates/json_substrate) | Loads and mutates topology JSON (`noPerfection.json`). Always used as the root colony.                                                                                                                      |
-| `pkg:os`     | [github.com/noPerfection/os/substrate](https://github.com/noPerfection/os/tree/main/substrate)                                     | Resolves environment links (for example `*pkg:os#env?var=ANTHROPIC_API_KEY&env=.env&envArg=true` in service parameters). Wired automatically via `ossubstrate.New()` in `[substrates.go](./substrates.go)`. |
-
-
-### Register your own substrate
-
-If you want to add a substrate for another mushroom type, register it before the service loads topology:
-
-```go
-import (
-	"github.com/noPerfection/service"
-)
-
-func init() {
-	if err := service.RegisterBuiltinSubstrate(mySubstrate); err != nil {
-		panic(err)
-	}
-}
+```bash
+go run ./cmd/service
 ```
 
-`RegisterBuiltinSubstrate` appends to the built-in list used by every `newTopologyHandler` call. Topology receives the combined list; it never imports your substrate package directly.
+On a new terminal run the client.
 
-Dereference links (`*pkg:…`) inside topology data are fruitized when services are read (for example during `config.Load` validation). Register substrates **before** `Start` so those links can resolve.
-
-### Built-in AI extension (`ai`)
-
-`Independent.Start()` registers the built-in `ai` extension under the service manager when it is missing from topology. The factory is `NewAiService()` — the service record is read from topology. Use `SetTopologyParams` before `Start` to point at a custom JSON file.
-
-Service **parameters**:
-
-
-| Parameter | Default                             | Description                                                                                                                 |
-| --------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `api-key` | `*pkg:os/env?var=ANTHROPIC_API_KEY` | Anthropic API key. Stored as a dereference link; mushroom embeds the resolved value when the service is read from topology. |
-| `model`   | `claude-haiku-4-5-20251001`         | Anthropic model id (see `mozilla-ai/any-llm-go/providers/anthropic`).                                                       |
-
-
-`AiService` reads these parameters from topology whenever it needs them (for example on `CheckConnection` or completion calls), so `SetServiceParams` changes take effect without reconstructing the extension.
-
-```go
-env.LoadAnyEnv() // or env.LoadAnyEnv(".env")
-
-app.SetServiceParams(datatype.New().
-    Set("api-key", "*pkg:os/env?var=ANTHROPIC_API_KEY&env=.env"),
-    service.AiServiceName,
-)
+```bash
+go run ./cmd/client/main.go
 ```
 
-Or construct the extension directly:
+For more tutorials see [showcase & tutorials](https://github.com/noPerfection/showcase/tutorial).
+For more details visit the Ara Foundation.
 
-```go
-ai, err := service.NewAiService()
-// ai.SetTopologyParams(map[string]any{"filepath": "noPerfection.json"})
+# Installation
+
+### Zeromq's C library & Libsodium
+
+noPerfection uses the `pebbe/zmq4`, a go wrapper around `libzmq` C library. For the CURVE it uses the libsodium library.
+
+On **Windows**, better to use [vcpkg](https://vcpkg.io/en/):
+
+```bash
+vcpkg install zeromq[sodium]
 ```
 
-## Contents
-
-- [Contents](#contents)
-- [Components](#components)
-- - [Service](#service)
-- - - [Independent](#independent)
-- - - [Extension](#extension)
-- - - [Proxy](#proxy)
-- - [Controller](#controller)
-- - - [SyncReplier](#syncreplier)
-- - - [Replier](#replier)
-- - - [Publisher](#publisher)
-- - - [Worker](#worker)
-- - - [Pair](#pair)
-- [Substrates](#substrates)
-- - [Configuration](#configuration)
-- [Further Reading](#further-reading)
+For more details [vcpkg.link/zeromq](https://vcpkg.link/ports/zeromq).
 
 ---
 
-## Components
-
-## Service
-
-A **service** is a solution for a one problem as an independent
-software. An **app** is an interconnection of the services. 
-
-There are three types of services: independent, extension and proxy.
-
-### Independent
-
-Your app should have one independent service
-that keeps the core logic of your application.
-All app logic is defined as the functions that are bound to the command routes.
-
-Independent services will rarely be shared. So the source code could be private.
-
-### Extension
-
-The extensions are the solutions that could be re-used by multiple projects.
-
-### Proxy
-
-The proxy acts as a switch between a user/service and a user/service. Depending on 
-the proxy result the request will be forwarded or returned back to the client.
-
-Forwarding priority is:
-
-1. The proxy handler configuration's `forward` parameter.
-2. The message tail, when no configured forward exists for the command.
-3. The default outbound, which is the first outbound in the proxy handler config.
-
-The message tail is attached during request deserialization. Configured
-forwarding is applied when a whitelisted command in the proxy handler route is
-detected, and it overwrites the request outbound before `req.Forward()` is used.
-
-**Limitations**
-
-- proxy service names can not start with `tmp` since it makes the proxy as an ipc protocol for its handlers manager thread which is prohibited.
+On **Linux** or **OSX**, the zeromq has the official installation steps on [zeromq.org/download/](https://zeromq.org/download/).
 
 ---
 
-## Handlers
+#### Libsodium MacOS
 
-Since the services are the units of distributed system, services
-has to talk to each other. And services has to talk with the external world.
+```bash
+brew install libsodium
+```
 
-Therefore, each service acts as a server. The service mechanism transfers in or out some messages. 
-This mechanism is implemented through handlers.
+#### Libsodium Linux Fedora
 
-A service may have multiple controllers each on its own socket. 
+```bash
+sudo dnf install libsodium-devel gcc
+```
 
-### SyncReplier
+#### Libsodium Linux Ubuntu/Debian/Mint
 
-A **SyncReplier** handles a one request at a time. All incoming requests are queued internally, until the current request is not executed.
+```bash
+sudo apt update
+sudo apt install libsodium-dev build-essential
+```
 
-> The handler always return its result back to the client who called it.
+#### Libsodium Linux Arch
 
-### Replier
+```bash
+sudo pacman -Syu libsodium base-devel
+```
 
-A **Replier** handles many requests at a time.
+#### Libsodium Linux SUSE
 
-> The handler always return its result back to the client.
-
-### Worker
-
-A **Worker** handles a one request at a time similar to Replier. 
-
-Workers will not respond back to the callee about the status. Its fire-and-forget.
-
-### Publisher
-
-A **Publisher** broadcasts `message.ReplyInterface` to the subscribers. 
-To send a message to broadcast, use the publisher's control which has `broadcast` command.
-
-### Pair
-
-A **Pair** connects server to one client. Client and handler both can exchange messages back and forth. To send a message to the client from a handler use the handler's's control.
+```bash
+sudo zypper in libsodium-devel devel_basis
+```
 
 ---
 
-## Configuration
+### Install noPerfection/service core library
 
-The services keep the topology of proxies and extensions as a json config.
-By default its kept as a `noPerfection.json` in the root.
-Call `SetTopologyParams(map[string]any{"filepath": "your-path.json"})` before `Start` to use a different file; if you omit it, `Start` uses `DefaultConfigPath` (`noPerfection.json`).
+It requires go language, if not installed follow the official documentation: [go.dev/doc/install](https://go.dev/doc/install).
 
-The hardcoded config of handlers, endpoints, and services set by `SetHandlerConfig`, `SetEndpoint`, and `SetServiceConfig`
-are priority followed by the json config. So, you can stop, edit the ports and start service again.
+Then, in any go project download the noPerfection's module:
 
-Note, that each of the service could have it's own configuration, which means it  
-can have its own extensions and proxies that it can manage by itself.
+```bash
+go get github.com/noPerfection/service
+```
+
+For more details check out [NO_PERFECTION.md](./NO_PERFECTION.md) for explanation.
 
 ## Local development
 
@@ -311,15 +202,8 @@ go build -modfile=go.local.mod ./...
 go run -modfile=go.local.mod ./cmd/your-app
 ```
 
-For VSCode/Cursor, open the **`service`** folder as the workspace root (not the parent `noPerfection/` folder). The included `go.work` is enough for gopls; no extra Go settings are required. If you still see *consider opening a new workspace folder*, run **Go: Restart Language Server** after opening `service/`.
+---
+For more information, visit [ara.foundation](ara.foundation/)
+For questions, reach out to me on [Linkedin](linkedin.com/in/ahmetson) or at `milayter @ google's mail com`.
 
-Optional `.vscode/settings.json`:
-
-```json
-{
-  "markdown.preview.security.level": "allowScriptsAndAllContent",
-  "gopls": {
-    "build.directoryFilters": ["-examples", "-vendor"]
-  }
-}
-```
+If interesting, please follow the project on social media, until the contribution guides, real world examples release.
