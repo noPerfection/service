@@ -10,20 +10,23 @@ It supports all major zeromq sockets: `PUB/SUB`, `REQ/REP`, `ROUTER/DEALER`, `PA
 
 ### Roadmap
 
-* ✅ Supports major zeromq sockets, plus TCP, IPC and Inproc protocols.
-* ✅ Tutorial and samples [https://github.com/noPerfection/showcase]
-* ✅ Security enabled and handled internally using Curve (socket-to-socket) and HMAC (per-route).
-* 🠞 API Reference
-* 🠞 Docs and Guidelines
-* 🠞 Package Manager **CascadeFund**
-* 🠞 Protocol spec
-* 🠞 Official website
+- ✅ Supports major zeromq sockets, plus TCP, IPC and Inproc protocols.
+- ✅ Tutorial and samples [https://github.com/noPerfection/showcase/tutorial](https://github.com/noPerfection/showcase/tutorial)
+- ✅ Security enabled and handled internally using [Elliptic Curves](https://en.wikipedia.org/wiki/Curve25519) (socket-to-socket) and [HMAC](https://en.wikipedia.org/wiki/HMAC) (per-route).
+- 🠞 **2 production ready use cases**
+- 🠞 API Reference
+- 🠞 Documentation and guideline
+- 🠞 Package Manager **CascadeFund**
+- 🠞 Protocol spec, available draft is at [NO_PERFECTION.md](./NO_PERFECTION.md).
+- 🠞 Official website
+
 
 ## Hello World
 
 First follow the [installation](./README.md#installation) instructions, then create a new golang project.
 
 1. Open a command prompt and cd to your home directory.
+
 On Linux or Mac:
 
 ```bash
@@ -36,21 +39,23 @@ On Windows:
 cd %HOMEPATH%
 ```
 
-2. Create a hello directory for your go source code.
+1. Create a hello directory for your go source code.
 
 ```bash
 mkdir hello-world
 cd hello-world
 ```
 
-3. Initialize go to start tracking dependencies and download noPerfection module.
+1. Initialize go to start tracking dependencies and download noPerfection module.
 
 ```bash
 go mod init example/hello
 go get github.com/noPerfection/service
 ```
-4. The hello-world service.
-Copy-paste the following source code at `cmd/server/main.go`
+
+1. The hello-world service.
+
+Copy-paste the following source code at `cmd/service/main.go`
 
 ```go
 package main
@@ -80,7 +85,8 @@ func onHello(req service.RequestInterface) service.ReplyInterface {
 }
 ```
 
-5. The client that sends a message to the service.
+1. The client that sends a message to the service.
+
 Copy-paste the following source code at`cmd/client/main.go`
 
 ```go
@@ -103,7 +109,8 @@ func main() {
 }
 ```
 
-6. Test
+1. Test
+
 In the first command prompt start the service.
 
 ```bash
@@ -116,14 +123,30 @@ On a new terminal run the client.
 go run ./cmd/client/main.go
 ```
 
-For more tutorials see [showcase & tutorials](https://github.com/noPerfection/showcase/tutorial).
-For more details visit the Ara Foundation.
+
+
+# noPerfection features
+
+1. **It's the first framework based on [zeromq](https://zeromq.org/)**.
+2. **It's a framework as a library**: no predefined file structure, directory layout up to you.
+3. **Structurized microservice mesh**: instead it organizes runtime structure as socket pipelines with service concept.
+4. **Security built-in and hardcoded**: for socket pipeline noPerfection uses two factor security: CURVE keys and HMAC. 
+5. **scale-on-demand**: start noPerfection app as an MVP. Convert into a concurrent thread any sub-module by adding a socket. To turn a thread into a separate OS process or cloud cluster, simply change the service's configuration.
+6. **Manages dependency itself**: the main service starts and relaunches dependency tree itself.
+7. **language, environment agnostic**: rewrite any module in [zeromq bindings list](http://wiki.zeromq.org/bindings:_start) available languages. microservices also doesn't know where the service is? same process, same computer or remote, since it abstracts environment and manages it itself. 
+8. **modular**: message format, language support, socket or service types, and environments interaction are replaceable.
+
+---
+
+> ### **The long term goal of noPerfection is to make self-modifiable apps which live on the internet and serves people's request from your computer**. 
+
+The tutorial walkthrough covering noPerfection features are available on [noPerfection tutorial](https://github.com/noPerfection/showcase/tutorial). For more details visit [Ara Foundation](https://ara.foundation/).
 
 # Installation
 
 ### Zeromq's C library & Libsodium
 
-noPerfection uses the `pebbe/zmq4`, a go wrapper around `libzmq` C library. For the CURVE it uses the libsodium library.
+noPerfection uses the `pebbe/zmq4`, a go wrapper around `libzmq` C library. For the CURVE it uses the `libsodium`.
 
 On **Windows**, better to use [vcpkg](https://vcpkg.io/en/):
 
@@ -139,17 +162,23 @@ On **Linux** or **OSX**, the zeromq has the official installation steps on [zero
 
 ---
 
+
+
 #### Libsodium MacOS
 
 ```bash
 brew install libsodium
 ```
 
+
+
 #### Libsodium Linux Fedora
 
 ```bash
 sudo dnf install libsodium-devel gcc
 ```
+
+
 
 #### Libsodium Linux Ubuntu/Debian/Mint
 
@@ -158,11 +187,15 @@ sudo apt update
 sudo apt install libsodium-dev build-essential
 ```
 
+
+
 #### Libsodium Linux Arch
 
 ```bash
 sudo pacman -Syu libsodium base-devel
 ```
+
+
 
 #### Libsodium Linux SUSE
 
@@ -172,38 +205,3 @@ sudo zypper in libsodium-devel devel_basis
 
 ---
 
-### Install noPerfection/service core library
-
-It requires go language, if not installed follow the official documentation: [go.dev/doc/install](https://go.dev/doc/install).
-
-Then, in any go project download the noPerfection's module:
-
-```bash
-go get github.com/noPerfection/service
-```
-
-For more details check out [NO_PERFECTION.md](./NO_PERFECTION.md) for explanation.
-
-## Local development
-
-For local testing, building, and running, use the repo `go.work` file (it wires sibling modules under `noPerfection/`). With it present, plain `go` commands resolve local packages automatically:
-
-```sh
-go test ./...
-go build ./...
-go run ./cmd/your-app
-```
-
-Alternatively, prefix commands with `GOFLAGS=-modfile=go.local.mod` if you prefer not to use `go.work`:
-
-```sh
-go test -modfile=go.local.mod ./...
-go build -modfile=go.local.mod ./...
-go run -modfile=go.local.mod ./cmd/your-app
-```
-
----
-For more information, visit [ara.foundation](ara.foundation/)
-For questions, reach out to me on [Linkedin](linkedin.com/in/ahmetson) or at `milayter @ google's mail com`.
-
-If interesting, please follow the project on social media, until the contribution guides, real world examples release.
