@@ -105,6 +105,14 @@ func (h *NodeHandshake) Print() {
 }
 
 func (h *NodeHandshake) start() error {
+	if err := h.setTopologyContext(); err != nil {
+		return fmt.Errorf("setTopologyContext: %w", err)
+	}
+
+	return nil
+}
+
+func (h *NodeHandshake) setTopologyContext() error {
 	inbounds, err := getRouteInbounds(h.managerSelf)
 	if err != nil {
 		return fmt.Errorf("getRouteInbounds: %w", err)
@@ -263,7 +271,6 @@ func (h *NodeHandshake) start() error {
 	} else {
 		h.topologyContexts = nil
 	}
-
 	return nil
 }
 
@@ -1338,10 +1345,12 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 		if err != nil {
 			if errors.Is(err, message.ErrNoCurveKey) {
 				depStatus.managerCon.status.Tick()
-				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
+				return m.connectManager(contextURL, depStatus, true)
+				// return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
 			} else {
 				depStatus.managerCon.status.Set(CONNECTION_STATUS_NOT_SET)
-				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
+				return m.connectManager(contextURL, depStatus, true)
+				// return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
 			}
 		} else {
 			// After setting the service, it needs to set the hmac keys

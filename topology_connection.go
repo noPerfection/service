@@ -11,6 +11,10 @@ import (
 )
 
 // TopologyConnection keeps all necessary parameters of the topology connection service.
+// Topology is its own noPerfection handler. Call handler directly when handler not started.
+// Otherwise, use topologyClient to call topology, so it avoids the data race.
+//
+// Used by the services.
 type TopologyConnection struct {
 	topologyHandler *topology.Handler // topology handles the configuration and dependencies
 	topologyClient  *topology.Client
