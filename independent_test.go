@@ -1363,3 +1363,101 @@ func TestStartIpcServiceRequiresStartCommand(t *testing.T) {
 		"service 'ipc-proxy' has no start command given",
 	)
 }
+
+func Test004ServiceStartKeepsProxyPublicKeys(t *testing.T) {
+	configPath := testConfigPath(t)
+	proxyWithKey := func(name string) topologyConfig.Service {
+		return topologyConfig.Service{
+			Type:      topologyConfig.ProxyType,
+			Name:      name,
+			ModuleUrl: DefaultModuleUrl,
+			Parameters: datatype.New().
+				Set("public-key", name+"-manager-key").
+				Set("allowed", map[string]any{"manager": map[string]any{}}),
+			Handlers: []topologyConfig.Handler{
+				topologyConfig.ProxyHandler{
+					IndependentHandler: topologyConfig.IndependentHandler{
+						Type:     topologyConfig.SyncReplierType,
+						Category: "main",
+						Endpoint: message.NewEndpoint(testEndpointID(t, name), 8000),
+					},
+					Routes: []string{"hello"},
+				},
+			},
+		}
+	}
+	appConfig, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	for _, svc := range []topologyConfig.Service{
+		proxyWithKey("default-name-proxy"),
+		proxyWithKey("upper-case-names"),
+		{
+			Type:      topologyConfig.IndependentType,
+			Name:      "hello-world",
+			ModuleUrl: DefaultModuleUrl,
+			Handlers:  testHandlers(topologyConfig.IndependentHandler{Type: topologyConfig.ReplierType, Category: "main", Endpoint: message.NewEndpoint(testEndpointID(t, "hw"), 8000)}),
+		},
+	} {
+		require.NoError(t, appConfig.AddService(svc, rootServicesParent))
+	}
+	require.NoError(t, appConfig.Save())
+
+	bareProxy := func(name string) topologyConfig.Service {
+		return topologyConfig.Service{
+			Type:      topologyConfig.ProxyType,
+			Name:      name,
+			ModuleUrl: "github.com/noPerfection/service/examples/006-multiple-proxies/cmd/proxy",
+			Handlers: []topologyConfig.Handler{
+				topologyConfig.ProxyHandler{
+					IndependentHandler: topologyConfig.IndependentHandler{
+						Type:     topologyConfig.SyncReplierType,
+						Category: "main",
+						Endpoint: message.NewEndpoint("localhost", 8001),
+					},
+					Routes: []string{"hello"},
+				},
+				topologyConfig.IndependentHandler{
+					Type:     topologyConfig.SyncReplierType,
+					Category: topologyConfig.ServiceManagerCategory,
+					Endpoint: message.NewEndpoint("localhost", 8002),
+				},
+			},
+		}
+	}
+
+	independent, err := New("hello-world")
+	require.NoError(t, err)
+	requireTopologyFilepath(t, independent, configPath)
+	// Same as tutorial/004-multiple-proxies/cmd/service/main.go — no per-proxy mushroomURL.
+	// Only the last config is stored; it overwrites "mode" and leaves public-key in place.
+	upper := bareProxy("upper-case-names")
+	upper.Parameters = datatype.New().Set("mode", "tutorial")
+	require.NoError(t, independent.SetServiceConfig(bareProxy("default-name-proxy")))
+	require.NoError(t, independent.SetServiceConfig(upper))
+
+	require.NoError(t, independent.setupTopologyConnection())
+	require.NoError(t, independent.addHardcodedServicesToTopology(independent.topology()))
+
+	reloaded, err := topologyConfig.Load(configPath)
+	require.NoError(t, err)
+	services, err := reloaded.GetServices(rootServicesParent)
+	require.NoError(t, err)
+
+	var defaultPK, upperPK, upperMode string
+	for _, svc := range services {
+		if svc.Parameters == nil {
+			continue
+		}
+		pk, _ := svc.Parameters.StringValue("public-key")
+		switch svc.Name {
+		case "default-name-proxy":
+			defaultPK = pk
+		case "upper-case-names":
+			upperPK = pk
+			upperMode, _ = svc.Parameters.StringValue("mode")
+		}
+	}
+	require.Equal(t, "default-name-proxy-manager-key", defaultPK, "default-name-proxy public-key must survive hello-world addHardcodedServicesToTopology")
+	require.Equal(t, "upper-case-names-manager-key", upperPK, "upper-case-names public-key must survive a SetServiceConfig that does not set it")
+	require.Equal(t, "tutorial", upperMode)
+}

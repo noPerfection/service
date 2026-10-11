@@ -108,12 +108,14 @@ func (m *ProxyManager) routeHandlerCommands(category string) ([]string, error) {
 }
 
 // getRouteInbounds returns route to route relationships in this service topology.
-// It traverses within dependencies and builds their inbounds defined by this service's topology.
+// It builds the relationship by the route URL that it receives messages from (inbound) as a value.
+// Traverses within dependencies and builds their inbounds except. If no inbounds, then service is not included.
+// It's usually the first proxy service.
 //
 //	map(service-link): // Return format:
 //		map(route-link): []inbounds
 //
-// For example: service 1: hello-world; service 2: default-name.
+// For example: two services as independent(hello-world), proxy(default-name-proxy).
 //
 //	getRouteInbounds returns:
 //	map(hello-world):

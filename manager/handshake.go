@@ -1331,6 +1331,8 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 	}
 
 	status := depStatus.managerCon.status.Get()
+	fmt.Printf("connect to manager of the dep. status=%s, url=%s\n", status, depStatus.serviceURL.String())
+
 	if status == CONNECTION_STATUS_NOT_SET || status == CONNECTION_STATUS_ACCESS_ERR {
 		err := m.whitelistSelfInDeps(contextURL, depStatus)
 		if err != nil {
@@ -1354,15 +1356,16 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 		}
 
 		err := m.allowSelfInDep(depStatus)
+		fmt.Printf("Allow self in dep err: '%v', url=%s\n", err, depStatus.serviceURL.String())
 		if err != nil {
 			if errors.Is(err, message.ErrNoCurveKey) {
 				depStatus.managerCon.status.Tick()
-				return m.connectManager(contextURL, depStatus, true)
-				// return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
+				// return m.connectManager(contextURL, depStatus, true)
+				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
 			} else {
 				depStatus.managerCon.status.Set(CONNECTION_STATUS_NOT_SET)
-				return m.connectManager(contextURL, depStatus, true)
-				// return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
+				// return m.connectManager(contextURL, depStatus, true)
+				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
 			}
 		} else {
 			// After setting the service, it needs to set the hmac keys
@@ -1407,6 +1410,8 @@ func (m *NodeHandshake) handshakeDep(contextURL string, depStatus *ServiceStatus
 			m.logger.Error("connectManager", "contextURL", contextURL, "error", err)
 		}
 	}
+	fmt.Printf("connected to manager, status=%s, url=%s\n", depStatus.managerCon.status.Get(), depStatus.serviceURL.String())
+
 	if depStatus.managerCon.status.Get() == CONNECTION_STATUS_CONNECTED {
 		// Just in case if checkStatus is taking longer time
 		depStatus.managerCon.lockGoroutine = true

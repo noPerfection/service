@@ -72,6 +72,25 @@ func TestSetServiceConfigStoresByServiceName(t *testing.T) {
 	require.Equal(t, serviceConfig, topologies.serviceConfigs["other-service"])
 }
 
+// Tutorial 004 cmd/service used to register two proxies with SetServiceConfig but omit the
+// mushroomURL argument, so both configs were stored under the host name (hello-world).
+// Only the last proxy remains in the hardcoded map.
+func TestSetServiceConfigWithoutURLKeepsOnlyLastProxy(t *testing.T) {
+	topologies := NewHardcodedTopologies("hello-world")
+	proxy1 := topologyConfig.Service{Name: "default-name-proxy", Type: topologyConfig.ProxyType}
+	proxy2 := topologyConfig.Service{Name: "upper-case-names", Type: topologyConfig.ProxyType}
+
+	require.NoError(t, topologies.SetServiceConfig(proxy1))
+	require.NoError(t, topologies.SetServiceConfig(proxy2))
+
+	require.Len(t, topologies.serviceConfigs, 1)
+	got, ok := topologies.serviceConfigs["hello-world"]
+	require.True(t, ok)
+	require.Equal(t, "upper-case-names", got.Name)
+	_, hasDefault := topologies.serviceConfigs["default-name-proxy"]
+	require.False(t, hasDefault)
+}
+
 func TestSetServiceParamsStoresByDefaultService(t *testing.T) {
 	topologies := NewHardcodedTopologies("custom-service")
 

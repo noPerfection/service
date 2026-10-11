@@ -65,6 +65,10 @@ func serviceParentURL(mushroomURL string) []string {
 }
 
 // SetServiceConfig stores a service config to be written into topology.
+//
+// On an existing service, parameters are overwritten key by key. Keys the
+// hardcoded config does not set, including runtime keys such as public-key,
+// stay in place. Omitting parameters does not clear them.
 func (topologies *WithHardcodedTopology) SetServiceConfig(service config.Service, mushroomURL ...string) error {
 	if topologies == nil {
 		return fmt.Errorf("hardcoded topologies is nil")
@@ -256,7 +260,13 @@ func (topologies *WithHardcodedTopology) HasHardcodedHandlers(mushroomURL ...str
 func (hardcoded *WithHardcodedTopology) addHardcodedServicesToTopology(tp topology.TopologyInterface) error {
 	for mushroomURL, serviceConfig := range hardcoded.serviceConfigs {
 		parent := serviceParentURL(mushroomURL)
-		_, err := tp.Service(mushroomURL)
+		// SetService updates by service name, so live parameters are read from that
+		// record. The map key can differ when SetServiceConfig omits a mushroom URL.
+		lookup := serviceConfig.Name
+		if lookup == "" {
+			lookup = mushroomURL
+		}
+		existing, err := tp.Service(lookup)
 		if err != nil {
 			if err := tp.AddService(serviceConfig, parent...); err != nil {
 				return fmt.Errorf("topology.AddService(%q): %w", mushroomURL, err)
@@ -264,12 +274,33 @@ func (hardcoded *WithHardcodedTopology) addHardcodedServicesToTopology(tp topolo
 			continue
 		}
 
+		serviceConfig.Parameters = overwriteParameters(existing.Parameters, serviceConfig.Parameters)
 		if err := tp.SetService(serviceConfig, parent...); err != nil {
 			return fmt.Errorf("topology.SetService(%q): %w", mushroomURL, err)
 		}
 	}
 
 	return nil
+}
+
+// overwriteParameters keeps live parameter keys and overwrites only the keys
+// present on the hardcoded config. A nil hardcoded map leaves live parameters
+// unchanged, so a SetServiceConfig that omits parameters does not rewrite them away.
+func overwriteParameters(existing, hardcoded datatype.KeyValue) datatype.KeyValue {
+	if hardcoded == nil {
+		return existing
+	}
+	if existing == nil {
+		return hardcoded
+	}
+	out := datatype.New()
+	for key, value := range existing.Map() {
+		out.Set(key, value)
+	}
+	for key, value := range hardcoded.Map() {
+		out.Set(key, value)
+	}
+	return out
 }
 
 func (hardcoded *WithHardcodedTopology) addHardcodedHandlersToTopology(tp topology.TopologyInterface) error {
