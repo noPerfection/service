@@ -194,6 +194,12 @@ func (h *NodeHandshake) setTopologyContext() error {
 							},
 						}
 					} else {
+						if context[contextURL][depURL.String()].inboundCons == nil {
+							context[contextURL][depURL.String()].inboundCons = make(map[string]*InboundConnection)
+						}
+						if context[contextURL][depURL.String()].inboundEdges == nil {
+							context[contextURL][depURL.String()].inboundEdges = make(map[string]*InboundConnection)
+						}
 						context[contextURL][depURL.String()].inboundCons[route] = &InboundConnection{
 							depURL: inboundURL,
 							status: ConnectionStatus{
@@ -242,6 +248,12 @@ func (h *NodeHandshake) setTopologyContext() error {
 							fmt.Errorf("NodeHandshake.prepareOutbound(contextURL: %s, routeURL: %s): %w", contextURL, route, err)
 						}
 					} else {
+						if context[contextURL][depURL.String()].outboundCons == nil {
+							context[contextURL][depURL.String()].outboundCons = make(map[string]*OutboundConnection)
+						}
+						if context[contextURL][depURL.String()].outboundEdges == nil {
+							context[contextURL][depURL.String()].outboundEdges = make(map[string]*OutboundConnection)
+						}
 						context[contextURL][depURL.String()].outboundCons[route] = &OutboundConnection{
 							depURL: outboundURL,
 							status: ConnectionStatus{
