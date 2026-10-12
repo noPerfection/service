@@ -89,6 +89,7 @@ func handshakeRequestTimeout(service config.Service) time.Duration {
 
 func probeServiceRunning(node *topology.Client, serviceURL mushroom.TopologyURL) (bool, error) {
 	node.Attempt(1)
+	node.Timeout(topology.DefaultTimeout)
 	running, err := node.Request(&message.Request{
 		Command:    topology.IsServiceRunning,
 		Parameters: datatype.New().Set("service", serviceURL.As(mushroom.SERVICE).AsDereference().String()),
