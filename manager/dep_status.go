@@ -18,6 +18,8 @@ const (
 	CONNECTION_STATUS_CURVE_ERR   = "curve-error"  // 4. if curve mismatch -> request handshake
 	CONNECTION_STATUS_CONNECTED   = "connected"    // 5. skip manager
 	CONNECTION_STATUS_TIMEOUT     = "timeout"      // timeout -> request is-service-running
+	// connection status for edge connections
+	CONNECTION_STATUS_SET_NOT_CONNECTED = "set-not-connected"
 )
 
 type ConnectionStatus struct {
@@ -115,10 +117,18 @@ type ServiceStatusMsg struct {
 
 type Context map[string]map[string]*ServiceStatus
 
-// If the dependency status has anything but outbounds to this service,
-// then the dependency is not handshakeable, because this service is not connecting to this dependency.
+// isHandshakeable reports whether this context should handshake the dependency.
+//
+// A dependency that only has outbounds is skipped. Those routes are inbounds for
+// the other manager, and only that context may call them. A managerCon recorded
+// because another dependency was allowed to call this manager is also skipped:
+// it has no inbounds, cons, or edges, so this manager must not handshake it.
 func (s *ServiceStatus) isHandshakeable(contextURL string) bool {
-	return contextURL != s.serviceURL.String()
+	if contextURL == s.serviceURL.String() {
+		return false
+	}
+	return len(s.inbounds) > 0 || len(s.inboundCons) > 0 || len(s.outboundCons) > 0 ||
+		len(s.inboundEdges) > 0 || len(s.outboundEdges) > 0
 }
 
 func (s *ServiceStatus) toMsg() *ServiceStatusMsg {

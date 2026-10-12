@@ -31,14 +31,14 @@ const (
 
 	// Handshake is the manager route used to exchange command whitelist secrets.
 	// It is intentionally excluded from RequireWhitelist enforcement.
-	Handshake                 = "handshake"
-	GetServiceStatus          = "service-status"
-	SecureOutbounds           = "secure-outbounds"
-	SecureInbounds            = "secure-inbounds"
-	SecureOutboundConnections = "secure-outbound-cons"
-	SecureInboundConnections  = "secure-inbound-cons"
-	SecureOutboundEdges       = "secure-outbound-edges"
-	SecureInboundEdges        = "secure-inbound-edges"
+	Handshake           = "handshake"
+	GetServiceStatus    = "service-status"
+	SecureOutbounds     = "secure-outbounds"
+	SecureInbounds      = "secure-inbounds"
+	SecureOutboundEdges = "secure-outbound-edges"
+	SecureInboundEdges  = "secure-inbound-edges"
+	// SecureOutboundEdgeCon tells a dependency to allow another dependency's manager to call it.
+	SecureOutboundEdgeCon = "secure-outbound-edge-con"
 
 	// SecureEdges secures topology edges after Handshake using the handshake HMAC secret.
 	SecureEdges = "secure-edges"
@@ -191,10 +191,9 @@ func managerWhitelistCommands() []string {
 		GetServiceStatus,
 		SecureOutbounds,
 		SecureInbounds,
-		SecureOutboundConnections,
-		SecureInboundConnections,
 		SecureOutboundEdges,
 		SecureInboundEdges,
+		SecureOutboundEdgeCon,
 	}
 }
 
@@ -924,96 +923,6 @@ func (m *Manager) setHandlerControls() error {
 	return nil
 }
 
-func (m *Manager) whitelistManagerInDeps(depURL string) error {
-	depFullURL, err := asTopologyURL(depURL, m.topology)
-	if err != nil {
-		return fmt.Errorf("asTopologyURL(%q): %w", depURL, err)
-	}
-
-	depServiceURL := depFullURL.As(mushroom.SERVICE)
-
-	m.mu.Lock()
-	secret := m.outboundHmacSecrets[depServiceURL.AsDereference().String()]
-	m.mu.Unlock()
-	if secret == "" {
-		return fmt.Errorf("dep %q has no self-in-deps handshake secret", depURL)
-	}
-
-	depServiceConfig, err := m.topology.Service(depServiceURL.AsDereference().String())
-	if err != nil {
-		return fmt.Errorf("topology.Service(%q): %w", depServiceURL.AsDereference().String(), err)
-	}
-
-	depManagerConfig, err := depServiceConfig.HandlerByCategory(config.ServiceManagerCategory)
-	if err != nil {
-		return fmt.Errorf("dep %q manager handler: %w", depServiceConfig.Name, err)
-	}
-	depManagerAsIndependent, ok := depManagerConfig.AsIndependentHandler()
-	if !ok {
-		return fmt.Errorf("dep %q manager handler is invalid", depServiceConfig.Name)
-	}
-
-	socket, err := protocolClient.New(
-		depManagerAsIndependent.Endpoint.Id,
-		depManagerAsIndependent.Endpoint.Port,
-		protocolClient.HandlerType(depManagerAsIndependent.Type),
-	)
-	if err != nil {
-		return fmt.Errorf("client.New: %w", err)
-	}
-	defer socket.Close()
-
-	node := &topology.Client{Socket: socket}
-	depManagerLink := depServiceURL.New(config.ServiceManagerCategory)
-	pubKey, err := getPublicKeyFromConfig(depManagerLink.String(), m.topology)
-	if err != nil {
-		return fmt.Errorf("getPublicKeyFromConfig(%q): %w", depManagerLink.String(), err)
-	}
-	node.Socket.Allow(pubKey)
-	node.Socket.Secure(m.curveSecretKey)
-	node.Timeout(handshakeRequestTimeout(depServiceConfig))
-	node.Attempt(1)
-
-	depOutbounds := make(map[string]mushroom.TopologyURL)
-	// depOutbounds, err := filterTopologyOutbounds(m.topologyOutbounds, depServiceURL, m.serviceURL, true)
-	// if err != nil {
-	// 	return fmt.Errorf("filterTopologyOutbounds: %w", err)
-	// }
-
-	outbounds := make(map[string]string, len(depOutbounds))
-	for route, outboundURL := range depOutbounds {
-		dep := outboundURL.As(mushroom.SERVICE).AsDereference().String()
-		depManagerLink := outboundURL.As(mushroom.SERVICE).New(config.ServiceManagerCategory)
-		if _, err := getPublicKeyFromConfig(depManagerLink.String(), m.topology); err != nil {
-			continue
-		}
-		outbounds[route] = dep
-	}
-	if len(outbounds) == 0 {
-		return nil
-	}
-
-	if err := node.Socket.Whitelist(message.Any, secret); err != nil {
-		return fmt.Errorf("socket.Whitelist(%q): %w", message.Any, err)
-	}
-
-	msg := message.Request{
-		Command: SecureEdges,
-		Parameters: datatype.New().
-			Set(SecureEdgesProgressParam, SecureEdgesProgressManagerInDeps).
-			Set("outbounds", outbounds),
-	}
-
-	reply, err := node.Request(&msg)
-	if err != nil {
-		return fmt.Errorf("socket.Request(%q): %w", SecureEdges, err)
-	}
-	if !reply.IsOK() {
-		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
-	}
-	return nil
-}
-
 func (m *Manager) whitelistDepsInDeps(depURL string) error {
 	depFullURL, err := asTopologyURL(depURL, m.topology)
 	if err != nil {
@@ -1121,6 +1030,9 @@ func (m *Manager) Start() error {
 	}
 	if err := m.Interface.Route(SecureOutbounds, m.NodeHandshake.onSecureOutbounds); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, SecureOutbounds, err)
+	}
+	if err := m.Interface.Route(SecureOutboundEdgeCon, m.NodeHandshake.onSecureOutboundEdgeCon); err != nil {
+		return fmt.Errorf(`handler.Route("%s"): %w`, SecureOutboundEdgeCon, err)
 	}
 	if err := m.Interface.Route(SecureEdges, m.onSecureEdges); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, SecureEdges, err)

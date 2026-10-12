@@ -60,6 +60,9 @@ type NodeHandshake struct {
 	handshakeMu             sync.Mutex
 }
 
+// errDepManagerNotConnected means the dependency's manager is not connected yet.
+var errDepManagerNotConnected = errors.New("dependency manager is not connected")
+
 // New creates a manager for an independent service.
 // serviceURL is the mushroomURL used to locate this service in the topology mycelium
 // (a plain symbol such as "main", or a full dereference URL).
@@ -1403,6 +1406,106 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 	return nil
 }
 
+// getDepPublicKey returns the manager public key of depURL from this context's
+// dependency list. The dependency's manager must already be connected by this handshaking node.
+func (m *NodeHandshake) getDepPublicKey(contextURL string, depURL mushroom.TopologyURL) (string, error) {
+	deps := m.topologyContexts[contextURL]
+	if len(deps) == 0 {
+		return "", fmt.Errorf("context %q has no dependencies", contextURL)
+	}
+
+	var target *ServiceStatus
+	for _, dep := range deps {
+		if dep != nil && dep.serviceURL.Equal(depURL, mushroom.SERVICE) {
+			target = dep
+			break
+		}
+	}
+	if target == nil {
+		return "", fmt.Errorf("dependency %q is not in context %q", depURL.String(), contextURL)
+	}
+	if target.managerCon == nil || target.managerCon.status.Get() != CONNECTION_STATUS_CONNECTED {
+		return "", errDepManagerNotConnected
+	}
+
+	pubKey := m.publicKeys[target.serviceURL.String()]
+	if pubKey == "" {
+		return "", fmt.Errorf("context %q dependency %q has no manager public key", contextURL, target.serviceURL.String())
+	}
+	return pubKey, nil
+}
+
+// secureOutboundEdgeCon asks the dependency that owns the edge to allow the
+// outbound target's manager to call it.
+func (m *NodeHandshake) secureOutboundEdgeCon(contextURL string, depStatus *ServiceStatus, routeURL string, edge *OutboundConnection, outboundPublicKey string) error {
+	if depStatus.managerCon == nil || depStatus.managerCon.client == nil {
+		return fmt.Errorf("manager client for %q is not connected", depStatus.serviceURL.String())
+	}
+
+	reply, err := depStatus.managerCon.client.Request(&message.Request{
+		Command: SecureOutboundEdgeCon,
+		Parameters: datatype.New().
+			Set("context-url", contextURL).
+			Set("service-url", m.serviceURL.String()).
+			Set("outbound-public-key", outboundPublicKey).
+			Set("outbound-dep-url", edge.depURL.String()).
+			Set("outbound-route-url", routeURL),
+	})
+	if err != nil {
+		return fmt.Errorf("socket.Request(%q): %w", SecureOutboundEdgeCon, err)
+	}
+	if !reply.IsOK() {
+		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
+	}
+	edge.status.Set(CONNECTION_STATUS_CONNECTED)
+	return nil
+}
+
+// onSecureOutboundEdgeCon is the dependency side of secureOutboundEdgeCon.
+// The context should already exist from connectManager or service-status.
+// The other dependency is stored as a manager connection, not as an edge.
+// This manager does not handshake that entry: it is an inbound caller, and
+// only the context owner may call it.
+func (m *NodeHandshake) onSecureOutboundEdgeCon(req message.RequestInterface) message.ReplyInterface {
+	contextURL, _, err := getServiceUrls(req)
+	if err != nil {
+		return req.Fail(fmt.Sprintf("getServiceUrls: %v", err))
+	}
+
+	publicKey, err := req.RouteParameters().StringValue("outbound-public-key")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('outbound-public-key'): %v", err))
+	}
+	if publicKey == "" {
+		return req.Fail("outbound-public-key is required")
+	}
+
+	rawDepURL, err := req.RouteParameters().StringValue("outbound-dep-url")
+	if err != nil {
+		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('outbound-dep-url'): %v", err))
+	}
+	if rawDepURL == "" {
+		return req.Fail("outbound-dep-url is required")
+	}
+	outboundDepURL, err := mushroom.Parse(rawDepURL)
+	if err != nil {
+		return req.Fail(fmt.Sprintf("mushroom.Parse(%q): %v", rawDepURL, err))
+	}
+
+	// lets the other dependency's manager call this manager.
+	// The dependency that owns the dep-to-dep edge allows the other dependency to call it.
+	managerLink := outboundDepURL.As(mushroom.SERVICE).New(config.ServiceManagerCategory)
+	zap.AuthCurveAdd(m.serviceURL.As(mushroom.HANDLER).String(), publicKey, managerLink.As(mushroom.HANDLER))
+	m.publicKeys[managerLink.String()] = publicKey
+
+	depStatus := m.initiateDepServiceStatus(contextURL.String(), managerLink)
+	if depStatus.managerCon == nil {
+		depStatus.managerCon = &ManagerConnection{}
+	}
+	depStatus.managerCon.status.Set(CONNECTION_STATUS_SET_NOT_CONNECTED)
+	return req.Ok()
+}
+
 func (m *NodeHandshake) handshakeDep(contextURL string, depStatus *ServiceStatus) {
 	// first we ensure the manager is connected
 	if err := m.connectManager(contextURL, depStatus); err != nil {
@@ -1430,6 +1533,37 @@ func (m *NodeHandshake) handshakeDep(contextURL string, depStatus *ServiceStatus
 			}
 			if len(depStatus.inbounds) == 0 && len(depStatus.outbounds) == 0 {
 				fmt.Printf("dep has NO inbound and outbound\n")
+			}
+			if depStatus.inboundEdges != nil {
+				fmt.Printf("inboundEdges. Dep needs to receive message from another dep. URL=%s\n", depStatus.serviceURL.String())
+				fmt.Printf("inboundEdges: todo ensure to find the outbound edge and it's connected\n")
+			}
+			if depStatus.outboundEdges != nil {
+				fmt.Printf("outboundEdges. Dep needs to send message to another dep. URL=%s\n", depStatus.serviceURL.String())
+				for routeURL, outboundEdge := range depStatus.outboundEdges {
+					status := outboundEdge.status.Get()
+					if status == CONNECTION_STATUS_CONNECTED || status == CONNECTION_STATUS_SET_NOT_CONNECTED {
+						fmt.Printf("outboundEdge is connectd or set and soon to be connected, skipping. Route URL=%s, edge URL=%s\n", routeURL, outboundEdge.depURL.String())
+						continue
+					}
+					fmt.Printf("outboundEdge: URL=%s, connect, current status=%t\n", outboundEdge.depURL.String(), status == CONNECTION_STATUS_CONNECTED)
+					pubKey, err := m.getDepPublicKey(contextURL, outboundEdge.depURL)
+					if errors.Is(err, errDepManagerNotConnected) {
+						fmt.Printf("outboundEdge: URL=%s, manager is not connected, skipping\n", outboundEdge.depURL.String())
+						continue
+					}
+					if err != nil {
+						if m.logger != nil {
+							m.logger.Error("getDepPublicKey", "contextURL", contextURL, "routeURL", routeURL, "error", err)
+						}
+						continue
+					}
+					if err := m.secureOutboundEdgeCon(contextURL, depStatus, routeURL, outboundEdge, pubKey); err != nil {
+						if m.logger != nil {
+							m.logger.Error("secureOutboundEdgeCon", "contextURL", contextURL, "routeURL", routeURL, "error", err)
+						}
+					}
+				}
 			}
 		}
 	}
