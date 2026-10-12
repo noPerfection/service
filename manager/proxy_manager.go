@@ -75,6 +75,9 @@ func NewProxyManager(serviceName string, managerEndpoint message.Endpoint, secre
 		_ = topologyClient.Close()
 		return nil, fmt.Errorf("client.NewPair('%s'): %w", serviceName+handlers.ProxyHandlersCategory, err)
 	}
+	// This pair stays open for the life of the manager. The default attempt
+	// budget treats silence as failure and closes the receive channel.
+	proxyHandlersClient.Attempt(0)
 
 	var pub, sec string
 	if len(secretKey) > 0 && secretKey[0] != "" {
@@ -1325,6 +1328,7 @@ func (m *ProxyManager) ensureProxyHandlersClient() error {
 	if err != nil {
 		return fmt.Errorf("client.NewPair('%s'): %w", m.serviceName+handlers.ProxyHandlersCategory, err)
 	}
+	proxyHandlersClient.Attempt(0)
 	m.setup = proxyHandlersClient
 	return nil
 }
