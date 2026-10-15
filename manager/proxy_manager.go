@@ -149,7 +149,7 @@ func proxyManagerWhitelistCommands() []string {
 	}
 }
 
-// RequireWhitelist marks every proxy manager route except handshake as requiring a whitelist entry.
+// RequireWhitelist marks every proxy manager route except whitelist-caller as requiring a whitelist entry.
 func (m *ProxyManager) RequireWhitelist() {
 	for _, cmd := range proxyManagerWhitelistCommands() {
 		m.Interface.RequireWhitelist(cmd)
@@ -1091,7 +1091,7 @@ func (m *ProxyManager) handshakeCallerInboundDep(depURL string, callerInbounds m
 
 	hmacSecret := m.outboundSecrets[depServiceURL.AsDereference().String()]
 	msg := &message.Request{
-		Command: Handshake,
+		Command: WhitelistCaller,
 		Parameters: datatype.New().
 			Set("manager-hmac-secret", hmacSecret).
 			Set("manager-url", managerLink.String()).
@@ -1106,7 +1106,7 @@ func (m *ProxyManager) handshakeCallerInboundDep(depURL string, callerInbounds m
 
 	reply, err := node.Request(msg)
 	if err != nil {
-		return fmt.Errorf("socket.Request(%q): %w", Handshake, err)
+		return fmt.Errorf("socket.Request(%q): %w", WhitelistCaller, err)
 	}
 	if !reply.IsOK() {
 		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
@@ -1525,9 +1525,9 @@ func (m *ProxyManager) Start() error {
 		return fmt.Errorf("NewHandshake: %w", err)
 	}
 	m.NodeHandshake = nodeHandshake
-	if !m.Interface.IsRouteExist(Handshake) {
-		if err := m.Interface.Route(Handshake, m.NodeHandshake.onHandshake); err != nil {
-			return fmt.Errorf(`handler.Route("%s"): %w`, Handshake, err)
+	if !m.Interface.IsRouteExist(WhitelistCaller) {
+		if err := m.Interface.Route(WhitelistCaller, m.NodeHandshake.onWhitelistCaller); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, WhitelistCaller, err)
 		}
 	}
 	if !m.Interface.IsRouteExist(EvaluateStatus) {

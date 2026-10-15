@@ -29,9 +29,9 @@ const (
 
 	defaultHandshakeInterval = 5 * time.Second
 
-	// Handshake is the manager route used to exchange command whitelist secrets.
+	// WhitelistCaller is the manager route that lets a caller whitelist itself.
 	// It is intentionally excluded from RequireWhitelist enforcement.
-	Handshake           = "handshake"
+	WhitelistCaller     = "whitelist-caller"
 	EvaluateStatus      = "evaluate-status"
 	SecureOutbounds     = "secure-outbounds"
 	SecureInbounds      = "secure-inbounds"
@@ -42,7 +42,7 @@ const (
 	// SecureInboundEdgeCon tells a dependency to whitelist an inbound edge and track the caller handshake.
 	SecureInboundEdgeCon = "secure-inbound-edge-con"
 
-	// SecureEdges secures topology edges after Handshake using the handshake HMAC secret.
+	// SecureEdges secures topology edges after WhitelistCaller using the handshake HMAC secret.
 	SecureEdges = "secure-edges"
 
 	SecureEdgesProgressParam         = "progress"
@@ -261,7 +261,7 @@ func (m *Manager) registerHandlerOutbounds(handlerCategory string, endpoint mess
 	return control.RegisterOutbounds(endpoint, publicKey, map[string]string{cmd: secret}, outboundURL, localCmd)
 }
 
-// RequireWhitelist marks every manager route except handshake as requiring a whitelist entry.
+// RequireWhitelist marks every manager route except whitelist-caller as requiring a whitelist entry.
 func (m *Manager) RequireWhitelist() {
 	for _, cmd := range managerWhitelistCommands() {
 		m.Interface.RequireWhitelist(cmd)
@@ -615,8 +615,8 @@ func (m *Manager) allowOutboundManager(outboundRouteURL string) error {
 //	  Secret: hello-world.main.secret,
 //	}
 //
-// Outbounds to this service from dep. On Handshake, the service registers inOutbounds.
-// onHandshake should return the public key of the entrypoint-proxy.main.hello handler.
+// Outbounds to this service from dep. On WhitelistCaller, the service registers inOutbounds.
+// onWhitelistCaller should return the public key of the entrypoint-proxy.main.hello handler.
 // And here it will be recorded as allow via a control.
 func (m *Manager) secureInbound(inboundURL mushroom.TopologyURL, secret string, controlTimeout time.Duration) (string, error) {
 	if !inboundURL.IsRouteExist() {
@@ -852,7 +852,7 @@ func (m *Manager) handshakeCallerInboundDep(depURL string, callerInbounds map[st
 	}
 
 	msg := message.Request{
-		Command: Handshake,
+		Command: WhitelistCaller,
 		Parameters: datatype.New().
 			Set("manager-hmac-secret", secret).
 			Set("manager-url", managerLink.String()).
@@ -867,7 +867,7 @@ func (m *Manager) handshakeCallerInboundDep(depURL string, callerInbounds map[st
 
 	reply, err := node.Request(&msg)
 	if err != nil {
-		return fmt.Errorf("socket.Request(%q): %w", Handshake, err)
+		return fmt.Errorf("socket.Request(%q): %w", WhitelistCaller, err)
 	}
 	if !reply.IsOK() {
 		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
@@ -1025,8 +1025,8 @@ func (m *Manager) Start() error {
 	if err := m.Interface.Route(Services, m.onServices); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, Services, err)
 	}
-	if err := m.Interface.Route(Handshake, m.NodeHandshake.onHandshake); err != nil {
-		return fmt.Errorf(`handler.Route("%s"): %w`, Handshake, err)
+	if err := m.Interface.Route(WhitelistCaller, m.NodeHandshake.onWhitelistCaller); err != nil {
+		return fmt.Errorf(`handler.Route("%s"): %w`, WhitelistCaller, err)
 	}
 	if err := m.Interface.Route(EvaluateStatus, m.NodeHandshake.onEvaluateStatus); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, EvaluateStatus, err)

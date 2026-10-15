@@ -414,7 +414,7 @@ func getSecureOutboundItems(req message.RequestInterface) (map[string]outboundSe
 	return items, nil
 }
 
-func (m *NodeHandshake) onHandshake(req message.RequestInterface) message.ReplyInterface {
+func (m *NodeHandshake) onWhitelistCaller(req message.RequestInterface) message.ReplyInterface {
 	if m.topology == nil {
 		return req.Fail("topology is nil")
 	}
@@ -422,7 +422,7 @@ func (m *NodeHandshake) onHandshake(req message.RequestInterface) message.ReplyI
 	if err != nil {
 		return req.Fail(fmt.Sprintf("getServiceUrls: %v", err))
 	}
-	fmt.Printf("edge handshake recv %s <- %s command=%s\n", m.serviceURL.String(), callerURL.String(), Handshake)
+	fmt.Printf("whitelist-caller recv %s <- %s command=%s\n", m.serviceURL.String(), callerURL.String(), WhitelistCaller)
 
 	signature, err := req.RouteParameters().StringValue("signature")
 	if err != nil {
@@ -749,8 +749,8 @@ func (m *NodeHandshake) secureOneOutbound(contextURL, callerURL mushroom.Topolog
 // //	  Secret: hello-world.main.secret,
 // //	}
 // //
-// // Outbounds to this service from dep. On Handshake, the service registers inOutbounds.
-// // onHandshake should return the public key of the entrypoint-proxy.main.hello handler.
+// // Outbounds to this service from dep. On WhitelistCaller, the service registers inOutbounds.
+// // onWhitelistCaller should return the public key of the entrypoint-proxy.main.hello handler.
 // // And here it will be recorded as allow via a control.
 // func (m *NodeHandshake) secureInbound(inboundURL mushroom.TopologyURL, secret string, controlTimeout time.Duration) (string, error) {
 // 	if !inboundURL.IsRouteExist() {
@@ -900,10 +900,8 @@ func (m *NodeHandshake) setManagerClient(depStatus *ServiceStatus) error {
 	return nil
 }
 
-// whitelistSelfInDeps is the first of handshaking processes:
-//
-//	manager-to-manager handshake by whitelisting to all dependencies in topology.
-func (m *NodeHandshake) whitelistSelfInDeps(contextURL string, depStatus *ServiceStatus) error {
+// whitelistCaller sends WhitelistCaller so this manager is allowed to call the dependency.
+func (m *NodeHandshake) whitelistCaller(contextURL string, depStatus *ServiceStatus) error {
 	// set the hmac secret for the manager connection
 	if depStatus.managerCon.hmac == "" {
 		depStatus.managerCon.hmac = message.GenerateSecret()
@@ -914,7 +912,7 @@ func (m *NodeHandshake) whitelistSelfInDeps(contextURL string, depStatus *Servic
 	}
 
 	msg := message.Request{
-		Command: Handshake,
+		Command: WhitelistCaller,
 		Parameters: datatype.New().
 			Set("hmac-secret", depStatus.managerCon.hmac).
 			Set("service-url", m.serviceURL.String()).
@@ -929,17 +927,17 @@ func (m *NodeHandshake) whitelistSelfInDeps(contextURL string, depStatus *Servic
 
 	depStatus.managerCon.client.Timeout(probeTimeout(depStatus.protocol))
 
-	fmt.Printf("edge handshake send %s -> %s command=%s\n", m.serviceURL.String(), depStatus.serviceURL.String(), Handshake)
+	fmt.Printf("whitelist-caller send %s -> %s command=%s\n", m.serviceURL.String(), depStatus.serviceURL.String(), WhitelistCaller)
 	reply, err := depStatus.managerCon.client.Request(&msg)
 	if err != nil {
-		fmt.Printf("edge handshake reply %s <- %s command=%s err=%v\n", m.serviceURL.String(), depStatus.serviceURL.String(), Handshake, err)
-		return fmt.Errorf("socket.Request(%q): %w", Handshake, err)
+		fmt.Printf("whitelist-caller reply %s <- %s command=%s err=%v\n", m.serviceURL.String(), depStatus.serviceURL.String(), WhitelistCaller, err)
+		return fmt.Errorf("socket.Request(%q): %w", WhitelistCaller, err)
 	}
 	if !reply.IsOK() {
-		fmt.Printf("edge handshake reply %s <- %s command=%s err=%s\n", m.serviceURL.String(), depStatus.serviceURL.String(), Handshake, reply.ErrorMessage())
+		fmt.Printf("whitelist-caller reply %s <- %s command=%s err=%s\n", m.serviceURL.String(), depStatus.serviceURL.String(), WhitelistCaller, reply.ErrorMessage())
 		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
-	fmt.Printf("edge handshake reply %s <- %s command=%s ok\n", m.serviceURL.String(), depStatus.serviceURL.String(), Handshake)
+	fmt.Printf("whitelist-caller reply %s <- %s command=%s ok\n", m.serviceURL.String(), depStatus.serviceURL.String(), WhitelistCaller)
 
 	return nil
 }
@@ -1125,7 +1123,7 @@ func (m *NodeHandshake) requestSecureOutbounds(contextURL string, con *ManagerCo
 	// 	}
 
 	// 	msg := message.Request{
-	// 		Command: Handshake,
+	// 		Command: WhitelistCaller,
 	// 		Parameters: datatype.New().
 	// 			Set("in-inbounds", inInbounds).
 	// 	}
@@ -1138,7 +1136,7 @@ func (m *NodeHandshake) requestSecureOutbounds(contextURL string, con *ManagerCo
 
 	// 	reply, err := node.Request(&msg)
 	// 	if err != nil {
-	// 		return fmt.Errorf("socket.Request(%q): %w", Handshake, err)
+	// 		return fmt.Errorf("socket.Request(%q): %w", WhitelistCaller, err)
 	// 	}
 	// 	if !reply.IsOK() {
 	// 		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
@@ -1238,7 +1236,7 @@ func (m *NodeHandshake) requestSecureOutbounds(contextURL string, con *ManagerCo
 // 	}
 
 // 	msg := message.Request{
-// 		Command: Handshake,
+// 		Command: WhitelistCaller,
 // 		Parameters: datatype.New().
 // 			Set("manager-hmac-secret", secret).
 // 			Set("manager-url", managerLink.String()).
@@ -1253,7 +1251,7 @@ func (m *NodeHandshake) requestSecureOutbounds(contextURL string, con *ManagerCo
 
 // 	reply, err := node.Request(&msg)
 // 	if err != nil {
-// 		return fmt.Errorf("socket.Request(%q): %w", Handshake, err)
+// 		return fmt.Errorf("socket.Request(%q): %w", WhitelistCaller, err)
 // 	}
 // 	if !reply.IsOK() {
 // 		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
@@ -1405,7 +1403,7 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 	status := depStatus.managerCon.status.Get()
 
 	if status == STATUS_MANAGER_UNSET || status == STATUS_MANAGER_NO_WHITELIST {
-		err := m.whitelistSelfInDeps(contextURL, depStatus)
+		err := m.whitelistCaller(contextURL, depStatus)
 		if err != nil {
 			if errors.Is(err, message.ErrNoCurveKey) {
 				depStatus.managerCon.status.Set(STATUS_MANAGER_NOT_AUTH)
@@ -1731,8 +1729,8 @@ func (m *NodeHandshake) onSecureInboundEdgeCon(req message.RequestInterface) mes
 		hmac:   routeHmac,
 	}
 
-	if err := m.whitelistSelfInDeps(contextURL.String(), depStatus); err != nil {
-		return req.Fail(fmt.Sprintf("whitelistSelfInDeps(%q): %v", managerLink.String(), err))
+	if err := m.whitelistCaller(contextURL.String(), depStatus); err != nil {
+		return req.Fail(fmt.Sprintf("whitelistCaller(%q): %v", managerLink.String(), err))
 	}
 	depStatus.managerCon.status.Set(STATUS_MANAGER_WAITING)
 	if err := m.connectManager(contextURL.String(), depStatus); err != nil {

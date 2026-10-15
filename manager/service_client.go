@@ -67,7 +67,7 @@ func handlerControlTimeout(service config.Service) time.Duration {
 	return managerProbeTimeout(service) * 2
 }
 
-// handshakeRequestTimeoutByProtocol covers callee onHandshake work across multiple handler control/setup round-trips.
+// handshakeRequestTimeoutByProtocol covers callee onWhitelistCaller work across multiple handler control/setup round-trips.
 func handshakeRequestTimeoutByProtocol(protocol string) time.Duration {
 	timeout := probeTimeout(protocol) * 6
 	min := topology.DefaultTimeout * 2
@@ -77,7 +77,7 @@ func handshakeRequestTimeoutByProtocol(protocol string) time.Duration {
 	return timeout
 }
 
-// handshakeRequestTimeout covers callee onHandshake work across multiple handler control/setup round-trips.
+// handshakeRequestTimeout covers callee onWhitelistCaller work across multiple handler control/setup round-trips.
 func handshakeRequestTimeout(service config.Service) time.Duration {
 	timeout := handlerControlTimeout(service) * 6
 	min := topology.DefaultTimeout * 2

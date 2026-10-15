@@ -95,7 +95,7 @@ func startFakeCalleeManager(t *testing.T, service topologyConfig.Service, allowe
 	for _, cmd := range managerWhitelistCommands() {
 		handler.RequireWhitelist(cmd)
 	}
-	require.NoError(t, handler.Route(Handshake, func(req message.RequestInterface) message.ReplyInterface {
+	require.NoError(t, handler.Route(WhitelistCaller, func(req message.RequestInterface) message.ReplyInterface {
 		secret, err := req.RouteParameters().StringValue("manager-hmac-secret")
 		if err != nil {
 			return req.Fail(err.Error())
@@ -164,7 +164,7 @@ func refreshCalleeHandshake(t *testing.T, caller *Manager, calleeName string) {
 				status: NewConnectionStatus(STATUS_MANAGER_UNSET),
 			},
 		}
-		require.NoError(t, caller.whitelistSelfInDeps(caller.NodeHandshake.serviceURL.String(), depStatus))
+		require.NoError(t, caller.whitelistCaller(caller.NodeHandshake.serviceURL.String(), depStatus))
 		running, runErr = caller.IsServiceRunning(depURL, 1)
 	}
 	require.NoError(t, runErr)
@@ -357,7 +357,7 @@ func TestHandshakeRouteRegisteredOnStart(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := &message.Request{
-		Command: Handshake,
+		Command: WhitelistCaller,
 		Parameters: datatype.New().
 			Set("manager-hmac-secret", message.GenerateSecret()).
 			Set("manager-url", managerURL.String()).

@@ -116,7 +116,7 @@ func startFakeDepsInDepsEntrypointManager(t *testing.T, entrypointService topolo
 	for _, cmd := range managerWhitelistCommands() {
 		handler.RequireWhitelist(cmd)
 	}
-	require.NoError(t, handler.Route(Handshake, func(req message.RequestInterface) message.ReplyInterface {
+	require.NoError(t, handler.Route(WhitelistCaller, func(req message.RequestInterface) message.ReplyInterface {
 		secret, err := req.RouteParameters().StringValue("manager-hmac-secret")
 		if err != nil {
 			return req.Fail(err.Error())
