@@ -139,7 +139,7 @@ func proxyManagerWhitelistCommands() []string {
 		handlers.StopProxyHandlerCommand,
 		handlers.RemoveProxyHandlerCommand,
 
-		GetServiceStatus,
+		EvaluateStatus,
 		SecureOutbounds,
 		SecureInbounds,
 		SecureOutboundEdges,
@@ -1530,9 +1530,9 @@ func (m *ProxyManager) Start() error {
 			return fmt.Errorf(`handler.Route("%s"): %w`, Handshake, err)
 		}
 	}
-	if !m.Interface.IsRouteExist(GetServiceStatus) {
-		if err := m.Interface.Route(GetServiceStatus, m.NodeHandshake.onGetServiceStatus); err != nil {
-			return fmt.Errorf(`handler.Route("%s"): %w`, GetServiceStatus, err)
+	if !m.Interface.IsRouteExist(EvaluateStatus) {
+		if err := m.Interface.Route(EvaluateStatus, m.NodeHandshake.onEvaluateStatus); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, EvaluateStatus, err)
 		}
 	}
 	if !m.Interface.IsRouteExist(SecureOutbounds) {

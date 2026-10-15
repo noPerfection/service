@@ -32,7 +32,7 @@ const (
 	// Handshake is the manager route used to exchange command whitelist secrets.
 	// It is intentionally excluded from RequireWhitelist enforcement.
 	Handshake           = "handshake"
-	GetServiceStatus    = "service-status"
+	EvaluateStatus      = "evaluate-status"
 	SecureOutbounds     = "secure-outbounds"
 	SecureInbounds      = "secure-inbounds"
 	SecureOutboundEdges = "secure-outbound-edges"
@@ -190,7 +190,7 @@ func managerWhitelistCommands() []string {
 		StopService,
 		Services,
 		SecureEdges,
-		GetServiceStatus,
+		EvaluateStatus,
 		SecureOutbounds,
 		SecureInbounds,
 		SecureOutboundEdges,
@@ -1028,8 +1028,8 @@ func (m *Manager) Start() error {
 	if err := m.Interface.Route(Handshake, m.NodeHandshake.onHandshake); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, Handshake, err)
 	}
-	if err := m.Interface.Route(GetServiceStatus, m.NodeHandshake.onGetServiceStatus); err != nil {
-		return fmt.Errorf(`handler.Route("%s"): %w`, GetServiceStatus, err)
+	if err := m.Interface.Route(EvaluateStatus, m.NodeHandshake.onEvaluateStatus); err != nil {
+		return fmt.Errorf(`handler.Route("%s"): %w`, EvaluateStatus, err)
 	}
 	if err := m.Interface.Route(SecureOutbounds, m.NodeHandshake.onSecureOutbounds); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, SecureOutbounds, err)

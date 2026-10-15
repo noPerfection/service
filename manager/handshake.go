@@ -483,7 +483,7 @@ func (m *NodeHandshake) onHandshake(req message.RequestInterface) message.ReplyI
 	return req.Ok()
 }
 
-func (m *NodeHandshake) onGetServiceStatus(req message.RequestInterface) message.ReplyInterface {
+func (m *NodeHandshake) onEvaluateStatus(req message.RequestInterface) message.ReplyInterface {
 	contextURL, callerURL, err := getServiceUrls(req)
 	if err != nil {
 		return req.Fail(fmt.Sprintf("getServiceUrls(): %v", err))
@@ -497,7 +497,7 @@ func (m *NodeHandshake) onGetServiceStatus(req message.RequestInterface) message
 	if err := statusKV.Interface(&status); err != nil {
 		return req.Fail(fmt.Sprintf("req.RouteParameters().NestedValue('dep-status').Interface(&status): %v", err))
 	}
-	fmt.Printf("onGetServiceStatus. Context=%s, CallerURL=%s, status=%v\n", contextURL.String(), callerURL.String(), statusKV)
+	fmt.Printf("onEvaluateStatus. Context=%s, CallerURL=%s, status=%v\n", contextURL.String(), callerURL.String(), statusKV)
 
 	if len(status.Outbounds) > 0 {
 		for routeURL, outbound := range status.Outbounds {
@@ -1303,12 +1303,12 @@ func (m *NodeHandshake) secureOutbound(contextURL string, routeURL string, con *
 // 	return nil
 // }
 
-func (m *NodeHandshake) checkStatus(node *topology.Client, contextURL string, depStatus *ServiceStatus) (ServiceStatusMsg, error) {
+func (m *NodeHandshake) evaluateStatus(node *topology.Client, contextURL string, depStatus *ServiceStatus) (ServiceStatusMsg, error) {
 	node.Attempt(1)
 	node.Timeout(handshakeRequestTimeoutByProtocol(depStatus.protocol))
-	fmt.Printf("Check status. Context=%s, DepURL=%s, status=%v\n", contextURL, depStatus.serviceURL.String(), depStatus.toMsg())
+	fmt.Printf("Evaluate status. Context=%s, DepURL=%s, status=%v\n", contextURL, depStatus.serviceURL.String(), depStatus.toMsg())
 	rep, err := node.Request(&message.Request{
-		Command: GetServiceStatus,
+		Command: EvaluateStatus,
 		Parameters: datatype.New().
 			Set("context-url", contextURL).
 			Set("service-url", m.serviceURL.String()).
@@ -1512,7 +1512,7 @@ func (m *NodeHandshake) secureOutboundEdgeCon(contextURL string, depStatus *Serv
 }
 
 // onSecureOutboundEdgeCon is the dependency side of secureOutboundEdgeCon.
-// The context should already exist from connectManager or service-status.
+// The context should already exist from connectManager or evaluate-status.
 // The other dependency is stored as a manager connection, not as an edge.
 // This manager does not handshake that entry: it is an inbound caller, and
 // only the context owner may call it.
@@ -1696,13 +1696,13 @@ func (m *NodeHandshake) handshakeDep(contextURL string, depStatus *ServiceStatus
 	}
 
 	if depStatus.managerCon.status.Get() == CONNECTION_STATUS_CONNECTED {
-		// Just in case if checkStatus is taking longer time
+		// Just in case if evaluateStatus is taking longer time
 		depStatus.managerCon.lockGoroutine = true
-		status, err := m.checkStatus(depStatus.managerCon.client, contextURL, depStatus)
+		status, err := m.evaluateStatus(depStatus.managerCon.client, contextURL, depStatus)
 		depStatus.managerCon.lockGoroutine = false
 		if err != nil { // do not check for error about connection issue, since connectManager should do it
 			if m.logger != nil {
-				m.logger.Error("checkStatus", "contextURL", contextURL, "error", err)
+				m.logger.Error("evaluateStatus", "contextURL", contextURL, "error", err)
 			}
 		} else {
 			if len(depStatus.inbounds) > 0 {

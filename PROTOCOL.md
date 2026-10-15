@@ -335,8 +335,6 @@ STATUS_MANAGER_NOT_AUTH is indicating that service denied access at the protocol
 
 # Todo
 
-1. Rename CheckStatus and getServiceStatus to EvaluateStatus
-
 2. Change the status names as they are chaotic
 CONNECTION_STATUS_* for manager connection, and outbounds and every status is confusing.
 
@@ -348,7 +346,7 @@ STATUS_EDGE_* for the edges
 
 3. SecureOutbounds runs a goroutine for each outbound route, network makes it slow need to make it one request known as SecureOutbounds.
 
-4. Implement [status 2. inbounds](#status-2-inbounds)
+4. Implement [status 2. inbounds](#status-2-inbounds), requires todo 8
 
 5. Rename Handshake command and onHanshake handle function, along whitelistSelfinDeps to one name otherwise confusing.
 Rename command to WhitelistCaller and handling function to onWhitelistCaller.
