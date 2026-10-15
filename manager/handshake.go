@@ -1395,7 +1395,11 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 				if m.logger != nil {
 					m.logger.Error("probeServiceRunning", "contextURL", contextURL, "error", err)
 				}
-				depStatus.managerCon.status.Set(CONNECTION_STATUS_NOT_SET)
+				if status == CONNECTION_STATUS_NOT_SET {
+					depStatus.managerCon.status.Tick()
+				} else {
+					depStatus.managerCon.status.Set(CONNECTION_STATUS_NOT_SET)
+				}
 				return fmt.Errorf("probeServiceRunning(%q): %w", depStatus.serviceURL.String(), err)
 			}
 		}
@@ -1403,7 +1407,7 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 			if status == CONNECTION_STATUS_TIMEOUT {
 				depStatus.managerCon.status.Tick()
 			} else {
-				depStatus.managerCon.status.Set(CONNECTION_STATUS_NOT_SET)
+				depStatus.managerCon.status.Set(CONNECTION_STATUS_TIMEOUT)
 			}
 			return fmt.Errorf("service %q is not running", depStatus.serviceURL.String())
 		} else {
