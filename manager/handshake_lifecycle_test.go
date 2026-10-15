@@ -155,7 +155,16 @@ func refreshCalleeHandshake(t *testing.T, caller *Manager, calleeName string) {
 	depURL := calleeDepURL(t, calleeName)
 	running, runErr := caller.IsServiceRunning(depURL, 1)
 	if runErr != nil && errors.Is(runErr, message.ErrAccessDenied) {
-		require.NoError(t, caller.whitelistSelfInDeps(depURL))
+		depLink, err := mushroom.Parse(depURL)
+		require.NoError(t, err)
+		depStatus := &ServiceStatus{
+			serviceURL: depLink.New(topologyConfig.ServiceManagerCategory),
+			protocol:   "inproc",
+			managerCon: &ManagerConnection{
+				status: NewConnectionStatus(CONNECTION_STATUS_NOT_SET),
+			},
+		}
+		require.NoError(t, caller.whitelistSelfInDeps(caller.NodeHandshake.serviceURL.String(), depStatus))
 		running, runErr = caller.IsServiceRunning(depURL, 1)
 	}
 	require.NoError(t, runErr)
