@@ -164,7 +164,7 @@ func (h *NodeHandshake) setTopologyContext() error {
 				protocol:   protocol,
 				managerCon: &ManagerConnection{
 					status: ConnectionStatus{
-						status:      CONNECTION_STATUS_NOT_SET,
+						status:      STATUS_MANAGER_UNSET,
 						updatedTime: time.Now(),
 						tick:        time.Now(),
 					},
@@ -192,7 +192,7 @@ func (h *NodeHandshake) setTopologyContext() error {
 						context[contextURL][depManagerURL.String()].inbounds[route] = &InboundConnection{
 							depURL: inboundURL,
 							status: ConnectionStatus{
-								status:      CONNECTION_STATUS_NOT_SET,
+								status:      STATUS_ROUTE_UNSET,
 								updatedTime: time.Now(),
 								tick:        time.Now(),
 							},
@@ -207,7 +207,7 @@ func (h *NodeHandshake) setTopologyContext() error {
 						context[contextURL][depManagerURL.String()].inboundCons[route] = &InboundConnection{
 							depURL: inboundURL,
 							status: ConnectionStatus{
-								status:      CONNECTION_STATUS_NOT_SET,
+								status:      STATUS_MANAGER_UNSET,
 								updatedTime: time.Now(),
 								tick:        time.Now(),
 							},
@@ -215,7 +215,7 @@ func (h *NodeHandshake) setTopologyContext() error {
 						context[contextURL][depManagerURL.String()].inboundEdges[route] = &InboundConnection{
 							depURL: inboundURL,
 							status: ConnectionStatus{
-								status:      CONNECTION_STATUS_NOT_SET,
+								status:      STATUS_ROUTE_UNSET,
 								updatedTime: time.Now(),
 								tick:        time.Now(),
 							},
@@ -241,7 +241,7 @@ func (h *NodeHandshake) setTopologyContext() error {
 						outboundConnection := OutboundConnection{
 							depURL: outboundURL,
 							status: ConnectionStatus{
-								status:      CONNECTION_STATUS_NOT_SET,
+								status:      STATUS_ROUTE_UNSET,
 								updatedTime: time.Now(),
 								tick:        time.Now(),
 							},
@@ -262,7 +262,7 @@ func (h *NodeHandshake) setTopologyContext() error {
 						context[contextURL][depManagerURL.String()].outboundCons[route] = &OutboundConnection{
 							depURL: outboundURL,
 							status: ConnectionStatus{
-								status:      CONNECTION_STATUS_NOT_SET,
+								status:      STATUS_MANAGER_UNSET,
 								updatedTime: time.Now(),
 								tick:        time.Now(),
 							},
@@ -270,7 +270,7 @@ func (h *NodeHandshake) setTopologyContext() error {
 						context[contextURL][depManagerURL.String()].outboundEdges[route] = &OutboundConnection{
 							depURL: outboundURL,
 							status: ConnectionStatus{
-								status:      CONNECTION_STATUS_NOT_SET,
+								status:      STATUS_ROUTE_UNSET,
 								updatedTime: time.Now(),
 								tick:        time.Now(),
 							},
@@ -503,17 +503,17 @@ func (m *NodeHandshake) onEvaluateStatus(req message.RequestInterface) message.R
 		for routeURL, outbound := range status.Outbounds {
 			depStatus, ok := m.topologyContexts[contextURL.String()][callerURL.As(mushroom.HANDLER).String()]
 			if !ok {
-				outbound.Status = CONNECTION_STATUS_NOT_FOUND
+				outbound.Status = STATUS_ROUTE_NOT_FOUND
 			} else {
 				inboundStatus, inboundOK := depStatus.inbounds[outbound.DepURL]
 				if !inboundOK {
-					outbound.Status = CONNECTION_STATUS_NOT_FOUND
+					outbound.Status = STATUS_ROUTE_NOT_FOUND
 				} else {
 					if outbound.Status != inboundStatus.status.Get() {
-						outbound.Status = CONNECTION_STATUS_MISMATCH
-					} else if outbound.Status == CONNECTION_STATUS_CONNECTED {
+						outbound.Status = STATUS_ROUTE_MISMATCH
+					} else if outbound.Status == STATUS_ROUTE_SECURED {
 						if outbound.CacheHash != depStatus.inbounds[outbound.DepURL].cacheHash {
-							outbound.Status = CONNECTION_STATUS_MISMATCH
+							outbound.Status = STATUS_ROUTE_MISMATCH
 						}
 					}
 				}
@@ -629,7 +629,7 @@ func (m *NodeHandshake) onSecureOutbounds(req message.RequestInterface) message.
 	}
 
 	depStatus.inbounds[targetURL.String()] = &InboundConnection{
-		status: NewConnectionStatus(CONNECTION_STATUS_CHECKING),
+		status: NewConnectionStatus(STATUS_ROUTE_WAITING),
 		depURL: sourceURL,
 		hmac:   hmac,
 	}
@@ -642,7 +642,7 @@ func (m *NodeHandshake) onSecureOutbounds(req message.RequestInterface) message.
 	if m.publicKeys[sourceURL.As(mushroom.HANDLER).String()] != pubKey {
 		m.publicKeys[sourceURL.As(mushroom.HANDLER).String()] = pubKey
 	}
-	depStatus.inbounds[targetURL.String()].status.Set(CONNECTION_STATUS_CONNECTED)
+	depStatus.inbounds[targetURL.String()].status.Set(STATUS_ROUTE_SECURED)
 	depStatus.inbounds[targetURL.String()].cacheHash = m.computeOutboundCacheHash(sourceURL, targetURL, hmac)
 
 	return req.Ok(datatype.New().Set("outbound-route-public-key", pubKey))
@@ -937,9 +937,9 @@ func (m *NodeHandshake) whitelistSelfInDeps(contextURL string, depStatus *Servic
 
 func (m *NodeHandshake) secureInbounds(contextURL string, depStatus *ServiceStatus, inboundUpdates map[string]EdgeConnectionMsg) {
 	for routeURL, inbound := range depStatus.inbounds {
-		if inbound.status.Get() == CONNECTION_STATUS_CHECKING {
+		if inbound.status.Get() == STATUS_ROUTE_CHECKING {
 			continue
-		} else if inboundUpdates != nil && inboundUpdates[routeURL].Status == CONNECTION_STATUS_CONNECTED {
+		} else if inboundUpdates != nil && inboundUpdates[routeURL].Status == STATUS_ROUTE_SECURED {
 			continue
 		} else {
 			// go func() {
@@ -956,9 +956,9 @@ func (m *NodeHandshake) secureInbounds(contextURL string, depStatus *ServiceStat
 
 func (m *NodeHandshake) secureOutbounds(contextURL string, depStatus *ServiceStatus, outboundEvaluations map[string]EdgeConnectionMsg) {
 	for routeURL, outbound := range depStatus.outbounds {
-		if outbound.status.Get() == CONNECTION_STATUS_CHECKING {
+		if outbound.status.Get() == STATUS_ROUTE_CHECKING {
 			continue
-		} else if outboundEvaluations[routeURL].Status == CONNECTION_STATUS_CONNECTED {
+		} else if outboundEvaluations[routeURL].Status == STATUS_ROUTE_SECURED {
 			continue
 		} else {
 			go func() {
@@ -1009,7 +1009,7 @@ func (m *NodeHandshake) prepareOutbound(contextURL string, routeURL string, outb
 
 func (m *NodeHandshake) secureOutbound(contextURL string, routeURL string, con *ManagerConnection, outbound *OutboundConnection) error {
 	// set the status
-	outbound.status.Set(CONNECTION_STATUS_CHECKING)
+	outbound.status.Set(STATUS_ROUTE_CHECKING)
 
 	// now call the secureOutbounds request.
 	req := message.Request{
@@ -1025,23 +1025,23 @@ func (m *NodeHandshake) secureOutbound(contextURL string, routeURL string, con *
 
 	rep, err := con.client.Request(&req)
 	if err != nil {
-		outbound.status.Set(CONNECTION_STATUS_NOT_SET)
+		outbound.status.Set(STATUS_ROUTE_UNSET)
 		return fmt.Errorf("request(secure-outbounds, route: %s): %w", routeURL, err)
 	} else if !rep.IsOK() {
-		outbound.status.Set(CONNECTION_STATUS_NOT_SET)
+		outbound.status.Set(STATUS_ROUTE_UNSET)
 		return fmt.Errorf("request(secure-outbounds, route: %s): reply: %s", routeURL, rep.ErrorMessage())
 	}
 
 	outboundRoutePublicKey, err := rep.ReplyParameters().StringValue("outbound-route-public-key")
 	if err != nil {
-		outbound.status.Set(CONNECTION_STATUS_NOT_SET)
+		outbound.status.Set(STATUS_ROUTE_UNSET)
 		return fmt.Errorf("request(secure-outbounds, route: %s).ReplyParameters().StringValue('outbound-route-public-key'): %w", routeURL, err)
 	}
 	routeTopology, _ := mushroom.Parse(routeURL)
 	m.publicKeys[routeTopology.As(mushroom.HANDLER).String()] = outboundRoutePublicKey
 
 	zap.AuthCurveAdd(outbound.depURL.As(mushroom.HANDLER).String(), outboundRoutePublicKey, routeTopology.As(mushroom.HANDLER))
-	outbound.status.Set(CONNECTION_STATUS_CONNECTED)
+	outbound.status.Set(STATUS_ROUTE_SECURED)
 	outbound.cacheHash = m.computeOutboundCacheHash(routeTopology, outbound.depURL, outbound.hmac)
 
 	// func (m *NodeHandshake) secureInbounds(depStatus *ServiceStatus) error {
@@ -1344,24 +1344,24 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 
 	status := depStatus.managerCon.status.Get()
 
-	if status == CONNECTION_STATUS_NOT_SET || status == CONNECTION_STATUS_ACCESS_ERR {
+	if status == STATUS_MANAGER_UNSET || status == STATUS_MANAGER_NO_WHITELIST {
 		err := m.whitelistSelfInDeps(contextURL, depStatus)
 		if err != nil {
 			if errors.Is(err, message.ErrNoCurveKey) {
-				depStatus.managerCon.status.Set(CONNECTION_STATUS_CURVE_ERR)
+				depStatus.managerCon.status.Set(STATUS_MANAGER_NOT_AUTH)
 				return m.connectManager(contextURL, depStatus, true)
 			} else {
-				if status == CONNECTION_STATUS_NOT_SET {
+				if status == STATUS_MANAGER_UNSET {
 					depStatus.managerCon.status.Tick()
 				} else {
-					depStatus.managerCon.status.Set(CONNECTION_STATUS_NOT_SET)
+					depStatus.managerCon.status.Set(STATUS_MANAGER_UNSET)
 				}
 			}
 			return nil
 		}
-		depStatus.managerCon.status.Set(CONNECTION_STATUS_NOT_CHECKED)
+		depStatus.managerCon.status.Set(STATUS_MANAGER_WAITING)
 		return m.connectManager(contextURL, depStatus, true)
-	} else if status == CONNECTION_STATUS_CURVE_ERR {
+	} else if status == STATUS_MANAGER_NOT_AUTH {
 		if err := m.topology.Reload(); err != nil {
 			return fmt.Errorf("topology.Reload: %w", err)
 		}
@@ -1373,45 +1373,45 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 				// return m.connectManager(contextURL, depStatus, true)
 				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
 			} else {
-				depStatus.managerCon.status.Set(CONNECTION_STATUS_NOT_SET)
+				depStatus.managerCon.status.Set(STATUS_MANAGER_UNSET)
 				// return m.connectManager(contextURL, depStatus, true)
 				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
 			}
 		} else {
 			// After setting the service, it needs to set the hmac keys
-			depStatus.managerCon.status.Set(CONNECTION_STATUS_NOT_SET)
+			depStatus.managerCon.status.Set(STATUS_MANAGER_UNSET)
 			return m.connectManager(contextURL, depStatus, true)
 		}
 	} else {
 		running, err := probeServiceRunning(depStatus.managerCon.client, depStatus.serviceURL)
 		if err != nil {
 			if errors.Is(err, message.ErrNoCurveKey) {
-				depStatus.managerCon.status.Set(CONNECTION_STATUS_CURVE_ERR)
+				depStatus.managerCon.status.Set(STATUS_MANAGER_NOT_AUTH)
 				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
 			} else if errors.Is(err, message.ErrAccessDenied) {
-				depStatus.managerCon.status.Set(CONNECTION_STATUS_ACCESS_ERR)
+				depStatus.managerCon.status.Set(STATUS_MANAGER_NO_WHITELIST)
 				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
 			} else {
 				if m.logger != nil {
 					m.logger.Error("probeServiceRunning", "contextURL", contextURL, "error", err)
 				}
-				if status == CONNECTION_STATUS_NOT_SET {
+				if status == STATUS_MANAGER_UNSET {
 					depStatus.managerCon.status.Tick()
 				} else {
-					depStatus.managerCon.status.Set(CONNECTION_STATUS_NOT_SET)
+					depStatus.managerCon.status.Set(STATUS_MANAGER_UNSET)
 				}
 				return fmt.Errorf("probeServiceRunning(%q): %w", depStatus.serviceURL.String(), err)
 			}
 		}
 		if !running {
-			if status == CONNECTION_STATUS_TIMEOUT {
+			if status == STATUS_MANAGER_ERR {
 				depStatus.managerCon.status.Tick()
 			} else {
-				depStatus.managerCon.status.Set(CONNECTION_STATUS_TIMEOUT)
+				depStatus.managerCon.status.Set(STATUS_MANAGER_ERR)
 			}
 			return fmt.Errorf("service %q is not running", depStatus.serviceURL.String())
 		} else {
-			depStatus.managerCon.status.Set(CONNECTION_STATUS_CONNECTED)
+			depStatus.managerCon.status.Set(STATUS_MANAGER_SECURED)
 		}
 	}
 	return nil
@@ -1435,7 +1435,7 @@ func (m *NodeHandshake) getDepPublicKey(contextURL string, depURL mushroom.Topol
 	if target == nil {
 		return "", fmt.Errorf("dependency %q is not in context %q", depURL.String(), contextURL)
 	}
-	if target.managerCon == nil || target.managerCon.status.Get() != CONNECTION_STATUS_CONNECTED {
+	if target.managerCon == nil || target.managerCon.status.Get() != STATUS_MANAGER_SECURED {
 		return "", errDepManagerNotConnected
 	}
 
@@ -1462,7 +1462,7 @@ func (m *NodeHandshake) inboundTargetOutboundEdge(contextURL, inboundRouteURL st
 			break
 		}
 	}
-	if target == nil || target.managerCon.status.Get() != CONNECTION_STATUS_CONNECTED {
+	if target == nil || target.managerCon.status.Get() != STATUS_MANAGER_SECURED {
 		return nil
 	}
 
@@ -1507,7 +1507,7 @@ func (m *NodeHandshake) secureOutboundEdgeCon(contextURL string, depStatus *Serv
 	if !reply.IsOK() {
 		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
-	edge.status.Set(CONNECTION_STATUS_CONNECTED)
+	edge.status.Set(STATUS_ROUTE_SECURED)
 	return nil
 }
 
@@ -1552,7 +1552,7 @@ func (m *NodeHandshake) onSecureOutboundEdgeCon(req message.RequestInterface) me
 	if depStatus.managerCon == nil {
 		depStatus.managerCon = &ManagerConnection{}
 	}
-	depStatus.managerCon.status.Set(CONNECTION_STATUS_SET_NOT_CONNECTED)
+	depStatus.managerCon.status.Set(STATUS_MANAGER_WAITING)
 	return req.Ok()
 }
 
@@ -1578,7 +1578,7 @@ func (m *NodeHandshake) secureInboundEdgeCon(contextURL string, depStatus *Servi
 	if !reply.IsOK() {
 		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
-	edge.status.Set(CONNECTION_STATUS_CONNECTED)
+	edge.status.Set(STATUS_ROUTE_SECURED)
 	return nil
 }
 
@@ -1666,7 +1666,7 @@ func (m *NodeHandshake) onSecureInboundEdgeCon(req message.RequestInterface) mes
 		depStatus.inbounds = make(map[string]*InboundConnection)
 	}
 	depStatus.inbounds[inboundDepURL.String()] = &InboundConnection{
-		status: NewConnectionStatus(CONNECTION_STATUS_SET_NOT_CONNECTED),
+		status: NewConnectionStatus(STATUS_ROUTE_WAITING),
 		depURL: inboundRoute,
 		hmac:   routeHmac,
 	}
@@ -1674,7 +1674,7 @@ func (m *NodeHandshake) onSecureInboundEdgeCon(req message.RequestInterface) mes
 	if err := m.whitelistSelfInDeps(contextURL.String(), depStatus); err != nil {
 		return req.Fail(fmt.Sprintf("whitelistSelfInDeps(%q): %v", managerLink.String(), err))
 	}
-	depStatus.managerCon.status.Set(CONNECTION_STATUS_NOT_CHECKED)
+	depStatus.managerCon.status.Set(STATUS_MANAGER_WAITING)
 	if err := m.connectManager(contextURL.String(), depStatus); err != nil {
 		return req.Fail(fmt.Sprintf("connectManager(%q): %v", managerLink.String(), err))
 	}
@@ -1695,7 +1695,7 @@ func (m *NodeHandshake) handshakeDep(contextURL string, depStatus *ServiceStatus
 		fmt.Printf("Dependency status changed. StatusChange(%s -> %s), URL=%s\n", preStatus, afterStatus, depStatus.serviceURL.String())
 	}
 
-	if depStatus.managerCon.status.Get() == CONNECTION_STATUS_CONNECTED {
+	if depStatus.managerCon.status.Get() == STATUS_MANAGER_SECURED {
 		// Just in case if evaluateStatus is taking longer time
 		depStatus.managerCon.lockGoroutine = true
 		status, err := m.evaluateStatus(depStatus.managerCon.client, contextURL, depStatus)
@@ -1732,12 +1732,12 @@ func (m *NodeHandshake) handshakeDep(contextURL string, depStatus *ServiceStatus
 					}
 					outboundStatus := outboundEdge.status.Get()
 					// the inbound securing requires the outbound to whitelist inbound manager
-					if outboundStatus != CONNECTION_STATUS_CONNECTED && outboundStatus != CONNECTION_STATUS_SET_NOT_CONNECTED {
+					if outboundStatus != STATUS_ROUTE_SECURED && outboundStatus != STATUS_ROUTE_WAITING {
 						fmt.Printf("waiting for outbound to allow inbound edge (%s)\n", inboundEdge.depURL.String())
 						continue
 					}
 					fmt.Printf("inboundEdge connection >: %s\n", outboundStatus)
-					if inboundEdge.status.Get() == CONNECTION_STATUS_CONNECTED || inboundEdge.status.Get() == CONNECTION_STATUS_SET_NOT_CONNECTED {
+					if inboundEdge.status.Get() == STATUS_ROUTE_SECURED || inboundEdge.status.Get() == STATUS_ROUTE_WAITING {
 						continue
 					}
 					pubKey, err := m.getDepPublicKey(contextURL, inboundEdge.depURL)
@@ -1765,11 +1765,11 @@ func (m *NodeHandshake) handshakeDep(contextURL string, depStatus *ServiceStatus
 				// fmt.Printf("outboundEdges. Dep needs to send message to another dep. URL=%s\n", depStatus.serviceURL.String())
 				for routeURL, outboundEdge := range depStatus.outboundEdges {
 					status := outboundEdge.status.Get()
-					if status == CONNECTION_STATUS_CONNECTED || status == CONNECTION_STATUS_SET_NOT_CONNECTED {
+					if status == STATUS_ROUTE_SECURED || status == STATUS_ROUTE_WAITING {
 						// fmt.Printf("outboundEdge is connected or set and soon to be connected, skipping. Route URL=%s, edge URL=%s\n", routeURL, outboundEdge.depURL.String())
 						continue
 					}
-					// fmt.Printf("outboundEdge: URL=%s, connect, current status=%t\n", outboundEdge.depURL.String(), status == CONNECTION_STATUS_CONNECTED)
+					// fmt.Printf("outboundEdge: URL=%s, connect, current status=%t\n", outboundEdge.depURL.String(), status == STATUS_ROUTE_SECURED)
 					pubKey, err := m.getDepPublicKey(contextURL, outboundEdge.depURL)
 					if errors.Is(err, errDepManagerNotConnected) {
 						// fmt.Printf("outboundEdge: URL=%s, manager is not connected, skipping\n", outboundEdge.depURL.String())

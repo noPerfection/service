@@ -9,22 +9,12 @@ import (
 )
 
 const (
-	CONNECTION_STATUS_NOT_SET     = "not-set"      // 1. as default, no connection established -> request handshake
-	CONNECTION_STATUS_NOT_FOUND   = "not-found"    // 1. not found returned by check status to say to initiate
-	CONNECTION_STATUS_MISMATCH    = "mismatch"     // 1. if status mismatch when doing a status check
-	CONNECTION_STATUS_NOT_CHECKED = "not-checked"  // 2. once handshaked, set not-checked -> is-service-running
-	CONNECTION_STATUS_CHECKING    = "checking"     // 3. once handshaked, set checking -> is-service-running
-	CONNECTION_STATUS_ACCESS_ERR  = "access-error" // 3. if hmac error -> request handshake
-	CONNECTION_STATUS_CURVE_ERR   = "curve-error"  // 4. if curve mismatch -> request handshake
-	CONNECTION_STATUS_CONNECTED   = "connected"    // 5. skip manager
-	CONNECTION_STATUS_TIMEOUT     = "timeout"      // timeout -> request is-service-running
-	// connection status for edge connections
-	CONNECTION_STATUS_SET_NOT_CONNECTED = "set-not-connected"
-
 	// STATUS_ROUTE_* is set for root to dependency routes in any topology both inbounds and outbounds.
 	STATUS_ROUTE_UNSET     = "route-unset"     // the root-to-dependency route initial status.
 	STATUS_ROUTE_CHECKING  = "route-checking"  // is set by secureInbounds and secureOutbounds. If its set then skip it until secureInbounds or secureOutbounds complete from previous handshakes.
+	STATUS_ROUTE_WAITING   = "route-waiting"   // is set by onSecureOutbounds. The dependency has the route and waits until it is secured.
 	STATUS_ROUTE_NOT_FOUND = "route-not-found" // set by dependency in status evaluation indicating it doesn't know it.
+	STATUS_ROUTE_MISMATCH  = "route-mismatch"  // set by dependency when the route status or cache hash does not match.
 	STATUS_ROUTE_SECURED   = "route-secured"   // the connection between routes is established correctly. tldr; it works
 
 	// STATUS_MANAGER_* is set between manager-to-manager connection in any topology:
@@ -69,10 +59,10 @@ func (c *ConnectionStatus) Set(status string) bool {
 	return true
 }
 
-// Returns status, if not set return CONNECTION_STATUS_NOT_SET ('not-set')
+// Get returns the status. An empty status is the manager initial state.
 func (c *ConnectionStatus) Get() string {
 	if c.status == "" {
-		return CONNECTION_STATUS_NOT_SET
+		return STATUS_MANAGER_UNSET
 	}
 	return c.status
 }
@@ -83,7 +73,7 @@ func (c *ConnectionStatus) Tick() {
 
 func (c *ConnectionStatus) String() string {
 	if c.status == "" {
-		return CONNECTION_STATUS_NOT_SET
+		return STATUS_MANAGER_UNSET
 	}
 	return fmt.Sprintf("%s@%s, tick: %s", c.status, c.updatedTime.Format(time.RFC3339), c.tick.Format(time.RFC3339))
 }
@@ -205,7 +195,7 @@ func (s *ServiceStatus) toMsg() *ServiceStatusMsg {
 				Status: inbound.status.Get(),
 				DepURL: inbound.depURL.String(),
 			}
-			if edge.Status == CONNECTION_STATUS_CONNECTED {
+			if edge.Status == STATUS_ROUTE_SECURED {
 				edge.CacheHash = inbound.cacheHash
 			}
 			msg.Inbounds[depURL] = edge
@@ -218,7 +208,7 @@ func (s *ServiceStatus) toMsg() *ServiceStatusMsg {
 				Status: outbound.status.Get(),
 				DepURL: outbound.depURL.String(),
 			}
-			if edge.Status == CONNECTION_STATUS_CONNECTED {
+			if edge.Status == STATUS_ROUTE_SECURED {
 				edge.CacheHash = outbound.cacheHash
 			}
 			msg.Outbounds[depURL] = edge

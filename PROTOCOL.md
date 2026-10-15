@@ -319,7 +319,9 @@ context URL, service URL, hmac
 STATUS_ROUTE_* is set by root and dependency for the inbounds and outbounds.
 STATUS_ROUTE_UNSET is set by the root initially. It means need to call secureInbounds or secureOutbounds.
 STATUS_ROUTE_CHECKING is set by secureOutbounds or secureInbounds in the beginning. If the connection to dependency takes longer time, then next handshake will not call secure* methods again until previous function not completes.
+STATUS_ROUTE_WAITING is set by onSecureOutbounds. The dependency has the route and waits until it is secured.
 STATUS_ROUTE_NOT_FOUND is set by dependency if topology context is not given for the given outbounds or inbounds.
+STATUS_ROUTE_MISMATCH is set by dependency when the route status or cache hash does not match.
 STATUS_ROUTE_SECURED is set by dependency if topology context exist and its correct.
 
 STATUS_MANAGER_* is set between manager to manager connection in any topology context (root to dependency or inbound/outbound connections)
@@ -338,16 +340,7 @@ STATUS_MANAGER_NOT_AUTH is indicating that service denied access at the protocol
 
 # Todo
 
-2. Change the status names as they are chaotic
-CONNECTION_STATUS_* for manager connection, and outbounds and every status is confusing.
-
-Need to clarify and a way to tell it says about progress.
-
-STATUS_MANAGER_* for manager connections.
-STATUS_ROUTE_* for outbounds, and inbounds. It should have names as MISMATCH, NOT_FOUND, and CONNECTED should be renamed to SECURED.
-STATUS_EDGE_* for the edges
-
-3. SecureOutbounds runs a goroutine for each outbound route, network makes it slow need to make it one request known as SecureOutbounds.
+3. SecureOutbound runs a goroutine for each outbound route, network in production will be slow, it needs to be a one request known as SecureOutbounds.
 
 4. Implement [status 2. inbounds](#status-2-inbounds), requires todo 8
 

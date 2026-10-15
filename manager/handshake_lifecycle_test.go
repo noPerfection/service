@@ -161,7 +161,7 @@ func refreshCalleeHandshake(t *testing.T, caller *Manager, calleeName string) {
 			serviceURL: depLink.New(topologyConfig.ServiceManagerCategory),
 			protocol:   "inproc",
 			managerCon: &ManagerConnection{
-				status: NewConnectionStatus(CONNECTION_STATUS_NOT_SET),
+				status: NewConnectionStatus(STATUS_MANAGER_UNSET),
 			},
 		}
 		require.NoError(t, caller.whitelistSelfInDeps(caller.NodeHandshake.serviceURL.String(), depStatus))
