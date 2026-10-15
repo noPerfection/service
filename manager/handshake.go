@@ -1542,9 +1542,9 @@ func (m *NodeHandshake) inboundTargetOutboundEdge(contextURL, inboundRouteURL st
 	return byCalleeRoute
 }
 
-// secureOutboundEdgeCon asks the dependency that owns the edge to allow the
+// secureOutboundCon asks the dependency that owns the edge to allow the
 // outbound target's manager to call it.
-func (m *NodeHandshake) secureOutboundEdgeCon(contextURL string, depStatus *ServiceStatus, routeURL string, edge *OutboundConnection, outboundPublicKey string) error {
+func (m *NodeHandshake) secureOutboundCon(contextURL string, depStatus *ServiceStatus, routeURL string, edge *OutboundConnection, outboundPublicKey string) error {
 	if depStatus.managerCon == nil || depStatus.managerCon.client == nil {
 		return fmt.Errorf("manager client for %q is not connected", depStatus.serviceURL.String())
 	}
@@ -1568,12 +1568,12 @@ func (m *NodeHandshake) secureOutboundEdgeCon(contextURL string, depStatus *Serv
 	return nil
 }
 
-// onSecureOutboundEdgeCon is the dependency side of secureOutboundEdgeCon.
+// onSecureOutboundCon is the dependency side of secureOutboundCon.
 // The context should already exist from connectManager or evaluate-status.
 // The other dependency is stored as a manager connection, not as an edge.
 // This manager does not handshake that entry: it is an inbound caller, and
 // only the context owner may call it.
-func (m *NodeHandshake) onSecureOutboundEdgeCon(req message.RequestInterface) message.ReplyInterface {
+func (m *NodeHandshake) onSecureOutboundCon(req message.RequestInterface) message.ReplyInterface {
 	contextURL, _, err := getServiceUrls(req)
 	if err != nil {
 		return req.Fail(fmt.Sprintf("getServiceUrls: %v", err))
@@ -1613,9 +1613,9 @@ func (m *NodeHandshake) onSecureOutboundEdgeCon(req message.RequestInterface) me
 	return req.Ok()
 }
 
-// secureInboundEdgeCon asks the dependency that owns the inbound edge to
+// secureInboundCon asks the dependency that owns the inbound edge to
 // whitelist the route for the outbound caller and track that handshake.
-func (m *NodeHandshake) secureInboundEdgeCon(contextURL string, depStatus *ServiceStatus, routeURL string, edge *InboundConnection, outboundPublicKey string) error {
+func (m *NodeHandshake) secureInboundCon(contextURL string, depStatus *ServiceStatus, routeURL string, edge *InboundConnection, outboundPublicKey string) error {
 	if depStatus.managerCon == nil || depStatus.managerCon.client == nil {
 		return fmt.Errorf("manager client for %q is not connected", depStatus.serviceURL.String())
 	}
@@ -1639,11 +1639,11 @@ func (m *NodeHandshake) secureInboundEdgeCon(contextURL string, depStatus *Servi
 	return nil
 }
 
-// onSecureInboundEdgeCon is the dependency side of secureInboundEdgeCon.
+// onSecureInboundCon is the dependency side of secureInboundCon.
 // It records the inbound on the caller dependency, whitelists that route
 // (the deps-in-deps half of SecureEdges), then handshakes that caller and
 // connects its manager.
-func (m *NodeHandshake) onSecureInboundEdgeCon(req message.RequestInterface) message.ReplyInterface {
+func (m *NodeHandshake) onSecureInboundCon(req message.RequestInterface) message.ReplyInterface {
 	contextURL, _, err := getServiceUrls(req)
 	if err != nil {
 		return req.Fail(fmt.Sprintf("getServiceUrls: %v", err))
@@ -1735,7 +1735,7 @@ func (m *NodeHandshake) onSecureInboundEdgeCon(req message.RequestInterface) mes
 	if err := m.connectManager(contextURL.String(), depStatus); err != nil {
 		return req.Fail(fmt.Sprintf("connectManager(%q): %v", managerLink.String(), err))
 	}
-	fmt.Printf("onSecureInboundEdgeCon: handshake includes initiator %s for inbound %s (context %s)\n", managerLink.String(), inboundRoute.String(), contextURL.String())
+	fmt.Printf("onSecureInboundCon: handshake includes initiator %s for inbound %s (context %s)\n", managerLink.String(), inboundRoute.String(), contextURL.String())
 	return req.Ok()
 }
 
@@ -1809,11 +1809,11 @@ func (m *NodeHandshake) handshakeDep(contextURL string, depStatus *ServiceStatus
 						}
 						continue
 					}
-					fmt.Printf("secureInboundEdgeCon(%s)\n", inboundEdge.depURL.String())
-					if err := m.secureInboundEdgeCon(contextURL, depStatus, routeURL, inboundEdge, pubKey); err != nil {
-						fmt.Printf("secureInboundEdgeCon(%s): %v\n", inboundEdge.depURL.String(), err)
+					fmt.Printf("secureInboundCon(%s)\n", inboundEdge.depURL.String())
+					if err := m.secureInboundCon(contextURL, depStatus, routeURL, inboundEdge, pubKey); err != nil {
+						fmt.Printf("secureInboundCon(%s): %v\n", inboundEdge.depURL.String(), err)
 						if m.logger != nil {
-							m.logger.Error("secureInboundEdgeCon", "contextURL", contextURL, "routeURL", routeURL, "error", err)
+							m.logger.Error("secureInboundCon", "contextURL", contextURL, "routeURL", routeURL, "error", err)
 						}
 					}
 				}
@@ -1838,9 +1838,9 @@ func (m *NodeHandshake) handshakeDep(contextURL string, depStatus *ServiceStatus
 						}
 						continue
 					}
-					if err := m.secureOutboundEdgeCon(contextURL, depStatus, routeURL, outboundEdge, pubKey); err != nil {
+					if err := m.secureOutboundCon(contextURL, depStatus, routeURL, outboundEdge, pubKey); err != nil {
 						if m.logger != nil {
-							m.logger.Error("secureOutboundEdgeCon", "contextURL", contextURL, "routeURL", routeURL, "error", err)
+							m.logger.Error("secureOutboundCon", "contextURL", contextURL, "routeURL", routeURL, "error", err)
 						}
 					}
 				}

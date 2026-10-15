@@ -1541,12 +1541,12 @@ func (m *ProxyManager) Start() error {
 		}
 	}
 	if !m.Interface.IsRouteExist(SecureOutboundEdgeCon) {
-		if err := m.Interface.Route(SecureOutboundEdgeCon, m.NodeHandshake.onSecureOutboundEdgeCon); err != nil {
+		if err := m.Interface.Route(SecureOutboundEdgeCon, m.NodeHandshake.onSecureOutboundCon); err != nil {
 			return fmt.Errorf(`handler.Route("%s"): %w`, SecureOutboundEdgeCon, err)
 		}
 	}
 	if !m.Interface.IsRouteExist(SecureInboundEdgeCon) {
-		if err := m.Interface.Route(SecureInboundEdgeCon, m.NodeHandshake.onSecureInboundEdgeCon); err != nil {
+		if err := m.Interface.Route(SecureInboundEdgeCon, m.NodeHandshake.onSecureInboundCon); err != nil {
 			return fmt.Errorf(`handler.Route("%s"): %w`, SecureInboundEdgeCon, err)
 		}
 	}

@@ -1034,10 +1034,10 @@ func (m *Manager) Start() error {
 	if err := m.Interface.Route(SecureOutbounds, m.NodeHandshake.onSecureOutbounds); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, SecureOutbounds, err)
 	}
-	if err := m.Interface.Route(SecureOutboundEdgeCon, m.NodeHandshake.onSecureOutboundEdgeCon); err != nil {
+	if err := m.Interface.Route(SecureOutboundEdgeCon, m.NodeHandshake.onSecureOutboundCon); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, SecureOutboundEdgeCon, err)
 	}
-	if err := m.Interface.Route(SecureInboundEdgeCon, m.NodeHandshake.onSecureInboundEdgeCon); err != nil {
+	if err := m.Interface.Route(SecureInboundEdgeCon, m.NodeHandshake.onSecureInboundCon); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, SecureInboundEdgeCon, err)
 	}
 	if err := m.Interface.Route(SecureEdges, m.onSecureEdges); err != nil {
