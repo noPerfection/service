@@ -61,6 +61,15 @@ type NodeHandshake struct {
 	handshakeMu             sync.Mutex
 }
 
+// outboundSecureItem is one route inside a SecureOutbounds request.
+// The request map is keyed by the dependency route URL, which is also source-url.
+type outboundSecureItem struct {
+	PublicKey string `json:"public-key"`
+	HMAC      string `json:"hmac"`
+	SourceURL string `json:"source-url"`
+	TargetURL string `json:"target-url"`
+}
+
 // errDepManagerNotConnected means the dependency's manager is not connected yet.
 var errDepManagerNotConnected = errors.New("dependency manager is not connected")
 
@@ -385,56 +394,24 @@ func getServiceUrls(req message.RequestInterface) (mushroom.TopologyURL, mushroo
 	return contextURL, managerURL, nil
 }
 
-// returns outbound parameters to secure.
-//
-// Return params:
-//   - hmac				-- RouteParameters('outbound-hmac')
-//   - target-public-key	-- RouteParameters('outbound-public-key')
-//   - target-url			-- RouteParameters('outbound-target-url')
-//   - source-url		-- RouteParameters('outbound-source-url')
-func getOutboundParams(req message.RequestInterface) (string, string, mushroom.TopologyURL, mushroom.TopologyURL, error) {
-	publicKey, err := req.RouteParameters().StringValue("outbound-public-key")
+func getSecureOutboundItems(req message.RequestInterface) (map[string]outboundSecureItem, error) {
+	raw, err := req.RouteParameters().NestedValue("outbounds")
 	if err != nil {
-		return "", "", mushroom.TopologyURL{}, mushroom.TopologyURL{}, fmt.Errorf("req.RouteParameters().StringValue('outbound-public-key'): %v", err)
+		return nil, fmt.Errorf("req.RouteParameters().NestedValue('outbounds'): %w", err)
 	}
-	if publicKey == "" {
-		return "", "", mushroom.TopologyURL{}, mushroom.TopologyURL{}, fmt.Errorf("outbound-public-key is empty")
+	items := make(map[string]outboundSecureItem)
+	if err := raw.Interface(&items); err != nil {
+		return nil, fmt.Errorf("outbounds.Interface: %w", err)
 	}
-
-	hmac, err := req.RouteParameters().StringValue("outbound-hmac")
-	if err != nil {
-		return "", "", mushroom.TopologyURL{}, mushroom.TopologyURL{}, fmt.Errorf("req.RouteParameters().StringValue('outbound-hmac'): %v", err)
+	if len(items) == 0 {
+		return nil, fmt.Errorf("outbounds is empty")
 	}
-	if hmac == "" {
-		return "", "", mushroom.TopologyURL{}, mushroom.TopologyURL{}, fmt.Errorf("outbound-hmac is empty")
+	for routeURL, item := range items {
+		if item.PublicKey == "" || item.HMAC == "" || item.SourceURL == "" || item.TargetURL == "" {
+			return nil, fmt.Errorf("outbound %q is missing public-key, hmac, source-url, or target-url", routeURL)
+		}
 	}
-
-	outboundRawURL, err := req.RouteParameters().StringValue("outbound-target-url")
-	if err != nil {
-		return "", "", mushroom.TopologyURL{}, mushroom.TopologyURL{}, fmt.Errorf("req.RouteParameters().StringValue('outbound-target-url'): %w", err)
-	}
-	if outboundRawURL == "" {
-		return "", "", mushroom.TopologyURL{}, mushroom.TopologyURL{}, fmt.Errorf("outbound-target-url is empty")
-	}
-	outboundURL, err := mushroom.Parse(outboundRawURL)
-	if err != nil {
-		return "", "", mushroom.TopologyURL{}, mushroom.TopologyURL{}, fmt.Errorf("outbound-target-url: mushroom.Parse(%q): %v", &outboundRawURL, err)
-	}
-
-	routeRawURL, err := req.RouteParameters().StringValue("outbound-source-url")
-	if err != nil {
-		return "", "", mushroom.TopologyURL{}, mushroom.TopologyURL{}, fmt.Errorf("req.RouteParameters().StringValue('outbound-source-url'): %v", err)
-	}
-	if routeRawURL == "" {
-		return "", "", mushroom.TopologyURL{}, mushroom.TopologyURL{}, fmt.Errorf("outbound-source-url is empty")
-	}
-	routeURL, err := mushroom.Parse(routeRawURL)
-	if err != nil {
-		return "", "", mushroom.TopologyURL{}, mushroom.TopologyURL{}, fmt.Errorf("outbound-source-url: mushroom.Parse(%q): %v", routeRawURL, err)
-	}
-
-	return hmac, publicKey, outboundURL, routeURL, nil
-
+	return items, nil
 }
 
 func (m *NodeHandshake) onHandshake(req message.RequestInterface) message.ReplyInterface {
@@ -603,27 +580,60 @@ func (m *NodeHandshake) initiateDepServiceStatus(contextURL string, depURL mushr
 func (m *NodeHandshake) onSecureOutbounds(req message.RequestInterface) message.ReplyInterface {
 	contextURL, serviceURL, err := getServiceUrls(req)
 	if err != nil {
-		return req.Fail(fmt.Sprintf("getServiceUrls: %w", err))
+		return req.Fail(fmt.Sprintf("getServiceUrls: %v", err))
 	}
 
-	hmac, targetPublicKey, targetURL, sourceURL, err := getOutboundParams(req)
+	items, err := getSecureOutboundItems(req)
 	if err != nil {
-		return req.Fail(fmt.Sprintf("getOutboundParams: %w", err))
+		return req.Fail(fmt.Sprintf("getSecureOutboundItems: %v", err))
+	}
+
+	replyKeys := datatype.New()
+	var firstErr error
+	for routeURL, item := range items {
+		pubKey, err := m.secureOneOutbound(contextURL, serviceURL, item)
+		if err != nil {
+			if m.logger != nil {
+				m.logger.Error("secureOneOutbound", "contextURL", contextURL.String(), "routeURL", routeURL, "error", err)
+			}
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		replyKeys.Set(routeURL, pubKey)
+	}
+	if len(replyKeys) == 0 {
+		return req.Fail(fmt.Sprintf("secure outbounds: %v", firstErr))
+	}
+
+	return req.Ok(datatype.New().Set("outbound-route-public-keys", replyKeys))
+}
+
+// secureOneOutbound inverts one root outbound into an inbound on this dependency.
+func (m *NodeHandshake) secureOneOutbound(contextURL, callerURL mushroom.TopologyURL, item outboundSecureItem) (string, error) {
+	sourceURL, err := mushroom.Parse(item.SourceURL)
+	if err != nil {
+		return "", fmt.Errorf("mushroom.Parse(source-url %q): %w", item.SourceURL, err)
+	}
+	targetURL, err := mushroom.Parse(item.TargetURL)
+	if err != nil {
+		return "", fmt.Errorf("mushroom.Parse(target-url %q): %w", item.TargetURL, err)
 	}
 
 	// route of outbound should be in this service,
 	// while dep is some other connection
 	if !sourceURL.Equal(m.serviceURL, mushroom.SERVICE) {
-		return req.Fail(fmt.Sprintf(`routeUrl("%s").Equal(this.serviceURL: "%s")? false`, sourceURL, m.serviceURL))
+		return "", fmt.Errorf(`routeUrl("%s").Equal(this.serviceURL: "%s")? false`, sourceURL, m.serviceURL)
 	}
 	// dep should be the caller serviceURL
-	if !targetURL.Equal(serviceURL, mushroom.SERVICE) {
-		return req.Fail(fmt.Sprintf(`depURL("%s").Equal(callerURL: "%s")? false`, targetURL, serviceURL))
+	if !targetURL.Equal(callerURL, mushroom.SERVICE) {
+		return "", fmt.Errorf(`depURL("%s").Equal(callerURL: "%s")? false`, targetURL, callerURL)
 	}
 
-	m.publicKeys[targetURL.As(mushroom.HANDLER).String()] = targetPublicKey
+	m.publicKeys[targetURL.As(mushroom.HANDLER).String()] = item.PublicKey
 
-	depStatus := m.initiateDepServiceStatus(contextURL.String(), serviceURL.As(mushroom.HANDLER))
+	depStatus := m.initiateDepServiceStatus(contextURL.String(), callerURL.As(mushroom.HANDLER))
 	if depStatus.inbounds == nil {
 		depStatus.inbounds = make(map[string]*InboundConnection)
 	}
@@ -631,21 +641,20 @@ func (m *NodeHandshake) onSecureOutbounds(req message.RequestInterface) message.
 	depStatus.inbounds[targetURL.String()] = &InboundConnection{
 		status: NewConnectionStatus(STATUS_ROUTE_WAITING),
 		depURL: sourceURL,
-		hmac:   hmac,
+		hmac:   item.HMAC,
 	}
 
-	// 	replyOutbounds := make(map[string]string, len(outbounds))
-	pubKey, err := m.managerSelf.registerOutboundContext(sourceURL, targetURL, hmac, targetPublicKey)
+	pubKey, err := m.managerSelf.registerOutboundContext(sourceURL, targetURL, item.HMAC, item.PublicKey)
 	if err != nil {
-		return req.Fail(fmt.Sprintf("registerOutboundContext(%q): %v", targetURL.String(), err))
+		return "", fmt.Errorf("registerOutboundContext(%q): %w", targetURL.String(), err)
 	}
 	if m.publicKeys[sourceURL.As(mushroom.HANDLER).String()] != pubKey {
 		m.publicKeys[sourceURL.As(mushroom.HANDLER).String()] = pubKey
 	}
 	depStatus.inbounds[targetURL.String()].status.Set(STATUS_ROUTE_SECURED)
-	depStatus.inbounds[targetURL.String()].cacheHash = m.computeOutboundCacheHash(sourceURL, targetURL, hmac)
+	depStatus.inbounds[targetURL.String()].cacheHash = m.computeOutboundCacheHash(sourceURL, targetURL, item.HMAC)
 
-	return req.Ok(datatype.New().Set("outbound-route-public-key", pubKey))
+	return pubKey, nil
 
 	// return req.Ok(datatype.New().Set("inbounds", replyInbounds).Set("outbounds", replyOutbounds))
 
@@ -955,22 +964,51 @@ func (m *NodeHandshake) secureInbounds(contextURL string, depStatus *ServiceStat
 }
 
 func (m *NodeHandshake) secureOutbounds(contextURL string, depStatus *ServiceStatus, outboundEvaluations map[string]EdgeConnectionMsg) {
+	pending := make(map[string]*OutboundConnection)
+	items := datatype.New()
 	for routeURL, outbound := range depStatus.outbounds {
 		if outbound.status.Get() == STATUS_ROUTE_CHECKING {
 			continue
-		} else if outboundEvaluations[routeURL].Status == STATUS_ROUTE_SECURED {
-			continue
-		} else {
-			go func() {
-				if err := m.secureOutbound(contextURL, routeURL, depStatus.managerCon, outbound); err != nil {
-					if m.logger != nil {
-						m.logger.Error("m.secureOutbound", "contextURL", contextURL,
-							"routeURL", routeURL, "outboundURL", outbound.depURL.String())
-					}
-				}
-			}()
 		}
+		if outboundEvaluations[routeURL].Status == STATUS_ROUTE_SECURED {
+			continue
+		}
+		publicKey := m.publicKeys[outbound.depURL.HandlerLink().String()]
+		if publicKey == "" || outbound.hmac == "" {
+			if m.logger != nil {
+				m.logger.Error("secureOutbounds: missing public key or hmac", "contextURL", contextURL,
+					"routeURL", routeURL, "outboundURL", outbound.depURL.String())
+			}
+			continue
+		}
+		outbound.status.Set(STATUS_ROUTE_CHECKING)
+		pending[routeURL] = outbound
+		items.Set(routeURL, datatype.New().
+			Set("public-key", publicKey).
+			Set("hmac", outbound.hmac).
+			Set("source-url", routeURL).
+			Set("target-url", outbound.depURL.String()))
 	}
+	if len(pending) == 0 {
+		return
+	}
+	if depStatus.managerCon == nil || depStatus.managerCon.client == nil {
+		for _, outbound := range pending {
+			outbound.status.Set(STATUS_ROUTE_UNSET)
+		}
+		if m.logger != nil {
+			m.logger.Error("secureOutbounds: manager client is nil", "contextURL", contextURL)
+		}
+		return
+	}
+
+	go func() {
+		if err := m.requestSecureOutbounds(contextURL, depStatus.managerCon, pending, items); err != nil {
+			if m.logger != nil {
+				m.logger.Error("requestSecureOutbounds", "contextURL", contextURL, "routes", len(pending), "error", err)
+			}
+		}
+	}()
 }
 
 func (m *NodeHandshake) computeOutboundCacheHash(routeURL, depURL mushroom.TopologyURL, hmac string) string {
@@ -1007,42 +1045,64 @@ func (m *NodeHandshake) prepareOutbound(contextURL string, routeURL string, outb
 	return nil
 }
 
-func (m *NodeHandshake) secureOutbound(contextURL string, routeURL string, con *ManagerConnection, outbound *OutboundConnection) error {
-	// set the status
-	outbound.status.Set(STATUS_ROUTE_CHECKING)
-
-	// now call the secureOutbounds request.
+func (m *NodeHandshake) requestSecureOutbounds(contextURL string, con *ManagerConnection, pending map[string]*OutboundConnection, items datatype.KeyValue) error {
 	req := message.Request{
 		Command: SecureOutbounds,
 		Parameters: datatype.New().
 			Set("context-url", contextURL).
 			Set("service-url", m.serviceURL.String()).
-			Set("outbound-public-key", m.publicKeys[outbound.depURL.HandlerLink().String()]).
-			Set("outbound-hmac", outbound.hmac).
-			Set("outbound-source-url", routeURL).
-			Set("outbound-target-url", outbound.depURL.String()),
+			Set("outbounds", items),
+	}
+
+	unsetAll := func() {
+		for _, outbound := range pending {
+			outbound.status.Set(STATUS_ROUTE_UNSET)
+		}
 	}
 
 	rep, err := con.client.Request(&req)
 	if err != nil {
-		outbound.status.Set(STATUS_ROUTE_UNSET)
-		return fmt.Errorf("request(secure-outbounds, route: %s): %w", routeURL, err)
-	} else if !rep.IsOK() {
-		outbound.status.Set(STATUS_ROUTE_UNSET)
-		return fmt.Errorf("request(secure-outbounds, route: %s): reply: %s", routeURL, rep.ErrorMessage())
+		unsetAll()
+		return fmt.Errorf("request(secure-outbounds): %w", err)
+	}
+	if !rep.IsOK() {
+		unsetAll()
+		return fmt.Errorf("request(secure-outbounds): reply: %s", rep.ErrorMessage())
 	}
 
-	outboundRoutePublicKey, err := rep.ReplyParameters().StringValue("outbound-route-public-key")
+	rawKeys, err := rep.ReplyParameters().NestedValue("outbound-route-public-keys")
 	if err != nil {
-		outbound.status.Set(STATUS_ROUTE_UNSET)
-		return fmt.Errorf("request(secure-outbounds, route: %s).ReplyParameters().StringValue('outbound-route-public-key'): %w", routeURL, err)
+		unsetAll()
+		return fmt.Errorf("request(secure-outbounds).ReplyParameters().NestedValue('outbound-route-public-keys'): %w", err)
 	}
-	routeTopology, _ := mushroom.Parse(routeURL)
-	m.publicKeys[routeTopology.As(mushroom.HANDLER).String()] = outboundRoutePublicKey
+	keys := map[string]string{}
+	if err := rawKeys.Interface(&keys); err != nil {
+		unsetAll()
+		return fmt.Errorf("outbound-route-public-keys.Interface: %w", err)
+	}
 
-	zap.AuthCurveAdd(outbound.depURL.As(mushroom.HANDLER).String(), outboundRoutePublicKey, routeTopology.As(mushroom.HANDLER))
-	outbound.status.Set(STATUS_ROUTE_SECURED)
-	outbound.cacheHash = m.computeOutboundCacheHash(routeTopology, outbound.depURL, outbound.hmac)
+	for routeURL, outbound := range pending {
+		pubKey := keys[routeURL]
+		if pubKey == "" {
+			outbound.status.Set(STATUS_ROUTE_UNSET)
+			if m.logger != nil {
+				m.logger.Error("secureOutbounds: dependency did not secure route", "contextURL", contextURL, "routeURL", routeURL)
+			}
+			continue
+		}
+		routeTopology, err := mushroom.Parse(routeURL)
+		if err != nil {
+			outbound.status.Set(STATUS_ROUTE_UNSET)
+			if m.logger != nil {
+				m.logger.Error("secureOutbounds: mushroom.Parse", "contextURL", contextURL, "routeURL", routeURL, "error", err)
+			}
+			continue
+		}
+		m.publicKeys[routeTopology.As(mushroom.HANDLER).String()] = pubKey
+		zap.AuthCurveAdd(outbound.depURL.As(mushroom.HANDLER).String(), pubKey, routeTopology.As(mushroom.HANDLER))
+		outbound.status.Set(STATUS_ROUTE_SECURED)
+		outbound.cacheHash = m.computeOutboundCacheHash(routeTopology, outbound.depURL, outbound.hmac)
+	}
 
 	// func (m *NodeHandshake) secureInbounds(depStatus *ServiceStatus) error {
 	// 	inboundsAreMe, err := filterTopologyInbounds(m.topologyInbounds, depStatus.serviceURL, m.serviceURL, false)

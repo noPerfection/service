@@ -71,23 +71,22 @@ Given: independent `i(h)` with proxy `p(u)`.
 2. `p(u)` evaluates and returns result back. Since its first call and `p(u)` doesn't know about any outbounds it returns outbounds status as `STATUS_ROUTE_NOT_FOUND`.
 3. `i(h)` calls `secureOutbounds`; *if status is STATUS_ROUTE_NOT_FOUND only*; `p(u)` calls `onSecureOutbounds`. Upon successful return and comparing its generated hash with its own, it sets status as `STATUS_ROUTE_SECURED`.
 
-#### SecureOutbound
-Is establishing the hmac and whitelisting for the outbound defined in outbound status.
+#### SecureOutbounds
+One request establishes the hmac and whitelisting for every outbound route that still needs it.
 
-It runs in a goroutine.
-If `i(h)` own status for outbounds is `STATUS_ROUTE_CHECKING` skips otherwise sets this status.
-
-Sends the outbound route URL mapping along the public key of root's handler, and hmac the root generated for this route.
-
-It uses the following format
+Routes already `STATUS_ROUTE_CHECKING`, or evaluated as `STATUS_ROUTE_SECURED`, are skipped. The rest are marked `STATUS_ROUTE_CHECKING`, then sent together. The call runs in one goroutine so a slow network is one round trip, not one per route.
 
 ```
-outbounds[] = 
+outbounds =
     dependency route url => (
-        dependency url: root route url,
-        status: status, by default `NOT_SET`
+        public-key: root handler public key,
+        hmac: hmac the root generated for this route,
+        source-url: dependency route url,
+        target-url: root route url
     )
 ```
+
+`onSecureOutbounds` loops that list. Each route is inverted into an inbound and registered on its own. The reply is `outbound-route-public-keys`, a map of dependency route url to that route's public key. A route missing from the reply is set back to `STATUS_ROUTE_UNSET`.
 
 #### OnSecureOutbound
 Initiates own topology context but inverts the way how it stores data. 
@@ -339,8 +338,6 @@ STATUS_MANAGER_NOT_AUTH is indicating that service denied access at the protocol
 ---
 
 # Todo
-
-3. SecureOutbound runs a goroutine for each outbound route, network in production will be slow, it needs to be a one request known as SecureOutbounds.
 
 4. Implement [status 2. inbounds](#status-2-inbounds), requires todo 8
 
