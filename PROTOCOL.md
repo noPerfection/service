@@ -349,6 +349,4 @@ STATUS_MANAGER_NOT_AUTH is indicating that service denied access at the protocol
 
 10. implement live update of the nested proxies or nested extensions. implement working of the tree within a nested proxy or extension does socket resolution works well.
 
-12. add `halt` flag to handshakeDep function. the connect manager checks the halt and if it exists skips the process entirely. After connect manager completes and before evaluating the status (phase 2), check the halt flag if it exists it stops without going to second phase.
-
 14. Rename allowSelfInDep to allowCaller()

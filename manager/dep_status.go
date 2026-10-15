@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/noPerfection/protocol/message"
 	"github.com/noPerfection/service/mushroom"
 	"github.com/noPerfection/topology"
 )
@@ -84,6 +85,9 @@ type ManagerConnection struct {
 	hmac          string
 	hash          string
 	lockGoroutine bool
+	// halt skips connectManager and the evaluateStatus phase of handshakeDep.
+	halt     bool
+	endpoint message.Endpoint
 }
 
 type InboundConnection struct {

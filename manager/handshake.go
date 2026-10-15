@@ -177,6 +177,7 @@ func (h *NodeHandshake) setTopologyContext() error {
 						updatedTime: time.Now(),
 						tick:        time.Now(),
 					},
+					endpoint: endpoint,
 				},
 			}
 			if depServiceConfig.Parameters != nil {
@@ -858,15 +859,19 @@ func (m *NodeHandshake) allowSelfInDep(depStatus *ServiceStatus) error {
 }
 
 func (m *NodeHandshake) setManagerClient(depStatus *ServiceStatus) error {
-	depServiceURL := depStatus.serviceURL.As(mushroom.SERVICE)
+	depManagerEndpoint := depStatus.managerCon.endpoint
+	if depManagerEndpoint == (message.Endpoint{}) {
+		depServiceURL := depStatus.serviceURL.As(mushroom.SERVICE)
 
-	depServiceConfig, err := m.topology.Service(depServiceURL.AsDereference().String())
-	if err != nil {
-		return fmt.Errorf("topology.Service(%q): %w", depServiceURL.AsDereference().String(), err)
-	}
-	depManagerEndpoint, err := ManagerEndpointForService(depServiceConfig)
-	if err != nil {
-		return fmt.Errorf("ManagerEndpointForService(%q): %w", depServiceConfig.Name, err)
+		depServiceConfig, err := m.topology.Service(depServiceURL.AsDereference().String())
+		if err != nil {
+			return fmt.Errorf("topology.Service(%q): %w", depServiceURL.AsDereference().String(), err)
+		}
+		depManagerEndpoint, err = ManagerEndpointForService(depServiceConfig)
+		if err != nil {
+			return fmt.Errorf("ManagerEndpointForService(%q): %w", depServiceConfig.Name, err)
+		}
+		depStatus.managerCon.endpoint = depManagerEndpoint
 	}
 
 	socket, err := protocolClient.New(
@@ -1392,6 +1397,10 @@ func (m *NodeHandshake) evaluateStatus(node *topology.Client, contextURL string,
 }
 
 func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStatus, recursive ...bool) error {
+	if depStatus.managerCon.halt {
+		return nil
+	}
+
 	if len(recursive) == 0 {
 		depStatus.managerCon.lockGoroutine = true
 		defer func() {
@@ -1750,6 +1759,10 @@ func (m *NodeHandshake) handshakeDep(contextURL string, depStatus *ServiceStatus
 	afterStatus := depStatus.managerCon.status.Get()
 	if preStatus != afterStatus {
 		fmt.Printf("Dependency status changed. StatusChange(%s -> %s), URL=%s\n", preStatus, afterStatus, depStatus.serviceURL.String())
+	}
+
+	if depStatus.managerCon.halt {
+		return
 	}
 
 	if depStatus.managerCon.status.Get() == STATUS_MANAGER_SECURED {
