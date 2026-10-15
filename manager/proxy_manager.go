@@ -145,6 +145,7 @@ func proxyManagerWhitelistCommands() []string {
 		SecureOutboundEdges,
 		SecureInboundEdges,
 		SecureOutboundEdgeCon,
+		SecureInboundEdgeCon,
 	}
 }
 
@@ -410,7 +411,6 @@ func (m *ProxyManager) onIsServiceRunning(req message.RequestInterface) message.
 	if err != nil {
 		return req.Fail(fmt.Sprintf("req.RouteParameters().StringValue('service'): %v", err))
 	}
-
 	running, err := m.IsServiceRunning(serviceName)
 	if err != nil {
 		return req.Fail(fmt.Sprintf("manager.IsServiceRunning('%s'): %v", serviceName, err))
@@ -1543,6 +1543,11 @@ func (m *ProxyManager) Start() error {
 	if !m.Interface.IsRouteExist(SecureOutboundEdgeCon) {
 		if err := m.Interface.Route(SecureOutboundEdgeCon, m.NodeHandshake.onSecureOutboundEdgeCon); err != nil {
 			return fmt.Errorf(`handler.Route("%s"): %w`, SecureOutboundEdgeCon, err)
+		}
+	}
+	if !m.Interface.IsRouteExist(SecureInboundEdgeCon) {
+		if err := m.Interface.Route(SecureInboundEdgeCon, m.NodeHandshake.onSecureInboundEdgeCon); err != nil {
+			return fmt.Errorf(`handler.Route("%s"): %w`, SecureInboundEdgeCon, err)
 		}
 	}
 	if err := m.NodeHandshake.start(); err != nil {

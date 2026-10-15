@@ -39,6 +39,8 @@ const (
 	SecureInboundEdges  = "secure-inbound-edges"
 	// SecureOutboundEdgeCon tells a dependency to allow another dependency's manager to call it.
 	SecureOutboundEdgeCon = "secure-outbound-edge-con"
+	// SecureInboundEdgeCon tells a dependency to whitelist an inbound edge and track the caller handshake.
+	SecureInboundEdgeCon = "secure-inbound-edge-con"
 
 	// SecureEdges secures topology edges after Handshake using the handshake HMAC secret.
 	SecureEdges = "secure-edges"
@@ -194,6 +196,7 @@ func managerWhitelistCommands() []string {
 		SecureOutboundEdges,
 		SecureInboundEdges,
 		SecureOutboundEdgeCon,
+		SecureInboundEdgeCon,
 	}
 }
 
@@ -1033,6 +1036,9 @@ func (m *Manager) Start() error {
 	}
 	if err := m.Interface.Route(SecureOutboundEdgeCon, m.NodeHandshake.onSecureOutboundEdgeCon); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, SecureOutboundEdgeCon, err)
+	}
+	if err := m.Interface.Route(SecureInboundEdgeCon, m.NodeHandshake.onSecureInboundEdgeCon); err != nil {
+		return fmt.Errorf(`handler.Route("%s"): %w`, SecureInboundEdgeCon, err)
 	}
 	if err := m.Interface.Route(SecureEdges, m.onSecureEdges); err != nil {
 		return fmt.Errorf(`handler.Route("%s"): %w`, SecureEdges, err)

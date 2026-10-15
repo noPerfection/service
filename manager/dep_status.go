@@ -124,7 +124,13 @@ type Context map[string]map[string]*ServiceStatus
 // because another dependency was allowed to call this manager is also skipped:
 // it has no inbounds, cons, or edges, so this manager must not handshake it.
 func (s *ServiceStatus) isHandshakeable(contextURL string) bool {
+	// handshaking back to the dependency that also acts as the context is skipped. Context will handhshake instead.
 	if contextURL == s.serviceURL.String() {
+		return false
+	}
+	// manager connection if not established, then this dependency
+	// is strictly for information gathering from other services.
+	if s.managerCon.client == nil {
 		return false
 	}
 	return len(s.inbounds) > 0 || len(s.inboundCons) > 0 || len(s.outboundCons) > 0 ||
