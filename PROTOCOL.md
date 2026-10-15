@@ -31,18 +31,24 @@ That context organizer is called **root** service.
 The proxies and extensions are called **dependency** services.
 
 ## Phase 1) connecting managers
-Its done using the connect manager which is working only between root and dependency.
-But it needs to be done between dependency to dependency.
+Its done using connect manager which is working only between root and dependency.
+But it needs to be done between dependency to dependency as well.
 
-If context and calling service are identical than as it is. Otherise, allow self is not available.
-It sets the status to STATUS_MANAGER_ERR.
-If it needs to whitelist itself, calls as it is. And after whitelisting it, it needs to set SECURED.
+Defined in [manager/handshake.go?func=connectManager()](./manager/handshake.go).
 
-If the connection doesn't work or evaluation status doesn't work it changes the topology context status to `STATUS_MANAGER_ERR` indicating some internal error and need to reset all parameters.
+### Algorithm
+if `STATUS_MANAGER_UNSET` || `STATUS_MANAGER_NO_WHITELIST`, then call `whitelistCaller`.
+    we assume that public keys are set already therefore we try to whitelist it.
+
+if `STATUS_MANAGER_NOT_AUTH`, then reload the topology then call `allowCaller`
+    ## Todo: if service and context mismatch then set the error to the STATUS_MANAGER_ERR.
+# todo: if `STATUS_MANAGER_ERR`, then it skips the message by simply ticking it.
+in any other cases we probe a request to see is remote service is running and accessible or not.
+    if yes, we set it as connected.
+    otherwise, we see why its not available, and set the status. And simply return.
 
 It also tracks the status, and if after connection manager the status changes from connected to anything else it resets the inbound connection or outbound connection as well so dependency to dependency connection will be reset as well.
-
-Notice that if it's inbound connection's owner crashes, then before resetting it, the root will update the outbound target and that target's outbound connection to error status as well.
+And if it has inbound connection, then before resetting it, it will reset the inbound dependency's outbound connection as well.
 
 ## Phase 2) evaluating status of the topology
 Each topology context stores information between **root** and a **dependency**. Its defined in the `ServiceStatus`.
@@ -322,6 +328,8 @@ STATUS_MANAGER_WAITING is set by the secureOutboundConnection internally. It ind
 STATUS_MANAGER_MISMATCH is set by the secureOutboundConnection internally. It indicates that some hack and attempt to rewrite the public keys or hmac. The computed hash is for the edge cases when an author wants to change the compromised hmac or private keys. Although private key changing will automatically resolve it, but its not the same for hmac. I hope it will be just a scare code but no one actually reaches it.
 STATUS_MANAGER_BUSY is set by secureInboundConnection if root tries to overwrite it. It indicates the dependency is handshaking, and asks to come back.
 STATUS_MANAGER_ERR is the protocol error.
+STATUS_MANAGER_NO_WHITELIST is indicating that service denied access due to HMAC error. Needs to whitelist it.
+STATUS_MANAGER_NOT_AUTH is indicating that service denied access at the protocol level due to CURVE keypair error. It needs to allow(), and/or secure() to authenticate using curve keypair.
 
 ---
 
@@ -359,4 +367,4 @@ Rename command to WhitelistCaller and handling function to onWhitelistCaller.
 
 12. add `halt` flag to handshakeDep function. the connect manager checks the halt and if it exists skips the process entirely. After connect manager completes and before evaluating the status (phase 2), check the halt flag if it exists it stops without going to second phase.
 
-13. Add to protocol the [phase 1](#phase-1-connecting-managers) section checking the handshake dep.
+14. Rename allowSelfInDep to allowCaller()
