@@ -20,6 +20,29 @@ const (
 	CONNECTION_STATUS_TIMEOUT     = "timeout"      // timeout -> request is-service-running
 	// connection status for edge connections
 	CONNECTION_STATUS_SET_NOT_CONNECTED = "set-not-connected"
+
+	// STATUS_ROUTE_* is set for root to dependency routes in any topology both inbounds and outbounds.
+	STATUS_ROUTE_UNSET     = "route-unset"     // the root-to-dependency route initial status.
+	STATUS_ROUTE_CHECKING  = "route-checking"  // is set by secureInbounds and secureOutbounds. If its set then skip it until secureInbounds or secureOutbounds complete from previous handshakes.
+	STATUS_ROUTE_NOT_FOUND = "route-not-found" // set by dependency in status evaluation indicating it doesn't know it.
+	STATUS_ROUTE_SECURED   = "route-secured"   // the connection between routes is established correctly. tldr; it works
+
+	// STATUS_MANAGER_* is set between manager-to-manager connection in any topology:
+	// root-to-dependency, and for dependency-to-dependency managers.
+	STATUS_MANAGER_UNSET     = "manager-unset"     // initial status, set by root initially.
+	STATUS_MANAGER_NOT_FOUND = "manager-not-found" // set by dependency in status evaluation.
+	STATUS_MANAGER_SECURED   = "manager-secured"   // the connection between managers is established correctly. tldr; it works
+	STATUS_MANAGER_CHECKING  = "manager-checking"  // is set by root regarding the inboundConnections and outboundConnections that
+	// their handshaking is going on. If its set, then handshakeDep will skip checking the evaluateStatus until previous secureOutboundConnection
+	// or secureInboundConnection is done.
+	STATUS_MANAGER_WAITING      = "manager-waiting"      // is set by dependency managers for dependency-to-dependency manager connection within root context. Its set in the status evaluation of dependency and indicates it waits for other dependency's handshake.
+	STATUS_MANAGER_BUSY         = "manager-busy"         // is set by secureInboundConnection if root tries to overwrite it. It indicates the dependency is handshaking, and asks to come back.
+	STATUS_MANAGER_ERR          = "manager-err"          // indicates the error not seen within this protocol, blame the implementation or protocol designer.
+	STATUS_MANAGER_NO_WHITELIST = "manager-no-whitelist" // indicates can't connect due to HMAC mismatch or not set at all. Whitelist the caller.
+	STATUS_MANAGER_NOT_AUTH     = "manager-not-auth"     // indicates can't connect due to CURVE keypair mismatch. Allow it to authenticate using curve keypair.
+
+	// STATUS_EDGE_* is set between dependency-to-dependency route in any topology
+	STATUS_EDGE_UNSET = "unset" // the dependency-to-dependency route initial status.
 )
 
 type ConnectionStatus struct {

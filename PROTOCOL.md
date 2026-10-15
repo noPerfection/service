@@ -262,9 +262,11 @@ Receives the status as `ServiceStatusMsg` with the 6 parts.
 Each of them evaluated differently.
 
 #### part 1: outbounds
+if status from service is CHECKING, simply skip it.
 invert the dependency's outbounds sent by route to route's inbounds in dependency (that evaluates status).
 
 #### part 2: outbound connections
+if status from service is CHECKING, simply skip it.
 if context and calling service urls match then:
     inverts the dependency's outbound connection sent by route to outbound target's manager connection in dependency.
 
@@ -286,6 +288,7 @@ if context and calling service urls mismatch then:
 the caller will tick its own topology context if its secured and evaluating status also returns secured status.
 
 ##### part 3: inbound connections
+if status from service is CHECKING, simply skip it.
 inverts the dependency's inbound connection sent by route to inbound's target's manager connection in the dependency.
 it checks for the manager client, and if its not set (like in first time) it will return `STATUS_MANAGER_NOT_FOUND`.
 if manager status is not secured it will return that status simply.
