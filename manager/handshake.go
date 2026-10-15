@@ -498,7 +498,6 @@ func (m *NodeHandshake) onEvaluateStatus(req message.RequestInterface) message.R
 			status.Outbounds[routeURL] = outbound
 		}
 	}
-	// todo implement it
 	// calculate the hash if all are connected
 	return req.Ok(datatype.New().Set("dep-status", status))
 }
@@ -1429,11 +1428,11 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 			if errors.Is(err, message.ErrNoCurveKey) {
 				depStatus.managerCon.status.Tick()
 				// return m.connectManager(contextURL, depStatus, true)
-				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
+				return fmt.Errorf("allowSelfInDep(%q): message.ErrNoCurveKey: %w", depStatus.serviceURL.String(), err)
 			} else {
 				depStatus.managerCon.status.Set(STATUS_MANAGER_UNSET)
 				// return m.connectManager(contextURL, depStatus, true)
-				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
+				return fmt.Errorf("allowSelfInDep(%q): other error: %w", depStatus.serviceURL.String(), err)
 			}
 		} else {
 			// After setting the service, it needs to set the hmac keys
@@ -1445,10 +1444,10 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 		if err != nil {
 			if errors.Is(err, message.ErrNoCurveKey) {
 				depStatus.managerCon.status.Set(STATUS_MANAGER_NOT_AUTH)
-				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
+				return fmt.Errorf("probeServiceRunning(%q): message.ErrNoCurveKey: %w", depStatus.serviceURL.String(), err)
 			} else if errors.Is(err, message.ErrAccessDenied) {
 				depStatus.managerCon.status.Set(STATUS_MANAGER_NO_WHITELIST)
-				return fmt.Errorf("allowSelfInDep(%q): %w", depStatus.serviceURL.String(), err)
+				return fmt.Errorf("probeServiceRunning(%q): message.ErrAccessDenied: %w", depStatus.serviceURL.String(), err)
 			} else {
 				if m.logger != nil {
 					m.logger.Error("probeServiceRunning", "contextURL", contextURL, "error", err)

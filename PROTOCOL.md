@@ -341,8 +341,6 @@ STATUS_MANAGER_NOT_AUTH is indicating that service denied access at the protocol
 
 4. Implement [status 2. inbounds](#status-2-inbounds), requires todo 8
 
-6. Update the evaluate status to look for connection manager if context and service mismatch.
-
 7. optimize the public key sharing, what if its hardcoded in the configuration, and doesn't need to manage during manager connection? for now it always manages it. (least priority).
 
 8. implement the extension's second feature working with the siblings, plus include in showcase/tutorial.
