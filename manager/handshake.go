@@ -806,9 +806,9 @@ func (m *NodeHandshake) allowPublicKey(inboundURL, routeURL mushroom.TopologyURL
 	return nil
 }
 
-// allowSelfInDep ensures this manager's CURVE public key is listed in dep's
+// allowCaller ensures this manager's CURVE public key is listed in dep's
 // parameters.allowed so the dep manager handler can authenticate us.
-func (m *NodeHandshake) allowSelfInDep(depStatus *ServiceStatus) error {
+func (m *NodeHandshake) allowCaller(depStatus *ServiceStatus) error {
 	if m.topology == nil {
 		return fmt.Errorf("topology is nil")
 	}
@@ -1432,16 +1432,16 @@ func (m *NodeHandshake) connectManager(contextURL string, depStatus *ServiceStat
 			return fmt.Errorf("topology.Reload: %w", err)
 		}
 
-		err := m.allowSelfInDep(depStatus)
+		err := m.allowCaller(depStatus)
 		if err != nil {
 			if errors.Is(err, message.ErrNoCurveKey) {
 				depStatus.managerCon.status.Tick()
 				// return m.connectManager(contextURL, depStatus, true)
-				return fmt.Errorf("allowSelfInDep(%q): message.ErrNoCurveKey: %w", depStatus.serviceURL.String(), err)
+				return fmt.Errorf("allowCaller(%q): message.ErrNoCurveKey: %w", depStatus.serviceURL.String(), err)
 			} else {
 				depStatus.managerCon.status.Set(STATUS_MANAGER_UNSET)
 				// return m.connectManager(contextURL, depStatus, true)
-				return fmt.Errorf("allowSelfInDep(%q): other error: %w", depStatus.serviceURL.String(), err)
+				return fmt.Errorf("allowCaller(%q): other error: %w", depStatus.serviceURL.String(), err)
 			}
 		} else {
 			// After setting the service, it needs to set the hmac keys

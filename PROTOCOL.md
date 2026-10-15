@@ -348,5 +348,3 @@ STATUS_MANAGER_NOT_AUTH is indicating that service denied access at the protocol
 9. implement the live update of the topology via manager: first adding new proxy, adding new extension. removing them. removing predefined one. And also using this two to change the endpoint of the existing parameters as well. It needs to design the conflict resolution with the hardcoded configuration.
 
 10. implement live update of the nested proxies or nested extensions. implement working of the tree within a nested proxy or extension does socket resolution works well.
-
-14. Rename allowSelfInDep to allowCaller()
